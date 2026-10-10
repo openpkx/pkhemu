@@ -1,0 +1,12 @@
+[package]
+name = "rom-art"
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+description = "Decodes Pokémon sprites, menu icons and item icons from the player's own ROM."
+
+[dependencies]
+
+[dev-dependencies]
+sha2 = "0.10"
+zip = { version = "8.6.0", default-features = false, features = ["deflate-flate2-zlib-rs"] }

@@ -1,0 +1,833 @@
+mod audio;
+mod backups;
+mod box_art;
+mod cheats;
+mod clock;
+mod edit;
+mod emu;
+mod export;
+mod files;
+mod game_art;
+mod games_folder;
+mod gl;
+mod index;
+mod keep_alive;
+mod kept_copies;
+mod memory;
+mod pace;
+mod patch;
+mod patching;
+mod plus;
+mod pokemon_file;
+mod resample;
+mod resume;
+mod retro;
+mod rom;
+mod save;
+mod states;
+mod sync;
+#[cfg(test)]
+mod test_games;
+mod transfer_pak;
+mod writer;
+
+use backups::Reason;
+use clock::Clock;
+use emu::{Command, Emu, Playing};
+use games_folder::GamesFolder;
+use index::Index;
+use memory::Range;
+use rom::StateName;
+use game_art::GameArt;
+use serde::{Deserialize, Serialize};
+use std::sync::Arc;
+use tauri::ipc::{Channel, InvokeBody, InvokeResponseBody, Request, Response};
+use tauri::{AppHandle, Emitter, Manager, RunEvent, Runtime, State, WindowEvent};
+use tokio::sync::{mpsc, oneshot};
+
+#[tauri::command]
+fn core_info() -> retro::CoreInfo {
+    retro::core_info()
+}
+
+#[tauri::command]
+async fn play<R: Runtime>(
+    app: AppHandle<R>,
+    emu: State<'_, Emu>,
+    index: State<'_, Arc<Index>>,
+    folder: String,
+    path: String,
+    resume: bool,
+    clock_offset: i64,
+    on_frame: Channel<InvokeResponseBody>,
+    on_step: Channel<String>,
+) -> Result<f64, String> {
+    stop_game(&emu).await?;
+    let in_use = app.state::<sync::Syncer>().in_use.clone();
+    in_use.start_playing(&path).await;
+    let started = start_game(app, emu, index, folder, path, resume, clock_offset, on_frame, on_step).await;
+    if started.is_err() {
+        in_use.playing(None);
+    }
+    started
+}
+
+async fn start_game<R: Runtime>(
+    app: AppHandle<R>,
+    emu: State<'_, Emu>,
+    index: State<'_, Arc<Index>>,
+    folder: String,
+    path: String,
+    resume: bool,
+    clock_offset: i64,
+    on_frame: Channel<InvokeResponseBody>,
+    on_step: Channel<String>,
+) -> Result<f64, String> {
+    let games = GamesFolder::open(&app, &folder);
+    let _ = on_step.send("rom".into());
+    let rom = rom::unpack(&path, games.read(&path).await?)?;
+    let clock = Clock::new(&rom, clock_offset);
+    let cheats = cheats::read(&games, &path).await.unwrap_or_else(|e| {
+        eprintln!("{e}");
+        Vec::new()
+    });
+    let cheats_on = !cheats::on_codes(cheats::Platform::of_rom(&rom), &cheats).is_empty();
+    let _ = on_step.send("save".into());
+    let (slot, save) = save::open(&games, &path).await?;
+    let running = retro::core_info_for(rom.system())?;
+    let (state, state_slot, other_version) = starting_point(&games, &path, resume, &running).await?;
+    if let Err(e) = states::remove(&games, &path, StateName::BeforeLoad).await {
+        eprintln!("{e}");
+    }
+    if let Some(save) = &save {
+        let _ = on_step.send("backup".into());
+        if let Err(e) = back_up_at_start(&games, &path, &slot, save, cheats_on).await {
+            eprintln!("backing up {path}: {e}");
+        }
+    }
+    let cart = match rom::is_n64(&path) && transfer_pak::uses(&rom.bytes) {
+        true => transfer_pak_cart(&app, &folder, &path, &rom.bytes).await.unwrap_or_else(|e| {
+            eprintln!("the Transfer Pak: {e}");
+            None
+        }),
+        false => None,
+    };
+    let mark_cheats = mark_cheats(index.inner().clone(), path.clone(), slot.clone());
+    let back_up = {
+        let (app, folder, path, slot) = (app.clone(), folder.clone(), path.clone(), slot.clone());
+        move |reason: Reason, save: &[u8]| {
+            let games = GamesFolder::open(&app, &folder);
+            tauri::async_runtime::block_on(backups::take(&games, &path, &slot, reason, save, &backups::now(), None))
+        }
+    };
+
+    let notify = app.clone();
+    let (writes, queued) = mpsc::unbounded_channel();
+    let writer = {
+        let (path, folder) = (path.clone(), folder.clone());
+        tauri::async_runtime::spawn(async move {
+            writer::write_all(&GamesFolder::open(&app, &folder), &path, &slot, queued).await;
+        })
+    };
+
+    let (reply, result) = oneshot::channel();
+    let _ = on_step.send("core".into());
+    emu.send(Command::Play {
+        folder,
+        path,
+        rom,
+        save,
+        state,
+        slot: state_slot,
+        clock,
+        cheats,
+        cart,
+        writes,
+        back_up: Box::new(back_up),
+        mark_cheats,
+        writer,
+        on_frame,
+        reply,
+    });
+    let fps = result.await.map_err(|e| e.to_string())??;
+    if other_version {
+        let text = "Your resume point is from a different version of pkhemu, so the game started from its last save.";
+        let _ = notify.emit("core-message", retro::Message { text: text.into(), duration_ms: 6000 });
+    }
+    Ok(fps)
+}
+
+async fn transfer_pak_cart<R: Runtime>(
+    app: &AppHandle<R>,
+    folder: &str,
+    path: &str,
+    n64_rom: &[u8],
+) -> Result<Option<transfer_pak::Cart>, String> {
+    let games = GamesFolder::open(app, folder);
+    let Some(gb) = transfer_pak::fill(&games, path, n64_rom).await? else { return Ok(None) };
+    let rom = rom::unpack(&gb, games.read(&gb).await?)?;
+    let (slot, save) = save::open(&games, &gb).await?;
+    let back_up = {
+        let (app, folder, gb, slot) = (app.clone(), folder.to_owned(), gb.clone(), slot.clone());
+        move |reason: Reason, save: &[u8]| {
+            let games = GamesFolder::open(&app, &folder);
+            tauri::async_runtime::block_on(backups::take(&games, &gb, &slot, reason, save, &backups::now(), None))
+        }
+    };
+    let dir = files::cache_dir(app, "transfer-pak")?;
+    Ok(Some(transfer_pak::Cart { dir, rom, save, slot, back_up: Box::new(back_up) }))
+}
+
+async fn back_up_at_start<R: Runtime>(
+    games: &GamesFolder<'_, R>,
+    path: &str,
+    slot: &save::Slot,
+    save: &[u8],
+    cheats_on: bool,
+) -> Result<(), String> {
+    let reason = if cheats_on { Reason::Cheats } else { Reason::Start };
+    backups::take(games, path, slot, reason, save, &backups::now(), None).await
+}
+
+fn mark_cheats(index: Arc<Index>, path: String, slot: save::Slot) -> emu::MarkCheats {
+    Box::new(move |save| {
+        for (_, file) in slot.files(save) {
+            if let Err(e) = index.mark_save_had_cheats(&path, &game_art::sha1_of(&file)) {
+                eprintln!("marking a save written with cheats: {e}");
+            }
+        }
+    })
+}
+
+async fn starting_point<R: Runtime>(
+    games: &GamesFolder<'_, R>,
+    path: &str,
+    resume: bool,
+    running: &retro::CoreInfo,
+) -> Result<(Option<Vec<u8>>, Option<u8>, bool), String> {
+    if !resume {
+        return Ok((None, None, false));
+    }
+    Ok(match resume::read(games, path, running).await? {
+        Some((state, slot)) => (Some(state), slot, false),
+        None => (None, None, true),
+    })
+}
+
+fn running_core(path: &str) -> Result<retro::CoreInfo, String> {
+    retro::core_info_for(cheats::Platform::of_path(path)?.into())
+}
+
+pub(crate) async fn stop_game(emu: &Emu) -> Result<(), String> {
+    stop_playing(emu).await.map(drop)
+}
+
+async fn stop_playing(emu: &Emu) -> Result<Option<Playing>, String> {
+    let (done, stopped) = oneshot::channel();
+    emu.send(Command::Stop { done });
+    let (writes, game) = stopped.await.map_err(|e| e.to_string())?;
+    writes.finished().await?;
+    Ok(game)
+}
+
+#[cfg(desktop)]
+const EXIT_WAIT: std::time::Duration = std::time::Duration::from_secs(5);
+
+#[cfg(desktop)]
+pub(crate) async fn stop_and_sync<F, Fut>(emu: &Emu, sync: F)
+where
+    F: FnOnce(Playing) -> Fut,
+    Fut: std::future::Future,
+{
+    match stop_playing(emu).await {
+        Ok(Some(game)) => {
+            let _ = tokio::time::timeout(EXIT_WAIT, sync(game)).await;
+        }
+        Ok(None) => {}
+        Err(e) => eprintln!("saving on exit: {e}"),
+    }
+}
+
+#[tauri::command]
+async fn has_resume_state<R: Runtime>(
+    app: AppHandle<R>,
+    emu: State<'_, Emu>,
+    folder: String,
+    path: String,
+) -> Result<bool, String> {
+    // Quitting writes the resume state, so a game reopened straight away waits for that write.
+    stop_game(&emu).await?;
+    Ok(GamesFolder::open(&app, &folder).has_file(&rom::resume_path(&path)).await)
+}
+
+#[tauri::command]
+async fn resume_preview<R: Runtime>(
+    app: AppHandle<R>,
+    emu: State<'_, Emu>,
+    folder: String,
+    path: String,
+) -> Result<Option<resume::Preview>, String> {
+    stop_game(&emu).await?;
+    Ok(resume::preview(&GamesFolder::open(&app, &folder), &path).await)
+}
+
+#[tauri::command]
+async fn resume_screenshot<R: Runtime>(
+    app: AppHandle<R>,
+    emu: State<'_, Emu>,
+    folder: String,
+    path: String,
+) -> Result<Option<Vec<u8>>, String> {
+    stop_game(&emu).await?;
+    Ok(resume::screenshot_file(&GamesFolder::open(&app, &folder), &path).await)
+}
+
+#[tauri::command]
+async fn resume_info<R: Runtime>(
+    app: AppHandle<R>,
+    emu: State<'_, Emu>,
+    folder: String,
+    path: String,
+) -> Result<Option<resume::Info>, String> {
+    stop_game(&emu).await?;
+    Ok(resume::info(&GamesFolder::open(&app, &folder), &path).await)
+}
+
+#[tauri::command]
+async fn read_save_file<R: Runtime>(
+    app: AppHandle<R>,
+    emu: State<'_, Emu>,
+    folder: String,
+    path: String,
+) -> Result<Option<save::SaveFile>, String> {
+    stop_game(&emu).await?;
+    save::read_file(&GamesFolder::open(&app, &folder), &path).await
+}
+
+#[tauri::command]
+async fn read_save_files<R: Runtime>(
+    app: AppHandle<R>,
+    emu: State<'_, Emu>,
+    folder: String,
+    path: String,
+) -> Result<Vec<save::Exported>, String> {
+    stop_game(&emu).await?;
+    save::exported(&GamesFolder::open(&app, &folder), &path).await
+}
+
+#[tauri::command]
+async fn stop(emu: State<'_, Emu>) -> Result<(), String> {
+    stop_game(&emu).await
+}
+
+#[tauri::command]
+async fn play_time_since_save(emu: State<'_, Emu>) -> Result<Option<f64>, String> {
+    let (reply, result) = oneshot::channel();
+    emu.send(Command::PlayTimeSinceSave { reply });
+    result.await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn run_frames(
+    emu: State<'_, Emu>,
+    count: u32,
+    fast_forward: bool,
+    blend: bool,
+    input: u16,
+    analog: [i16; 4],
+    pointer: Option<[i16; 2]>,
+) -> Result<(), String> {
+    let (done, finished) = oneshot::channel();
+    emu.send(Command::RunFrames { count, fast_forward, blend, input, analog, pointer, done });
+    finished.await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn read_save(emu: State<'_, Emu>) -> Result<Response, String> {
+    let (reply, result) = oneshot::channel();
+    emu.send(Command::ReadSave { reply });
+    result.await.map_err(|e| e.to_string())?.map(Response::new)
+}
+
+#[tauri::command]
+async fn read_memory(emu: State<'_, Emu>, ranges: Vec<Range>) -> Result<Response, String> {
+    let (reply, result) = oneshot::channel();
+    emu.send(Command::ReadMemory { ranges, reply });
+    result.await.map_err(|e| e.to_string())?.map(Response::new)
+}
+
+#[tauri::command]
+async fn apply_edit(emu: State<'_, Emu>, request: Request<'_>) -> Result<(), String> {
+    let (reply, result) = oneshot::channel();
+    emu.send(Command::ApplyEdit { edited: bytes(request.body())?, reply });
+    result.await.map_err(|e| e.to_string())?
+}
+
+// Android's webview can't read request bodies, so Tauri sends the bytes as a JSON array there.
+pub(crate) fn bytes(body: &InvokeBody) -> Result<Vec<u8>, String> {
+    match body {
+        InvokeBody::Raw(bytes) => Ok(bytes.clone()),
+        InvokeBody::Json(json) => {
+            Vec::<u8>::deserialize(json).map_err(|e| format!("send the body as bytes: {e}"))
+        }
+    }
+}
+
+#[tauri::command]
+async fn apply_edit_to_file<R: Runtime>(
+    app: AppHandle<R>,
+    emu: State<'_, Emu>,
+    folder: String,
+    path: String,
+    edited: Vec<u8>,
+) -> Result<(), String> {
+    stop_game(&emu).await?;
+    edit::apply_file(&GamesFolder::open(&app, &folder), &path, &edited, &backups::now()).await
+}
+
+#[tauri::command]
+async fn write_transfer<R: Runtime>(
+    app: AppHandle<R>,
+    emu: State<'_, Emu>,
+    folder: String,
+    destination: edit::TransferWrite,
+    source: edit::TransferWrite,
+) -> Result<(), String> {
+    stop_game(&emu).await?;
+    edit::write_transfer(&GamesFolder::open(&app, &folder), &destination, &source, &backups::now()).await
+}
+
+#[tauri::command]
+async fn undo_edit(emu: State<'_, Emu>) -> Result<(), String> {
+    let (reply, result) = oneshot::channel();
+    emu.send(Command::UndoEdit { reply });
+    result.await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn list_backups<R: Runtime>(
+    app: AppHandle<R>,
+    emu: State<'_, Emu>,
+    folder: String,
+    path: String,
+) -> Result<Vec<backups::Listed>, String> {
+    // A game just quit may still be writing the save it backed up.
+    stop_game(&emu).await?;
+    backups::list(&GamesFolder::open(&app, &folder), &path).await
+}
+
+#[tauri::command]
+async fn read_backup<R: Runtime>(app: AppHandle<R>, folder: String, path: String, name: String) -> Result<Response, String> {
+    backups::read(&GamesFolder::open(&app, &folder), &path, &name).await.map(Response::new)
+}
+
+#[tauri::command]
+async fn restore_backup<R: Runtime>(
+    app: AppHandle<R>,
+    emu: State<'_, Emu>,
+    folder: String,
+    path: String,
+    name: String,
+    keep: usize,
+) -> Result<(), String> {
+    stop_game(&emu).await?;
+    backups::restore(&GamesFolder::open(&app, &folder), &path, &name, &backups::now(), keep).await
+}
+
+#[tauri::command]
+async fn delete_backup<R: Runtime>(app: AppHandle<R>, folder: String, path: String, name: String) -> Result<(), String> {
+    backups::remove(&GamesFolder::open(&app, &folder), &path, &name).await
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct States {
+    current: Option<u8>,
+    slots: Vec<states::Listed>,
+    can_undo_load: bool,
+}
+
+#[tauri::command]
+async fn list_states<R: Runtime>(app: AppHandle<R>, emu: State<'_, Emu>, folder: String, path: String) -> Result<States, String> {
+    let (reply, current) = oneshot::channel();
+    emu.send(Command::CurrentSlot { reply });
+    let current = current.await.map_err(|e| e.to_string())?;
+    let games = GamesFolder::open(&app, &folder);
+    Ok(States {
+        current,
+        // Without the DS core on this device its games can't be played, so their slots are listed as they are.
+        slots: states::list(&games, &path, running_core(&path).ok().as_ref()).await,
+        can_undo_load: states::has(&games, &path, StateName::BeforeLoad).await,
+    })
+}
+
+#[tauri::command]
+async fn state_screenshot<R: Runtime>(app: AppHandle<R>, folder: String, path: String, slot: u8) -> Result<Option<Vec<u8>>, String> {
+    Ok(states::screenshot(&GamesFolder::open(&app, &folder), &path, states::check(slot)?).await)
+}
+
+#[tauri::command]
+async fn save_state(emu: State<'_, Emu>, slot: u8) -> Result<(), String> {
+    let (reply, result) = oneshot::channel();
+    emu.send(Command::SaveState { slot: states::check(slot)?, reply });
+    result.await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+async fn load_state<R: Runtime>(app: AppHandle<R>, emu: State<'_, Emu>, folder: String, path: String, slot: u8) -> Result<(), String> {
+    let slot = states::check(slot)?;
+    let loaded = states::read(&GamesFolder::open(&app, &folder), &path, slot, &running_core(&path)?).await.map_err(|e| {
+        eprintln!("{e}");
+        states::REJECTED.to_string()
+    })?;
+    let (reply, result) = oneshot::channel();
+    let (kept, before_load) = oneshot::channel();
+    emu.send(Command::LoadState { slot, loaded, kept, reply });
+    result.await.map_err(|e| e.to_string())??;
+    if let Ok(Err(e)) = before_load.await {
+        eprintln!("{e}");
+    }
+    Ok(())
+}
+
+#[tauri::command]
+async fn undo_load_state<R: Runtime>(app: AppHandle<R>, emu: State<'_, Emu>, folder: String, path: String) -> Result<(), String> {
+    let games = GamesFolder::open(&app, &folder);
+    let loaded = states::read(&games, &path, StateName::BeforeLoad, &running_core(&path)?).await.map_err(|e| {
+        eprintln!("{e}");
+        states::REJECTED.to_string()
+    })?;
+    let (reply, result) = oneshot::channel();
+    let (removed, before_load) = oneshot::channel();
+    emu.send(Command::UndoLoadState { loaded, removed, reply });
+    result.await.map_err(|e| e.to_string())??;
+    if let Ok(Err(e)) = before_load.await {
+        eprintln!("{e}");
+    }
+    Ok(())
+}
+
+#[tauri::command]
+async fn delete_state<R: Runtime>(app: AppHandle<R>, emu: State<'_, Emu>, folder: String, path: String, slot: u8) -> Result<(), String> {
+    let slot = states::check(slot)?;
+    // Forgetting first stops a running game from writing the slot back into resume.json as it suspends.
+    let (done, forgotten) = oneshot::channel();
+    emu.send(Command::ForgetSlot { slot, done });
+    forgotten.await.map_err(|e| e.to_string())?;
+    states::delete(&GamesFolder::open(&app, &folder), &path, slot).await
+}
+
+#[tauri::command]
+async fn can_undo_edit(emu: State<'_, Emu>) -> Result<bool, String> {
+    let (reply, result) = oneshot::channel();
+    emu.send(Command::CanUndoEdit { reply });
+    result.await.map_err(|e| e.to_string())
+}
+
+#[cfg(mobile)]
+fn pause_and_sync<R: Runtime>(app: &AppHandle<R>) {
+    if !app.state::<sync::Syncer>().in_use.any_playing() {
+        return;
+    }
+    // Android only lets the service start as the app leaves the foreground, before the game's files are written.
+    keep_alive::begin(app);
+    let (reply, paused) = oneshot::channel();
+    app.state::<Emu>().send(Command::Pause { reply });
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        if let Ok(Some(game)) = paused.await {
+            if let Err(e) = sync::queue_game(app.clone(), game).await {
+                eprintln!("syncing the paused game: {e}");
+            }
+        }
+        keep_alive::end(&app);
+    });
+}
+
+#[cfg_attr(mobile, tauri::mobile_entry_point)]
+pub fn run() {
+    let builder = tauri::Builder::default();
+    #[cfg(target_os = "android")]
+    let builder = builder
+        .plugin(sync::google_sign_in())
+        .plugin(sync::browser_sign_in())
+        .plugin(sync::network())
+        .plugin(plus::plugin())
+        .plugin(keep_alive::plugin());
+    builder
+        .plugin(tauri_plugin_android_fs::init())
+        .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_os::init())
+        .plugin(tauri_plugin_persisted_scope::init())
+        .plugin(tauri_plugin_store::Builder::new().build())
+        .setup(|app| {
+            let data_dir = app.path().app_data_dir()?;
+            std::fs::create_dir_all(&data_dir)?;
+            if let Ok(cache_dir) = app.path().app_cache_dir() {
+                std::thread::spawn(move || files::remove_old_sprites(&cache_dir));
+            }
+            let index = Arc::new(Index::open(&data_dir.join("index.sqlite")));
+            let art = Arc::new(GameArt::start(data_dir.join("rom-art"), index.clone(), game_art::AppHost(app.handle().clone())));
+            let in_use = Arc::new(sync::InUse::default());
+            let emu_in_use = in_use.clone();
+            let on_game = {
+                let (art, in_use) = (art.clone(), in_use.clone());
+                Box::new(move |path: Option<&str>| {
+                    in_use.playing(path);
+                    art.playing(path.map(String::from))
+                })
+            };
+            let on_plus = {
+                let app = app.handle().clone();
+                Box::new(move |status: &plus::Status| {
+                    let _ = app.emit("plus-status", status);
+                })
+            };
+            let build = plus::Build::current();
+            let plus = Arc::new(plus::Plus::new(&data_dir, build, plus::store(app.handle(), build), on_plus));
+            app.manage(sync::Syncer::new(&data_dir, in_use, plus.clone()));
+            app.manage(plus);
+            sync::reconnect(app.handle());
+            let on_message = {
+                let app = app.handle().clone();
+                Box::new(move |message: retro::Message| {
+                    let _ = app.emit("core-message", message);
+                })
+            };
+            app.manage(Emu::start(data_dir.join("system"), index.clone(), emu_in_use, on_game, on_message));
+            app.manage(art);
+            app.manage(index);
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            core_info,
+            play,
+            has_resume_state,
+            resume_preview,
+            resume_screenshot,
+            resume_info,
+            read_save_file,
+            read_save_files,
+            run_frames,
+            stop,
+            play_time_since_save,
+            read_save,
+            read_memory,
+            apply_edit,
+            apply_edit_to_file,
+            write_transfer,
+            undo_edit,
+            list_backups,
+            read_backup,
+            restore_backup,
+            delete_backup,
+            can_undo_edit,
+            list_states,
+            state_screenshot,
+            save_state,
+            load_state,
+            undo_load_state,
+            delete_state,
+            cheats::list_cheats,
+            cheats::add_cheat,
+            cheats::edit_cheat,
+            cheats::delete_cheat,
+            cheats::toggle_cheat,
+            transfer_pak::transfer_pak,
+            transfer_pak::choose_transfer_pak,
+            index::play_history,
+            index::recently_played,
+            index::save_summary,
+            index::keep_save_summary,
+            kept_copies::kept_copies,
+            kept_copies::keep_copies,
+            index::save_had_cheats,
+            games_folder::games_folder_pick,
+            games_folder::games_folder_keep,
+            games_folder::games_folder_exists,
+            games_folder::games_folder_create_dir,
+            games_folder::games_folder_read_dir,
+            games_folder::games_folder_open,
+            pokemon_file::pokemon_file_pick,
+            patching::patch_pick,
+            patching::patch_dropped,
+            patching::patch_base_build,
+            patching::rom_game_name,
+            patching::patch_check_name,
+            patching::patch_rom,
+            game_art::game_art_scan,
+            game_art::game_art_image,
+            game_art::game_art_manifest,
+            game_art::game_art_sha1,
+            game_art::game_art_status,
+            game_art::game_art_lenders,
+            game_art::game_art_reextract,
+            game_art::game_art_reextract_all,
+            game_art::game_art_progress,
+            box_art::box_art_read,
+            box_art::box_art_write,
+            box_art::box_art_listing_read,
+            box_art::box_art_listing_write,
+            box_art::box_art_download,
+            box_art::box_art_chosen,
+            box_art::box_art_choose,
+            box_art::box_art_choose_url,
+            box_art::box_art_choose_file,
+            box_art::box_art_choose_none,
+            box_art::box_art_use_default,
+            export::export_share,
+            export::export_share_files,
+            sync::sync_game,
+            sync::sync_all,
+            sync::sync_conflicts,
+            sync::sync_resolve,
+            sync::sync_cloud_save,
+            sync::sync_cloud_screenshot,
+            sync::sync_available,
+            sync::sync_account,
+            sync::sync_sign_in,
+            sync::sync_sign_out,
+            sync::sync_last_synced,
+            sync::sync_games_last_synced,
+            sync::sync_games,
+            sync::sync_set_games,
+            sync::sync_set_mobile_data,
+            sync::sync_cloud_games,
+            sync::sync_download_rom,
+            sync::sync_mobile_download_size,
+            sync::sync_remove_from_device,
+            sync::delete_game,
+            plus::plus_status,
+            plus::plus_buy,
+            plus::plus_restore,
+        ])
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|app, event| match event {
+            RunEvent::WindowEvent { event: WindowEvent::Focused(false), .. } => {
+                app.state::<Emu>().send(Command::Suspend);
+            }
+            #[cfg(mobile)]
+            RunEvent::WindowEvent { event: WindowEvent::Suspended, .. } => pause_and_sync(app),
+            #[cfg(mobile)]
+            RunEvent::WindowEvent { event: WindowEvent::Resumed, .. } => app.state::<Emu>().send(Command::Resume),
+            // Cmd+Q on a Mac skips ExitRequested and ends here, so this is where the game gets its last upload.
+            #[cfg(desktop)]
+            RunEvent::Exit => {
+                let sync = |game| sync::queue_game(app.clone(), game);
+                tauri::async_runtime::block_on(stop_and_sync(&app.state(), sync));
+            }
+            #[cfg(mobile)]
+            RunEvent::Exit => {
+                let finished = tauri::async_runtime::block_on(stop_game(&app.state()));
+                if let Err(e) = finished {
+                    eprintln!("saving on exit: {e}");
+                }
+            }
+            _ => {}
+        });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn reads_raw_bytes() {
+        assert_eq!(bytes(&InvokeBody::Raw(vec![1, 2, 255])), Ok(vec![1, 2, 255]));
+    }
+
+    #[test]
+    fn reads_bytes_sent_as_a_json_array() {
+        assert_eq!(bytes(&InvokeBody::Json(serde_json::Value::from(vec![1, 2, 255]))), Ok(vec![1, 2, 255]));
+    }
+
+    fn resumable(name: &str) -> GamesFolder<'static, tauri::Wry> {
+        let root = std::env::temp_dir().join(format!("pkh-emu-lib-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let games = GamesFolder::at(root);
+        tauri::async_runtime::block_on(async {
+            games.write("gb/Red/states/resume.state", b"state").await.unwrap();
+            games.write("gb/Red/states/resume.json", br#"{"playSinceSave":null,"slot":3}"#).await.unwrap();
+        });
+        games
+    }
+
+    #[test]
+    fn resumes_from_the_slot_it_was_playing_from() {
+        let games = resumable("resume-slot");
+
+        let started = tauri::async_runtime::block_on(starting_point(&games, "gb/Red.gb", true, &retro::core_info()));
+
+        assert_eq!(started, Ok((Some(b"state".to_vec()), Some(3), false)));
+    }
+
+    #[test]
+    fn starts_from_the_save_when_another_core_version_wrote_the_resume_state() {
+        let games = resumable("resume-other-version");
+        let json = br#"{"playSinceSave":null,"slot":3,"core":"mGBA","coreVersion":"0.0.1"}"#;
+        tauri::async_runtime::block_on(games.write("gb/Red/states/resume.json", json)).unwrap();
+
+        let started = tauri::async_runtime::block_on(starting_point(&games, "gb/Red.gb", true, &retro::core_info()));
+
+        assert_eq!(started, Ok((None, None, true)));
+    }
+
+    #[test]
+    fn starts_from_no_slot() {
+        let games = resumable("start-slot");
+
+        let started = tauri::async_runtime::block_on(starting_point(&games, "gb/Red.gb", false, &retro::core_info()));
+
+        assert_eq!(started, Ok((None, None, false)));
+    }
+
+    fn backed_up_at_start(name: &str, cheats_on: bool) -> Vec<String> {
+        let games = resumable(name);
+        let (slot, _) = save::Slot::new("gb/Red.sav".into(), Vec::new());
+        tauri::async_runtime::block_on(back_up_at_start(&games, "gb/Red.gb", &slot, b"save", cheats_on)).unwrap();
+        let backups = tauri::async_runtime::block_on(backups::list(&games, "gb/Red.gb")).unwrap();
+        let reason = |backup| serde_json::to_value(backup).unwrap()["reason"].as_str().unwrap().to_owned();
+        backups.into_iter().map(reason).collect()
+    }
+
+    #[test]
+    fn starting_a_game_with_a_code_on_takes_a_cheats_backup() {
+        assert_eq!(backed_up_at_start("start-cheats", true), ["cheats"]);
+        assert_eq!(backed_up_at_start("start-plain", false), ["start"]);
+    }
+
+    #[test]
+    fn marks_the_sha1_of_the_save_file_with_its_footer() {
+        let (index, _) = index::temp_index("mark-cheats");
+        let footer = [vec![7; 0x7A - 16], b"|-DESMUME SAVE-|".to_vec()].concat();
+        let (slot, _) = save::Slot::new("nds/HeartGold.dsv".into(), [b"old".as_slice(), &footer].concat());
+
+        mark_cheats(index.clone(), "nds/HeartGold.nds".into(), slot)(b"save");
+
+        let file = [b"save".as_slice(), &footer].concat();
+        assert_eq!(index.save_had_cheats("nds/HeartGold.nds", &game_art::sha1_of(&file)), Ok(true));
+        assert_eq!(index.save_had_cheats("nds/HeartGold.nds", &game_art::sha1_of(b"save")), Ok(false));
+    }
+
+    #[test]
+    fn marks_the_sha1_of_each_file_of_an_n64_save() {
+        let (index, _) = index::temp_index("mark-cheats-n64");
+        let games = GamesFolder::<tauri::Wry>::at(std::env::temp_dir().join("pkh-emu-mark-cheats-n64"));
+        let (slot, _) = tauri::async_runtime::block_on(save::open(&games, "n64/Stadium.z64")).unwrap();
+        let save = save::tests::stadium_memory();
+
+        mark_cheats(index.clone(), "n64/Stadium.z64".into(), slot)(&save);
+
+        assert_eq!(index.save_had_cheats("n64/Stadium.z64", &game_art::sha1_of(&save[0x28800..])), Ok(true));
+        assert_eq!(index.save_had_cheats("n64/Stadium.z64", &game_art::sha1_of(&save)), Ok(false));
+    }
+
+    #[test]
+    fn refuses_json_that_is_not_bytes() {
+        assert!(bytes(&InvokeBody::Json(serde_json::Value::from(vec![1, 256]))).is_err());
+    }
+}

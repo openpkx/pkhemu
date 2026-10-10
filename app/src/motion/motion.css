@@ -1,0 +1,279 @@
+::view-transition {
+  pointer-events: none;
+}
+
+::view-transition-new(.nav-forward) {
+  animation: var(--motion-duration-medium4) var(--motion-easing-emphasized-decelerate) both motion-enter-from-end;
+}
+
+::view-transition-old(.nav-forward) {
+  animation: var(--motion-duration-short4) var(--motion-easing-emphasized-accelerate) both motion-exit-to-start;
+}
+
+::view-transition-new(.nav-back) {
+  animation: var(--motion-duration-medium4) var(--motion-easing-emphasized-decelerate) both motion-enter-from-start;
+}
+
+::view-transition-old(.nav-back) {
+  animation: var(--motion-duration-short4) var(--motion-easing-emphasized-accelerate) both motion-exit-to-end;
+}
+
+::view-transition-new(.nav-peer) {
+  animation: var(--motion-duration-medium4) var(--motion-easing-emphasized-decelerate) var(--motion-duration-short2) both
+    motion-fade-through-in;
+}
+
+::view-transition-old(.nav-peer) {
+  animation: var(--motion-duration-short2) var(--motion-easing-emphasized-accelerate) both motion-fade-out;
+}
+
+::view-transition-old(.nav-play) {
+  animation: var(--motion-duration-short4) var(--motion-easing-emphasized-accelerate) both motion-fade-out;
+}
+
+::view-transition-new(.nav-play) {
+  animation: var(--motion-duration-medium4) var(--motion-easing-emphasized-decelerate) var(--motion-duration-short4) both
+    motion-fade-in;
+}
+
+:root:active-view-transition-type(play)::view-transition {
+  background: black;
+}
+
+:root:active-view-transition-type(play)::view-transition-old(root) {
+  animation: var(--motion-duration-short4) var(--motion-easing-emphasized-accelerate) both motion-fade-out;
+}
+
+:root:active-view-transition-type(play)::view-transition-new(root) {
+  animation: var(--motion-duration-medium4) var(--motion-easing-emphasized-decelerate) var(--motion-duration-short4) both
+    motion-fade-in;
+}
+
+::view-transition-new(.nav-sheet) {
+  animation: var(--motion-duration-medium2) var(--motion-easing-emphasized-decelerate) both motion-enter-from-bottom;
+}
+
+::view-transition-old(.nav-sheet) {
+  animation: var(--motion-duration-short3) var(--motion-easing-emphasized-accelerate) both motion-exit-to-bottom;
+}
+
+::view-transition-new(.nav-container) {
+  animation: var(--motion-duration-medium4) var(--motion-easing-emphasized-decelerate) var(--motion-duration-short2) both
+    motion-fade-in;
+}
+
+::view-transition-old(.nav-container) {
+  animation: var(--motion-duration-short2) var(--motion-easing-emphasized-accelerate) both motion-fade-out;
+}
+
+::view-transition-group(.container-transform) {
+  animation-duration: var(--motion-duration-long2);
+  animation-timing-function: var(--motion-easing-emphasized);
+}
+
+::view-transition-old(.container-transform),
+::view-transition-new(.container-transform) {
+  height: 100%;
+  object-fit: cover;
+  animation-duration: var(--motion-duration-long2);
+  animation-timing-function: var(--motion-easing-emphasized);
+}
+
+.stagger > * {
+  animation: var(--motion-duration-short2) var(--motion-easing-emphasized-decelerate)
+    calc(var(--stagger-index, 7) * var(--motion-duration-short1)) both motion-rise-in;
+}
+
+.stagger > :nth-child(1) { --stagger-index: 0; }
+.stagger > :nth-child(2) { --stagger-index: 1; }
+.stagger > :nth-child(3) { --stagger-index: 2; }
+.stagger > :nth-child(4) { --stagger-index: 3; }
+.stagger > :nth-child(5) { --stagger-index: 4; }
+.stagger > :nth-child(6) { --stagger-index: 5; }
+.stagger > :nth-child(7) { --stagger-index: 6; }
+
+.motion-press {
+  transition-property: color, background-color, border-color, box-shadow, scale;
+  transition-duration: var(--motion-duration-short1);
+  transition-timing-function: var(--motion-easing-standard);
+}
+
+.motion-crossfade-in {
+  animation: var(--motion-duration-short4) var(--motion-easing-standard) both motion-fade-in;
+}
+
+.motion-skeleton[data-state="closed"] {
+  animation: var(--motion-duration-short4) var(--motion-easing-standard) both motion-fade-out;
+}
+
+.motion-scrim[data-state="open"],
+.motion-dialog[data-state="open"],
+.motion-sheet[data-state="open"],
+.motion-sheet-dialog[data-state="open"] {
+  animation: var(--motion-duration-medium2) var(--motion-easing-emphasized-decelerate) both motion-fade-in;
+}
+
+.motion-scrim[data-state="closed"],
+.motion-dialog[data-state="closed"],
+.motion-sheet[data-state="closed"],
+.motion-sheet-dialog[data-state="closed"] {
+  animation: var(--motion-duration-short3) var(--motion-easing-emphasized-accelerate) both motion-fade-out;
+}
+
+/* A tooltip opens as "delayed-open" or "instant-open". */
+.motion-menu:is([data-state$="open"], [data-open]),
+.motion-toast[data-state="open"],
+.motion-bottom-bar[data-state="open"] {
+  animation: var(--motion-duration-short4) var(--motion-easing-emphasized-decelerate) both motion-fade-in;
+}
+
+.motion-menu:is([data-state="closed"], [data-closed]),
+.motion-toast[data-state="closed"],
+.motion-bottom-bar[data-state="closed"] {
+  animation: var(--motion-duration-short2) var(--motion-easing-emphasized-accelerate) both motion-fade-out;
+}
+
+.motion-badge[data-presence="open"] {
+  animation: var(--motion-duration-short4) var(--motion-easing-standard) both motion-fade-in;
+}
+
+.motion-badge[data-presence="closed"] {
+  animation: var(--motion-duration-short4) var(--motion-easing-standard) both motion-fade-out;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .motion-press:active { scale: 0.97; }
+  .motion-ring { transition: stroke-dashoffset var(--motion-duration-medium2) var(--motion-easing-standard); }
+  .motion-tick { animation: var(--motion-duration-medium2) var(--motion-easing-emphasized-decelerate) both motion-draw; }
+  .motion-dialog[data-state="open"] { animation-name: motion-zoom-in; }
+  .motion-dialog[data-state="closed"] { animation-name: motion-zoom-out; }
+  .motion-sheet[data-state="open"],
+  .motion-sheet-dialog[data-state="open"],
+  .motion-bottom-bar[data-state="open"] { animation-name: motion-slide-up-in; }
+  .motion-sheet[data-state="closed"],
+  .motion-sheet-dialog[data-state="closed"],
+  .motion-bottom-bar[data-state="closed"] { animation-name: motion-slide-down-out; }
+  .motion-menu:is([data-state$="open"], [data-open]) { animation-name: motion-grow-in; }
+  .motion-menu:is([data-state="closed"], [data-closed]) { animation-name: motion-shrink-out; }
+  .motion-toast[data-state="open"] { animation-name: motion-drop-in; }
+  .motion-toast[data-state="closed"] { animation-name: motion-rise-out; }
+}
+
+@media (prefers-reduced-motion: no-preference) and (width >= 40rem) {
+  .motion-sheet-dialog[data-state="open"] { animation-name: motion-zoom-in; }
+  .motion-sheet-dialog[data-state="closed"] { animation-name: motion-zoom-out; }
+}
+
+@keyframes motion-enter-from-end {
+  from { opacity: 0; translate: 30px 0; }
+}
+
+@keyframes motion-enter-from-start {
+  from { opacity: 0; translate: -30px 0; }
+}
+
+@keyframes motion-exit-to-start {
+  to { opacity: 0; translate: -30px 0; }
+}
+
+@keyframes motion-exit-to-end {
+  to { opacity: 0; translate: 30px 0; }
+}
+
+@keyframes motion-enter-from-bottom {
+  from { translate: 0 100%; }
+}
+
+@keyframes motion-exit-to-bottom {
+  to { translate: 0 100%; }
+}
+
+@keyframes motion-fade-through-in {
+  from { opacity: 0; scale: 0.92; }
+}
+
+@keyframes motion-draw {
+  from { stroke-dashoffset: 1; }
+}
+
+@keyframes motion-fade-in {
+  from { opacity: 0; }
+}
+
+@keyframes motion-fade-out {
+  to { opacity: 0; }
+}
+
+@keyframes motion-rise-in {
+  from { opacity: 0; translate: 0 8px; }
+}
+
+@keyframes motion-zoom-in {
+  from { opacity: 0; scale: 0.95; }
+}
+
+@keyframes motion-zoom-out {
+  to { opacity: 0; scale: 0.95; }
+}
+
+@keyframes motion-slide-up-in {
+  from { translate: 0 100%; }
+}
+
+@keyframes motion-slide-down-out {
+  to { translate: 0 100%; }
+}
+
+@keyframes motion-grow-in {
+  from { opacity: 0; scale: 0.8; }
+}
+
+@keyframes motion-shrink-out {
+  to { opacity: 0; scale: 0.8; }
+}
+
+@keyframes motion-drop-in {
+  from { opacity: 0; translate: 0 -100%; }
+}
+
+@keyframes motion-rise-out {
+  to { opacity: 0; translate: 0 -100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-new(.nav-forward),
+  ::view-transition-new(.nav-back),
+  ::view-transition-new(.nav-peer),
+  ::view-transition-new(.nav-sheet),
+  ::view-transition-new(.nav-container) {
+    animation: var(--motion-duration-short3) var(--motion-easing-standard) both motion-fade-in;
+  }
+
+  ::view-transition-old(.nav-forward),
+  ::view-transition-old(.nav-back),
+  ::view-transition-old(.nav-peer),
+  ::view-transition-old(.nav-sheet),
+  ::view-transition-old(.nav-container) {
+    animation: var(--motion-duration-short3) var(--motion-easing-standard) both motion-fade-out;
+  }
+
+  ::view-transition-group(.container-transform) {
+    animation: none;
+  }
+
+  ::view-transition-old(.container-transform),
+  ::view-transition-new(.container-transform) {
+    animation-duration: var(--motion-duration-short3);
+    animation-timing-function: var(--motion-easing-standard);
+  }
+
+  .stagger > * {
+    animation: none;
+  }
+
+  :is(.motion-scrim, .motion-dialog, .motion-sheet, .motion-sheet-dialog, .motion-toast, .motion-bottom-bar)[data-state],
+  .motion-menu:is([data-state], [data-open], [data-closed]) {
+    animation-duration: var(--motion-duration-short3);
+    animation-timing-function: var(--motion-easing-standard);
+  }
+}

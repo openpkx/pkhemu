@@ -1,0 +1,14 @@
+[workspace]
+members = ["app/src-tauri", "crates/rom-art"]
+resolver = "2"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true
+
+# Drawing Gen 5's animations takes minutes unoptimised, in ROM tests and in the dev app alike.
+[profile.dev.package.rom-art]
+opt-level = 3

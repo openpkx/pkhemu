@@ -1,0 +1,165 @@
+import type { ReactNode } from "react";
+import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
+import { afterEach, expect, it } from "vitest";
+import { GamesFolderProvider, useGamesFolder, type GamesFolderHost } from "./gamesFolder";
+
+afterEach(cleanup);
+
+function fakeDisk(folders: string[] = []) {
+  const disk = new Set(folders);
+  let saved: string | null = null;
+  let picks: (string | null)[] = [];
+  const host: GamesFolderHost = {
+    pickFolder: async () => picks.shift() ?? null,
+    ensureFolder: async (parent, name) => {
+      if (!disk.has(parent)) throw new Error(`${parent} not found`);
+      disk.add(`${parent}/${name}`);
+    },
+    folderExists: async (path) => disk.has(path),
+    loadSaved: async () => saved,
+    save: async (folder) => {
+      saved = folder;
+    },
+    label: (folder) => folder,
+  };
+  return {
+    host,
+    disk,
+    willPick: (...paths: (string | null)[]) => (picks = paths),
+    launch: () =>
+      renderHook(useGamesFolder, {
+        wrapper: ({ children }: { children: ReactNode }) => (
+          <GamesFolderProvider host={host}>{children}</GamesFolderProvider>
+        ),
+      }),
+  };
+}
+
+it("asks for a folder on first launch", async () => {
+  const { launch } = fakeDisk();
+  const { result } = launch();
+
+  await waitFor(() => expect(result.current.status).toBe("none"));
+});
+
+it("creates the system folders in the picked folder", async () => {
+  const { launch, willPick, disk } = fakeDisk(["/games"]);
+  willPick("/games");
+  const { result } = launch();
+  await waitFor(() => expect(result.current.status).toBe("none"));
+
+  await act(() => result.current.choose());
+
+  expect(result.current).toMatchObject({ status: "ready", folder: "/games" });
+  expect([...disk]).toEqual(expect.arrayContaining(["/games/gb", "/games/gbc", "/games/gba"]));
+});
+
+it("reuses system folders that already exist", async () => {
+  const { launch, willPick, disk } = fakeDisk(["/roms", "/roms/gba", "/roms/gba/emerald.gba"]);
+  willPick("/roms");
+  const { result } = launch();
+  await waitFor(() => expect(result.current.status).toBe("none"));
+
+  await act(() => result.current.choose());
+
+  expect(result.current).toMatchObject({ status: "ready", folder: "/roms" });
+  expect([...disk]).toEqual(
+    expect.arrayContaining(["/roms/gb", "/roms/gbc", "/roms/gba", "/roms/gba/emerald.gba"]),
+  );
+});
+
+it("opens the saved folder on the next launch", async () => {
+  const { launch, willPick } = fakeDisk(["/games"]);
+  willPick("/games");
+  const first = launch();
+  await waitFor(() => expect(first.result.current.status).toBe("none"));
+  await act(() => first.result.current.choose());
+  first.unmount();
+
+  const { result } = launch();
+
+  await waitFor(() => expect(result.current).toMatchObject({ status: "ready", folder: "/games" }));
+});
+
+it("recreates system folders deleted since the last launch", async () => {
+  const { launch, willPick, disk } = fakeDisk(["/games"]);
+  willPick("/games");
+  const first = launch();
+  await waitFor(() => expect(first.result.current.status).toBe("none"));
+  await act(() => first.result.current.choose());
+  first.unmount();
+  disk.delete("/games/gbc");
+
+  const { result } = launch();
+
+  await waitFor(() => expect(result.current.status).toBe("ready"));
+  expect(disk.has("/games/gbc")).toBe(true);
+});
+
+it("asks again when the saved folder is gone", async () => {
+  const { launch, willPick, disk } = fakeDisk(["/games"]);
+  willPick("/games");
+  const first = launch();
+  await waitFor(() => expect(first.result.current.status).toBe("none"));
+  await act(() => first.result.current.choose());
+  first.unmount();
+  disk.clear();
+
+  const { result } = launch();
+
+  await waitFor(() => expect(result.current.status).toBe("none"));
+});
+
+it("asks again when the saved folder can't be read", async () => {
+  const { host, launch } = fakeDisk(["/games"]);
+  host.loadSaved = async () => "/games";
+  host.folderExists = async () => {
+    throw new Error("forbidden path");
+  };
+
+  const { result } = launch();
+
+  await waitFor(() => expect(result.current.status).toBe("none"));
+});
+
+it("changes to another folder", async () => {
+  const { launch, willPick } = fakeDisk(["/games", "/roms"]);
+  willPick("/games", "/roms");
+  const { result } = launch();
+  await waitFor(() => expect(result.current.status).toBe("none"));
+  await act(() => result.current.choose());
+
+  await act(() => result.current.choose());
+
+  expect(result.current).toMatchObject({ status: "ready", folder: "/roms" });
+});
+
+it("keeps the current folder when the picker is cancelled", async () => {
+  const { launch, willPick } = fakeDisk(["/games"]);
+  willPick("/games", null);
+  const { result } = launch();
+  await waitFor(() => expect(result.current.status).toBe("none"));
+  await act(() => result.current.choose());
+
+  await act(() => result.current.choose());
+
+  expect(result.current).toMatchObject({ status: "ready", folder: "/games" });
+});
+
+it("reports a folder that can't be set up and keeps the current one", async () => {
+  const { host, launch, willPick } = fakeDisk(["/games", "/readonly"]);
+  willPick("/games", "/readonly");
+  const ensureFolder = host.ensureFolder;
+  host.ensureFolder = async (parent, name) => {
+    if (parent === "/readonly") throw new Error("permission denied");
+    return ensureFolder(parent, name);
+  };
+  const { result } = launch();
+  await waitFor(() => expect(result.current.status).toBe("none"));
+  await act(() => result.current.choose());
+
+  await act(() => result.current.choose());
+
+  expect(result.current).toMatchObject({ status: "ready", folder: "/games" });
+  expect(result.current.error).toMatch(/permission denied/);
+});

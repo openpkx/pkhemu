@@ -1,0 +1,46 @@
+[submodule "vendor/mgba"]
+	path = vendor/mgba
+	url = https://github.com/pkhex-web/mgba
+	branch = pkh-emu
+[submodule "vendor/melonds-ds"]
+	path = vendor/melonds-ds
+	url = https://github.com/pkhex-web/melonds-ds
+	branch = pkh-emu
+[submodule "vendor/melonds-ds-deps/melonDS"]
+	path = vendor/melonds-ds-deps/melonDS
+	url = https://github.com/pkhex-web/melonDS
+	branch = pkh-emu
+[submodule "vendor/melonds-ds-deps/libretro-common"]
+	path = vendor/melonds-ds-deps/libretro-common
+	url = https://github.com/libretro/libretro-common
+[submodule "vendor/melonds-ds-deps/embed-binaries"]
+	path = vendor/melonds-ds-deps/embed-binaries
+	url = https://github.com/andoalon/embed-binaries
+[submodule "vendor/melonds-ds-deps/glm"]
+	path = vendor/melonds-ds-deps/glm
+	url = https://github.com/g-truc/glm
+[submodule "vendor/melonds-ds-deps/libslirp"]
+	path = vendor/melonds-ds-deps/libslirp
+	url = https://github.com/JesseTG/libslirp-mirror
+[submodule "vendor/melonds-ds-deps/pntr"]
+	path = vendor/melonds-ds-deps/pntr
+	url = https://github.com/robloach/pntr
+[submodule "vendor/melonds-ds-deps/fmt"]
+	path = vendor/melonds-ds-deps/fmt
+	url = https://github.com/fmtlib/fmt
+[submodule "vendor/melonds-ds-deps/yamc"]
+	path = vendor/melonds-ds-deps/yamc
+	url = https://github.com/yohhoy/yamc
+[submodule "vendor/melonds-ds-deps/span-lite"]
+	path = vendor/melonds-ds-deps/span-lite
+	url = https://github.com/martinmoene/span-lite
+[submodule "vendor/melonds-ds-deps/date"]
+	path = vendor/melonds-ds-deps/date
+	url = https://github.com/HowardHinnant/date
+[submodule "vendor/melonds-ds-deps/zlib"]
+	path = vendor/melonds-ds-deps/zlib
+	url = https://github.com/madler/zlib
+[submodule "vendor/mupen64plus-next"]
+	path = vendor/mupen64plus-next
+	url = https://github.com/pkhex-web/mupen64plus-libretro-nx
+	branch = pkh-emu

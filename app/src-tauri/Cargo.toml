@@ -1,0 +1,59 @@
+[package]
+name = "pkh-emu"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+
+[lib]
+name = "pkh_emu_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+cmake = "0.1.58"
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+tauri-plugin-android-fs = "29"
+tauri-plugin-dialog = "2"
+tauri-plugin-fs = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-persisted-scope = "2"
+tauri-plugin-store = "2"
+zip = { version = "8.6.0", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+sevenz-rust2 = { version = "0.23.0", default-features = false, features = ["bzip2", "ppmd"] }
+tokio = { version = "1.53.2", features = ["sync", "time", "net", "io-util"] }
+chrono = { version = "0.4", default-features = false, features = ["clock"] }
+cpal = "0.18.2"
+ringbuf = "0.5.2"
+tauri-plugin-os = "2"
+png = "0.18"
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "bmp"] }
+serde_json = "1.0.151"
+sha2 = "0.10"
+percent-encoding = "2"
+rusqlite = { version = "0.40.2", features = ["bundled"] }
+libloading = "0.9.0"
+tauri-plugin-clipboard-manager = "2"
+rom-art = { path = "../../crates/rom-art" }
+sha1 = "0.10"
+libc = "0.2"
+tempfile = "3"
+oxidelta = { version = "0.1.4", default-features = false, features = ["adler32", "lzma-secondary"] }
+crc32fast = "1.5.2"
+lzma-rs = "0.3"
+uuid = { version = "1", features = ["v4"] }
+reqwest = { version = "0.13", default-features = false, features = ["rustls-no-provider", "json", "form", "query"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+webpki-roots = "1"
+base64 = "0.22"
+getrandom = "0.3"
+url = "2"
+bytes = "1"
+
+[target.'cfg(not(target_os = "android"))'.dependencies]
+keyring = { version = "3.6", features = ["apple-native", "windows-native", "linux-native"] }
+
+[dev-dependencies]
+sevenz-rust2 = { version = "0.23.0", default-features = false, features = ["compress"] }

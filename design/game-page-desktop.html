@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Game page, desktop</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Pixelify+Sans:wght@400;600&display=swap">
+<style>
+body{margin:0}
+a{color:#d4caff}a:hover{color:#ffffff}
+</style>
+</head>
+<body>
+<div style="min-height: 100vh; box-sizing: border-box; padding: 16px; background: #0e0b1c; color: #c4c2d6; font-family: 'Geist', system-ui, sans-serif; font-size: 14px; line-height: 1.4">
+<div style="display: flex; flex-wrap: wrap; gap: 16px; max-width: 1400px; margin: 0 auto">
+
+<main style="flex: 1 1 420px; min-width: 0; position: relative; overflow: hidden; display: flex; flex-direction: column; gap: 16px; padding: 16px; border-radius: 16px; background: #1e1247; color: #ffffff">
+<div style="position: absolute; inset: 0; background-image: radial-gradient(circle, rgba(164,139,255,0.5) 1px, transparent 1.6px); background-size: 8px 8px; -webkit-mask-image: linear-gradient(160deg, #000 0%, transparent 55%); mask-image: linear-gradient(160deg, #000 0%, transparent 55%)"></div>
+<div style="position: relative; display: flex; justify-content: space-between">
+<button aria-label="Back" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 999px; background: transparent; color: #ffffff; cursor: pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg></button>
+<button aria-label="More" style="width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; border: 0; border-radius: 999px; background: transparent; color: #ffffff; cursor: pointer"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="19" cy="12" r="2"></circle></svg></button>
+</div>
+<div style="position: relative; width: 100%; max-width: 448px; margin: 0 auto; aspect-ratio: 3 / 2; display: flex; align-items: center; justify-content: center; border-radius: 8px; background: #000000; box-shadow: 0 24px 48px rgba(0,0,0,0.5); color: #5a5673; font-family: ui-monospace, monospace; font-size: 12px">box art or last screen</div>
+<div style="position: relative; display: flex; flex-direction: column; gap: 6px">
+<div style="display: flex"><span style="font-family: 'Pixelify Sans', ui-monospace, monospace; font-size: 12px; letter-spacing: 0.06em; padding: 2px 7px; border-radius: 6px; background: rgba(14,11,28,0.55); color: #d4caff">GBA</span></div>
+<h1 style="margin: 0; font-size: 28px; font-weight: 700; letter-spacing: -0.02em">Emerald</h1>
+<div style="color: #d4caff">Pokémon Emerald</div>
+<div style="color: #c4c2d6">Played 2 hours ago</div>
+<div style="color: #c4c2d6">Last synced 5 minutes ago</div>
+</div>
+</main>
+
+<div style="flex: 1 1 420px; min-width: 0; display: flex; flex-direction: column; gap: 16px">
+<div style="display: flex; flex-wrap: wrap; gap: 12px">
+<button style="flex: 1 1 160px; height: 48px; display: flex; align-items: center; justify-content: center; gap: 10px; border: 0; border-radius: 999px; background: #6d4aff; color: #ffffff; font: inherit; font-size: 16px; font-weight: 600; cursor: pointer"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 3.5v17l14-8.5z"></path></svg>Resume</button>
+<button style="flex: 1 1 160px; height: 48px; display: flex; align-items: center; justify-content: center; border: 1px solid #3a3652; border-radius: 999px; background: transparent; color: #ffffff; font: inherit; font-size: 16px; font-weight: 600; cursor: pointer">Start from save</button>
+<button style="flex: 1 1 160px; height: 48px; display: flex; align-items: center; justify-content: center; border: 1px solid #3a3652; border-radius: 999px; background: transparent; color: #ffffff; font: inherit; font-size: 16px; font-weight: 600; cursor: pointer">Load state</button>
+</div>
+
+<section aria-labelledby="h-save" style="display: flex; flex-direction: column; gap: 16px; padding: 20px; border: 1px solid #3a3652; border-radius: 16px; background: #19162a">
+<div style="display: flex; align-items: baseline; justify-content: space-between; gap: 12px">
+<h2 id="h-save" style="margin: 0; font-family: 'Pixelify Sans', ui-monospace, monospace; font-size: 15px; font-weight: 400; letter-spacing: 0.04em; color: #8e8aa8">Save</h2>
+<div style="color: #8e8aa8">Saved yesterday at 21:14</div>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<div style="font-size: 18px; font-weight: 600; color: #ffffff">MAY</div>
+<div style="color: #8e8aa8">ID 41207</div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 8px; max-width: 420px">
+<div style="aspect-ratio: 1 / 1; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: #1f1c33; color: #5a5673; font-family: ui-monospace, monospace; font-size: 10px">sprite</div>
+<div style="aspect-ratio: 1 / 1; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: #1f1c33; color: #5a5673; font-family: ui-monospace, monospace; font-size: 10px">sprite</div>
+<div style="aspect-ratio: 1 / 1; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: #1f1c33; color: #5a5673; font-family: ui-monospace, monospace; font-size: 10px">sprite</div>
+<div style="aspect-ratio: 1 / 1; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: #1f1c33; color: #5a5673; font-family: ui-monospace, monospace; font-size: 10px">sprite</div>
+<div style="aspect-ratio: 1 / 1; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: #1f1c33; color: #5a5673; font-family: ui-monospace, monospace; font-size: 10px">sprite</div>
+<div style="aspect-ratio: 1 / 1; display: flex; align-items: center; justify-content: center; border-radius: 10px; background: #1f1c33; color: #5a5673; font-family: ui-monospace, monospace; font-size: 10px">sprite</div>
+</div>
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+<div style="display: flex; flex-direction: column; gap: 4px; padding: 12px; border-radius: 12px; background: #1f1c33"><div style="font-family: 'Pixelify Sans', ui-monospace, monospace; font-size: 22px; color: #ffffff">23:41</div><div style="font-size: 13px; color: #8e8aa8">Play time</div></div>
+<div style="display: flex; flex-direction: column; gap: 4px; padding: 12px; border-radius: 12px; background: #1f1c33"><div style="font-family: 'Pixelify Sans', ui-monospace, monospace; font-size: 22px; color: #ffffff">6 / 8</div><div style="font-size: 13px; color: #8e8aa8">Badges</div></div>
+<div style="display: flex; flex-direction: column; gap: 4px; padding: 12px; border-radius: 12px; background: #1f1c33"><div style="font-family: 'Pixelify Sans', ui-monospace, monospace; font-size: 22px; color: #ffffff">84</div><div style="font-size: 13px; color: #8e8aa8">Pokédex</div></div>
+</div>
+<div style="display: flex; flex-wrap: wrap; gap: 8px">
+<button style="height: 44px; padding: 0 20px; border: 1px solid #3a3652; border-radius: 999px; background: transparent; color: #ffffff; font: inherit; font-weight: 600; cursor: pointer">Edit</button>
+<button style="height: 44px; padding: 0 20px; border: 1px solid #3a3652; border-radius: 999px; background: transparent; color: #ffffff; font: inherit; font-weight: 600; cursor: pointer">Transfer</button>
+<button style="height: 44px; padding: 0 20px; border: 1px solid #3a3652; border-radius: 999px; background: transparent; color: #ffffff; font: inherit; font-weight: 600; cursor: pointer">Backups</button>
+</div>
+</section>
+</div>
+
+</div>
+</div>
+</body>
+</html>
