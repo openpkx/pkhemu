@@ -33,7 +33,10 @@ import { snapshotMemory } from "@/game-memory/snapshots/snapshotMemory";
 import { GamesFolderProvider, type GamesFolderHost } from "@/games-folder/gamesFolder";
 import { GameScreen } from "@/GameScreen";
 import { Home } from "@/Home";
+import { ReplaceSaveDialog, WhichGameDialog } from "@/import/importFiles";
+import { Copying, FolderSummaryScreen, SaveConflicts, Scanning, WhereAreYourGames } from "@/import/ImportFolder";
 import { createInput } from "@/input/input";
+import { NewFolder, PreviousFolder } from "@/onboarding/Welcome";
 import { experiments } from "@/lab/experiments";
 import { ExperimentsProvider } from "@/lab/lab";
 import { fakeFolder } from "@/library/fakeFolder";
@@ -138,13 +141,18 @@ const preferences: Preferences = {
   stickSensitivity: 1,
 };
 
+const welcome = params.get("screen")?.startsWith("welcome") ?? false;
 const gamesFolderHost: GamesFolderHost = {
   pickFolder: async () => "/games",
+  makeFolder: async () => "/games",
+  findFolder: async () => "Documents",
+  listFolders: async () => [],
   ensureFolder: async () => {},
   folderExists: async () => true,
-  loadSaved: async () => "/games",
+  loadSaved: async () => (welcome ? null : "/games"),
   save: async () => {},
   label: (folder) => folder,
+  device: params.get("screen")?.endsWith("-mac") ? "Mac" : "phone",
   openFolder: async () => {},
 };
 
@@ -213,8 +221,9 @@ const dsLastScreen = await png(256, 384, (context) => {
 const lastScreens: Record<string, typeof lastScreen> = { "gba/Emerald.gba": lastScreen, "nds/Platinum.nds": dsLastScreen };
 
 const list = fakeFolder(games);
-const libraryHost = ({ recent = ["gba/Emerald.gba", "nds/Platinum.nds"], resume = true } = {}): LibraryHost => ({
-  listDir: (_folder, path) => list(path),
+const emptyList = fakeFolder(systems.map((system) => `${system}/.keep`));
+const libraryHost = ({ recent = ["gba/Emerald.gba", "nds/Platinum.nds"], resume = true, empty = false } = {}): LibraryHost => ({
+  listDir: (_folder, path) => (empty ? emptyList(path) : list(path)),
   recentlyPlayed: async () => recent,
   scanGameArt: async () => {},
   resumeScreenshot: async (_folder, path) => (resume && lastScreens[path] ? [...lastScreens[path]] : null),
@@ -397,6 +406,34 @@ function Overlays() {
   );
 }
 
+function FolderSummaryExample() {
+  return (
+    <FolderSummaryScreen
+      folder="RetroArch"
+      summary={{
+        games: [
+          { path: "gbc/Crystal.gbc", name: "Crystal", system: "gbc", save: true },
+          { path: "gba/Pokemon - Emerald Version (USA, Europe).gba", name: "Pokemon - Emerald Version (USA, Europe)", system: "gba", save: true },
+          { path: "gba/FireRed.gba", name: "FireRed", system: "gba", save: false },
+          { path: "nds/HeartGold.nds", name: "HeartGold", system: "nds", save: true },
+          { path: "nds/Platinum.nds", name: "Platinum", system: "nds", save: false },
+          { path: "gb/Red.gb", name: "Red", system: "gb", save: true },
+        ],
+        withSave: 4,
+        size: 412 * 1024 * 1024,
+        leftOut: 12,
+        known: 0,
+      }}
+      saves={4}
+      onboarding={params.get("screen") === "import-folder-summary-onboarding"}
+      onBack={() => {}}
+      onAddSaves={() => {}}
+      onChooseAnother={() => {}}
+      onContinue={() => {}}
+    />
+  );
+}
+
 const screens: Record<string, () => ReactNode> = {
   library: () => <Home libraryHost={libraryHost()} gamePageHost={gamePageHost()} />,
   "library-no-resume": () => <Home libraryHost={libraryHost({ resume: false })} gamePageHost={gamePageHost()} />,
@@ -404,6 +441,12 @@ const screens: Record<string, () => ReactNode> = {
   "library-unplayed": () => <Home libraryHost={libraryHost({ recent: [] })} gamePageHost={gamePageHost()} />,
   "library-box-art": () => <Home libraryHost={libraryHost({ recent: ["gba/FireRed.gba", "gba/Emerald.gba"] })} gamePageHost={gamePageHost()} />,
   settings: () => <SettingsScreen onBack={() => {}} onLicences={() => {}} />,
+  welcome: () => <Home libraryHost={libraryHost()} gamePageHost={gamePageHost()} />,
+  "welcome-folder": () => <NewFolder onBack={() => {}} onReady={() => {}} />,
+  "welcome-mac": () => <Home libraryHost={libraryHost()} gamePageHost={gamePageHost()} />,
+  "welcome-folder-mac": () => <NewFolder onBack={() => {}} onReady={() => {}} />,
+  "welcome-previous": () => <PreviousFolder onBack={() => {}} />,
+  "welcome-previous-warning": () => <PreviousFolder onBack={() => {}} />,
   ...Object.fromEntries(
     systems.flatMap((system) => {
       const page = (withArt: boolean) => () => (
@@ -440,6 +483,85 @@ const screens: Record<string, () => ReactNode> = {
   ),
   "transfer-pak": () => (
     <TransferPakScreen games={Object.values(pageGames)} chosen={pageGames.gb.path} input={input} onRestart={() => {}} onBack={() => {}} />
+  ),
+  "library-empty": () => <Home libraryHost={libraryHost({ recent: [], empty: true })} gamePageHost={gamePageHost()} />,
+  "library-empty-android": () => (
+    <GamesFolderProvider host={{ ...gamesFolderHost, openFolder: undefined }}>
+      <Home libraryHost={libraryHost({ recent: [], empty: true })} gamePageHost={gamePageHost()} />
+    </GamesFolderProvider>
+  ),
+  "library-import-menu": () => <Home libraryHost={libraryHost()} gamePageHost={gamePageHost()} />,
+  "import-which-game": () => (
+    <>
+      <Home libraryHost={libraryHost()} gamePageHost={gamePageHost()} />
+      <WhichGameDialog
+        open
+        question={{
+          kind: "game",
+          file: { file: "", name: "Pokemon Ruby (USA).srm", modified: 0 },
+          games: Object.values(pageGames),
+          answer: () => {},
+        }}
+      />
+    </>
+  ),
+  "import-replace": () => (
+    <>
+      <Home libraryHost={libraryHost()} gamePageHost={gamePageHost()} />
+      <ReplaceSaveDialog
+        open
+        question={{
+          kind: "replace",
+          game: emerald,
+          existing: new Date(2026, 9, 1, 9, 30).getTime(),
+          picked: new Date(2026, 9, 10, 18, 5).getTime(),
+          answer: () => {},
+        }}
+      />
+    </>
+  ),
+  "import-folder-where": () => <WhereAreYourGames onBack={() => {}} onChoose={() => {}} />,
+  "import-folder-scanning": () => <Scanning folder="RetroArch" saves={false} />,
+  "import-folder-summary": () => <FolderSummaryExample />,
+  "import-folder-summary-onboarding": () => <FolderSummaryExample />,
+  "import-folder-empty": () => (
+    <FolderSummaryScreen
+      folder="Download"
+      summary={null}
+      saves={0}
+      onboarding
+      onBack={() => {}}
+      onAddSaves={() => {}}
+      onChooseAnother={() => {}}
+      onContinue={() => {}}
+    />
+  ),
+  "import-folder-new-folder": () => (
+    <NewFolder
+      title="Now a folder for pkhemu"
+      line="Your games get copied here, sorted by system. The originals stay where they are."
+      onBack={() => {}}
+      onReady={() => {}}
+    />
+  ),
+  "import-folder-copying": () => <Copying done={2} total={6} game="FireRed" cancelling={false} onCancel={() => {}} />,
+  "import-folder-conflicts": () => (
+    <SaveConflicts
+      conflicts={[
+        {
+          game: emerald,
+          existing: new Date(2026, 9, 1, 9, 30).getTime(),
+          save: { game: emerald.path, file: { file: "", name: "Emerald.srm", modified: new Date(2026, 9, 10, 18, 5).getTime() } },
+        },
+        {
+          game: pageGames.nds,
+          existing: new Date(2026, 8, 20, 21, 10).getTime(),
+          save: { game: pageGames.nds.path, file: { file: "", name: "Platinum.dsv", modified: new Date(2026, 9, 9, 12, 40).getTime() } },
+        },
+      ]}
+      onBack={() => {}}
+      onContinue={() => {}}
+    />
   ),
   overlays: () => <Overlays />,
   "overlays-dialog": () => (

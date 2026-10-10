@@ -9,7 +9,7 @@ afterEach(() => {
 
 it("hides the system bars while mounted and shows them again after", () => {
   const calls: boolean[] = [];
-  window.androidSystemBars = { setHidden: (hidden) => void calls.push(hidden), setLight: () => {} };
+  window.androidSystemBars = { setHidden: (hidden) => void calls.push(hidden), setLight: () => {}, splashHidden: () => {} };
 
   const { unmount } = renderHook(useHiddenSystemBars);
   expect(calls).toEqual([true]);

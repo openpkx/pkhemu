@@ -8,19 +8,34 @@
       #splash {
         position: fixed;
         inset: 0;
+        z-index: 1000;
         display: flex;
+        flex-direction: column;
         align-items: center;
         justify-content: center;
-        background: #ffffff;
+        gap: 24px;
+        background: #6d4aff;
       }
-      #splash svg {
-        width: 96px;
-        height: 96px;
+      #splash .logo {
+        position: relative;
+        width: 120px;
+        height: 120px;
+        perspective: 480px;
       }
-      @media (prefers-color-scheme: dark) {
-        #splash {
-          background: #0e0b1c;
-        }
+      #splash .logo > * {
+        position: absolute;
+        opacity: 0;
+      }
+      #splash .shadow {
+        width: 15%;
+        height: 15%;
+        border-radius: 50%;
+        background: rgba(14, 11, 28, 0.4);
+      }
+      #splash .wordmark {
+        width: 110px;
+        height: auto;
+        clip-path: inset(0 100% 0 0);
       }
     </style>
   </head>
@@ -28,12 +43,24 @@
   <body>
     <div id="root"></div>
     <div id="splash">
-      <svg width="1024" height="1024" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-        <rect width="100" height="100" rx="23" fill="#6d4aff" />
-        <rect x="29" y="31" width="13" height="38" rx="3" fill="#ffffff" />
-        <rect x="16.5" y="43.5" width="38" height="13" rx="3" fill="#ffffff" />
-        <circle cx="68" cy="59" r="7.5" fill="#ffffff" />
-        <circle cx="81" cy="42" r="7.5" fill="#ffffff" />
+      <div class="logo">
+        <svg class="vertical" style="left: 29%; top: 31%; width: 13%; height: 38%" viewBox="29 31 13 38">
+          <rect x="29" y="31" width="13" height="38" rx="3" fill="#ffffff" />
+        </svg>
+        <svg class="horizontal" style="left: 16.5%; top: 43.5%; width: 38%; height: 13%" viewBox="16.5 43.5 38 13">
+          <rect x="16.5" y="43.5" width="38" height="13" rx="3" fill="#ffffff" />
+        </svg>
+        <div class="shadow upper-shadow" style="left: 73.5%; top: 34.5%"></div>
+        <div class="shadow lower-shadow" style="left: 60.5%; top: 51.5%"></div>
+        <svg class="upper" style="left: 73.5%; top: 34.5%; width: 15%; height: 15%" viewBox="73.5 34.5 15 15">
+          <circle cx="81" cy="42" r="7.5" fill="#ffffff" />
+        </svg>
+        <svg class="lower" style="left: 60.5%; top: 51.5%; width: 15%; height: 15%" viewBox="60.5 51.5 15 15">
+          <circle cx="68" cy="59" r="7.5" fill="#ffffff" />
+        </svg>
+      </div>
+      <svg class="wordmark" width="367.8" height="81.7" viewBox="0 0 367.8 81.7">
+        <path fill="#ffffff" d="M11.8 81.7L0 81.7L0 26.2L8.9 26.2L8.9 17.5L38.5 17.5L38.5 26.2L47.5 26.2L47.5 56.1L38.5 56.1L38.5 64.7L11.8 64.7L11.8 81.7M11.8 29.9L11.8 52.3L35.6 52.3L35.6 29.9L11.8 29.9M73.5 64.7L61.7 64.7L61.7 0L73.5 0L73.5 34.8L79.4 34.8L79.4 26.2L97.3 26.2L97.3 17.5L109.2 17.5L109.2 29.9L100.2 29.9L100.2 38.5L82.4 38.5L82.4 43.6L100.2 43.6L100.2 52.3L109.2 52.3L109.2 64.7L97.3 64.7L97.3 56.1L79.4 56.1L79.4 47.3L73.5 47.3L73.5 64.7M133.2 64.7L121.4 64.7L121.4 0L133.2 0L133.2 26.2L139.1 26.2L139.1 17.5L159.9 17.5L159.9 26.2L168.9 26.2L168.9 64.7L157 64.7L157 29.9L142.1 29.9L142.1 38.5L133.2 38.5L133.2 64.7M219.6 64.7L190 64.7L190 56.1L181.1 56.1L181.1 26.2L190 26.2L190 17.5L219.6 17.5L219.6 26.2L228.6 26.2L228.6 38.5L216.7 38.5L216.7 29.9L192.9 29.9L192.9 34.8L210.8 34.8L210.8 47.3L192.9 47.3L192.9 52.3L216.7 52.3L216.7 43.5L228.6 43.5L228.6 56L219.6 56L219.6 64.7M254.6 64.7L242.8 64.7L242.8 17.5L272.5 17.5L272.5 26.2L278.4 26.2L278.4 17.5L299.3 17.5L299.3 26.2L308.1 26.2L308.1 64.7L296.4 64.7L296.4 29.9L281.3 29.9L281.3 64.7L269.5 64.7L269.5 29.9L254.6 29.9L254.6 64.7M358.8 64.7L329.2 64.7L329.2 56.1L320.3 56.1L320.3 17.5L332.1 17.5L332.1 52.3L355.9 52.3L355.9 17.5L367.8 17.5L367.8 56.1L358.8 56.1" />
       </svg>
     </div>
     <script type="module" src="/src/main.tsx"></script>

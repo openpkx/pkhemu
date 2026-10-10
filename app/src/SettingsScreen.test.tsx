@@ -37,11 +37,15 @@ function openSettings({
   const onLicences = vi.fn();
   const gamesFolderHost: GamesFolderHost = {
     pickFolder: async () => "/roms",
+    makeFolder: async () => "/roms",
+    findFolder: async () => "/roms",
+    listFolders: async () => [],
     ensureFolder: async () => {},
     folderExists: async () => true,
     loadSaved: async () => "/games",
     save: async () => {},
     label: (folder) => folder,
+    device: "phone",
     ...(canOpenFolder && { openFolder }),
   };
   let saved: Partial<Preferences> = {};

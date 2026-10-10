@@ -1,5 +1,7 @@
+use std::fs::File;
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager, Runtime};
+use tauri_plugin_android_fs::{AndroidFsExt, FsUri};
 
 pub fn write_file(file: &Path, contents: &[u8]) -> std::io::Result<()> {
     if let Some(parent) = file.parent() {
@@ -13,6 +15,13 @@ pub fn write_file(file: &Path, contents: &[u8]) -> std::io::Result<()> {
 
 pub fn cache_dir<R: Runtime>(app: &AppHandle<R>, name: &str) -> Result<PathBuf, String> {
     Ok(app.path().app_cache_dir().map_err(|e| e.to_string())?.join(name))
+}
+
+pub async fn open_picked<R: Runtime>(app: &AppHandle<R>, file: &str) -> Result<File, String> {
+    match FsUri::from_json_str(file) {
+        Ok(uri) => app.android_fs_async().open_file_readable(&uri).await.map_err(|e| e.to_string()),
+        Err(_) => File::open(file).map_err(|e| format!("{file}: {e}")),
+    }
 }
 
 /// Deletes the sprites earlier versions downloaded, which game art replaced.

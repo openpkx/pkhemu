@@ -21,7 +21,7 @@ beforeEach(() => {
       addEventListener: (_: string, listener: () => void) => listeners.add(listener),
       removeEventListener: (_: string, listener: () => void) => listeners.delete(listener),
     }) as unknown as MediaQueryList;
-  window.androidSystemBars = { setHidden: () => {}, setLight: (light) => void barsLight.push(light) };
+  window.androidSystemBars = { setHidden: () => {}, setLight: (light) => void barsLight.push(light), splashHidden: () => {} };
 });
 
 afterEach(() => {

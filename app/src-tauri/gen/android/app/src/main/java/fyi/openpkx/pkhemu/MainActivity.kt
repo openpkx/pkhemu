@@ -32,6 +32,11 @@ class MainActivity : TauriActivity() {
       Runtime.getRuntime().exit(0)
     }
     enableEdgeToEdge()
+    // enableEdgeToEdge picks icons for the device theme, but the splash is violet in both.
+    WindowCompat.getInsetsController(window, window.decorView).run {
+      isAppearanceLightStatusBars = false
+      isAppearanceLightNavigationBars = false
+    }
     super.onCreate(savedInstanceState)
   }
 
@@ -52,9 +57,7 @@ class MainActivity : TauriActivity() {
 
   override fun onWebViewCreate(webView: WebView) {
     val light = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) != Configuration.UI_MODE_NIGHT_YES
-    webView.setBackgroundColor(windowColor(light))
-    window.decorView.setBackgroundColor(windowColor(light))
-    webView.addJavascriptInterface(SystemBars(), "androidSystemBars")
+    webView.addJavascriptInterface(SystemBars(webView, light), "androidSystemBars")
     webView.addJavascriptInterface(Haptics(webView), "androidHaptics")
     webView.addJavascriptInterface(gravity, "androidGravity")
     ViewCompat.setOnApplyWindowInsetsListener(webView) { view, insets ->
@@ -81,11 +84,18 @@ class MainActivity : TauriActivity() {
   private companion object {
     var windowGone = false
     const val SAMPLING_PERIOD_US = 33_333
+    const val SPLASH_COLOR = 0xFF6D4AFF.toInt()
   }
 
   private fun windowColor(light: Boolean) = if (light) Color.WHITE else 0xFF0E0B1C.toInt()
 
-  inner class SystemBars {
+  inner class SystemBars(private val webView: WebView, private var light: Boolean) {
+    private var splash = true
+
+    init {
+      update()
+    }
+
     @JavascriptInterface
     fun setHidden(hidden: Boolean) = runOnUiThread {
       val controller = WindowCompat.getInsetsController(window, window.decorView)
@@ -97,10 +107,24 @@ class MainActivity : TauriActivity() {
     // The WebView sits inside margins, so the window background shows behind the bars.
     @JavascriptInterface
     fun setLight(light: Boolean) = runOnUiThread {
+      this.light = light
+      update()
+    }
+
+    // Until the web splash is gone the bars stay on its violet, as the system splash left them.
+    @JavascriptInterface
+    fun splashHidden() = runOnUiThread {
+      splash = false
+      update()
+    }
+
+    private fun update() {
       val controller = WindowCompat.getInsetsController(window, window.decorView)
-      controller.isAppearanceLightStatusBars = light
-      controller.isAppearanceLightNavigationBars = light
-      window.decorView.setBackgroundColor(windowColor(light))
+      controller.isAppearanceLightStatusBars = light && !splash
+      controller.isAppearanceLightNavigationBars = light && !splash
+      val color = if (splash) SPLASH_COLOR else windowColor(light)
+      window.decorView.setBackgroundColor(color)
+      webView.setBackgroundColor(color)
     }
   }
 

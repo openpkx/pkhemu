@@ -255,7 +255,7 @@ fn hex(digest: &[u8]) -> String {
 
 const CHUNK: usize = 1 << 20;
 
-fn sha1_of_stream(rom: impl Read) -> std::io::Result<String> {
+pub(crate) fn sha1_of_stream(rom: impl Read) -> std::io::Result<String> {
     let mut sha1 = Sha1::new();
     std::io::copy(&mut BufReader::with_capacity(CHUNK, rom), &mut sha1)?;
     Ok(hex(&sha1.finalize()))

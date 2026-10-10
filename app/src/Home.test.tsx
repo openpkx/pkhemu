@@ -22,6 +22,8 @@ import { hideSplash } from "./splash";
 import { fakeSync } from "./sync/fakeSync";
 import { SyncProvider } from "./sync/sync";
 
+vi.mock("./splash", () => ({ hideSplash: vi.fn() }));
+
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(async () => ({ name: "mGBA", version: "0.10.5" })),
 }));
@@ -67,7 +69,7 @@ beforeEach(() => {
 
 afterEach(() => {
   cleanup();
-  hideSplash();
+  vi.mocked(hideSplash).mockClear();
   delete (navigator as Partial<Navigator>).getGamepads;
   vi.useRealTimers();
   vi.unstubAllGlobals();
@@ -82,21 +84,30 @@ function launch({
   boxArt = fakeBoxArt(),
   loadSaved = async () => null as string | null,
   sync = fakeSync({ available: false }),
+  listDir = undefined as LibraryHost["listDir"] | undefined,
+  makeFolder = vi.fn(async () => "/games" as string | null),
+  findFolder = vi.fn(async () => "/games" as string | null),
+  listFolders = async (_folder: string) => ["gba"],
 } = {}) {
   const paths: string[] = [];
   const openFolder = vi.fn(async () => {});
+  const save = vi.fn(async (_folder: string) => {});
   const gamesFolderHost: GamesFolderHost = {
     pickFolder: async () => "/games",
+    makeFolder,
+    findFolder,
+    listFolders,
     ensureFolder: async (_parent, name) => void paths.push(`${name}/`),
     folderExists: async () => true,
     loadSaved,
-    save: async () => {},
+    save,
+    device: "phone",
     label: (folder) => folder,
     ...(canOpenFolder && { openFolder }),
   };
   const list = fakeFolder(paths);
   const libraryHost: LibraryHost = {
-    listDir: (_folder, path) => list(path),
+    listDir: listDir ?? ((_folder, path) => list(path)),
     recentlyPlayed: async () => [],
     scanGameArt: async () => {},
     resumeScreenshot: async () => null,
@@ -180,54 +191,164 @@ function launch({
       </PreferencesProvider>
     </EngineProvider>,
   );
-  return { paths, openFolder, gamePageHost, back: () => act(pressBack), exit: backHost.exit };
-}
-
-function showSplash() {
-  const splash = document.createElement("div");
-  splash.id = "splash";
-  document.body.append(splash);
+  return { paths, openFolder, save, makeFolder, gamePageHost, back: () => act(pressBack), exit: backHost.exit };
 }
 
 it("keeps the splash while the games folder loads", async () => {
-  showSplash();
   const loadSaved = vi.fn(() => new Promise<string | null>(() => {}));
   launch({ loadSaved });
 
   await waitFor(() => expect(loadSaved).toHaveBeenCalled());
 
-  expect(document.getElementById("splash")).not.toBeNull();
+  expect(hideSplash).not.toHaveBeenCalled();
 });
 
-it("hides the splash once the library shows", async () => {
-  showSplash();
-  launch({ loadSaved: async () => "/games" });
+it("keeps the splash until the library's first scan is done", async () => {
+  let scanned = () => {};
+  const gate = new Promise<void>((resolve) => (scanned = resolve));
+  const listDir = vi.fn(async () => gate.then(() => []));
+  launch({ loadSaved: async () => "/games", listDir });
 
-  await screen.findByTestId("empty-library");
+  await waitFor(() => expect(listDir).toHaveBeenCalled());
+  expect(hideSplash).not.toHaveBeenCalled();
 
-  expect(document.getElementById("splash")).toBeNull();
+  scanned();
+  await waitFor(() => expect(hideSplash).toHaveBeenCalled());
 });
 
-it("hides the splash once Add games shows", async () => {
-  showSplash();
+it("hides the splash once the welcome screen shows", async () => {
   launch();
 
-  await screen.findByRole("button", { name: "Choose folder" });
+  await screen.findByRole("button", { name: /I'm new to emulators/ });
 
-  expect(document.getElementById("splash")).toBeNull();
+  expect(hideSplash).toHaveBeenCalled();
 });
 
+it("welcomes a player with no games folder with three ways in", async () => {
+  launch();
+
+  expect(await screen.findByRole("button", { name: /I'm new to emulators/ })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /I have ROMs on this phone/ })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /I've used pkhemu before/ })).toBeTruthy();
+});
+
+async function makeFolder() {
+  fireEvent.click(await screen.findByRole("button", { name: /I'm new to emulators/ }));
+  fireEvent.click(await screen.findByRole("button", { name: "Make folder" }));
+}
+
 async function chooseFolder() {
-  fireEvent.click(await screen.findByRole("button", { name: "Choose folder" }));
+  await makeFolder();
   return screen.findByTestId("empty-library");
 }
+
+it("makes a games folder for a new player and opens the empty library", async () => {
+  const { save, paths } = launch();
+
+  await chooseFolder();
+
+  expect(save).toHaveBeenCalledWith("/games");
+  expect(paths).toEqual(expect.arrayContaining(["gb/", "gba/"]));
+  expect(screen.getByRole("status")).toBeTruthy();
+});
+
+it("stays on the folder screen when the picker is cancelled", async () => {
+  const { save } = launch({ makeFolder: vi.fn(async () => null) });
+
+  await makeFolder();
+
+  expect(await screen.findByRole("button", { name: "Make folder" })).toBeTruthy();
+  expect(save).not.toHaveBeenCalled();
+  expect(screen.queryByTestId("empty-library")).toBeNull();
+});
+
+it("goes back from the folder screen to the welcome screen", async () => {
+  launch();
+  fireEvent.click(await screen.findByRole("button", { name: /I'm new to emulators/ }));
+
+  fireEvent.click(await screen.findByRole("button", { name: "Back" }));
+
+  expect(await screen.findByRole("button", { name: /I'm new to emulators/ })).toBeTruthy();
+});
+
+async function choosePreviousFolder() {
+  fireEvent.click(await screen.findByRole("button", { name: /I've used pkhemu before/ }));
+  fireEvent.click(await screen.findByRole("button", { name: "Choose folder" }));
+}
+
+it("opens the library from a previous folder that has system folders", async () => {
+  const { save } = launch();
+
+  await choosePreviousFolder();
+
+  expect(await screen.findByTestId("empty-library")).toBeTruthy();
+  expect(save).toHaveBeenCalledWith("/games");
+});
+
+it("warns about a previous folder with no system folders and keeps nothing", async () => {
+  const { save } = launch({ findFolder: vi.fn(async () => "/Documents"), listFolders: async () => ["Photos"] });
+
+  await choosePreviousFolder();
+
+  expect(await screen.findByRole("alert")).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Choose another folder" })).toBeTruthy();
+  expect(save).not.toHaveBeenCalled();
+});
+
+it("keeps a folder with no system folders when the player uses it anyway", async () => {
+  const { save, paths } = launch({ findFolder: vi.fn(async () => "/Documents"), listFolders: async () => [] });
+  await choosePreviousFolder();
+
+  fireEvent.click(await screen.findByRole("button", { name: "Use it anyway" }));
+
+  expect(await screen.findByTestId("empty-library")).toBeTruthy();
+  expect(save).toHaveBeenCalledWith("/Documents");
+  expect(paths).toEqual(expect.arrayContaining(["gb/", "gba/"]));
+});
+
+it("picks again from the warning and opens the library once the folder has system folders", async () => {
+  const findFolder = vi.fn(async () => "/Documents" as string | null);
+  const { save } = launch({ findFolder, listFolders: async (folder) => (folder === "/games" ? ["gb"] : []) });
+  await choosePreviousFolder();
+  findFolder.mockResolvedValueOnce("/games");
+
+  fireEvent.click(await screen.findByRole("button", { name: "Choose another folder" }));
+
+  expect(await screen.findByTestId("empty-library")).toBeTruthy();
+  expect(save).toHaveBeenCalledWith("/games");
+});
+
+it("stays on the previous folder screen when the picker is cancelled", async () => {
+  const { save } = launch({ findFolder: vi.fn(async () => null) });
+
+  await choosePreviousFolder();
+
+  expect(await screen.findByRole("button", { name: "Choose folder" })).toBeTruthy();
+  expect(save).not.toHaveBeenCalled();
+});
+
+it("asks to set up a pad only once there's a games folder", async () => {
+  vi.useFakeTimers({ toFake: ["requestAnimationFrame", "cancelAnimationFrame"] });
+  const pads = fakePads();
+  Object.defineProperty(navigator, "getGamepads", { configurable: true, value: pads.gamepads });
+  const pad = pads.connect({ id: "Odd Pad", mapping: "" });
+  launch();
+  await screen.findByRole("button", { name: /I'm new to emulators/ });
+
+  pad.press(3);
+
+  expect(screen.queryByRole("alertdialog")).toBeNull();
+  await chooseFolder();
+  pad.press(3);
+  expect(await screen.findByRole("alertdialog")).toBeTruthy();
+});
 
 it("goes from first launch to the library once a ROM is added", async () => {
   const { paths } = launch();
 
-  const ready = await chooseFolder();
+  await chooseFolder();
   paths.push("gba/Emerald.gba");
-  fireEvent.click(within(ready).getByRole("button", { name: "Refresh" }));
+  fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
 
   expect(await screen.findByRole("button", { name: /Emerald/ })).toBeTruthy();
   expect(screen.queryByTestId("empty-library")).toBeNull();
@@ -299,9 +420,9 @@ it("goes back from settings to the library with B on a gamepad", async () => {
 });
 
 async function openGame(paths: string[], name: string) {
-  const ready = await chooseFolder();
+  await chooseFolder();
   paths.push("gba/Emerald.gba", "gba/Ruby.gba");
-  fireEvent.click(within(ready).getByRole("button", { name: "Refresh" }));
+  fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
   fireEvent.click(await screen.findByRole("button", { name: new RegExp(name) }));
   await screen.findByRole("heading", { name });
 }
@@ -365,9 +486,9 @@ it("opens the patched game's page once it's created", async () => {
 
 it("shows on the game page that N64 games don't run on this device once one fails to load", async () => {
   const { paths } = launch({ resume: false });
-  const ready = await chooseFolder();
+  await chooseFolder();
   paths.push("n64/Stadium.z64", "n64/Stadium 2.z64");
-  fireEvent.click(within(ready).getByRole("button", { name: "Refresh" }));
+  fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
   fireEvent.click(await screen.findByRole("button", { name: /Stadium 2/ }));
   fireEvent.click(await screen.findByRole("button", { name: "Start" }));
 
@@ -514,9 +635,9 @@ const boxArtUrl = "data:image/png;base64,iVBORw0KGgo=";
 it("finds box art for a game a scan adds and shows it on the game's tile", async () => {
   const boxArt = fakeBoxArt({ "Nintendo - Game Boy Advance/Named_Boxarts/Pokemon - Emerald Version (USA, Europe).png": boxArtPng });
   const { paths } = launch({ boxArt });
-  const ready = await chooseFolder();
+  await chooseFolder();
   paths.push("gba/Pokemon Emerald.gba");
-  fireEvent.click(within(ready).getByRole("button", { name: "Refresh" }));
+  fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
 
   const tile = await screen.findByRole("button", { name: /Emerald/ });
 
@@ -527,7 +648,7 @@ it("finds box art for cloud-only games", async () => {
   const boxArt = fakeBoxArt({ "Nintendo - Game Boy Advance/Named_Boxarts/Pokemon - Sapphire Version (USA, Europe).png": boxArtPng });
   const sync = fakeSync({ account: "player@example.com", syncGames: true, cloudGames: ["gba/Pokemon Sapphire.gba"] });
   launch({ boxArt, sync });
-  fireEvent.click(await screen.findByRole("button", { name: "Choose folder" }));
+  await makeFolder();
 
   const tile = await screen.findByRole("button", { name: /Sapphire/ });
 
@@ -537,7 +658,7 @@ it("finds box art for cloud-only games", async () => {
 const cloudMark = (tile: HTMLElement) => within(tile).queryByRole("img", { name: "In the cloud" });
 
 async function openCloudGame(sync: ReturnType<typeof fakeSync>, name: string) {
-  fireEvent.click(await screen.findByRole("button", { name: "Choose folder" }));
+  await makeFolder();
   const tile = await screen.findByRole("button", { name: new RegExp(name) });
   expect(cloudMark(tile)).toBeTruthy();
   fireEvent.click(tile);
@@ -547,7 +668,7 @@ async function openCloudGame(sync: ReturnType<typeof fakeSync>, name: string) {
 
 it("shows cloud-only games while Sync games is off", async () => {
   launch({ sync: fakeSync({ account: "player@example.com", cloudGames: ["gba/Sapphire.gba"] }) });
-  fireEvent.click(await screen.findByRole("button", { name: "Choose folder" }));
+  await makeFolder();
 
   expect(cloudMark(await screen.findByRole("button", { name: /Sapphire/ }))).toBeTruthy();
 });
@@ -592,7 +713,7 @@ it("asks before downloading a cloud-only game on mobile data, and Cancel downloa
     cloudSizes: { "gba/Sapphire.gba": 16 * 1024 * 1024 },
   });
   launch({ sync });
-  fireEvent.click(await screen.findByRole("button", { name: "Choose folder" }));
+  await makeFolder();
   fireEvent.click(await screen.findByRole("button", { name: /Sapphire/ }));
 
   const dialog = await screen.findByRole("alertdialog", { name: /Sapphire \(16 MB\)/ });
@@ -612,7 +733,7 @@ it("downloads a cloud-only game on mobile data once the player says so", async (
     cloudSizes: { "gba/Sapphire.gba": 16 * 1024 * 1024 },
   });
   launch({ sync });
-  fireEvent.click(await screen.findByRole("button", { name: "Choose folder" }));
+  await makeFolder();
   fireEvent.click(await screen.findByRole("button", { name: /Sapphire/ }));
 
   const dialog = await screen.findByRole("alertdialog");

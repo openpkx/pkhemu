@@ -4,8 +4,6 @@ A Pokémon-focused emulator for GB, GBC, GBA and DS games. Pause the game, edit 
 
 Work in progress. Bring your own game files: this repo ships no ROMs or BIOS files.
 
-To play on more than one device, [sync your games folder](docs/guides/sync-your-games-folder.md).
-
 ## Free and Plus
 
 These are free forever: the emulator, save states, cheats, backups, the save editor, transfers, Pokémon files, Showdown export, the overlay and trackers, and every Pokémon feature to come. Nothing free will ever become paid.
@@ -13,6 +11,10 @@ These are free forever: the emulator, save states, cheats, backups, the save edi
 Plus is a one-time purchase in Google Play and the App Store that unlocks two things: sync to your own Google Drive or Dropbox, and the Lab, where you can try emulator features before they ship. Later Plus features come at no extra cost. Builds from this source have Plus unlocked. Buying it in a store pays for the work.
 
 pkhemu is built on [PKHeX](https://github.com/kwsch/PKHeX), [melonDS](https://melonds.kuribo64.net) and [mGBA](https://mgba.io). Consider supporting them too.
+
+## Source
+
+[openpkx/pkhemu](https://github.com/openpkx/pkhemu) has the source of each store release, one commit per release, tagged with its version. It doesn't take issues or pull requests. Send feedback through the app's store listing.
 
 ## Run it
 

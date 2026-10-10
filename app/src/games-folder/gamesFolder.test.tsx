@@ -11,6 +11,14 @@ function fakeDisk(folders: string[] = []) {
   let picks: (string | null)[] = [];
   const host: GamesFolderHost = {
     pickFolder: async () => picks.shift() ?? null,
+    makeFolder: async () => {
+      const made = picks.shift() ?? null;
+      if (made) disk.add(made);
+      return made;
+    },
+    findFolder: async () => picks.shift() ?? null,
+    listFolders: async (folder) =>
+      [...disk].filter((path) => path.startsWith(`${folder}/`)).map((path) => path.slice(folder.length + 1)),
     ensureFolder: async (parent, name) => {
       if (!disk.has(parent)) throw new Error(`${parent} not found`);
       disk.add(`${parent}/${name}`);
@@ -21,6 +29,7 @@ function fakeDisk(folders: string[] = []) {
       saved = folder;
     },
     label: (folder) => folder,
+    device: "phone",
   };
   return {
     host,
@@ -162,4 +171,69 @@ it("reports a folder that can't be set up and keeps the current one", async () =
 
   expect(result.current).toMatchObject({ status: "ready", folder: "/games" });
   expect(result.current.error).toMatch(/permission denied/);
+});
+
+it("makes a folder and sets it up", async () => {
+  const { launch, willPick, disk } = fakeDisk();
+  willPick("/Documents/pkhemu");
+  const { result } = launch();
+  await waitFor(() => expect(result.current.status).toBe("none"));
+
+  let made: string | null = null;
+  await act(async () => void (made = await result.current.make()));
+
+  expect(made).toBe("/Documents/pkhemu");
+  expect(result.current).toMatchObject({ status: "ready", folder: "/Documents/pkhemu" });
+  expect(disk.has("/Documents/pkhemu/gba")).toBe(true);
+});
+
+it("stays without a folder when making one is cancelled", async () => {
+  const { launch, willPick } = fakeDisk();
+  willPick(null);
+  const { result } = launch();
+  await waitFor(() => expect(result.current.status).toBe("none"));
+
+  let made: string | null = "";
+  await act(async () => void (made = await result.current.make()));
+
+  expect(made).toBe(null);
+  expect(result.current.status).toBe("none");
+});
+
+it("keeps a previous folder that has system folders", async () => {
+  const { launch, willPick } = fakeDisk(["/Documents/pkhemu", "/Documents/pkhemu/gba"]);
+  willPick("/Documents/pkhemu");
+  const { result } = launch();
+  await waitFor(() => expect(result.current.status).toBe("none"));
+
+  let unfamiliar: unknown;
+  await act(async () => void (unfamiliar = await result.current.pickPrevious()));
+
+  expect(unfamiliar).toBeNull();
+  expect(result.current).toMatchObject({ status: "ready", folder: "/Documents/pkhemu" });
+});
+
+it("hands back a previous folder with no system folders without keeping it", async () => {
+  const { launch, willPick, disk } = fakeDisk(["/Documents", "/Documents/Photos"]);
+  willPick("/Documents");
+  const { result } = launch();
+  await waitFor(() => expect(result.current.status).toBe("none"));
+
+  let unfamiliar: unknown;
+  await act(async () => void (unfamiliar = await result.current.pickPrevious()));
+
+  expect(unfamiliar).toEqual({ folder: "/Documents", label: "/Documents" });
+  expect(result.current.status).toBe("none");
+  expect(disk.has("/Documents/gba")).toBe(false);
+});
+
+it("keeps a folder with no system folders once the player says so", async () => {
+  const { launch, disk } = fakeDisk(["/Documents"]);
+  const { result } = launch();
+  await waitFor(() => expect(result.current.status).toBe("none"));
+
+  await act(() => result.current.keep("/Documents"));
+
+  expect(result.current).toMatchObject({ status: "ready", folder: "/Documents" });
+  expect(disk.has("/Documents/gba")).toBe(true);
 });

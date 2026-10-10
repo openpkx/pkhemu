@@ -1,11 +1,10 @@
-use std::fs::File;
 use std::io::{BufReader, BufWriter, Read};
 
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use tauri::{AppHandle, Runtime};
-use tauri_plugin_android_fs::{AndroidFsExt, FsUri};
 
+use crate::files::open_picked;
 use crate::games_folder::{DirEntry, GamesFolder};
 use crate::patch::{self, PatchError, System};
 
@@ -138,13 +137,6 @@ async fn create<R: Runtime>(
     Ok(Created { path, sha256 })
 }
 
-async fn open_patch<R: Runtime>(app: &AppHandle<R>, file: &str) -> Result<File, String> {
-    match FsUri::from_json_str(file) {
-        Ok(uri) => app.android_fs_async().open_file_readable(&uri).await.map_err(|e| e.to_string()),
-        Err(_) => File::open(file).map_err(|e| format!("{file}: {e}")),
-    }
-}
-
 const NAMES: [(&str, &str); 16] = [
     ("AXV", "Ruby"),
     ("AXP", "Sapphire"),
@@ -234,6 +226,7 @@ fn format(magic: &[u8]) -> Option<&'static str> {
 
 #[cfg(target_os = "android")]
 async fn pick_file<R: Runtime>(app: &AppHandle<R>) -> Result<Option<(String, String)>, String> {
+    use tauri_plugin_android_fs::AndroidFsExt;
     let fs = app.android_fs_async();
     let Some(uri) = fs.picker().pick_file(None, &[], false).await.map_err(|e| e.to_string())? else {
         return Ok(None);
@@ -273,7 +266,7 @@ pub async fn patch_dropped<R: Runtime>(app: AppHandle<R>, file: String) -> Resul
 
 async fn picked_patch<R: Runtime>(app: &AppHandle<R>, file: String, name: String) -> Result<PickedPatch, String> {
     let mut magic = Vec::new();
-    open_patch(app, &file).await?.take(5).read_to_end(&mut magic).map_err(|e| e.to_string())?;
+    open_picked(app, &file).await?.take(5).read_to_end(&mut magic).map_err(|e| e.to_string())?;
     Ok(PickedPatch { file, name, format: format(&magic) })
 }
 
@@ -312,7 +305,7 @@ pub async fn patch_rom<R: Runtime>(
     name: String,
     patch: String,
 ) -> Result<Created, Failure> {
-    let patch = open_patch(&app, &patch).await?;
+    let patch = open_picked(&app, &patch).await?;
     create(&GamesFolder::open(&app, &folder), &path, &system, &name, patch).await
 }
 

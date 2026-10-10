@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { Cloud, FolderOpen, Play, RefreshCw, Settings } from "lucide-react";
+import { Cloud, FilePlus, FolderOpen, FolderPlus, Play, Plus, RefreshCw, Settings } from "lucide-react";
 import { cn } from "cn";
 import { AppIcon } from "@/components/AppIcon";
 import { ScreenHeader } from "@/components/ScreenHeader";
@@ -10,8 +10,11 @@ import { Toast, useToast } from "@/components/Toast";
 import { useCachedBoxArt } from "@/box-art/boxArt";
 import { BoxArtSheet } from "@/box-art/BoxArtSheet";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { Spinner } from "@/components/ui/spinner";
 import { ago, gameTitle } from "@/game-page/details";
 import { useOpenFolder } from "@/games-folder/useOpenFolder";
+import { useImportFiles } from "@/import/importFiles";
 import { useLongPress } from "@/lib/useLongPress";
 import { Shared, useStaggerOnce } from "@/motion/motion";
 import { useTileSync } from "@/sync/gameStatus";
@@ -239,37 +242,53 @@ function Section({ id, title, caption, children }: { id: string; title: string; 
 }
 
 function EmptyLibrary({
-  scanning,
-  onRefresh,
+  importing,
+  onImportFiles,
+  onImportFolder,
   onOpenFolder,
 }: {
-  scanning: boolean;
-  onRefresh(): void;
+  importing: boolean;
+  onImportFiles(): void;
+  onImportFolder?(): void;
   onOpenFolder?(): Promise<void>;
 }) {
   const { open: openFolder, error: openError } = useOpenFolder(onOpenFolder);
 
   return (
     <div data-testid="empty-library" className="grid justify-items-center gap-4 py-16 text-center">
-      <p className="max-w-sm text-muted-foreground">Folders ready. Copy your ROMs into gb, gbc, gba or nds.</p>
+      <p className="max-w-sm text-muted-foreground">This app doesn't include any games.</p>
       {openError && <p className="max-w-sm text-sm text-destructive">{openError}</p>}
-      <div className="flex gap-2">
+      <div className="flex flex-wrap justify-center gap-2">
+        <Button disabled={importing} onClick={onImportFiles}>
+          {importing ? <Spinner /> : <FilePlus />}
+          Import files
+        </Button>
+        {onImportFolder && (
+          <Button variant="outline" disabled={importing} onClick={onImportFolder}>
+            <FolderPlus />
+            Import folder
+          </Button>
+        )}
         {onOpenFolder && (
           <Button variant="outline" onClick={() => void openFolder()}>
             <FolderOpen />
             Open folder
           </Button>
         )}
-        <Button onClick={onRefresh}>
-          <RefreshCw className={cn(scanning && "animate-spin")} />
-          Refresh
-        </Button>
       </div>
     </div>
   );
 }
 
-export function LibraryScreen({ onSettings, onOpenFolder }: { onSettings(): void; onOpenFolder?(): Promise<void> }) {
+export function LibraryScreen({
+  onSettings,
+  onOpenFolder,
+  onImportFolder,
+}: {
+  onSettings(): void;
+  onOpenFolder?(): Promise<void>;
+  onImportFolder?(): void;
+}) {
   const { library, recent, scanning, error, refresh, open } = useLibrary();
   const outside = library?.outsideSystemFolders ?? 0;
   const empty = library?.sections.length === 0;
@@ -277,6 +296,7 @@ export function LibraryScreen({ onSettings, onOpenFolder }: { onSettings(): void
   const [last, ...others] = recent;
   const [changingBoxArt, setChangingBoxArt] = useState<{ game: Game; open: boolean; opens: number }>();
   const [toast, setToast] = useToast();
+  const { importFiles, busy: importing, dialogs: importDialogs } = useImportFiles(setToast);
   const changeBoxArt = (game: Game) => setChangingBoxArt((was) => ({ game, open: true, opens: (was?.opens ?? 0) + 1 }));
   const stopChangingBoxArt = () => setChangingBoxArt((was) => was && { ...was, open: false });
 
@@ -291,6 +311,17 @@ export function LibraryScreen({ onSettings, onOpenFolder }: { onSettings(): void
         }
       >
         <SyncRing onOpen={onSettings} />
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon" aria-label="Import" disabled={importing}>
+              {importing ? <Spinner /> : <Plus />}
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={() => void importFiles()}>Import files</DropdownMenuItem>
+            {onImportFolder && <DropdownMenuItem onSelect={onImportFolder}>Import folder</DropdownMenuItem>}
+          </DropdownMenuContent>
+        </DropdownMenu>
         <Button variant="ghost" size="icon" aria-label="Refresh" onClick={() => void refresh()}>
           <RefreshCw className={cn(scanning && "animate-spin")} />
         </Button>
@@ -300,7 +331,14 @@ export function LibraryScreen({ onSettings, onOpenFolder }: { onSettings(): void
       </ScreenHeader>
       <main ref={ref} className="grid gap-8 p-4">
         {error && <p className="text-sm text-destructive">{error}</p>}
-        {empty && <EmptyLibrary scanning={scanning} onRefresh={() => void refresh()} onOpenFolder={onOpenFolder} />}
+        {empty && (
+          <EmptyLibrary
+            importing={importing}
+            onImportFiles={() => void importFiles()}
+            onImportFolder={onImportFolder}
+            onOpenFolder={onOpenFolder}
+          />
+        )}
         {last && <ContinueCard key={last.path} game={last} onChangeBoxArt={changeBoxArt} />}
         {others.length > 0 && (
           <Section id="recent" title="Recently played">
@@ -353,6 +391,7 @@ export function LibraryScreen({ onSettings, onOpenFolder }: { onSettings(): void
           }}
         />
       )}
+      {importDialogs}
       <Toast>{toast}</Toast>
     </div>
   );

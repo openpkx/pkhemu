@@ -1,9 +1,11 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
-    <style name="Theme.pkh_emu" parent="Theme.Material3.DayNight.NoActionBar">
-        <!-- Customize your theme here. -->
-        <item name="android:windowBackground">#FFFFFFFF</item>
-        <item name="android:statusBarColor">#FFFFFFFF</item>
-        <item name="android:navigationBarColor">#FFFFFFFF</item>
+    <style name="Base.Theme.pkh_emu" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:windowBackground">#FF6D4AFF</item>
+        <item name="android:statusBarColor">#FF6D4AFF</item>
+        <item name="android:navigationBarColor">#FF6D4AFF</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">false</item>
     </style>
+
+    <style name="Theme.pkh_emu" parent="Base.Theme.pkh_emu" />
 </resources>

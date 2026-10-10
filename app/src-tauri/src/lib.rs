@@ -10,6 +10,7 @@ mod files;
 mod game_art;
 mod games_folder;
 mod gl;
+mod import;
 mod index;
 mod keep_alive;
 mod kept_copies;
@@ -646,11 +647,20 @@ pub fn run() {
             kept_copies::keep_copies,
             index::save_had_cheats,
             games_folder::games_folder_pick,
+            games_folder::games_folder_make,
+            games_folder::games_folder_find,
             games_folder::games_folder_keep,
             games_folder::games_folder_exists,
             games_folder::games_folder_create_dir,
             games_folder::games_folder_read_dir,
             games_folder::games_folder_open,
+            import::import_pick,
+            import::import_pick_folder,
+            import::import_scan,
+            import::import_sha1s,
+            import::import_rom,
+            import::import_existing_save,
+            import::import_save,
             pokemon_file::pokemon_file_pick,
             patching::patch_pick,
             patching::patch_dropped,

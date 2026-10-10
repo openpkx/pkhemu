@@ -3,19 +3,32 @@ import { systems } from "@/systems";
 
 export type GamesFolderHost = {
   pickFolder(): Promise<string | null>;
+  makeFolder(): Promise<string | null>;
+  findFolder(): Promise<string | null>;
+  listFolders(folder: string): Promise<string[]>;
   ensureFolder(parent: string, name: string): Promise<void>;
   folderExists(path: string): Promise<boolean>;
   loadSaved(): Promise<string | null>;
   save(folder: string): Promise<void>;
   label(folder: string): string;
+  device: "phone" | "Mac";
   openFolder?(): Promise<void>;
 };
+
+export type UnfamiliarFolder = { folder: string; label: string };
 
 export type GamesFolderState = (
   | { status: "loading" }
   | { status: "none" }
   | { status: "ready"; folder: string; label: string; openFolder?(): Promise<void> }
-) & { error?: string; choose(): Promise<void> };
+) & {
+  error?: string;
+  device: GamesFolderHost["device"];
+  choose(): Promise<string | null>;
+  make(): Promise<string | null>;
+  pickPrevious(): Promise<UnfamiliarFolder | null>;
+  keep(folder: string): Promise<string | null>;
+};
 
 async function createSystemFolders(host: GamesFolderHost, folder: string) {
   for (const system of systems) await host.ensureFolder(folder, system);
@@ -49,18 +62,51 @@ export function GamesFolderProvider({ host, children }: { host: GamesFolderHost;
     };
   }, [host]);
 
-  const choose = useCallback(async () => {
+  const keep = useCallback(
+    async (picked: string) => {
+      try {
+        await createSystemFolders(host, picked);
+        await host.save(picked);
+        setFolder(picked);
+        setError(undefined);
+        return picked;
+      } catch (reason) {
+        setError(String(reason));
+        return null;
+      }
+    },
+    [host],
+  );
+  const adopt = useCallback(
+    async (pick: () => Promise<string | null>) => {
+      try {
+        const picked = await pick();
+        return picked ? keep(picked) : null;
+      } catch (reason) {
+        setError(String(reason));
+        return null;
+      }
+    },
+    [keep],
+  );
+  const choose = useCallback(() => adopt(host.pickFolder), [adopt, host]);
+  const make = useCallback(() => adopt(host.makeFolder), [adopt, host]);
+  const pickPrevious = useCallback(async () => {
     try {
-      const picked = await host.pickFolder();
-      if (!picked) return;
-      await createSystemFolders(host, picked);
-      await host.save(picked);
-      setFolder(picked);
+      const picked = await host.findFolder();
+      if (!picked) return null;
+      const names = await host.listFolders(picked);
+      if (systems.some((system) => names.includes(system))) {
+        await keep(picked);
+        return null;
+      }
       setError(undefined);
+      return { folder: picked, label: host.label(picked) };
     } catch (reason) {
       setError(String(reason));
+      return null;
     }
-  }, [host]);
+  }, [host, keep]);
 
   const state =
     folder === undefined
@@ -70,7 +116,7 @@ export function GamesFolderProvider({ host, children }: { host: GamesFolderHost;
         : { status: "ready" as const, folder, label: host.label(folder), openFolder: host.openFolder };
 
   return (
-    <GamesFolderContext.Provider value={{ ...state, error, choose }}>{children}</GamesFolderContext.Provider>
+    <GamesFolderContext.Provider value={{ ...state, error, device: host.device, choose, make, pickPrevious, keep }}>{children}</GamesFolderContext.Provider>
   );
 }
 

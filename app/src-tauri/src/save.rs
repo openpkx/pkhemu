@@ -191,6 +191,17 @@ async fn open_n64<R: Runtime>(folder: &GamesFolder<'_, R>, rom: &str) -> Result<
     Ok((slot, Some(save)))
 }
 
+pub fn imported(rom: &str, name: &str, file: Vec<u8>) -> Result<(Slot, Vec<u8>), String> {
+    if rom::is_n64(rom) {
+        return match file.len() == n64::SIZE {
+            true => Ok((Slot::n64(rom), file)),
+            false => Err(format!("{name} isn't a Nintendo 64 save")),
+        };
+    }
+    let path = if is_dsv(name) { rom::dsv_path(rom) } else { rom::save_path(rom) };
+    Ok(Slot::new(path, file))
+}
+
 pub fn from_files(rom: &str, files: Vec<(String, Vec<u8>)>) -> Option<(Slot, Vec<u8>)> {
     if !rom::is_n64(rom) {
         let (path, file) = files.into_iter().next()?;

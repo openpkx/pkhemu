@@ -147,11 +147,15 @@ function fakeHost({
 
 const gamesFolder: GamesFolderHost = {
   pickFolder: async () => "/games",
+  makeFolder: async () => "/games",
+  findFolder: async () => "/games",
+  listFolders: async () => [],
   ensureFolder: async () => {},
   folderExists: async () => true,
   loadSaved: async () => "/games",
   save: async () => {},
   label: (folder) => folder,
+  device: "phone",
 };
 
 async function launch(

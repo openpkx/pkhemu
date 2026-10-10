@@ -14,7 +14,26 @@ const screens = [
   "library-cloud",
   "library-unplayed",
   "library-box-art",
+  "library-empty",
+  "library-empty-android",
+  "library-import-menu",
+  "import-which-game",
+  "import-replace",
+  "import-folder-where",
+  "import-folder-scanning",
+  "import-folder-summary",
+  "import-folder-summary-onboarding",
+  "import-folder-empty",
+  "import-folder-new-folder",
+  "import-folder-copying",
+  "import-folder-conflicts",
   "settings",
+  "welcome",
+  "welcome-folder",
+  "welcome-mac",
+  "welcome-folder-mac",
+  "welcome-previous",
+  "welcome-previous-warning",
   ...["gb", "gbc", "gba", "nds", "n64"].flatMap((system) => [`game-page-${system}`, `game-page-${system}-art`]),
   "game-page-gba-menu",
   "patch-rom",
@@ -103,9 +122,13 @@ try {
           await page.evaluate(() => document.fonts.ready);
           await page.waitForTimeout(500);
           if (screen.endsWith("-menu")) {
-            await page.getByRole("button", { name: "More" }).first().click();
+            await page.getByRole("button", { name: screen.startsWith("library-") ? "Import" : "More" }).first().click();
             await page.getByRole("menu").waitFor();
             await page.waitForTimeout(500);
+          }
+          if (screen.endsWith("-warning")) {
+            await page.getByRole("button", { name: "Choose folder" }).click();
+            await page.getByRole("alert").waitFor();
           }
           if (pointer === "touch") {
             const small = await page.evaluate(() =>

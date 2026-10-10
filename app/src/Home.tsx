@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentProps } from "react";
 import { flushSync } from "react-dom";
-import { AddGames } from "./AddGames";
 import { Toast, useToast } from "./components/Toast";
 import { useBack } from "./back/back";
 import { useFindAllBoxArt } from "./box-art/boxArt";
@@ -10,6 +9,8 @@ import { CloudGamePage } from "./game-page/CloudGamePage";
 import { GamePage, type GamePageHost, type Gone, type Start } from "./game-page/GamePage";
 import { GameScreen } from "./GameScreen";
 import { useGamesFolder } from "./games-folder/gamesFolder";
+import { useImportHost, type PickedFolder } from "./import/importFiles";
+import { ImportFolder } from "./import/ImportFolder";
 import { useCalibrations } from "./input/calibrations";
 import { connectedGamepads, createInput } from "./input/input";
 import { LibraryProvider, useLibrary, type LibraryHost, type OpenedFrom } from "./library/library";
@@ -17,6 +18,7 @@ import { LibraryScreen, tileName } from "./library/LibraryScreen";
 import type { Game } from "./library/scan";
 import { LicencesScreen } from "./licences/LicencesScreen";
 import { navigate, Screen as MotionScreen } from "./motion/motion";
+import { Welcome } from "./onboarding/Welcome";
 import { PadNavigation, reveal } from "./pad-navigation/PadNavigation";
 import { SettingsScreen } from "./SettingsScreen";
 import { hideSplash } from "./splash";
@@ -76,6 +78,15 @@ const backTile = (game: Game, tile: string) => (tile === tileName("recent", game
 const withAttribute = (attribute: string, value: string) =>
   [...document.querySelectorAll<HTMLElement>(`[${attribute}]`)].find((element) => element.getAttribute(attribute) === value);
 
+function HideSplashOnceScanned() {
+  const { library, error } = useLibrary();
+  const scanned = Boolean(library || error);
+  useEffect(() => {
+    if (scanned) hideSplash();
+  }, [scanned]);
+  return null;
+}
+
 function FindLibraryBoxArt() {
   const { library } = useLibrary();
   useFindAllBoxArt(useMemo(() => library?.sections.flatMap((section) => section.games), [library]));
@@ -92,6 +103,8 @@ export function Home({ libraryHost, gamePageHost }: { libraryHost: LibraryHost; 
   const [dismissedPads] = useState(() => new Set<string>());
   const [unsupported, setUnsupported] = useState<ReadonlySet<System>>(() => new Set());
   const [toast, setToast] = useToast();
+  const importHost = useImportHost();
+  const [folderImport, setFolderImport] = useState<{ from: "welcome" } | { from: "library"; source: PickedFolder }>();
   const returnTo = useRef<{ scroll: number; focus: [attribute: string, value: string] }>(undefined);
   const openGame = useCallback((game: Game, from?: OpenedFrom) => {
     returnTo.current = from && { scroll: window.scrollY, focus: ["data-tile", backTile(game, from.tile)] };
@@ -121,6 +134,14 @@ export function Home({ libraryHost, gamePageHost }: { libraryHost: LibraryHost; 
     navigate("forward", showSettings);
   };
   const showLicences = () => navigate("forward", () => setScreen({ name: "licences" }));
+  const importFolder = async () => {
+    try {
+      const source = await importHost.pickFolder();
+      if (source) navigate("forward", () => setFolderImport({ from: "library", source }));
+    } catch (reason) {
+      setToast(String(reason));
+    }
+  };
   useBack(screen.name === "settings" ? backToLibrary : screen.name === "licences" ? backToSettings : undefined);
 
   // Before the view transition snapshots the new screen, so the art it shares is on screen.
@@ -139,32 +160,62 @@ export function Home({ libraryHost, gamePageHost }: { libraryHost: LibraryHost; 
   }, [screen.name]);
 
   useEffect(() => {
-    if (gamesFolder.status !== "loading") hideSplash();
+    if (gamesFolder.status === "none") hideSplash();
   }, [gamesFolder.status]);
 
   if (gamesFolder.status === "loading") return null;
   const playing = screen.name === "game" && screen.start;
+  if (folderImport)
+    return (
+      <>
+        <PadNavigation input={input} />
+        <ImportFolder
+          libraryHost={libraryHost}
+          source={folderImport.from === "library" ? folderImport.source : undefined}
+          onClose={(message) =>
+            navigate("back", () => {
+              setFolderImport(undefined);
+              if (message) setToast(message);
+            })
+          }
+          onDone={(message) =>
+            navigate("forward", () => {
+              setFolderImport(undefined);
+              setToast(message);
+            })
+          }
+        />
+      </>
+    );
+  if (gamesFolder.status === "none")
+    return (
+      <>
+        <PadNavigation input={input} />
+        <Welcome
+          onReady={() => setToast("Your games folder is ready")}
+          onImport={() => navigate("forward", () => setFolderImport({ from: "welcome" }))}
+        />
+      </>
+    );
   const padNavigation = !playing && (
     <>
       <PadNavigation input={input} />
       <PadSetupPrompt input={input} dismissed={dismissedPads} />
     </>
   );
-  if (gamesFolder.status === "none")
-    return (
-      <>
-        {padNavigation}
-        <AddGames />
-      </>
-    );
 
   return (
     <LibraryProvider host={libraryHost} folder={gamesFolder.folder} onOpen={openGame} onPlay={playFromLibrary}>
       <FindLibraryBoxArt />
+      <HideSplashOnceScanned />
       {padNavigation}
       {screen.name === "library" && (
         <MotionScreen>
-          <LibraryScreen onSettings={leaveForSettings} onOpenFolder={gamesFolder.openFolder} />
+          <LibraryScreen
+            onSettings={leaveForSettings}
+            onOpenFolder={gamesFolder.openFolder}
+            onImportFolder={() => void importFolder()}
+          />
         </MotionScreen>
       )}
       {screen.name === "settings" && (

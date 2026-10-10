@@ -190,7 +190,7 @@ fn read_7z<T>(mut source: impl Read + Seek, read: impl ReadRom<T>) -> Result<T, 
     result.ok_or(NO_ROM)?.map_err(|e| e.to_string())
 }
 
-fn is_rom(name: &str) -> bool {
+pub(crate) fn is_rom(name: &str) -> bool {
     !name.ends_with('/') && has_extension(Path::new(name), &ROM_EXTENSIONS)
 }
 

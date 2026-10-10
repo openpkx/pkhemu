@@ -25,7 +25,7 @@ import { PokemonArt, summaryArt } from "@/game-art/gameArt";
 export type Backup = {
   name: string;
   at: string;
-  reason: "edit" | "start" | "cheats" | "transferPak" | "transfer" | "load" | "restore" | "sync";
+  reason: "edit" | "start" | "cheats" | "transferPak" | "transfer" | "load" | "restore" | "sync" | "import";
   sha256: string;
   note?: string;
 };
@@ -47,6 +47,7 @@ const reasons: Record<Backup["reason"], string> = {
   load: "Before loading a state",
   restore: "Before restore",
   sync: "Sync conflict",
+  import: "Before import",
 };
 
 const time = new Intl.DateTimeFormat(undefined, { hour: "2-digit", minute: "2-digit" });

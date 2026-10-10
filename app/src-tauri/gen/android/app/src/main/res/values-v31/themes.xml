@@ -1,0 +1,6 @@
+<resources>
+    <style name="Theme.pkh_emu" parent="Base.Theme.pkh_emu">
+        <item name="android:windowSplashScreenBackground">#FF6D4AFF</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
+    </style>
+</resources>

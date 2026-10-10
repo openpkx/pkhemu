@@ -18,6 +18,8 @@ import { androidGamesFolderHost } from "./games-folder/androidHost";
 import { GamesFolderProvider } from "./games-folder/gamesFolder";
 import { tauriGamesFolderHost } from "./games-folder/tauriHost";
 import { Home } from "./Home";
+import { ImportProvider } from "./import/importFiles";
+import { tauriImportHost } from "./import/tauriHost";
 import { CalibrationsProvider } from "./input/calibrations";
 import { tauriCalibrationsHost } from "./input/tauriHost";
 import { experiments } from "./lab/experiments";
@@ -76,7 +78,9 @@ export function App() {
                           <CalibrationsProvider host={tauriCalibrationsHost}>
                             <GameArtProvider host={tauriGameArtHost}>
                               <PatchRomProvider host={patchRomHost}>
-                                <Home libraryHost={libraryHost} gamePageHost={tauriGamePageHost} />
+                                <ImportProvider host={tauriImportHost}>
+                                  <Home libraryHost={libraryHost} gamePageHost={tauriGamePageHost} />
+                                </ImportProvider>
                               </PatchRomProvider>
                             </GameArtProvider>
                           </CalibrationsProvider>

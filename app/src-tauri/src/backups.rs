@@ -19,10 +19,11 @@ pub enum Reason {
     Load,
     Restore,
     Sync,
+    Import,
 }
 
 impl Reason {
-    const ALL: [Reason; 8] = [
+    const ALL: [Reason; 9] = [
         Reason::Start,
         Reason::Cheats,
         Reason::TransferPak,
@@ -31,6 +32,7 @@ impl Reason {
         Reason::Load,
         Reason::Restore,
         Reason::Sync,
+        Reason::Import,
     ];
 
     fn name(self) -> &'static str {
@@ -43,6 +45,7 @@ impl Reason {
             Reason::Load => "load",
             Reason::Restore => "restore",
             Reason::Sync => "sync",
+            Reason::Import => "import",
         }
     }
 
@@ -56,6 +59,7 @@ impl Reason {
             Reason::Load => 10,
             Reason::Restore => 10,
             Reason::Sync => 10,
+            Reason::Import => 10,
         }
     }
 }

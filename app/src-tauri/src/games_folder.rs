@@ -553,6 +553,67 @@ pub async fn games_folder_pick<R: Runtime>(app: AppHandle<R>) -> Result<Option<S
         .transpose()
 }
 
+// Needs no permission from Android 10. Before that the folder isn't made and the picker opens wherever it falls back to.
+#[cfg(target_os = "android")]
+#[tauri::command]
+pub async fn games_folder_make<R: Runtime>(app: AppHandle<R>) -> Result<Option<String>, String> {
+    let picker = app.android_fs_async().picker();
+    let initial = picker
+        .resolve_public_storage_initial_location(
+            None,
+            tauri_plugin_android_fs::PublicGeneralPurposeDir::Documents,
+            "pkhemu",
+            true,
+        )
+        .await
+        .ok();
+    let picked = picker.pick_dir(initial.as_ref(), true).await.map_err(error)?;
+    picked
+        .map(|uri| uri.to_json_string().map_err(error))
+        .transpose()
+}
+
+// Opens at Documents/pkhemu when an earlier install left it there, but never makes it, since the player's old folder may be elsewhere.
+// Only a path can tell whether it's there before the player grants anything, though the plugin deprecates paths.
+#[tauri::command]
+pub async fn games_folder_find<R: Runtime>(app: AppHandle<R>) -> Result<Option<String>, String> {
+    use tauri_plugin_android_fs::PublicGeneralPurposeDir::Documents;
+    let fs = app.android_fs_async();
+    #[allow(deprecated)]
+    let left = fs
+        .public_storage()
+        .resolve_path(None, Documents)
+        .await
+        .is_ok_and(|documents| documents.join("pkhemu").is_dir());
+    let picker = fs.picker();
+    let initial = picker
+        .resolve_public_storage_initial_location(None, Documents, if left { "pkhemu" } else { "" }, false)
+        .await
+        .ok();
+    let picked = picker.pick_dir(initial.as_ref(), true).await.map_err(error)?;
+    picked.map(|uri| uri.to_json_string().map_err(error)).transpose()
+}
+
+#[cfg(not(target_os = "android"))]
+#[derive(serde::Serialize)]
+pub struct MadeFolder {
+    path: String,
+    made: bool,
+}
+
+// macOS lets the app use a folder it made in Documents without asking, but asks for one it didn't make.
+#[cfg(not(target_os = "android"))]
+#[tauri::command]
+pub async fn games_folder_make<R: Runtime>(app: AppHandle<R>) -> Result<MadeFolder, String> {
+    use tauri_plugin_fs::FsExt;
+    let path = app.path().document_dir().map_err(error)?.join("pkhemu");
+    let made = std::fs::create_dir(&path).is_ok();
+    if made {
+        app.fs_scope().allow_directory(&path, true).map_err(error)?;
+    }
+    Ok(MadeFolder { path: path.to_string_lossy().into_owned(), made })
+}
+
 #[tauri::command]
 pub async fn games_folder_keep<R: Runtime>(
     app: AppHandle<R>,

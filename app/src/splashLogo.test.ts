@@ -1,11 +1,13 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { expect, it } from "vitest";
 import indexHtml from "../index.html?raw";
-import iconSvg from "../src-tauri/icons/icon.svg?raw";
 
-const normalizedSvg = (markup: string) =>
-  markup.match(/<svg[\s\S]*?<\/svg>/)![0].replace(/\s+/g, " ");
+const branding = (file: string) => readFileSync(join(import.meta.dirname, "../../branding", file), "utf8");
 
-it("draws the app icon as the splash logo", () => {
-  const splash = indexHtml.match(/<div id="splash">[\s\S]*?<\/div>/)![0];
-  expect(normalizedSvg(splash)).toBe(normalizedSvg(iconSvg));
+const shapes = (markup: string) => (markup.match(/<(rect|circle|path) [^>]*\/>/g) ?? []).map((shape) => shape.replace(/\s+/g, " ")).sort();
+
+it("builds the splash logo from the glyph and wordmark masters", () => {
+  const splash = indexHtml.slice(indexHtml.indexOf('<div id="splash">'));
+  expect(shapes(splash)).toEqual(shapes(branding("glyph.svg") + branding("wordmark.svg")));
 });
