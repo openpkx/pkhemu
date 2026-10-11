@@ -5,7 +5,7 @@ export type Notice = { name: string; version?: string; licence: string; source: 
 export const appNotice = {
   name: "pkhemu",
   licence: "GPL-3.0-or-later",
-  source: "https://github.com/pkhex-web/pkh-emu",
+  source: "https://github.com/openpkx/pkhemu",
   licenceText: "https://www.gnu.org/licenses/gpl-3.0.html",
 };
 

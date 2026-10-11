@@ -9,7 +9,7 @@ it("shows the app's GPL-3.0 licence with a link to its source", () => {
   const app = screen.getByRole("region", { name: "pkhemu" });
 
   expect(within(app).getByText(/GPL-3\.0/)).toBeTruthy();
-  expect(within(app).getByRole("link", { name: /source/i }).getAttribute("href")).toMatch(/^https:\/\//);
+  expect(within(app).getByRole("link", { name: /source/i }).getAttribute("href")).toBe("https://github.com/openpkx/pkhemu");
 });
 
 it("links mGBA's source next to its MPL-2.0 licence", () => {

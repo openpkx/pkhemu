@@ -45,9 +45,22 @@ it("keeps the splash while the app isn't ready", async () => {
   expect(splash()).not.toBeNull();
 });
 
+it("waits a moment before the animation starts", () => {
+  const delays: number[] = [];
+  Element.prototype.animate = function (this: Element, keyframes, options) {
+    if (typeof options === "object") delays.push(Number(options.delay ?? 0));
+    return fakeAnimate.call(this, keyframes, options);
+  };
+
+  playSplash();
+
+  expect(delays.length).toBeGreaterThan(0);
+  expect(Math.min(...delays)).toBeGreaterThanOrEqual(250);
+});
+
 it("hides the splash once the animation has ended and the app is ready", async () => {
   playSplash();
-  await vi.advanceTimersByTimeAsync(2000);
+  await vi.advanceTimersByTimeAsync(2122);
 
   hideSplash();
   await vi.advanceTimersByTimeAsync(220);
@@ -59,7 +72,7 @@ it("hides the splash when the animation ends after the app is ready", async () =
   playSplash();
   hideSplash();
 
-  await vi.advanceTimersByTimeAsync(2000);
+  await vi.advanceTimersByTimeAsync(2122 + 220);
 
   expect(splash()).toBeNull();
 });
@@ -91,7 +104,7 @@ it("gives Android its theme's bar colours back once the splash hides", async () 
   playSplash();
   hideSplash();
 
-  await vi.advanceTimersByTimeAsync(1440);
+  await vi.advanceTimersByTimeAsync(2122);
   expect(splashHidden).not.toHaveBeenCalled();
 
   await vi.advanceTimersByTimeAsync(220);

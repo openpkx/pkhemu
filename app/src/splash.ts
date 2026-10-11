@@ -1,6 +1,8 @@
 const size = 120;
 const fallMs = 380;
 const settleMs = 440;
+const startMs = 250;
+const pace = 1.3;
 const wordmarkWidth = 367.8;
 const letterEdges = [47.5, 109.2, 168.9, 228.6, 308.1, 367.8];
 
@@ -19,8 +21,8 @@ function wobble(): Keyframe[] {
 function timeline(piece: (name: string) => Element): Animation[] {
   const slideIn = (name: string, from: string, delay: number) =>
     piece(name).animate([{ transform: from, opacity: 0 }, { opacity: 1, offset: 0.25 }, { transform: "translate(0px, 0px)", opacity: 1 }], {
-      delay,
-      duration: 640,
+      delay: startMs + delay * pace,
+      duration: 640 * pace,
       easing: "cubic-bezier(0.16, 1, 0.3, 1)",
       fill: "both",
     });
@@ -31,9 +33,9 @@ function timeline(piece: (name: string) => Element): Animation[] {
         { opacity: 1, offset: 0.2 },
         { transform: "translateZ(0px) rotateX(0deg) rotateY(0deg)", opacity: 1 },
       ],
-      { delay, duration: fallMs, easing: "cubic-bezier(0.55, 0, 0.85, 0.35)", fill: "both" },
+      { delay: startMs + delay * pace, duration: fallMs * pace, easing: "cubic-bezier(0.55, 0, 0.85, 0.35)", fill: "both" },
     ),
-    piece(name).animate(wobble(), { delay: delay + fallMs, duration: settleMs, composite: "add" }),
+    piece(name).animate(wobble(), { delay: startMs + (delay + fallMs) * pace, duration: settleMs * pace, composite: "add" }),
     piece(`${name}-shadow`).animate(
       [
         { transform: `translate(${0.05 * size}px, ${0.08 * size}px) scale(2.6)`, filter: "blur(10px)", opacity: 0 },
@@ -45,7 +47,7 @@ function timeline(piece: (name: string) => Element): Animation[] {
         },
         { transform: "translate(0px, 0px) scale(1)", filter: "blur(0px)", opacity: 0 },
       ],
-      { delay, duration: fallMs + settleMs, easing: "ease-in", fill: "both" },
+      { delay: startMs + delay * pace, duration: (fallMs + settleMs) * pace, easing: "ease-in", fill: "both" },
     ),
   ];
   const hidden = [100, ...letterEdges.map((edge) => 100 * (1 - edge / wordmarkWidth))];
@@ -56,7 +58,7 @@ function timeline(piece: (name: string) => Element): Animation[] {
     ...drop("lower", 620, -1),
     piece("wordmark").animate(
       hidden.map((right) => ({ clipPath: `inset(0 ${right}% 0 0)`, easing: "step-end" })),
-      { delay: 940, duration: 360, fill: "both" },
+      { delay: startMs + 940 * pace, duration: 360 * pace, fill: "both" },
     ),
   ];
 }
