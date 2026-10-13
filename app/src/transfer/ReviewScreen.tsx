@@ -198,7 +198,7 @@ export function ReviewScreen({
   };
 
   return (
-    <div className="fixed inset-0 z-30 flex flex-col bg-background">
+    <div className="fixed inset-0 px-safe pb-safe z-30 flex flex-col bg-background">
       <ScreenHeader title="Review transfer" onBack={onBack} />
       <main className="min-h-0 flex-1 overflow-y-auto p-4">
         {error && <p className="text-sm text-destructive">{error}</p>}

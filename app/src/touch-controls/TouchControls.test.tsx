@@ -1,5 +1,6 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { HapticsProvider } from "@/haptics/haptics";
 import { buttons, createInput, n64Buttons, type Input, type InputEvent } from "@/input/input";
 import { PreferencesProvider, type Preferences, type StickSensitivity } from "@/preferences/preferences";
 import type { System } from "@/systems";
@@ -16,13 +17,11 @@ beforeEach(() => {
   input.onEvent((event) => events.push(event));
   detach = input.attach(window);
   taps = 0;
-  window.androidHaptics = { tap: () => void taps++ };
 });
 
 afterEach(() => {
   cleanup();
   detach();
-  delete window.androidHaptics;
 });
 
 async function launch({
@@ -39,8 +38,10 @@ async function launch({
   const host = { load: async (): Promise<Partial<Preferences>> => ({ touchControls, stickSensitivity }), save: async () => {} };
   const fastForward = { on: fastForwardOn, speed: 1, toggle: vi.fn() } as const;
   render(
-    <PreferencesProvider host={host} defaults={{ touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1 }}>
-      <TouchControls input={input} system={system} fastForward={fastForward} />
+    <PreferencesProvider host={host} defaults={{ touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic" }}>
+      <HapticsProvider host={{ tap: () => void taps++ }}>
+        <TouchControls input={input} system={system} fastForward={fastForward} />
+      </HapticsProvider>
     </PreferencesProvider>,
   );
   await act(async () => {});

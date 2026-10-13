@@ -1,11 +1,14 @@
 import { useState, type ReactNode } from "react";
-import { ChevronRight, FolderHeart, FolderInput, Folder, History, Sparkles, TriangleAlert } from "lucide-react";
+import { ArrowRightLeft, ChevronRight, FolderHeart, FolderInput, Folder, History, Sparkles, TriangleAlert } from "lucide-react";
 import { AppIcon } from "@/components/AppIcon";
+import { SystemChips } from "@/components/SystemChip";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useBack } from "@/back/back";
 import { useGamesFolder, type UnfamiliarFolder } from "@/games-folder/gamesFolder";
+import { useExperiment } from "@/lab/lab";
 import { navigate, Screen } from "@/motion/motion";
+import type { System } from "@/systems";
 
 function Choice({ icon, title, line, onClick }: { icon: ReactNode; title: string; line: string; onClick(): void }) {
   return (
@@ -26,32 +29,53 @@ function Choice({ icon, title, line, onClick }: { icon: ReactNode; title: string
   );
 }
 
-function Choices({ onNew, onImport, onPrevious }: { onNew(): void; onImport(): void; onPrevious(): void }) {
+function Choices({
+  systems,
+  onNew,
+  onImport,
+  onDelta,
+  onPrevious,
+}: {
+  systems: readonly System[];
+  onNew(): void;
+  onImport(): void;
+  onDelta(): void;
+  onPrevious(): void;
+}) {
   const gamesFolder = useGamesFolder();
+  const demo = useExperiment("demoGame") === "on";
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-8 p-6">
+    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-8 p-6 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
       <div className="grid justify-items-center gap-3 text-center">
         <span className="flex items-center gap-3">
           <AppIcon className="size-14" />
           <span className="font-pixel text-3xl font-semibold tracking-[0.02em]">pkhemu</span>
         </span>
+        <SystemChips systems={systems} />
         <h1 className="mt-4 font-heading text-2xl font-medium">Let's get your games in</h1>
-        <p className="text-sm text-muted-foreground">This app doesn't include any games.</p>
+        <p className="text-sm text-muted-foreground">
+          {demo ? "Bring your own games, or start with the free demo." : "This app doesn't include any games."}
+        </p>
       </div>
       <div className="grid gap-3">
         <Choice icon={<Sparkles />} title="I'm new to emulators" line="We'll make a folder for your games." onClick={onNew} />
         <Choice
           icon={<FolderInput />}
-          title={`I have ROMs on this ${gamesFolder.device}`}
+          title={gamesFolder.device === "iPhone" ? "I have games on this iPhone" : `I have ROMs on this ${gamesFolder.device}`}
           line="We'll copy them in. Your files stay where they are."
           onClick={onImport}
         />
-        <Choice
-          icon={<History />}
-          title="I've used pkhemu before"
-          line="Pick the folder you used before."
-          onClick={onPrevious}
-        />
+        {gamesFolder.device === "iPhone" && (
+          <Choice icon={<ArrowRightLeft />} title="I'm coming from Delta" line="We'll copy your games and saves from Delta." onClick={onDelta} />
+        )}
+        {gamesFolder.pickPrevious && (
+          <Choice
+            icon={<History />}
+            title="I've used pkhemu before"
+            line="Pick the folder you used before."
+            onClick={onPrevious}
+          />
+        )}
         {gamesFolder.error && <p className="text-sm text-destructive">{gamesFolder.error}</p>}
       </div>
     </main>
@@ -79,14 +103,17 @@ export function NewFolder({
     if (made) onReady(made);
   };
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 p-6">
+    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 p-6 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
       <div className="grid gap-3">
         <span className="flex size-12 items-center justify-center rounded-full bg-primary/15 text-primary">
           <FolderHeart className="size-6" />
         </span>
         <h1 className="font-heading text-2xl font-medium">{title}</h1>
         <p className="text-sm text-muted-foreground">
-          {line ?? `pkhemu keeps your games and saves here. They stay on the ${gamesFolder.device} even if you uninstall the app.`}
+          {line ??
+            (gamesFolder.device === "iPhone"
+              ? "pkhemu keeps your games and saves here. You'll find it in the Files app."
+              : `pkhemu keeps your games and saves here. They stay on the ${gamesFolder.device} even if you uninstall the app.`)}
         </p>
       </div>
       <p className="flex items-center gap-2 rounded-lg border bg-card px-3 py-2.5 font-mono text-sm">
@@ -116,7 +143,7 @@ export function PreviousFolder({ onBack }: { onBack(): void }) {
   useBack(onBack);
   const pick = async () => {
     setBusy(true);
-    const found = await gamesFolder.pickPrevious();
+    const found = await gamesFolder.pickPrevious?.();
     setBusy(false);
     if (found) setUnfamiliar(found);
   };
@@ -126,7 +153,7 @@ export function PreviousFolder({ onBack }: { onBack(): void }) {
     setBusy(false);
   };
   return (
-    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 p-6">
+    <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 p-6 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
       <div className="grid gap-3">
         <span className="flex size-12 items-center justify-center rounded-full bg-primary/15 text-primary">
           <History className="size-6" />
@@ -169,14 +196,24 @@ export function PreviousFolder({ onBack }: { onBack(): void }) {
   );
 }
 
-export function Welcome({ onReady, onImport }: { onReady(): void; onImport(): void }) {
+export function Welcome({
+  systems,
+  onReady,
+  onImport,
+}: {
+  systems: readonly System[];
+  onReady(): void;
+  onImport(from: "welcome" | "delta"): void;
+}) {
   const [step, setStep] = useState<"choices" | "new" | "previous">("choices");
   const back = () => navigate("back", () => setStep("choices"));
   return step === "choices" ? (
     <Screen key="choices">
       <Choices
+        systems={systems}
         onNew={() => navigate("forward", () => setStep("new"))}
-        onImport={onImport}
+        onImport={() => onImport("welcome")}
+        onDelta={() => onImport("delta")}
         onPrevious={() => navigate("forward", () => setStep("previous"))}
       />
     </Screen>

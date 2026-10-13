@@ -80,3 +80,20 @@ it("reuses a summary cached at the current revision without reading the save", a
   expect(bytes).not.toHaveBeenCalled();
   expect(host.keepSaveSummary).not.toHaveBeenCalled();
 });
+
+it("summarises a Stadium save again when its summary is cached under an older revision, without a trainer", async () => {
+  const { engine } = fakeEngine({ teams: [{ name: null, cup: "Poké Cup", members: [] }] });
+  const cached: SaveSummary = {
+    revision: summaryRevision - 1,
+    version: "Stadium",
+    formatId: null,
+    trainer: { name: "PKHeXWeb", gender: null, money: 0 },
+    party: [],
+    progress: { playTime: null, badges: null, pokedex: null },
+  };
+  const host = { saveSummary: vi.fn(async () => cached), keepSaveSummary: vi.fn(async () => {}) };
+
+  const summary = await summaryOf(engine, host, "sha", async () => new Uint8Array([1]), () => true);
+
+  expect(summary).toMatchObject({ revision: summaryRevision, trainer: null });
+});

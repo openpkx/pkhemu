@@ -134,12 +134,7 @@ mod tests {
 
     #[test]
     fn encodes_the_frame_as_a_png_at_its_own_size() {
-        let frame = Frame {
-            width: 3,
-            height: 1,
-            pixels: vec![0xF800, 0x07E0, 0x001F],
-            fresh: false,
-        };
+        let frame = Frame { width: 3, height: 1, pixels: vec![0xF800, 0x07E0, 0x001F], ..Default::default() };
 
         let (info, rgb) = decode(&screenshot(&frame).unwrap());
 

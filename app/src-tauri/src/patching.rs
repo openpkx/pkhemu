@@ -1,3 +1,8 @@
+#[cfg_attr(target_os = "android", path = "patching/android.rs")]
+#[cfg_attr(target_os = "ios", path = "patching/ios.rs")]
+#[cfg_attr(desktop, path = "patching/desktop.rs")]
+mod platform;
+
 use std::io::{BufReader, BufWriter, Read};
 
 use serde::Serialize;
@@ -61,7 +66,7 @@ fn extension(system: &str) -> &str {
     }
 }
 
-fn valid(name: &str) -> bool {
+pub(crate) fn valid(name: &str) -> bool {
     !name.is_empty()
         && name.trim() == name
         && !name.starts_with('.')
@@ -224,35 +229,9 @@ fn format(magic: &[u8]) -> Option<&'static str> {
     })
 }
 
-#[cfg(target_os = "android")]
-async fn pick_file<R: Runtime>(app: &AppHandle<R>) -> Result<Option<(String, String)>, String> {
-    use tauri_plugin_android_fs::AndroidFsExt;
-    let fs = app.android_fs_async();
-    let Some(uri) = fs.picker().pick_file(None, &[], false).await.map_err(|e| e.to_string())? else {
-        return Ok(None);
-    };
-    let name = fs.get_name_or_last_path_segment(&uri).await;
-    Ok(Some((uri.to_json_string().map_err(|e| e.to_string())?, name)))
-}
-
-#[cfg(not(target_os = "android"))]
-async fn pick_file<R: Runtime>(app: &AppHandle<R>) -> Result<Option<(String, String)>, String> {
-    use tauri_plugin_dialog::DialogExt;
-    let (picked, chosen) = tokio::sync::oneshot::channel();
-    app.dialog().file().pick_file(move |file| {
-        let _ = picked.send(file);
-    });
-    let Some(file) = chosen.await.map_err(|e| e.to_string())? else {
-        return Ok(None);
-    };
-    let path = file.into_path().map_err(|e| e.to_string())?;
-    let name = path.file_name().map_or_else(String::new, |name| name.to_string_lossy().into_owned());
-    Ok(Some((path.to_string_lossy().into_owned(), name)))
-}
-
 #[tauri::command]
 pub async fn patch_pick<R: Runtime>(app: AppHandle<R>) -> Result<Option<PickedPatch>, String> {
-    let Some((file, name)) = pick_file(&app).await? else {
+    let Some((file, name)) = platform::pick_file(&app).await? else {
         return Ok(None);
     };
     picked_patch(&app, file, name).await.map(Some)
@@ -314,7 +293,7 @@ mod tests {
     use super::*;
     use crate::patch::tests::{bps, ips, xdelta};
     use crate::save::sha256;
-    use crate::test_games::{pattern, sevenz_of};
+    use crate::test_games::{gb_header, gba_header, nds_header, pattern, sevenz_of};
     use std::io::{Cursor, Write};
     use tauri::async_runtime::block_on;
 
@@ -464,35 +443,6 @@ mod tests {
         for name in ["", " Hack", ".hidden", "../Hack", "a/b", "a\\b", "what?"] {
             assert_eq!(block_on(target(&games, "gba", name)), Err(Failure::BadName), "{name:?}");
         }
-    }
-
-    fn gba_header(title: &[u8], code: &[u8], revision: u8) -> Vec<u8> {
-        let mut rom = vec![0; 0x200];
-        rom[0xA0..0xA0 + title.len()].copy_from_slice(title);
-        rom[0xAC..0xB0].copy_from_slice(code);
-        rom[0xB2] = 0x96;
-        rom[0xBC] = revision;
-        rom[0xBD] = rom[0xA0..0xBD].iter().fold(0u8, |sum, &b| sum.wrapping_sub(b)).wrapping_sub(0x19);
-        rom
-    }
-
-    fn nds_header(code: &[u8], revision: u8) -> Vec<u8> {
-        let mut rom = vec![0; 0x200];
-        rom[0x0C..0x10].copy_from_slice(code);
-        rom[0x1E] = revision;
-        let crc = rom[..0x15E].iter().fold(0xFFFFu16, |crc, &byte| {
-            (0..8).fold(crc ^ byte as u16, |crc, _| if crc & 1 == 1 { (crc >> 1) ^ 0xA001 } else { crc >> 1 })
-        });
-        rom[0x15E..0x160].copy_from_slice(&crc.to_le_bytes());
-        rom
-    }
-
-    fn gb_header(title: &[u8], revision: u8) -> Vec<u8> {
-        let mut rom = vec![0; 0x200];
-        rom[0x134..0x134 + title.len()].copy_from_slice(title);
-        rom[0x14C] = revision;
-        rom[0x14D] = rom[0x134..0x14D].iter().fold(0u8, |sum, &b| sum.wrapping_sub(b).wrapping_sub(1));
-        rom
     }
 
     fn n64_header(title: &[u8], code: &[u8], revision: u8) -> Vec<u8> {

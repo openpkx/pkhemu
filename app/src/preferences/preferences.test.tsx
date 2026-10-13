@@ -5,7 +5,7 @@ import { PreferencesProvider, usePreferences, type Preferences, type Preferences
 
 afterEach(cleanup);
 
-const defaults: Preferences = { touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1 };
+const defaults: Preferences = { touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic" };
 
 function fakeStore(stored: Partial<Preferences> = {}) {
   let saved = stored;
@@ -32,7 +32,7 @@ function fakeStore(stored: Partial<Preferences> = {}) {
 it("starts with the platform defaults", async () => {
   const { launch } = fakeStore();
 
-  const { result } = launch({ touchControls: true, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1 });
+  const { result } = launch({ touchControls: true, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic" });
 
   await waitFor(() =>
     expect(result.current.preferences).toEqual({
@@ -41,9 +41,12 @@ it("starts with the platform defaults", async () => {
       showFps: false,
       theme: "system",
       eventsNoticeDismissed: false,
+      updateDismissedVersion: 0,
       gameClockOffset: { days: 0, hours: 0 },
       restoreBackupsKept: 10,
       stickSensitivity: 1,
+      playInSilentMode: false,
+      renderer: "automatic",
     }),
   );
 });
@@ -58,9 +61,12 @@ it("keeps changes across restarts", async () => {
   await act(() => first.result.current.change({ showFps: true }));
   await act(() => first.result.current.change({ theme: "dark" }));
   await act(() => first.result.current.change({ eventsNoticeDismissed: true }));
+  await act(() => first.result.current.change({ updateDismissedVersion: 42 }));
   await act(() => first.result.current.change({ gameClockOffset: { days: 3, hours: 6 } }));
   await act(() => first.result.current.change({ restoreBackupsKept: 3 }));
   await act(() => first.result.current.change({ stickSensitivity: 1.5 }));
+  await act(() => first.result.current.change({ playInSilentMode: true }));
+  await act(() => first.result.current.change({ renderer: "native" }));
   first.unmount();
   const { result } = launch();
 
@@ -71,9 +77,12 @@ it("keeps changes across restarts", async () => {
       showFps: true,
       theme: "dark",
       eventsNoticeDismissed: true,
+      updateDismissedVersion: 42,
       gameClockOffset: { days: 3, hours: 6 },
       restoreBackupsKept: 3,
       stickSensitivity: 1.5,
+      playInSilentMode: true,
+      renderer: "native",
     }),
   );
 });
@@ -81,7 +90,7 @@ it("keeps changes across restarts", async () => {
 it("fills in preferences that were never stored", async () => {
   const { launch } = fakeStore({ fastForwardSpeed: 4 });
 
-  const { result } = launch({ touchControls: true, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1 });
+  const { result } = launch({ touchControls: true, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic" });
 
   await waitFor(() =>
     expect(result.current.preferences).toEqual({
@@ -90,9 +99,12 @@ it("fills in preferences that were never stored", async () => {
       showFps: false,
       theme: "system",
       eventsNoticeDismissed: false,
+      updateDismissedVersion: 0,
       gameClockOffset: { days: 0, hours: 0 },
       restoreBackupsKept: 10,
       stickSensitivity: 1,
+      playInSilentMode: false,
+      renderer: "automatic",
     }),
   );
 });
@@ -113,6 +125,14 @@ it("ignores a stored FPS setting that isn't a switch", async () => {
   await waitFor(() => expect(result.current.preferences.showFps).toBe(false));
 });
 
+it("ignores a stored silent mode setting that isn't a switch", async () => {
+  const { launch } = fakeStore({ playInSilentMode: "on" as unknown as boolean });
+
+  const { result } = launch();
+
+  await waitFor(() => expect(result.current.preferences.playInSilentMode).toBe(false));
+});
+
 it("ignores a stored theme it doesn't know", async () => {
   const { launch } = fakeStore({ theme: "sepia" as Preferences["theme"] });
 
@@ -121,12 +141,28 @@ it("ignores a stored theme it doesn't know", async () => {
   await waitFor(() => expect(result.current.preferences.theme).toBe("system"));
 });
 
+it("ignores a stored renderer it doesn't know", async () => {
+  const { launch } = fakeStore({ renderer: "vulkan" as Preferences["renderer"] });
+
+  const { result } = launch();
+
+  await waitFor(() => expect(result.current.preferences.renderer).toBe("automatic"));
+});
+
 it("ignores a stored events notice dismissal that isn't a switch", async () => {
   const { launch } = fakeStore({ eventsNoticeDismissed: "true" as unknown as boolean });
 
   const { result } = launch();
 
   await waitFor(() => expect(result.current.preferences.eventsNoticeDismissed).toBe(false));
+});
+
+it("ignores a stored update dismissal that isn't a version code", async () => {
+  const { launch } = fakeStore({ updateDismissedVersion: "42" as unknown as number });
+
+  const { result } = launch();
+
+  await waitFor(() => expect(result.current.preferences.updateDismissedVersion).toBe(0));
 });
 
 it.each([

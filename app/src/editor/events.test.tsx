@@ -69,9 +69,12 @@ const defaults: Preferences = {
   showFps: false,
   theme: "system",
   eventsNoticeDismissed: false,
+  updateDismissedVersion: 0,
   gameClockOffset: { days: 0, hours: 0 },
   restoreBackupsKept: 10,
   stickSensitivity: 1,
+  playInSilentMode: false,
+  renderer: "automatic",
 };
 
 function memoryPreferences() {

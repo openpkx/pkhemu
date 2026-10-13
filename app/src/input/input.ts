@@ -4,6 +4,7 @@ import {
   calibrationFor,
   isPressed,
   noCalibrations,
+  rightStickFor,
   STICK_THRESHOLD,
   type Calibrations,
   type KeyboardCalibration,
@@ -155,6 +156,10 @@ function strength(pad: Gamepad, raw: RawInput | undefined) {
   return isPressed(pad, raw) ? 1 : 0;
 }
 
+function stick(pad: Gamepad, { up, down, left, right }: Record<"up" | "down" | "left" | "right", RawInput | undefined>) {
+  return tilt(strength(pad, right) - strength(pad, left), strength(pad, down) - strength(pad, up), PAD_DEAD_ZONE);
+}
+
 function readPads(
   pads: readonly (Gamepad | null)[],
   calibrations: Calibrations,
@@ -173,16 +178,15 @@ function readPads(
       if (button !== undefined) mask |= bit(button);
       else if (standard === "guide") guide = true;
     }
-    const [x, y] = tilt(
-      strength(pad, calibration.stickRight) - strength(pad, calibration.stickLeft),
-      strength(pad, calibration.stickDown) - strength(pad, calibration.stickUp),
-      PAD_DEAD_ZONE,
-    );
+    const [x, y] = stick(pad, {
+      up: calibration.stickUp,
+      down: calibration.stickDown,
+      left: calibration.stickLeft,
+      right: calibration.stickRight,
+    });
     left[0] += x;
     left[1] += y;
-    // Setup doesn't ask for a right stick, so only a standard pad has one, on axes 2 and 3.
-    if (pad.mapping !== "standard") continue;
-    const [rx, ry] = tilt(pad.axes[2] ?? 0, pad.axes[3] ?? 0, PAD_DEAD_ZONE);
+    const [rx, ry] = stick(pad, rightStickFor(pad, calibration));
     right[0] += rx;
     right[1] += ry;
   }

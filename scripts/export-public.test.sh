@@ -88,6 +88,13 @@ printf 'not a real keystore\n' >"$dir/app/release.jks"
 stage "$dir"
 expect fail keystore "$dir" "app/release.jks"
 
+for file in pkhemu.mobileprovision distribution.cer AuthKey_ABC123.p8; do
+  dir="$(export_dir "apple-$file")"
+  printf 'not a real apple file\n' >"$dir/app/$file"
+  stage "$dir"
+  expect fail "apple-$file" "$dir" "app/$file"
+done
+
 dir="$(export_dir rom)"
 printf 'not a real rom\n' >"$dir/app/src/Emerald.GBA"
 stage "$dir"

@@ -30,6 +30,8 @@ const stepLabels: Record<SetupStep, string> = {
   guide: "Middle button (Menu)",
   stickUp: "Left stick up",
   stickLeft: "Left stick left",
+  rightStickUp: "Right stick up",
+  rightStickLeft: "Right stick left",
 };
 
 export function ControllerSetup<T>({
@@ -98,7 +100,7 @@ export function ControllerSetup<T>({
 
   return createPortal(
     <Screen>
-      <div ref={layer} tabIndex={-1} className="fixed inset-0 z-30 flex flex-col bg-background outline-none">
+      <div ref={layer} tabIndex={-1} className="fixed inset-0 px-safe z-30 flex flex-col bg-background outline-none">
         <ScreenHeader title={setup.title} onBack={onCancel} />
         <main className="min-h-0 flex-1 overflow-y-auto">
           <div className="mx-auto grid max-w-sm gap-4 p-4">

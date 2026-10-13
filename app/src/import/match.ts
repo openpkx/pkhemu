@@ -1,9 +1,17 @@
 import type { Game } from "@/library/scan";
 import type { System } from "@/systems";
 
-export type ImportFile = { file: string; name: string; modified: number; size?: number; inner?: string | null; sha1?: string | null };
+export type ImportFile = {
+  file: string;
+  name: string;
+  modified: number;
+  size?: number;
+  inner?: string | null;
+  sha1?: string | null;
+  title?: string | null;
+};
 export type RomImport = { file: ImportFile; path: string };
-export type SaveImport = { file: ImportFile; game: string };
+export type SaveImport = { file: ImportFile; game: string; clock?: ImportFile };
 export type ImportPlan = { roms: RomImport[]; saves: SaveImport[]; unmatched: ImportFile[]; known: number };
 export type ImportLibrary = { games: Game[]; sha1s: Record<string, string> };
 
@@ -34,6 +42,7 @@ export function romSystem({ name, inner }: Pick<ImportFile, "name" | "inner">): 
 }
 
 export const isSave = (name: string) => saveExtensions.includes(split(name).extension.toLowerCase());
+export const isClock = (name: string) => split(name).extension.toLowerCase() === ".rtc";
 
 export function newestPerGame(saves: SaveImport[]): SaveImport[] {
   const newest = new Map<string, SaveImport>();
@@ -59,7 +68,8 @@ export function planImport(files: ImportFile[], { games, sha1s }: ImportLibrary)
     let path = file.sha1 ? bySha1.get(file.sha1) : undefined;
     if (path && known.has(file.sha1!)) skipped++;
     if (!path) {
-      const { base, extension } = split(file.name);
+      const { base: fileBase, extension } = split(file.name);
+      const base = file.title ?? fileBase;
       let name = base;
       for (let n = 2; taken.has(`${system}/${name.toLowerCase()}`); n++) name = `${base} (${n})`;
       taken.add(`${system}/${name.toLowerCase()}`);
@@ -73,12 +83,14 @@ export function planImport(files: ImportFile[], { games, sha1s }: ImportLibrary)
   const library = new Map<string, string>();
   for (const game of local) if (!library.has(game.name.toLowerCase())) library.set(game.name.toLowerCase(), game.path);
 
+  const clocks = new Map(files.filter((file) => isClock(file.name)).map((file) => [key(file.name), file]));
   const saves: SaveImport[] = [];
   const unmatched: ImportFile[] = [];
   for (const file of files) {
     if (!isSave(file.name)) continue;
     const game = picked.get(key(file.name)) ?? library.get(key(file.name));
-    if (game) saves.push({ file, game });
+    const clock = clocks.get(key(file.name));
+    if (game) saves.push(clock ? { file, game, clock } : { file, game });
     else unmatched.push(file);
   }
 

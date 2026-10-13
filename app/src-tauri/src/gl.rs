@@ -1,9 +1,16 @@
+#[cfg_attr(target_os = "macos", path = "gl/macos.rs")]
+#[cfg_attr(target_os = "android", path = "gl/android.rs")]
+#[cfg_attr(target_os = "ios", path = "gl/ios.rs")]
+mod platform;
+
+pub use platform::{screen_context, ScreenContext, Window};
+use std::cell::Cell;
 use std::ffi::{c_char, c_void, CStr};
 
-type GLenum = u32;
-type GLuint = u32;
-type GLint = i32;
-type GLsizei = i32;
+pub type GLenum = u32;
+pub type GLuint = u32;
+pub type GLint = i32;
+pub type GLsizei = i32;
 
 const GL_FRAMEBUFFER: GLenum = 0x8D40;
 const GL_READ_FRAMEBUFFER: GLenum = 0x8CA8;
@@ -28,9 +35,9 @@ const GL_DEPTH_ATTACHMENT: GLenum = 0x8D00;
 const GL_DEPTH_STENCIL_ATTACHMENT: GLenum = 0x821A;
 const GL_DEPTH_COMPONENT24: GLenum = 0x81A6;
 const GL_DEPTH24_STENCIL8: GLenum = 0x88F0;
+const GL_SYNC_GPU_COMMANDS_COMPLETE: GLenum = 0x9117;
+const GL_TIMEOUT_IGNORED: u64 = u64::MAX;
 
-#[cfg_attr(target_os = "macos", link(name = "OpenGL", kind = "framework"))]
-#[cfg_attr(target_os = "android", link(name = "GLESv3"))]
 extern "C" {
     fn glGetIntegerv(name: GLenum, data: *mut GLint);
     fn glGenFramebuffers(n: GLsizei, ids: *mut GLuint);
@@ -61,199 +68,32 @@ extern "C" {
     fn glBindBuffer(target: GLenum, id: GLuint);
     fn glPixelStorei(name: GLenum, value: GLint);
     fn glReadPixels(x: GLint, y: GLint, w: GLsizei, h: GLsizei, format: GLenum, kind: GLenum, data: *mut c_void);
+    fn glFlush();
+    fn glFenceSync(condition: GLenum, flags: u32) -> *mut c_void;
+    fn glWaitSync(sync: *mut c_void, flags: u32, timeout: u64);
+    fn glDeleteSync(sync: *mut c_void);
+}
+
+thread_local! {
+    static SAMPLED: Cell<*mut c_void> = const { Cell::new(std::ptr::null_mut()) };
+}
+
+// The screen samples the core's texture from its own context, so the core waits for that before drawing over it.
+pub fn texture_sampled() {
+    unsafe {
+        let sampled = glFenceSync(GL_SYNC_GPU_COMMANDS_COMPLETE, 0);
+        glFlush();
+        let earlier = SAMPLED.replace(sampled);
+        if !earlier.is_null() {
+            glDeleteSync(earlier);
+        }
+    }
 }
 
 unsafe fn integer(name: GLenum) -> GLint {
     let mut value = 0;
     glGetIntegerv(name, &mut value);
     value
-}
-
-#[cfg(target_os = "macos")]
-mod platform {
-    use std::ffi::{c_void, CStr};
-    use std::sync::OnceLock;
-
-    const PFA_ACCELERATED: i32 = 73;
-    const PFA_ALLOW_OFFLINE_RENDERERS: i32 = 96;
-    const PFA_OPENGL_PROFILE: i32 = 99;
-    const OGLP_VERSION_3_2_CORE: i32 = 0x3200;
-
-    #[link(name = "OpenGL", kind = "framework")]
-    extern "C" {
-        fn CGLChoosePixelFormat(attribs: *const i32, pixel_format: *mut *mut c_void, count: *mut i32) -> i32;
-        fn CGLDestroyPixelFormat(pixel_format: *mut c_void) -> i32;
-        fn CGLCreateContext(pixel_format: *mut c_void, share: *mut c_void, context: *mut *mut c_void) -> i32;
-        fn CGLDestroyContext(context: *mut c_void) -> i32;
-        fn CGLSetCurrentContext(context: *mut c_void) -> i32;
-    }
-
-    pub struct Context(*mut c_void);
-
-    impl Context {
-        // The 3.2 core profile gives the newest one the Mac has, which is 4.1.
-        pub fn new() -> Result<Context, String> {
-            unsafe {
-                let attribs =
-                    [PFA_OPENGL_PROFILE, OGLP_VERSION_3_2_CORE, PFA_ACCELERATED, PFA_ALLOW_OFFLINE_RENDERERS, 0];
-                let (mut pixel_format, mut count) = (std::ptr::null_mut(), 0);
-                let error = CGLChoosePixelFormat(attribs.as_ptr(), &mut pixel_format, &mut count);
-                if error != 0 || pixel_format.is_null() {
-                    return Err(format!("no OpenGL 3.2 core pixel format (CGL error {error})"));
-                }
-                let mut context = std::ptr::null_mut();
-                let error = CGLCreateContext(pixel_format, std::ptr::null_mut(), &mut context);
-                CGLDestroyPixelFormat(pixel_format);
-                if error != 0 || context.is_null() {
-                    return Err(format!("creating the OpenGL context failed (CGL error {error})"));
-                }
-                let error = CGLSetCurrentContext(context);
-                if error != 0 {
-                    CGLDestroyContext(context);
-                    return Err(format!("making the OpenGL context current failed (CGL error {error})"));
-                }
-                Ok(Context(context))
-            }
-        }
-    }
-
-    impl Drop for Context {
-        fn drop(&mut self) {
-            unsafe {
-                CGLSetCurrentContext(std::ptr::null_mut());
-                CGLDestroyContext(self.0);
-            }
-        }
-    }
-
-    pub fn proc_address(name: &CStr) -> *const c_void {
-        static OPENGL: OnceLock<usize> = OnceLock::new();
-        let library = *OPENGL.get_or_init(|| unsafe {
-            libc::dlopen(c"/System/Library/Frameworks/OpenGL.framework/OpenGL".as_ptr(), libc::RTLD_LAZY) as usize
-        });
-        unsafe { libc::dlsym(library as *mut c_void, name.as_ptr()) }
-    }
-}
-
-#[cfg(target_os = "android")]
-mod platform {
-    use std::ffi::{c_char, c_void, CStr};
-    use std::sync::OnceLock;
-
-    const EGL_NONE: i32 = 0x3038;
-    const EGL_RENDERABLE_TYPE: i32 = 0x3040;
-    const EGL_OPENGL_ES3_BIT: i32 = 0x0040;
-    const EGL_SURFACE_TYPE: i32 = 0x3033;
-    const EGL_PBUFFER_BIT: i32 = 0x0001;
-    const EGL_RED_SIZE: i32 = 0x3024;
-    const EGL_GREEN_SIZE: i32 = 0x3023;
-    const EGL_BLUE_SIZE: i32 = 0x3022;
-    const EGL_WIDTH: i32 = 0x3057;
-    const EGL_HEIGHT: i32 = 0x3056;
-    const EGL_CONTEXT_CLIENT_VERSION: i32 = 0x3098;
-    const EGL_OPENGL_ES_API: u32 = 0x30A0;
-
-    #[link(name = "EGL")]
-    extern "C" {
-        fn eglGetDisplay(display: *mut c_void) -> *mut c_void;
-        fn eglInitialize(display: *mut c_void, major: *mut i32, minor: *mut i32) -> u32;
-        fn eglBindAPI(api: u32) -> u32;
-        fn eglChooseConfig(
-            display: *mut c_void,
-            attribs: *const i32,
-            configs: *mut *mut c_void,
-            size: i32,
-            count: *mut i32,
-        ) -> u32;
-        fn eglCreateContext(
-            display: *mut c_void,
-            config: *mut c_void,
-            share: *mut c_void,
-            attribs: *const i32,
-        ) -> *mut c_void;
-        fn eglCreatePbufferSurface(display: *mut c_void, config: *mut c_void, attribs: *const i32) -> *mut c_void;
-        fn eglMakeCurrent(display: *mut c_void, draw: *mut c_void, read: *mut c_void, context: *mut c_void) -> u32;
-        fn eglDestroySurface(display: *mut c_void, surface: *mut c_void) -> u32;
-        fn eglDestroyContext(display: *mut c_void, context: *mut c_void) -> u32;
-        fn eglGetError() -> i32;
-        fn eglGetProcAddress(name: *const c_char) -> *const c_void;
-    }
-
-    pub struct Context {
-        display: *mut c_void,
-        surface: *mut c_void,
-        context: *mut c_void,
-    }
-
-    impl Context {
-        pub fn new() -> Result<Context, String> {
-            let failed = |what: &str| format!("{what} failed (EGL error {:#x})", unsafe { eglGetError() });
-            unsafe {
-                let display = eglGetDisplay(std::ptr::null_mut());
-                if display.is_null() || eglInitialize(display, std::ptr::null_mut(), std::ptr::null_mut()) == 0 {
-                    return Err(failed("initialising EGL"));
-                }
-                let attribs = [
-                    EGL_RENDERABLE_TYPE,
-                    EGL_OPENGL_ES3_BIT,
-                    EGL_SURFACE_TYPE,
-                    EGL_PBUFFER_BIT,
-                    EGL_RED_SIZE,
-                    8,
-                    EGL_GREEN_SIZE,
-                    8,
-                    EGL_BLUE_SIZE,
-                    8,
-                    EGL_NONE,
-                ];
-                let (mut config, mut count) = (std::ptr::null_mut(), 0);
-                if eglChooseConfig(display, attribs.as_ptr(), &mut config, 1, &mut count) == 0 || count == 0 {
-                    return Err("the device has no OpenGL ES 3 config".into());
-                }
-                eglBindAPI(EGL_OPENGL_ES_API);
-                let version = [EGL_CONTEXT_CLIENT_VERSION, 3, EGL_NONE];
-                let context = eglCreateContext(display, config, std::ptr::null_mut(), version.as_ptr());
-                if context.is_null() {
-                    return Err(failed("creating an OpenGL ES 3 context"));
-                }
-                let size = [EGL_WIDTH, 1, EGL_HEIGHT, 1, EGL_NONE];
-                let surface = eglCreatePbufferSurface(display, config, size.as_ptr());
-                if surface.is_null() {
-                    let error = failed("creating a pbuffer");
-                    eglDestroyContext(display, context);
-                    return Err(error);
-                }
-                let created = Context { display, surface, context };
-                if eglMakeCurrent(display, surface, surface, context) == 0 {
-                    return Err(failed("making the context current"));
-                }
-                Ok(created)
-            }
-        }
-    }
-
-    // The display stays initialised, since the WebView draws through it in the same process.
-    impl Drop for Context {
-        fn drop(&mut self) {
-            let none = std::ptr::null_mut();
-            unsafe {
-                eglMakeCurrent(self.display, none, none, none);
-                eglDestroySurface(self.display, self.surface);
-                eglDestroyContext(self.display, self.context);
-            }
-        }
-    }
-
-    // Before EGL_KHR_get_all_proc_addresses, eglGetProcAddress only finds extensions.
-    pub fn proc_address(name: &CStr) -> *const c_void {
-        let found = unsafe { eglGetProcAddress(name.as_ptr()) };
-        if !found.is_null() {
-            return found;
-        }
-        static GLES: OnceLock<usize> = OnceLock::new();
-        let library = *GLES.get_or_init(|| unsafe { libc::dlopen(c"libGLESv3.so".as_ptr(), libc::RTLD_LAZY) as usize });
-        unsafe { libc::dlsym(library as *mut c_void, name.as_ptr()) }
-    }
 }
 
 pub unsafe extern "C" fn proc_address(name: *const c_char) -> *const c_void {
@@ -267,7 +107,7 @@ pub struct Renderer {
     width: u32,
     height: u32,
     rgba: Vec<u8>,
-    _context: platform::Context,
+    context: platform::Context,
 }
 
 struct Bindings {
@@ -332,7 +172,7 @@ impl Renderer {
                 glFramebufferRenderbuffer(GL_FRAMEBUFFER, attachment, GL_RENDERBUFFER, renderbuffer);
                 (renderbuffer, format)
             });
-            Ok(Renderer { framebuffer, color, depth, width: 0, height: 0, rgba: Vec::new(), _context: context })
+            Ok(Renderer { framebuffer, color, depth, width: 0, height: 0, rgba: Vec::new(), context })
         }
     }
 
@@ -340,9 +180,23 @@ impl Renderer {
         self.framebuffer
     }
 
-    #[cfg(test)]
     pub fn size(&self) -> (u32, u32) {
         (self.width, self.height)
+    }
+
+    pub fn texture(&self) -> GLuint {
+        self.color
+    }
+
+    pub fn make_current(&self) {
+        self.context.make_current();
+        let sampled = SAMPLED.replace(std::ptr::null_mut());
+        if !sampled.is_null() {
+            unsafe {
+                glWaitSync(sampled, 0, GL_TIMEOUT_IGNORED);
+                glDeleteSync(sampled);
+            }
+        }
     }
 
     // Keeps the framebuffer's name, since the core only asks for it once.
@@ -372,6 +226,7 @@ impl Renderer {
         let (width, height) = (width.min(self.width), height.min(self.height));
         let (w, h) = (width as usize, height as usize);
         self.rgba.resize(w * h * 4, 0);
+        self.make_current();
         unsafe {
             let _bindings = Bindings::save();
             glBindFramebuffer(GL_READ_FRAMEBUFFER, self.framebuffer);

@@ -9,4 +9,11 @@ export const appNotice = {
   licenceText: "https://www.gnu.org/licenses/gpl-3.0.html",
 };
 
+export const demoNotice: Notice = {
+  name: "Tobu Tobu Girl Deluxe",
+  version: "Tangram Games",
+  licence: "MIT, CC BY 4.0",
+  source: "https://github.com/SimonLarsen/tobutobugirl-dx",
+};
+
 export const notices: Record<keyof typeof dependencies, Notice[]> = dependencies;

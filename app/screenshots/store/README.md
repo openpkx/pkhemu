@@ -1,6 +1,6 @@
 # Store screenshots
 
-Makes the phone screenshots for the Google Play listing: the app's own screens, with frames from homebrew games, framed on a dark background with a caption. The listing can't show Pokémon, so every game here is homebrew whose licence allows it.
+Makes the phone screenshots for the Google Play and App Store listings: the app's own screens, with frames from homebrew games, framed on a dark background with a caption. The listings can't show Pokémon, so every game here is homebrew whose licence allows it.
 
 Everything it downloads or writes goes under `data/store/`, which git ignores.
 
@@ -12,21 +12,26 @@ From the repo root, after one macOS build (`scripts/macos-dev.sh` or `scripts/ma
 app/screenshots/store/games.sh              # download the games
 python3 app/screenshots/store/frames.py     # play each one headless, write data/store/frames/
 cd app
-NODE_ENV= node screenshots/store/capture.mjs  # render the app's screens, write data/store/raw/
-NODE_ENV= node screenshots/store/compose.mjs  # frame and caption them, write data/store/out/
+NODE_ENV= npm run screenshots:store          # render the app's screens to data/store/raw/<device>/, then frame and caption them to data/store/out/<device>/
 ```
 
 `games.sh` downloads 10 games. Tobu Tobu Girl, Tobu Tobu Girl Deluxe and Feline come from itch.io, so the script names the file to save by hand.
 
-Each step takes names to redo only some of it: `frames.py ucity`, `capture.mjs editor`, `compose.mjs 3-editor`.
+`screenshots:store` runs `capture.mjs` then `compose.mjs`. Each step takes names to redo only some of it: `frames.py ucity`, `node screenshots/store/capture.mjs editor`, `node screenshots/store/compose.mjs 3-editor`. The last two also take device names: `compose.mjs iphone-6.9 3-editor`.
 
-Upload `data/store/out/*.png` in name order. They're 1080×1920, which fits Play's phone screenshot rules (9:16, 320 to 3840 px a side).
+Upload each folder of `data/store/out/` in name order:
+
+| Folder | Store | Size |
+|---|---|---|
+| `play` | Google Play phone | 1080×1920 |
+| `iphone-6.9` | App Store 6.9" iPhone | 1320×2868 |
+| `iphone-6.3` | App Store 6.3" iPhone | 1206×2622 |
 
 ## How it works
 
 - `frames.py` loads the app's cores through libretro and plays each game from power-on with scripted presses. `GAMES_STEPS` holds the presses. The `HANDHELD` and `DS` scripts press Start and A in a loop and save a frame each round, as `<game>-01.png` to `-16.png`. Look through the frames and pick by number. The runs are deterministic, except DS games, which read the clock.
-- `store.tsx` mounts the real screens with the test fakes, as `../main.tsx` does. Picked frames become box art (`covers`), last screens on the library (`lastScreens`), and the running game (`playingGame`). `capture.mjs` shoots each screen at 390×844 at 3×, and opens the pause menu for `playing-pause`.
-- `compose.mjs` places each shot on the background with the caption from `shots.json`.
+- `store.tsx` mounts the real screens with the test fakes, as `../main.tsx` does. Picked frames become box art (`covers`), last screens on the library (`lastScreens`), and the running game (`playingGame`). `capture.mjs` shoots each screen at each device's size from `devices.mjs`, at 3×, and opens the pause menu for `playing-pause`. The systems, default preferences and device name come from the Android hosts for Play and the iOS hosts for the iPhone, so the iPhone library has no N64 games.
+- `compose.mjs` places each shot on the background with the caption from `shots.json`. A shot's `ios` entry overrides its fields on the iPhone.
 
 ## What's in the shots
 
@@ -37,7 +42,7 @@ Upload `data/store/out/*.png` in name order. They're 1080×1920, which fits Play
 | 3-editor | Editor with a party and a box |
 | 4-pause | Pause menu over Tobu Tobu Girl |
 | 5-ds | JamClown on both DS screens |
-| 6-library | Library scrolled to GBA, DS and N64 |
+| 6-library | Library scrolled to GBA, DS and, on Play, N64 |
 
 The editor's creatures are made up. `store.tsx` draws their sprites and names them, because a real save would show Pokémon.
 

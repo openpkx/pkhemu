@@ -1,12 +1,19 @@
 #![allow(dead_code)]
 
+#[cfg_attr(target_os = "android", path = "retro/android.rs")]
+#[cfg_attr(target_os = "ios", path = "retro/ios.rs")]
+#[cfg_attr(desktop, path = "retro/desktop.rs")]
+mod platform;
+
 use crate::gl;
 use crate::memory::{self, Range, Region};
 use crate::rom::{Rom, System};
+use crate::screen::{Picture, Texture};
 use crate::transfer_pak;
+use platform::{core_path, supports, MELONDS_JIT, N64_CPU};
 use std::cell::{Cell, RefCell};
 use std::ffi::{c_char, c_uint, c_void, CStr, CString};
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::sync::atomic::{AtomicBool, AtomicU16, AtomicU32, AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
 
@@ -151,19 +158,13 @@ struct Variable {
     value: *const c_char,
 }
 
-// Apple Silicon refuses the memory the arm64 dynarec maps writable and executable.
-#[cfg(target_os = "android")]
-const N64_CPU: &CStr = c"dynamic_recompiler";
-#[cfg(not(target_os = "android"))]
-const N64_CPU: &CStr = c"cached_interpreter";
-
 // Keys carry the core's prefix, so one table serves every core.
 const OPTIONS: [(&CStr, &CStr); 16] = [
     (c"mgba_sgb_borders", c"OFF"),
     (c"melonds_console_mode", c"ds"),
     (c"melonds_sysfile_mode", c"builtin"),
     (c"melonds_render_mode", c"software"),
-    (c"melonds_jit_enable", c"enabled"),
+    (c"melonds_jit_enable", MELONDS_JIT),
     (c"melonds_number_of_screen_layouts", c"1"),
     (c"melonds_screen_layout1", c"top-bottom"),
     (c"melonds_screen_gap", c"0"),
@@ -282,19 +283,6 @@ libretro_api! {
     retro_cheat_set(c_uint, bool, *const c_char);
 }
 
-#[cfg(target_os = "android")]
-fn core_path(name: &str, _built: Option<&str>) -> Option<PathBuf> {
-    // The linker finds libraries by name in the APK's lib/<abi> folder.
-    Some(format!("lib{name}.so").into())
-}
-
-#[cfg(not(target_os = "android"))]
-fn core_path(name: &str, built: Option<&str>) -> Option<PathBuf> {
-    let exe = std::env::current_exe().ok()?;
-    let bundled = exe.parent().map(|dir| dir.join("../Frameworks").join(format!("{name}.dylib")));
-    bundled.into_iter().chain(built.map(PathBuf::from)).find(|path| path.is_file())
-}
-
 type Library = OnceLock<Result<(libloading::Library, Api), String>>;
 
 // The library stays loaded once opened, since unloading a C++ core with threads of its own isn't safe.
@@ -332,6 +320,8 @@ pub struct Frame {
     pub height: u32,
     pub pixels: Vec<u16>,
     pub fresh: bool,
+    // A GL frame left in the core's texture, so the pixels are an older frame's until read back.
+    pub in_texture: bool,
 }
 
 #[derive(Default)]
@@ -389,7 +379,9 @@ fn pixel([r, g, b]: [u32; 3], average: impl Fn(u32) -> u32) -> u16 {
 }
 
 thread_local! {
-    static FRAME: RefCell<Frame> = const { RefCell::new(Frame { width: 0, height: 0, pixels: Vec::new(), fresh: false }) };
+    static FRAME: RefCell<Frame> =
+        const { RefCell::new(Frame { width: 0, height: 0, pixels: Vec::new(), fresh: false, in_texture: false }) };
+    static READ_BACK: Cell<bool> = const { Cell::new(true) };
     static MIX: RefCell<Mix> = RefCell::new(Mix::default());
     static AUDIO: RefCell<Vec<i16>> = RefCell::new(Vec::with_capacity(4096));
     static AV: Cell<AvInfo> = Cell::new(AvInfo::default());
@@ -409,6 +401,9 @@ static INPUT: AtomicU16 = AtomicU16::new(0);
 static ANALOG: AtomicU64 = AtomicU64::new(0);
 // Pressed in bit 32, y in bits 16 to 31 and x in the low 16, so the core never reads half an update.
 static POINTER: AtomicU64 = AtomicU64::new(0);
+// Input arrives whenever it changes, so a tap can go down and up between two frames. The next frame still sees it.
+static UNSEEN_PRESSES: AtomicU16 = AtomicU16::new(0);
+static UNSEEN_TOUCH: AtomicU64 = AtomicU64::new(0);
 static PIXEL_FORMAT: AtomicU32 = AtomicU32::new(PIXEL_FORMAT_RGB565);
 static LOADED: AtomicBool = AtomicBool::new(false);
 static SYSTEM_DIR: OnceLock<CString> = OnceLock::new();
@@ -421,17 +416,6 @@ pub fn take_messages() -> Vec<Message> {
 pub fn set_ds_clock_offset(seconds: i64) {
     let [days, hours] = [seconds / (24 * 60 * 60), seconds / (60 * 60) % 24].map(|n| CString::new(n.to_string()).unwrap());
     DS_CLOCK_OFFSET.set([days, hours]);
-}
-
-#[cfg(target_os = "android")]
-fn supports(hw: &HwRenderCallback) -> bool {
-    hw.context_type == HW_CONTEXT_OPENGLES3
-}
-
-// The Mac's core profile stops at 4.1.
-#[cfg(not(target_os = "android"))]
-fn supports(hw: &HwRenderCallback) -> bool {
-    hw.context_type == HW_CONTEXT_OPENGL_CORE && ((3, 3)..=(4, 1)).contains(&(hw.version_major, hw.version_minor))
 }
 
 unsafe extern "C" fn current_framebuffer() -> usize {
@@ -473,16 +457,36 @@ fn stop_hw_render() {
 }
 
 pub fn set_input(mask: u16) {
-    INPUT.store(mask, Ordering::Relaxed);
+    let before = INPUT.swap(mask, Ordering::Relaxed);
+    UNSEEN_PRESSES.fetch_or(mask & !before, Ordering::Relaxed);
 }
 
 pub fn set_analog(analog: [i16; 4]) {
     ANALOG.store(analog.iter().rev().fold(0, |packed, &axis| packed << 16 | axis as u16 as u64), Ordering::Relaxed);
 }
 
+pub fn release_input() {
+    set_input(0);
+    set_analog([0; 4]);
+    set_pointer(None);
+    UNSEEN_PRESSES.store(0, Ordering::Relaxed);
+    UNSEEN_TOUCH.store(0, Ordering::Relaxed);
+}
+
 pub fn set_pointer(pointer: Option<[i16; 2]>) {
     let packed = pointer.map_or(0, |[x, y]| 1 << 32 | (y as u16 as u64) << 16 | x as u16 as u64);
-    POINTER.store(packed, Ordering::Relaxed);
+    if POINTER.swap(packed, Ordering::Relaxed) == 0 && packed != 0 {
+        let _ = UNSEEN_TOUCH.compare_exchange(0, packed, Ordering::Relaxed, Ordering::Relaxed);
+    }
+}
+
+fn unseen_input() -> (u16, u64) {
+    (UNSEEN_PRESSES.load(Ordering::Relaxed), UNSEEN_TOUCH.load(Ordering::Relaxed))
+}
+
+fn frame_saw((presses, touch): (u16, u64)) {
+    UNSEEN_PRESSES.fetch_and(!presses, Ordering::Relaxed);
+    let _ = UNSEEN_TOUCH.compare_exchange(touch, 0, Ordering::Relaxed, Ordering::Relaxed);
 }
 
 // The callback is variadic in C, which stable Rust can't define. Taking only the level and the format
@@ -653,7 +657,13 @@ unsafe extern "C" fn video_refresh(data: *const c_void, width: c_uint, height: c
     }
     FRAME.with_borrow_mut(|frame| {
         if data == HW_FRAME_BUFFER_VALID {
-            if !read_hw_frame(frame, width, height) {
+            let blending = MIX.with_borrow(|mix| mix.blend);
+            let kept = if READ_BACK.get() || blending {
+                read_hw_frame(frame, width, height)
+            } else {
+                keep_hw_frame(frame, width, height)
+            };
+            if !kept {
                 return;
             }
         } else {
@@ -669,6 +679,7 @@ unsafe fn copy_frame(frame: &mut Frame, data: *const c_void, width: c_uint, heig
     let (w, h) = (width as usize, height as usize);
     frame.width = width;
     frame.height = height;
+    frame.in_texture = false;
     frame.pixels.resize(w * h, 0);
     let src = data as *const u8;
     for y in 0..h {
@@ -688,7 +699,39 @@ fn read_hw_frame(frame: &mut Frame, width: c_uint, height: c_uint) -> bool {
     HW.with_borrow_mut(|hw| {
         let Some(hw) = hw else { return false };
         (frame.width, frame.height) = hw.renderer.read(width, height, hw.bottom_left, &mut frame.pixels);
+        frame.in_texture = false;
         true
+    })
+}
+
+fn keep_hw_frame(frame: &mut Frame, width: c_uint, height: c_uint) -> bool {
+    HW.with_borrow(|hw| {
+        let Some(hw) = hw else { return false };
+        let (texture_width, texture_height) = hw.renderer.size();
+        (frame.width, frame.height) = (width.min(texture_width), height.min(texture_height));
+        frame.in_texture = true;
+        true
+    })
+}
+
+fn read_back(frame: &mut Frame) {
+    if frame.in_texture {
+        read_hw_frame(frame, frame.width, frame.height);
+    }
+}
+
+fn hw_texture(frame: &Frame) -> Option<Texture> {
+    HW.with_borrow(|hw| {
+        let hw = hw.as_ref()?;
+        let (texture_width, texture_height) = hw.renderer.size();
+        Some(Texture {
+            id: hw.renderer.texture(),
+            width: frame.width,
+            height: frame.height,
+            texture_width,
+            texture_height,
+            bottom_left: hw.bottom_left,
+        })
     })
 }
 
@@ -700,6 +743,24 @@ fn start_blend(blend: bool) {
 }
 
 fn take_frame<R>(f: impl FnOnce(&Frame) -> R) -> Option<R> {
+    fresh_frame(|mixed, frame| {
+        read_back(frame);
+        f(mixed.unwrap_or(frame))
+    })
+}
+
+fn take_picture<R>(f: impl FnOnce(Picture) -> R) -> Option<R> {
+    fresh_frame(|mixed, frame| match hw_texture(frame).filter(|_| frame.in_texture) {
+        Some(texture) => f(Picture::Texture(texture)),
+        None => {
+            read_back(frame);
+            let shown = mixed.unwrap_or(frame);
+            f(Picture::Pixels { width: shown.width, height: shown.height, pixels: &shown.pixels })
+        }
+    })
+}
+
+fn fresh_frame<R>(f: impl FnOnce(Option<&Frame>, &mut Frame) -> R) -> Option<R> {
     MIX.with_borrow_mut(|mix| {
         FRAME.with_borrow_mut(|frame| {
             let mixed = mix.take_mixed();
@@ -707,7 +768,7 @@ fn take_frame<R>(f: impl FnOnce(&Frame) -> R) -> Option<R> {
                 return None;
             }
             frame.fresh = false;
-            Some(f(mixed.unwrap_or(frame)))
+            Some(f(mixed, frame))
         })
     })
 }
@@ -730,7 +791,7 @@ unsafe extern "C" fn input_state(port: c_uint, device: c_uint, index: c_uint, id
     }
     match device {
         DEVICE_JOYPAD => {
-            let mask = INPUT.load(Ordering::Relaxed);
+            let mask = INPUT.load(Ordering::Relaxed) | UNSEEN_PRESSES.load(Ordering::Relaxed);
             if id == DEVICE_ID_JOYPAD_MASK {
                 mask as i16
             } else {
@@ -741,7 +802,10 @@ unsafe extern "C" fn input_state(port: c_uint, device: c_uint, index: c_uint, id
             (ANALOG.load(Ordering::Relaxed) >> (16 * (index * 2 + id))) as u16 as i16
         }
         DEVICE_POINTER if index == 0 => {
-            let pointer = POINTER.load(Ordering::Relaxed);
+            let pointer = match POINTER.load(Ordering::Relaxed) {
+                0 => UNSEEN_TOUCH.load(Ordering::Relaxed),
+                held => held,
+            };
             match id {
                 DEVICE_ID_POINTER_X => pointer as u16 as i16,
                 DEVICE_ID_POINTER_Y => (pointer >> 16) as u16 as i16,
@@ -775,7 +839,9 @@ fn set_float_mode(_: u64) {}
 
 // Mupen64Plus-Next sets the host's rounding mode to the game's and leaves it set, which breaks Rust's
 // float maths on this thread, so the core keeps its own mode from call to call.
+// The screen draws with its own context between frames, so the core's goes back before each call.
 fn in_core<R>(f: impl FnOnce() -> R) -> R {
+    HW.with_borrow(|hw| hw.as_ref().map(|hw| hw.renderer.make_current()));
     let app = float_mode();
     if let Some(core) = CORE_FLOAT_MODE.get() {
         set_float_mode(core);
@@ -820,7 +886,9 @@ impl Core {
             frame.height = 0;
             frame.pixels.clear();
             frame.fresh = false;
+            frame.in_texture = false;
         });
+        READ_BACK.set(true);
         start_blend(false);
         set_input(0);
         set_analog([0; 4]);
@@ -884,7 +952,9 @@ impl Core {
     }
 
     pub fn run_frame(&mut self) {
+        let unseen = unseen_input();
         in_core(|| unsafe { (self.api.retro_run)() });
+        frame_saw(unseen);
         self.ran_a_frame = true;
     }
 
@@ -939,8 +1009,20 @@ impl Core {
         take_frame(f)
     }
 
+    // A GL frame comes as the core's texture unless it has to be read back.
+    pub fn take_picture<R>(&mut self, f: impl FnOnce(Picture) -> R) -> Option<R> {
+        take_picture(f)
+    }
+
+    pub fn read_back(&mut self, read: bool) {
+        READ_BACK.set(read);
+    }
+
     pub fn last_frame<R>(&self, f: impl FnOnce(&Frame) -> R) -> Option<R> {
-        FRAME.with_borrow(|frame| (!frame.pixels.is_empty()).then(|| f(frame)))
+        FRAME.with_borrow_mut(|frame| {
+            read_back(frame);
+            (!frame.pixels.is_empty()).then(|| f(frame))
+        })
     }
 
     pub fn drain_audio(&mut self, out: &mut Vec<i16>) {
@@ -1057,6 +1139,75 @@ pub fn send_message(text: &CStr, duration: c_uint, target: c_uint, kind: c_uint)
 mod tests {
     use super::*;
 
+    const A: u16 = 1 << 8;
+
+    fn pressed(id: c_uint) -> bool {
+        unsafe { input_state(0, DEVICE_JOYPAD, 0, id) != 0 }
+    }
+
+    fn touched() -> bool {
+        unsafe { input_state(0, DEVICE_POINTER, 0, DEVICE_ID_POINTER_PRESSED) != 0 }
+    }
+
+    fn a_frame() {
+        let unseen = unseen_input();
+        frame_saw(unseen);
+    }
+
+    #[test]
+    fn a_press_let_go_before_any_frame_still_reaches_the_next_one() {
+        let _lock = crate::test_games::lock_core();
+        release_input();
+
+        set_input(A);
+        set_input(0);
+
+        assert!(pressed(8));
+        a_frame();
+        assert!(!pressed(8));
+    }
+
+    #[test]
+    fn a_held_button_stays_pressed_across_frames() {
+        let _lock = crate::test_games::lock_core();
+        release_input();
+
+        set_input(A);
+        a_frame();
+        a_frame();
+
+        assert!(pressed(8));
+        release_input();
+    }
+
+    #[test]
+    fn a_touch_lifted_before_any_frame_still_reaches_the_next_one() {
+        let _lock = crate::test_games::lock_core();
+        release_input();
+
+        set_pointer(Some([10, 20]));
+        set_pointer(None);
+
+        assert!(touched());
+        assert_eq!(unsafe { input_state(0, DEVICE_POINTER, 0, DEVICE_ID_POINTER_X) }, 10);
+        a_frame();
+        assert!(!touched());
+    }
+
+    #[test]
+    fn a_press_during_a_frame_waits_for_the_next() {
+        let _lock = crate::test_games::lock_core();
+        release_input();
+        let unseen = unseen_input();
+
+        set_input(A);
+        set_input(0);
+        frame_saw(unseen);
+
+        assert!(pressed(8));
+        release_input();
+    }
+
     #[test]
     fn reports_the_linked_mgba_version() {
         let info = core_info();
@@ -1086,7 +1237,7 @@ mod tests {
         assert!(HW.with_borrow(Option::is_none));
     }
 
-    fn option(key: &CStr) -> Option<String> {
+    pub(super) fn option(key: &CStr) -> Option<String> {
         let mut variable = Variable {
             key: key.as_ptr(),
             value: std::ptr::null(),
@@ -1127,18 +1278,6 @@ mod tests {
     #[test]
     fn leaves_the_n64_stick_dead_zone_to_the_app() {
         assert_eq!(option(c"mupen64plus-astick-deadzone").as_deref(), Some("0"));
-    }
-
-    #[test]
-    #[cfg(target_os = "android")]
-    fn runs_n64_games_on_the_dynarec_on_android() {
-        assert_eq!(option(c"mupen64plus-cpucore").as_deref(), Some("dynamic_recompiler"));
-    }
-
-    #[test]
-    #[cfg(not(target_os = "android"))]
-    fn runs_n64_games_on_the_cached_interpreter_on_macos() {
-        assert_eq!(option(c"mupen64plus-cpucore").as_deref(), Some("cached_interpreter"));
     }
 
     #[test]
@@ -1340,11 +1479,6 @@ mod tests {
         (accepted, hw)
     }
 
-    #[cfg(not(target_os = "android"))]
-    const OWN_CONTEXT: (c_uint, c_uint, c_uint) = (HW_CONTEXT_OPENGL_CORE, 3, 3);
-    #[cfg(target_os = "android")]
-    const OWN_CONTEXT: (c_uint, c_uint, c_uint) = (HW_CONTEXT_OPENGLES3, 3, 0);
-
     fn set_geometry(width: c_uint, height: c_uint) -> bool {
         let mut geometry = GameGeometry { base_width: width, base_height: height, ..Default::default() };
         unsafe { environment(ENV_SET_GEOMETRY, &mut geometry as *mut GameGeometry as *mut c_void) }
@@ -1369,7 +1503,7 @@ mod tests {
     fn gives_the_core_a_framebuffer_and_gl_functions() {
         let _lock = crate::test_games::lock_core();
 
-        let (accepted, hw) = hw_render(OWN_CONTEXT);
+        let (accepted, hw) = hw_render(platform::OWN_CONTEXT);
 
         assert!(accepted);
         assert_ne!(unsafe { hw.get_current_framebuffer.unwrap()() }, 0);
@@ -1380,7 +1514,7 @@ mod tests {
     #[test]
     fn resizes_the_framebuffer_with_the_cores_geometry() {
         let _lock = crate::test_games::lock_core();
-        hw_render(OWN_CONTEXT);
+        hw_render(platform::OWN_CONTEXT);
 
         assert!(set_geometry(320, 240));
         assert_eq!(hw_size(), Some((320, 240)));
@@ -1398,14 +1532,13 @@ mod tests {
         std::mem::transmute_copy(&address)
     }
 
-    #[test]
-    fn reads_gl_frames_top_row_first() {
-        let _lock = crate::test_games::lock_core();
-        let (_, hw) = hw_render(OWN_CONTEXT);
+    // Red on the bottom row and blue on the top, as GL counts rows.
+    fn draw_two_rows(hw: &HwRenderCallback) {
         set_geometry(2, 2);
         unsafe {
             let bind: unsafe extern "C" fn(u32, u32) = gl_function(c"glBindFramebuffer");
             let enable: unsafe extern "C" fn(u32) = gl_function(c"glEnable");
+            let disable: unsafe extern "C" fn(u32) = gl_function(c"glDisable");
             let scissor: unsafe extern "C" fn(i32, i32, i32, i32) = gl_function(c"glScissor");
             let clear_color: unsafe extern "C" fn(f32, f32, f32, f32) = gl_function(c"glClearColor");
             let clear: unsafe extern "C" fn(u32) = gl_function(c"glClear");
@@ -1417,15 +1550,77 @@ mod tests {
                 clear_color(r, g, b, 1.0);
                 clear(color_buffer);
             }
-
-            video_refresh(HW_FRAME_BUFFER_VALID, 2, 2, 0);
+            disable(scissor_test);
         }
+    }
+
+    #[test]
+    fn reads_gl_frames_top_row_first() {
+        let _lock = crate::test_games::lock_core();
+        let (_, hw) = hw_render(platform::OWN_CONTEXT);
+        draw_two_rows(&hw);
+
+        unsafe { video_refresh(HW_FRAME_BUFFER_VALID, 2, 2, 0) };
 
         FRAME.with_borrow(|frame| {
             assert_eq!((frame.width, frame.height), (2, 2));
             assert_eq!(frame.pixels, [BLUE, BLUE, RED, RED]);
         });
         stop_hw_render();
+    }
+
+    fn leaving_gl_frames_in_the_texture() -> HwRenderCallback {
+        let (_, hw) = hw_render(platform::OWN_CONTEXT);
+        FRAME.with_borrow_mut(|frame| *frame = Frame::default());
+        start_blend(false);
+        READ_BACK.set(false);
+        draw_two_rows(&hw);
+        hw
+    }
+
+    fn done_with_gl() {
+        READ_BACK.set(true);
+        stop_hw_render();
+    }
+
+    #[test]
+    fn hands_over_the_cores_texture_when_not_reading_gl_frames_back() {
+        let _lock = crate::test_games::lock_core();
+        leaving_gl_frames_in_the_texture();
+
+        unsafe { video_refresh(HW_FRAME_BUFFER_VALID, 2, 2, 0) };
+        let picture = take_picture(|picture| match picture {
+            Picture::Texture(texture) => Some((texture.width, texture.height, texture.bottom_left)),
+            Picture::Pixels { .. } => None,
+        });
+
+        assert_eq!(picture, Some(Some((2, 2, true))));
+        assert!(FRAME.with_borrow(|frame| frame.pixels.is_empty()));
+        done_with_gl();
+    }
+
+    #[test]
+    fn reads_back_a_gl_frame_left_in_the_texture_when_asked_for_its_pixels() {
+        let _lock = crate::test_games::lock_core();
+        leaving_gl_frames_in_the_texture();
+
+        unsafe { video_refresh(HW_FRAME_BUFFER_VALID, 2, 2, 0) };
+
+        assert_eq!(take_frame(|frame| frame.pixels.clone()), Some(vec![BLUE, BLUE, RED, RED]));
+        done_with_gl();
+    }
+
+    #[test]
+    fn reads_gl_frames_back_to_blend_them() {
+        let _lock = crate::test_games::lock_core();
+        leaving_gl_frames_in_the_texture();
+        start_blend(true);
+
+        unsafe { video_refresh(HW_FRAME_BUFFER_VALID, 2, 2, 0) };
+
+        assert_eq!(FRAME.with_borrow(|frame| frame.pixels.clone()), [BLUE, BLUE, RED, RED]);
+        start_blend(false);
+        done_with_gl();
     }
 
     fn colours(frame: &Frame) -> usize {
@@ -1655,6 +1850,8 @@ mod tests {
 
     #[test]
     fn reports_the_touch_screen_pointer_to_the_core() {
+        let _lock = crate::test_games::lock_core();
+        release_input();
         let state = |port, device, index, id| unsafe { input_state(port, device, index, id) };
         set_pointer(Some([-100, 200]));
 
@@ -1664,6 +1861,7 @@ mod tests {
         assert_eq!(state(1, DEVICE_POINTER, 0, DEVICE_ID_POINTER_PRESSED), 0);
         assert_eq!(state(0, DEVICE_POINTER, 1, DEVICE_ID_POINTER_PRESSED), 0);
 
+        a_frame();
         set_pointer(None);
         assert_eq!(state(0, DEVICE_POINTER, 0, DEVICE_ID_POINTER_PRESSED), 0);
     }

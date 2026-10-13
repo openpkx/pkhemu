@@ -17,6 +17,7 @@ import { tauriSaveHost } from "@/editor/tauriHost";
 import { UndoToast, useUndo } from "@/editor/undo";
 import { useFastForward } from "@/fast-forward/fastForward";
 import type { Rates } from "@/fps-counter/fpsCounter";
+import { useRenderer } from "@/game-surface/gameSurface";
 import { tauriReadMemory } from "@/game-memory/tauriHost";
 import { useCalibrations } from "@/input/calibrations";
 import { connectedGamepads, createInput } from "@/input/input";
@@ -28,6 +29,7 @@ import { navigate, Screen } from "@/motion/motion";
 import { Cover } from "@/pause-menu/Cover";
 import { useOverlay, type Overlay } from "@/pause-menu/overlay";
 import { PauseMenu } from "@/pause-menu/PauseMenu";
+import { tauriPauseRequests } from "@/pause-menu/tauriHost";
 import { saveFormats, storedFormatId, useGameSettings } from "@/preferences/gameSettings";
 import { tauriGameSettingsHost } from "@/preferences/gameSettingsTauriHost";
 import { offsetSeconds, usePreferences } from "@/preferences/preferences";
@@ -46,11 +48,12 @@ import { cartName, useTransferPak } from "@/transfer-pak/setting";
 import { clearOfTouchControls, TouchControls, useTouchControlsShown } from "@/touch-controls/TouchControls";
 import { Player } from "./Player";
 import { SettingsScreen } from "./SettingsScreen";
-import { useHiddenSystemBars } from "./systemBars";
+import { useHiddenSystemBars } from "./system-bars/systemBars";
 import { handheld } from "./systems";
 
 const TOAST_MS = 3000;
 const UNSUPPORTED_DEVICE = "unsupported-device";
+const NATIVE_FAILED = "Native renderer failed, so the game uses Compatible";
 const noGames: Game[] = [];
 
 export function GameScreen({
@@ -119,6 +122,8 @@ export function GameScreen({
   const [conflicts, setConflicts] = useState<Conflict[]>([]);
   const [resolved, setResolved] = useState(false);
   const [syncNotice, setSyncNotice] = useToast();
+  const renderer = useRenderer();
+  const [rendererNotice, setRendererNotice] = useToast();
   const transferPak = useTransferPak(tauriTransferPakHost, folder, game.path);
   const [run, setRun] = useState({ key: 0, resume });
 
@@ -145,6 +150,8 @@ export function GameScreen({
     const timer = setTimeout(() => setToast(undefined), TOAST_MS);
     return () => clearTimeout(timer);
   }, [toast]);
+
+  useEffect(() => tauriPauseRequests(() => show((overlay) => overlay ?? "menu")), [show]);
 
   useEffect(() => {
     if (overlay === "editor") setAwaitingSave(false);
@@ -186,70 +193,75 @@ export function GameScreen({
 
   return (
     <div className="flex h-screen flex-col">
-      <ScreenHeader title={game.name} onBack={onQuit}>
-        {dual && (
-          <Button variant="ghost" size="icon" aria-label="Swap screens" onClick={() => setSwapped(!swapped)}>
-            <ArrowLeftRight className={cn(stacked && "rotate-90")} />
+      <div className="contents" data-no-back-swipe>
+        <ScreenHeader title={game.name} onBack={onQuit}>
+          {dual && (
+            <Button variant="ghost" size="icon" aria-label="Swap screens" onClick={() => setSwapped(!swapped)}>
+              <ArrowLeftRight className={cn(stacked && "rotate-90")} />
+            </Button>
+          )}
+          <Button variant="ghost" size="icon" aria-label="Pause menu" onClick={() => show("menu")}>
+            <Menu />
           </Button>
-        )}
-        <Button variant="ghost" size="icon" aria-label="Pause menu" onClick={() => show("menu")}>
-          <Menu />
-        </Button>
-      </ScreenHeader>
-      {error ? (
-        <main className="p-4 text-sm text-destructive">{error}</main>
-      ) : (
-        <div className="flex min-h-0 flex-1">
-          <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
-            <Player
-              key={run.key}
-              folder={folder}
-              path={game.path}
-              resume={run.resume}
-              speed={fastForward.speed}
-              input={input}
-              paused={!!overlay}
-              dual={dual}
-              display={handheld[game.system]}
-              swapped={swapped}
-              clockOffset={offsetSeconds(gameClockOffset)}
-              onStacked={setStacked}
-              onStarted={onGameStarted}
-              onFps={showFps ? setRates : undefined}
-              onError={(message) => (message === UNSUPPORTED_DEVICE ? onUnsupported() : setError(message))}
-              cover={cover}
-              holdMessage={conflicted ? "" : checking ? "Checking your other devices…" : undefined}
-              className={cn(dual && touchControls && clearOfTouchControls)}
-            />
-            <TouchControls input={input} system={game.system} fastForward={fastForward} />
-            {rates && (
-              <p className="pointer-events-none absolute top-3 left-3 rounded-full bg-overlay/70 px-2 py-0.5 text-xs text-white tabular-nums">
-                {rates.fps} FPS{lab === "all" && ` · ${rates.drawn} drawn`}
-              </p>
-            )}
-            <div className="pointer-events-none absolute inset-x-0 top-3 flex flex-col items-center gap-2">
-              <Toast inline>{awaitingSave && "Save in game to open the editor"}</Toast>
-              <Toast inline>{syncNotice}</Toast>
-              <UndoToast onUndo={() => void undo.undo()}>{undo.undoable && "Save edited"}</UndoToast>
-              <StateToast toast={toast} onUndo={() => void undoLoadState()} />
-              <CoreMessageToast messages={tauriCoreMessages} />
-              {infoMemory && !wide && (
-                <OpponentPill
-                  memory={infoMemory}
-                  formatId={settings?.formatId}
-                  active={playing}
-                  randomized={randomized}
-                  open={overlay === "pokemonInfo"}
-                  input={input}
-                  onOpen={() => show("pokemonInfo")}
-                  onClose={() => show(undefined)}
-                />
+        </ScreenHeader>
+        {error ? (
+          <main className="p-4 text-sm text-destructive">{error}</main>
+        ) : (
+          <div className="flex min-h-0 flex-1">
+            <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
+              <Player
+                key={run.key}
+                folder={folder}
+                path={game.path}
+                resume={run.resume}
+                speed={fastForward.speed}
+                input={input}
+                paused={!!overlay}
+                dual={dual}
+                display={handheld[game.system]}
+                swapped={swapped}
+                clockOffset={offsetSeconds(gameClockOffset)}
+                renderer={renderer.renderer}
+                onNativeFailed={() => renderer.reportNativeFailure() && setRendererNotice(NATIVE_FAILED)}
+                onStacked={setStacked}
+                onStarted={onGameStarted}
+                onFps={showFps ? setRates : undefined}
+                onError={(message) => (message === UNSUPPORTED_DEVICE ? onUnsupported() : setError(message))}
+                cover={cover}
+                holdMessage={conflicted ? "" : checking ? "Checking your other devices…" : undefined}
+                className={cn(touchControls ? "landscape:pb-safe" : "pb-safe", dual && touchControls && clearOfTouchControls)}
+              />
+              <TouchControls input={input} system={game.system} fastForward={fastForward} />
+              {rates && (
+                <p className="pointer-events-none absolute top-3 left-3 rounded-full bg-overlay/70 px-2 py-0.5 text-xs text-white tabular-nums">
+                  {rates.fps} FPS{lab === "all" && ` · ${rates.drawn} drawn`} · {rates.skipped} skipped · {rates.repeated} repeated
+                </p>
               )}
+              <div className="pointer-events-none absolute inset-x-0 top-3 flex flex-col items-center gap-2">
+                <Toast inline>{awaitingSave && "Save in game to open the editor"}</Toast>
+                <Toast inline>{syncNotice}</Toast>
+                <Toast inline>{rendererNotice}</Toast>
+                <UndoToast onUndo={() => void undo.undo()}>{undo.undoable && "Save edited"}</UndoToast>
+                <StateToast toast={toast} onUndo={() => void undoLoadState()} />
+                <CoreMessageToast messages={tauriCoreMessages} />
+                {infoMemory && !wide && (
+                  <OpponentPill
+                    memory={infoMemory}
+                    formatId={settings?.formatId}
+                    active={playing}
+                    randomized={randomized}
+                    open={overlay === "pokemonInfo"}
+                    input={input}
+                    onOpen={() => show("pokemonInfo")}
+                    onClose={() => show(undefined)}
+                  />
+                )}
+              </div>
             </div>
+            {infoMemory && wide && <PokemonInfoPanel memory={infoMemory} formatId={settings?.formatId} active={playing} randomized={randomized} />}
           </div>
-          {infoMemory && wide && <PokemonInfoPanel memory={infoMemory} formatId={settings?.formatId} active={playing} randomized={randomized} />}
-        </div>
-      )}
+        )}
+      </div>
       {/* The pause menu's modal dialog would take clicks from the pad setup and close on them. */}
       <PauseMenu
         open={overlay === "menu" && !settingUpPad}

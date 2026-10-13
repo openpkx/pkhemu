@@ -20,12 +20,16 @@ pkhemu is built on [PKHeX](https://github.com/kwsch/PKHeX), [melonDS](https://me
 
 You need Node, Rust and CMake. The scripts fetch the source of the emulator cores, mGBA and melonDS DS, and install npm packages on first run. Extra arguments go through to the Tauri CLI.
 
+Clone without `--recursive`. Mupen64Plus-Next has a nested gitlink with no URL, which stops a recursive clone. The scripts fetch the cores themselves.
+
 | Command | What it does |
 | --- | --- |
 | `scripts/macos-dev.sh` | Runs the app on macOS with hot reload. |
 | `scripts/macos-build.sh` | Builds `pkhemu.app`. |
 | `scripts/android-dev.sh` | Runs the app on a connected Android device or emulator with hot reload. |
 | `scripts/android-build.sh` | Builds an APK. `--debug` gives a signed debug APK, `--target aarch64` builds for one ABI only, `--aab` adds an App Bundle. |
+| `scripts/ios-dev.sh` | Runs the app in the iOS simulator with hot reload. Needs Xcode and XcodeGen. Name a simulator, like `"iPhone 17 Pro"`, to skip the prompt. |
+| `scripts/ios-build.sh` | Builds the App Store version and uploads it to TestFlight with the keys in `~/.config/pkh-emu/ios.env`. Refuses to run while Plus or Sync keys are set, in the environment or in `app/src-tauri/sync.env`. |
 
 Tests: `npm --prefix app test`.
 

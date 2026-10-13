@@ -3,19 +3,22 @@ use crate::backups::Reason;
 use crate::cheats::{self, Code, Platform};
 use crate::clock::Clock;
 use crate::edit;
+use crate::frame_time::FrameTimes;
 use crate::index::{self, Index, Session};
 use crate::memory::Range;
-use crate::pace::DisplayRate;
+use crate::pace::{self, DisplayRate, OnRefresh, Pacer, Refreshes, Ticker, MAX_OWED_FRAMES};
 use crate::resume::{self, Resume};
-use crate::retro::{self, Core, Frame};
+use crate::retro::{self, Core};
 use crate::rom::{Rom, StateName};
 use crate::save;
+use crate::screen::{self, Layout, Parallax, Screen, WindowChange};
 use crate::states::{self, Loaded, Saved};
 use crate::sync::InUse;
 use crate::transfer_pak::{self, Cart};
 use crate::writer::{StateChange, Write};
+use serde::Deserialize;
 use std::path::{Path, PathBuf};
-use std::sync::{mpsc, Arc};
+use std::sync::{mpsc, Arc, Weak};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
 use tauri::async_runtime::JoinHandle;
 use tauri::ipc::{Channel, InvokeResponseBody};
@@ -25,9 +28,37 @@ const NO_GAME: &str = "no game is running";
 const NO_SAVE_YET: &str = "no-save-yet";
 
 pub type BackUp = Box<dyn FnMut(Reason, &[u8]) -> Result<(), String> + Send>;
-pub type OnGame = Box<dyn Fn(Option<&str>) + Send>;
+/// The game that started, or none, and the cart in its Transfer Pak.
+pub type OnGame = Box<dyn Fn(Option<&str>, Option<&str>) + Send>;
 pub type OnMessage = Box<dyn Fn(retro::Message) + Send>;
 pub type MarkCheats = Box<dyn FnMut(&[u8]) + Send>;
+pub type Display = Box<dyn Fn(OnRefresh) -> Ticker + Send>;
+pub type MakeScreen = Box<dyn FnOnce() -> Option<Box<dyn Screen>> + Send>;
+
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
+pub struct Pacing {
+    pub paused: bool,
+    pub speed: u32,
+    pub steady: bool,
+    pub blend: bool,
+}
+
+impl Pacing {
+    // Nothing runs until the game's screen says how.
+    const HELD: Pacing = Pacing { paused: true, speed: 1, steady: false, blend: false };
+
+    fn fast_forward(&self) -> bool {
+        self.speed > 1
+    }
+
+    fn most_owed(&self) -> u32 {
+        if self.steady && self.fast_forward() {
+            1
+        } else {
+            MAX_OWED_FRAMES
+        }
+    }
+}
 
 pub enum Command {
     Play {
@@ -45,6 +76,8 @@ pub enum Command {
         mark_cheats: MarkCheats,
         writer: JoinHandle<()>,
         on_frame: Channel<InvokeResponseBody>,
+        native: bool,
+        on_native_failed: Channel<()>,
         reply: oneshot::Sender<Result<f64, String>>,
     },
     SetCheats {
@@ -52,13 +85,13 @@ pub enum Command {
         codes: Vec<Code>,
         done: oneshot::Sender<()>,
     },
-    RunFrames {
-        count: u32,
-        fast_forward: bool,
-        blend: bool,
-        input: u16,
-        analog: [i16; 4],
-        pointer: Option<[i16; 2]>,
+    Refresh,
+    Pace(Pacing),
+    Screen(Layout),
+    Parallax(Vec<Parallax>),
+    Window(WindowChange),
+    Step {
+        frames: u32,
         done: oneshot::Sender<()>,
     },
     PlayTimeSinceSave {
@@ -103,13 +136,17 @@ pub enum Command {
         slot: u8,
         done: oneshot::Sender<()>,
     },
+    // Each platform sends only some of these as the app leaves and returns to the foreground.
+    #[allow(dead_code)]
     Suspend,
-    #[cfg_attr(desktop, allow(dead_code))]
+    #[allow(dead_code)]
     Pause {
         reply: oneshot::Sender<Option<Playing>>,
     },
-    #[cfg_attr(desktop, allow(dead_code))]
+    #[allow(dead_code)]
     Resume,
+    #[cfg_attr(not(target_os = "ios"), allow(dead_code))]
+    RestartAudio,
     Stop {
         done: oneshot::Sender<(ResumeWrites, Option<Playing>)>,
     },
@@ -120,7 +157,12 @@ impl Command {
     fn takes_back(&self) -> bool {
         !matches!(
             self,
-            Command::RunFrames { .. }
+            Command::Refresh
+                | Command::Pace(_)
+                | Command::Screen(_)
+                | Command::Parallax(_)
+                | Command::Window(_)
+                | Command::Step { .. }
                 | Command::PlayTimeSinceSave { .. }
                 | Command::ReadSave { .. }
                 | Command::ReadMemory { .. }
@@ -129,6 +171,7 @@ impl Command {
                 | Command::ForgetSlot { .. }
                 | Command::Suspend
                 | Command::Pause { .. }
+                | Command::RestartAudio
         )
     }
 }
@@ -168,8 +211,9 @@ impl ResumeWrites {
     }
 }
 
+// The loop holds its sender weakly, so dropping the emulator still ends the thread.
 pub struct Emu {
-    tx: mpsc::Sender<Command>,
+    tx: Arc<mpsc::Sender<Command>>,
 }
 
 impl Emu {
@@ -180,10 +224,30 @@ impl Emu {
         on_game: OnGame,
         on_message: OnMessage,
     ) -> Emu {
+        Emu::start_on(Box::new(pace::tick), Box::new(screen::start), system_dir, index, in_use, on_game, on_message)
+    }
+
+    fn start_on(
+        display: Display,
+        screen: MakeScreen,
+        system_dir: PathBuf,
+        index: Arc<Index>,
+        in_use: Arc<InUse>,
+        on_game: OnGame,
+        on_message: OnMessage,
+    ) -> Emu {
         let (tx, rx) = mpsc::channel();
+        let tx = Arc::new(tx);
+        let refresher = Arc::downgrade(&tx);
+        let windows = Arc::downgrade(&tx);
+        screen::watch(Box::new(move |change| {
+            if let Some(tx) = windows.upgrade() {
+                let _ = tx.send(Command::Window(change));
+            }
+        }));
         std::thread::Builder::new()
             .name("emu".into())
-            .spawn(move || run(rx, system_dir, index, in_use, on_game, on_message))
+            .spawn(move || run(rx, refresher, display, screen, system_dir, index, in_use, on_game, on_message))
             .expect("failed to start the emulation thread");
         Emu { tx }
     }
@@ -201,7 +265,6 @@ struct Game {
     clock: Clock,
     audio: Option<Audio>,
     on_frame: Channel<InvokeResponseBody>,
-    seq: u32,
     watch: save::Watch,
     writes: tokio_mpsc::UnboundedSender<Write>,
     back_up: BackUp,
@@ -212,7 +275,11 @@ struct Game {
     slot: Option<u8>,
     session: Option<Session>,
     frames: u64,
+    pacer: Pacer,
+    frame_times: FrameTimes,
     paused: bool,
+    native: bool,
+    on_native_failed: Channel<()>,
     // Dropped after the core, whose last frame can still open the session's files.
     transfer_pak: Option<transfer_pak::Session>,
 }
@@ -231,6 +298,73 @@ impl Game {
         }
         if self.watch.due() {
             self.check_cart();
+        }
+    }
+
+    fn advance(
+        &mut self,
+        frames: u32,
+        fast_forward: bool,
+        blend: bool,
+        rate: &mut DisplayRate,
+        samples: &mut Vec<i16>,
+    ) {
+        if fast_forward {
+            self.core.blend(blend);
+        }
+        let fps = self.core.av().timing.fps;
+        for _ in 0..frames {
+            let started = Instant::now();
+            if !fast_forward {
+                rate.tick(started);
+            }
+            self.run_frame();
+            if !fast_forward {
+                if let Some(report) = self.frame_times.record(started.elapsed(), fps) {
+                    eprintln!("{:?} {report}", self.platform);
+                }
+            }
+            self.core.drain_audio(samples);
+            if let Some(audio) = &mut self.audio {
+                if fast_forward {
+                    audio.fill_with_silence();
+                } else {
+                    audio.push(samples, rate.speed(fps));
+                }
+            }
+            samples.clear();
+        }
+    }
+
+    // A frame the native screen drew goes to the page without its pixels, for its size and the frame counts. Until the
+    // screen has a window, the WebView draws.
+    fn show(&mut self, screen: Option<&mut Box<dyn Screen>>) -> Result<(), String> {
+        let (played, counts) = (self.frames as u32, self.pacer.counts);
+        let packet = match screen.filter(|screen| self.native && screen.has_window()) {
+            Some(screen) => match self.core.take_picture(|picture| (picture.size(), screen.show(picture))) {
+                Some((size, shown)) => Some(shown.map(|()| frame_packet(played, counts, size, &[]))?),
+                None => None,
+            },
+            None => self.core.take_frame(|frame| pixels_packet(played, counts, frame)),
+        };
+        self.send(packet);
+        Ok(())
+    }
+
+    fn draw_in_webview(&mut self) {
+        if self.native {
+            let _ = self.on_native_failed.send(());
+        }
+        self.native = false;
+        self.core.read_back(true);
+        let (played, counts) = (self.frames as u32, self.pacer.counts);
+        let packet = self.core.last_frame(|frame| pixels_packet(played, counts, frame));
+        self.send(packet);
+    }
+
+    fn send(&self, packet: Option<Vec<u8>>) {
+        if let Some(packet) = packet {
+            let _ = self.on_frame.send(InvokeResponseBody::Raw(packet));
         }
     }
 
@@ -429,6 +563,9 @@ impl Game {
 
 fn run(
     rx: mpsc::Receiver<Command>,
+    tx: Weak<mpsc::Sender<Command>>,
+    display: Display,
+    screen: MakeScreen,
     system_dir: PathBuf,
     index: Arc<Index>,
     in_use: Arc<InUse>,
@@ -439,6 +576,10 @@ fn run(
     let mut last_quit = ResumeWrites::none();
     let mut rate = DisplayRate::new();
     let mut samples = Vec::with_capacity(4096);
+    let mut pacing = Pacing::HELD;
+    let mut ticker: Option<Ticker> = None;
+    let refreshes = Arc::new(Refreshes::default());
+    let mut screen = screen();
 
     while let Ok(command) = rx.recv() {
         if command.takes_back() {
@@ -462,25 +603,32 @@ fn run(
                 mark_cheats,
                 writer,
                 on_frame,
+                native,
+                on_native_failed,
                 reply,
             } => {
-                quit_running(&mut game, &mut last_quit);
+                quit_running(&mut game, &mut last_quit, &mut screen);
+                retro::release_input();
                 let platform = Platform::of_rom(&rom);
+                let cart_path = cart.as_ref().map(|cart| cart.path.clone());
                 let loaded =
                     cart.map(|cart| transfer_pak::Session::start(cart, &rom)).transpose().and_then(|session| {
                         let files = session.as_ref().map(transfer_pak::Session::files);
                         load(rom, save, state, &clock, &system_dir, files).map(|(core, watch)| (core, watch, session))
                     });
-                on_game(loaded.as_ref().ok().map(|_| path.as_str()));
+                on_game(loaded.as_ref().ok().map(|_| path.as_str()), cart_path.as_deref());
                 let _ = reply.send(loaded.map(|(mut core, watch, transfer_pak)| {
                     let cheats = cheats::on_codes(platform, &cheats);
                     if !cheats.is_empty() {
                         core.set_cheats(&cheats);
                     }
                     let fps = core.av().timing.fps;
-                    let audio = Audio::open(core.av().timing.sample_rate)
-                        .inspect_err(|e| eprintln!("audio: {e}"))
-                        .ok();
+                    if native && screen.is_none() {
+                        let _ = on_native_failed.send(());
+                    }
+                    let native = native && screen.is_some();
+                    core.read_back(!native);
+                    let audio = open_audio(&core);
                     let session = index
                         .start_session(&path, fps, index::now())
                         .inspect_err(|e| eprintln!("recording play time: {e}"))
@@ -493,7 +641,6 @@ fn run(
                         clock,
                         audio,
                         on_frame,
-                        seq: 0,
                         watch,
                         writes,
                         back_up,
@@ -504,7 +651,11 @@ fn run(
                         slot,
                         session,
                         frames: 0,
+                        pacer: Pacer::new(fps),
+                        frame_times: FrameTimes::new(),
                         paused: false,
+                        native,
+                        on_native_failed,
                         transfer_pak,
                     });
                     fps
@@ -516,36 +667,43 @@ fn run(
                 }
                 let _ = done.send(());
             }
-            Command::RunFrames { count, fast_forward, blend, input, analog, pointer, done } => {
+            Command::Refresh => {
+                let taken = refreshes.take();
+                let playing = game.as_mut().filter(|game| !game.paused && !pacing.paused);
+                if let (Some((count, at)), Some(game)) = (taken, playing) {
+                    let owed = game.pacer.refresh(at, count, pacing.most_owed());
+                    game.advance(owed * pacing.speed, pacing.fast_forward(), pacing.blend, &mut rate, &mut samples);
+                    let shown = game.show(screen.as_mut());
+                    fall_back_on(shown, &mut screen, Some(game));
+                }
+            }
+            Command::Pace(new) => pacing = new,
+            Command::Step { frames, done } => {
                 if let Some(game) = game.as_mut().filter(|game| !game.paused) {
-                    if fast_forward {
-                        game.core.blend(blend);
-                    }
-                    retro::set_input(input);
-                    retro::set_analog(analog);
-                    retro::set_pointer(pointer);
-                    let fps = game.core.av().timing.fps;
-                    for _ in 0..count {
-                        if !fast_forward {
-                            rate.tick(Instant::now());
-                        }
-                        game.run_frame();
-                        game.core.drain_audio(&mut samples);
-                        if let Some(audio) = &mut game.audio {
-                            if fast_forward {
-                                audio.fill_with_silence();
-                            } else {
-                                audio.push(&samples, rate.speed(fps));
-                            }
-                        }
-                        samples.clear();
-                    }
-                    if let Some(packet) = game.core.take_frame(|frame| frame_packet(game.seq, frame, epoch_ms())) {
-                        game.seq = game.seq.wrapping_add(1);
-                        let _ = game.on_frame.send(InvokeResponseBody::Raw(packet));
-                    }
+                    game.advance(frames, false, false, &mut rate, &mut samples);
+                    let shown = game.show(screen.as_mut());
+                    fall_back_on(shown, &mut screen, Some(game));
                 }
                 let _ = done.send(());
+            }
+            Command::Screen(layout) => {
+                if let Some(native) = &mut screen {
+                    native.lay_out(layout);
+                }
+                redraw_held(&mut screen, &mut game, &pacing);
+            }
+            Command::Parallax(parallax) => {
+                if let Some(native) = &mut screen {
+                    native.lean(parallax);
+                }
+                redraw_held(&mut screen, &mut game, &pacing);
+            }
+            Command::Window(change) => {
+                if let Some(native) = &mut screen {
+                    let changed = native.window(change);
+                    fall_back_on(changed, &mut screen, game.as_mut());
+                }
+                redraw_held(&mut screen, &mut game, &pacing);
             }
             Command::PlayTimeSinceSave { reply } => {
                 let _ = reply.send(
@@ -598,17 +756,64 @@ fn run(
                 let _ = reply.send(game.as_mut().filter(|game| !game.paused).map(|game| game.pause(&in_use)));
             }
             Command::Resume => {}
+            Command::RestartAudio => {
+                if let Some(game) = &mut game {
+                    game.audio = None;
+                    game.audio = open_audio(&game.core);
+                }
+            }
             Command::Stop { done } => {
                 let stopped = game.as_ref().map(Game::playing);
-                quit_running(&mut game, &mut last_quit);
-                on_game(None);
+                quit_running(&mut game, &mut last_quit, &mut screen);
+                on_game(None, None);
                 let _ = done.send((last_quit.clone(), stopped));
             }
         }
         for message in retro::take_messages() {
             on_message(message);
         }
+        let running = runs(&pacing, &game);
+        if running && ticker.is_none() {
+            ticker = Some(display(on_refresh(tx.clone(), refreshes.clone())));
+        } else if !running {
+            ticker = None;
+        }
     }
+}
+
+fn runs(pacing: &Pacing, game: &Option<Game>) -> bool {
+    !pacing.paused && game.as_ref().is_some_and(|game| !game.paused)
+}
+
+// A running game draws again on its next frame anyway.
+fn redraw_held(screen: &mut Option<Box<dyn Screen>>, game: &mut Option<Game>, pacing: &Pacing) {
+    if runs(pacing, game) {
+        return;
+    }
+    if let (Some(native), Some(game)) = (screen.as_mut(), game.as_mut()) {
+        let drawn = native.redraw();
+        fall_back_on(drawn, screen, Some(game));
+    }
+}
+
+fn fall_back_on(result: Result<(), String>, screen: &mut Option<Box<dyn Screen>>, game: Option<&mut Game>) {
+    if let Err(e) = result {
+        eprintln!("the native screen failed, so the WebView draws the game: {e}");
+        *screen = None;
+        if let Some(game) = game {
+            game.draw_in_webview();
+        }
+    }
+}
+
+fn on_refresh(tx: Weak<mpsc::Sender<Command>>, refreshes: Arc<Refreshes>) -> OnRefresh {
+    Arc::new(move |at| {
+        if refreshes.add(at) {
+            if let Some(tx) = tx.upgrade() {
+                let _ = tx.send(Command::Refresh);
+            }
+        }
+    })
 }
 
 fn load(
@@ -642,7 +847,15 @@ fn load(
     Ok((core, save::Watch::new()))
 }
 
-fn quit_running(game: &mut Option<Game>, last_quit: &mut ResumeWrites) {
+fn open_audio(core: &Core) -> Option<Audio> {
+    Audio::open(core.av().timing.sample_rate).inspect_err(|e| eprintln!("audio: {e}")).ok()
+}
+
+// The screen lets go of the last frame first, since it can be a texture of the core's.
+fn quit_running(game: &mut Option<Game>, last_quit: &mut ResumeWrites, screen: &mut Option<Box<dyn Screen>>) {
+    if let Some(native) = screen {
+        native.clear();
+    }
     if let Some(game) = game.take() {
         *last_quit = ResumeWrites::after(game.quit());
     }
@@ -656,13 +869,18 @@ fn epoch_ms() -> f64 {
     SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs_f64() * 1000.0
 }
 
-fn frame_packet(seq: u32, frame: &Frame, emitted_at: f64) -> Vec<u8> {
-    let mut packet = Vec::with_capacity(16 + frame.pixels.len() * 2);
-    packet.extend_from_slice(&seq.to_le_bytes());
-    packet.extend_from_slice(&(frame.width as u16).to_le_bytes());
-    packet.extend_from_slice(&(frame.height as u16).to_le_bytes());
-    packet.extend_from_slice(&emitted_at.to_le_bytes());
-    for pixel in &frame.pixels {
+fn pixels_packet(played: u32, counts: pace::Counts, frame: &retro::Frame) -> Vec<u8> {
+    frame_packet(played, counts, (frame.width, frame.height), &frame.pixels)
+}
+
+fn frame_packet(played: u32, counts: pace::Counts, (width, height): (u32, u32), pixels: &[u16]) -> Vec<u8> {
+    let mut packet = Vec::with_capacity(16 + pixels.len() * 2);
+    packet.extend_from_slice(&played.to_le_bytes());
+    packet.extend_from_slice(&(width as u16).to_le_bytes());
+    packet.extend_from_slice(&(height as u16).to_le_bytes());
+    packet.extend_from_slice(&counts.skipped.to_le_bytes());
+    packet.extend_from_slice(&counts.repeated.to_le_bytes());
+    for pixel in pixels {
         packet.extend_from_slice(&pixel.to_le_bytes());
     }
     packet
@@ -674,6 +892,7 @@ mod tests {
     use crate::games_folder::GamesFolder;
     use crate::index::{temp_index, PlayHistory};
     use crate::clock;
+    use crate::screen::Picture;
     use crate::test_games::{
         boot_counting_rom, clock_rom, clock_save, counting_rom, days_on_the_clock, heartgold, lock_core, pattern,
         stadium,
@@ -709,7 +928,6 @@ mod tests {
             core,
             audio: None,
             on_frame: Channel::new(|_| Ok(())),
-            seq: 0,
             watch,
             clock: real_time(),
             writes,
@@ -721,7 +939,11 @@ mod tests {
             slot: None,
             session: None,
             frames: 0,
+            pacer: Pacer::new(60.0),
+            frame_times: FrameTimes::new(),
             paused: false,
+            native: false,
+            on_native_failed: Channel::new(|_| Ok(())),
             transfer_pak: None,
         }
     }
@@ -777,7 +999,29 @@ mod tests {
 
         fn play_writing(&self, path: &str, writer: JoinHandle<()>) -> f64 {
             let (writes, _) = tokio_mpsc::unbounded_channel();
-            self.play_with(String::new(), path, counting_rom(), writes, writer)
+            let on_frame = Channel::new(|_| Ok(()));
+            self.play_with(
+                String::new(),
+                path,
+                counting_rom(),
+                writes,
+                writer,
+                on_frame,
+                false,
+                Channel::new(|_| Ok(())),
+            )
+        }
+
+        fn play_showing(
+            &self,
+            path: &str,
+            on_frame: Channel<InvokeResponseBody>,
+            native: bool,
+            on_native_failed: Channel<()>,
+        ) {
+            let (writes, _) = tokio_mpsc::unbounded_channel();
+            let writer = tauri::async_runtime::spawn(async {});
+            self.play_with(String::new(), path, counting_rom(), writes, writer, on_frame, native, on_native_failed);
         }
 
         pub(crate) fn play_into(&self, root: &Path) {
@@ -787,7 +1031,17 @@ mod tests {
                 let (slot, _) = save::open(&folder, "gb/Game.gb").await.unwrap();
                 writer::write_all(&folder, "gb/Game.gb", &slot, queued).await
             });
-            self.play_with(root.display().to_string(), "gb/Game.gb", boot_counting_rom(), writes, writer);
+            let on_frame = Channel::new(|_| Ok(()));
+            self.play_with(
+                root.display().to_string(),
+                "gb/Game.gb",
+                boot_counting_rom(),
+                writes,
+                writer,
+                on_frame,
+                false,
+                Channel::new(|_| Ok(())),
+            );
         }
 
         fn play_with(
@@ -797,6 +1051,9 @@ mod tests {
             rom: Rom,
             writes: tokio_mpsc::UnboundedSender<Write>,
             writer: JoinHandle<()>,
+            on_frame: Channel<InvokeResponseBody>,
+            native: bool,
+            on_native_failed: Channel<()>,
         ) -> f64 {
             let (reply, result) = oneshot::channel();
             self.send(Command::Play {
@@ -813,24 +1070,16 @@ mod tests {
                 back_up: Box::new(|_, _| Ok(())),
                 mark_cheats: Box::new(|_| {}),
                 writer,
-                on_frame: Channel::new(|_| Ok(())),
+                on_frame,
+                native,
+                on_native_failed,
                 reply,
             });
             block_on(result).unwrap().unwrap()
         }
 
-        pub(crate) fn run_frames(&self, count: u32) {
-            let (done, finished) = oneshot::channel();
-            self.send(Command::RunFrames {
-                count,
-                fast_forward: false,
-                blend: false,
-                input: 0,
-                analog: [0; 4],
-                pointer: None,
-                done,
-            });
-            block_on(finished).unwrap();
+        pub(crate) fn run_frames(&self, frames: u32) {
+            block_on(self.running_frames(frames)).unwrap();
         }
 
         pub(crate) fn stop(&self) {
@@ -843,17 +1092,9 @@ mod tests {
             block_on(paused).unwrap()
         }
 
-        fn running_frames(&self, count: u32) -> oneshot::Receiver<()> {
+        fn running_frames(&self, frames: u32) -> oneshot::Receiver<()> {
             let (done, finished) = oneshot::channel();
-            self.send(Command::RunFrames {
-                count,
-                fast_forward: false,
-                blend: false,
-                input: 0,
-                analog: [0; 4],
-                pointer: None,
-                done,
-            });
+            self.send(Command::Step { frames, done });
             finished
         }
 
@@ -885,7 +1126,7 @@ mod tests {
             std::env::temp_dir(),
             index,
             in_use.clone(),
-            Box::new(move |path| playing.playing(path)),
+            Box::new(move |path, cart| playing.playing(path, cart)),
             Box::new(|_| {}),
         )
     }
@@ -971,7 +1212,8 @@ mod tests {
     fn stadium_with_a_cart(name: &str, stadium: Rom, gb_rom: Rom) -> Game {
         let dir = std::env::temp_dir().join(format!("pkh-emu-emu-{name}-{}", std::process::id()));
         let (slot, _) = save::Slot::new("gb/Red.sav".into(), Vec::new());
-        let cart = Cart { dir, rom: gb_rom, save: None, slot, back_up: Box::new(|_, _| Ok(())) };
+        let cart =
+            Cart { path: "gb/Red.gb".into(), dir, rom: gb_rom, save: None, slot, back_up: Box::new(|_, _| Ok(())) };
         let session = transfer_pak::Session::start(cart, &stadium).unwrap();
         let clock = Clock::new(&stadium, 0);
         let (core, watch) = load(stadium, None, None, &clock, &std::env::temp_dir(), Some(session.files())).unwrap();
@@ -1021,6 +1263,23 @@ mod tests {
     }
 
     #[test]
+    fn restarting_the_sound_leaves_a_paused_game_lent_to_sync() {
+        let _lock = lock_core();
+        let (index, _) = temp_index("emu-restart-audio");
+        let in_use = Arc::new(InUse::default());
+        let emu = lending(index, &in_use);
+        emu.play("gb/Red.gb");
+        emu.pause();
+
+        emu.send(Command::RestartAudio);
+        // Commands run in order, so this waits for the restart.
+        emu.run_frames(0);
+
+        assert!(in_use.start_syncing("gb/Red.gb").is_some());
+        emu.stop();
+    }
+
+    #[test]
     fn resuming_waits_for_the_sync_and_carries_on_the_same_session() {
         let _lock = lock_core();
         let (index, _) = temp_index("emu-resume");
@@ -1065,7 +1324,7 @@ mod tests {
     #[test]
     fn pausing_with_no_game_running_lends_nothing() {
         let (index, _) = temp_index("emu-pause-idle");
-        let emu = Emu::start(std::env::temp_dir(), index, Arc::default(), Box::new(|_| {}), Box::new(|_| {}));
+        let emu = Emu::start(std::env::temp_dir(), index, Arc::default(), Box::new(|_, _| {}), Box::new(|_| {}));
 
         assert_eq!(emu.pause(), None);
     }
@@ -1074,7 +1333,8 @@ mod tests {
     fn records_a_session_from_start_to_quit() {
         let _lock = lock_core();
         let (index, _) = temp_index("emu-quit");
-        let emu = Emu::start(std::env::temp_dir(), index.clone(), Arc::default(), Box::new(|_| {}), Box::new(|_| {}));
+        let emu =
+            Emu::start(std::env::temp_dir(), index.clone(), Arc::default(), Box::new(|_, _| {}), Box::new(|_| {}));
 
         let fps = emu.play("gb/Red.gb");
         assert_eq!(index.recently_played(10), Ok(vec!["gb/Red.gb".to_string()]));
@@ -1090,7 +1350,8 @@ mod tests {
     fn records_frames_played_up_to_a_suspend() {
         let _lock = lock_core();
         let (index, _) = temp_index("emu-suspend");
-        let emu = Emu::start(std::env::temp_dir(), index.clone(), Arc::default(), Box::new(|_| {}), Box::new(|_| {}));
+        let emu =
+            Emu::start(std::env::temp_dir(), index.clone(), Arc::default(), Box::new(|_, _| {}), Box::new(|_| {}));
 
         let fps = emu.play("gb/Red.gb");
         emu.run_frames(20);
@@ -1108,7 +1369,8 @@ mod tests {
     fn ends_a_session_when_another_game_starts() {
         let _lock = lock_core();
         let (index, _) = temp_index("emu-switch");
-        let emu = Emu::start(std::env::temp_dir(), index.clone(), Arc::default(), Box::new(|_| {}), Box::new(|_| {}));
+        let emu =
+            Emu::start(std::env::temp_dir(), index.clone(), Arc::default(), Box::new(|_, _| {}), Box::new(|_| {}));
 
         let fps = emu.play("gb/Red.gb");
         emu.run_frames(20);
@@ -1128,7 +1390,7 @@ mod tests {
     fn a_second_stop_waits_for_the_first_stops_writes() {
         let _lock = lock_core();
         let (index, _) = temp_index("emu-second-stop");
-        let emu = Emu::start(std::env::temp_dir(), index, Arc::default(), Box::new(|_| {}), Box::new(|_| {}));
+        let emu = Emu::start(std::env::temp_dir(), index, Arc::default(), Box::new(|_, _| {}), Box::new(|_| {}));
         let (release, released) = oneshot::channel::<()>();
         emu.play_writing("gb/Red.gb", tauri::async_runtime::spawn(async {
             let _ = released.await;
@@ -1147,7 +1409,7 @@ mod tests {
     #[test]
     fn stop_with_no_game_played_returns_at_once() {
         let (index, _) = temp_index("emu-stop-idle");
-        let emu = Emu::start(std::env::temp_dir(), index, Arc::default(), Box::new(|_| {}), Box::new(|_| {}));
+        let emu = Emu::start(std::env::temp_dir(), index, Arc::default(), Box::new(|_, _| {}), Box::new(|_| {}));
 
         assert!(emu.stopping().recv_timeout(Duration::from_secs(1)).is_ok());
     }
@@ -1156,7 +1418,7 @@ mod tests {
     fn reads_the_same_memory_until_more_frames_run() {
         let _lock = lock_core();
         let (index, _) = temp_index("emu-read-memory");
-        let emu = Emu::start(std::env::temp_dir(), index, Arc::default(), Box::new(|_| {}), Box::new(|_| {}));
+        let emu = Emu::start(std::env::temp_dir(), index, Arc::default(), Box::new(|_, _| {}), Box::new(|_| {}));
         emu.play("gb/Red.gb");
         emu.run_frames(1);
 
@@ -1177,7 +1439,7 @@ mod tests {
             std::env::temp_dir(),
             index,
             Arc::default(),
-            Box::new(move |path| sender.lock().unwrap().send(path.map(String::from)).unwrap()),
+            Box::new(move |path, _| sender.lock().unwrap().send(path.map(String::from)).unwrap()),
             Box::new(|_| {}),
         );
 
@@ -1190,7 +1452,7 @@ mod tests {
     #[test]
     fn reading_memory_with_no_game_running_fails() {
         let (index, _) = temp_index("emu-read-memory-idle");
-        let emu = Emu::start(std::env::temp_dir(), index, Arc::default(), Box::new(|_| {}), Box::new(|_| {}));
+        let emu = Emu::start(std::env::temp_dir(), index, Arc::default(), Box::new(|_, _| {}), Box::new(|_| {}));
 
         assert_eq!(emu.read_memory(0xC000, 1), Err(NO_GAME.into()));
     }
@@ -1796,7 +2058,7 @@ mod tests {
     fn sets_the_codes_that_are_on_when_the_game_starts() {
         let _lock = lock_core();
         let (index, _) = temp_index("emu-cheats-start");
-        let emu = Emu::start(std::env::temp_dir(), index, Arc::default(), Box::new(|_| {}), Box::new(|_| {}));
+        let emu = Emu::start(std::env::temp_dir(), index, Arc::default(), Box::new(|_, _| {}), Box::new(|_| {}));
         let (writes, _) = tokio_mpsc::unbounded_channel();
         let (reply, result) = oneshot::channel();
         emu.send(Command::Play {
@@ -1814,6 +2076,8 @@ mod tests {
             mark_cheats: Box::new(|_| {}),
             writer: tauri::async_runtime::spawn(async {}),
             on_frame: Channel::new(|_| Ok(())),
+            native: false,
+            on_native_failed: Channel::new(|_| Ok(())),
             reply,
         });
         block_on(result).unwrap().unwrap();
@@ -1828,7 +2092,7 @@ mod tests {
     fn sets_the_codes_of_the_running_game_only() {
         let _lock = lock_core();
         let (index, _) = temp_index("emu-cheats");
-        let emu = Emu::start(std::env::temp_dir(), index, Arc::default(), Box::new(|_| {}), Box::new(|_| {}));
+        let emu = Emu::start(std::env::temp_dir(), index, Arc::default(), Box::new(|_, _| {}), Box::new(|_| {}));
         emu.play("gb/Red.gb");
         emu.run_frames(1);
         let before = emu.read_memory(0xC100, 1).unwrap();
@@ -1930,7 +2194,7 @@ mod tests {
             std::env::temp_dir(),
             index,
             Arc::default(),
-            Box::new(|_| {}),
+            Box::new(|_, _| {}),
             Box::new(move |message| sender.lock().unwrap().send(message).unwrap()),
         );
         retro::take_messages();
@@ -1942,21 +2206,358 @@ mod tests {
         assert_eq!(message, retro::Message { text: "Cheat #0 isn't valid".into(), duration_ms: 3000 });
     }
 
+    const PLAYING: Pacing = Pacing { paused: false, speed: 1, steady: false, blend: false };
+
+    struct FakeDisplay {
+        refresh: Arc<std::sync::Mutex<Option<OnRefresh>>>,
+        starts: Arc<std::sync::atomic::AtomicU32>,
+        packets: Arc<std::sync::Mutex<Vec<Vec<u8>>>>,
+        native_failures: Arc<std::sync::atomic::AtomicU32>,
+        start: Instant,
+        refreshes: u32,
+    }
+
+    impl FakeDisplay {
+        // One at a time, as the loop takes refreshes that come together as one.
+        fn refreshes(&mut self, emu: &Emu, count: u32) {
+            for _ in 0..count {
+                self.refreshes += 1;
+                let on_refresh = self.refresh.lock().unwrap().clone().expect("the display is on");
+                on_refresh(self.start + Duration::from_secs_f64(self.refreshes as f64 / 60.0));
+                emu.run_frames(0);
+            }
+        }
+
+        fn starts(&self) -> u32 {
+            self.starts.load(std::sync::atomic::Ordering::Relaxed)
+        }
+
+        fn frames_played(&self) -> Vec<u32> {
+            let packets = self.packets.lock().unwrap();
+            packets.iter().map(|packet| u32::from_le_bytes(packet[0..4].try_into().unwrap())).collect()
+        }
+    }
+
+    fn on_a_fake_display(name: &str) -> (Emu, FakeDisplay) {
+        on_a_fake_display_with(name, Box::new(|| None), false)
+    }
+
+    fn on_a_fake_display_with(name: &str, screen: MakeScreen, native: bool) -> (Emu, FakeDisplay) {
+        let (index, _) = temp_index(name);
+        let refresh: Arc<std::sync::Mutex<Option<OnRefresh>>> = Arc::default();
+        let starts: Arc<std::sync::atomic::AtomicU32> = Arc::default();
+        let display: Display = {
+            let (refresh, starts) = (refresh.clone(), starts.clone());
+            Box::new(move |on_refresh| {
+                starts.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                *refresh.lock().unwrap() = Some(on_refresh);
+                Ticker::idle()
+            })
+        };
+        let emu = Emu::start_on(
+            display,
+            screen,
+            std::env::temp_dir(),
+            index,
+            Arc::default(),
+            Box::new(|_, _| {}),
+            Box::new(|_| {}),
+        );
+        let packets: Arc<std::sync::Mutex<Vec<Vec<u8>>>> = Arc::default();
+        let sent = packets.clone();
+        let native_failures: Arc<std::sync::atomic::AtomicU32> = Arc::default();
+        let failed = native_failures.clone();
+        emu.play_showing(
+            "gb/Red.gb",
+            Channel::new(move |body| {
+                if let InvokeResponseBody::Raw(packet) = body {
+                    sent.lock().unwrap().push(packet);
+                }
+                Ok(())
+            }),
+            native,
+            Channel::new(move |_| {
+                failed.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+                Ok(())
+            }),
+        );
+        let fake = FakeDisplay { refresh, starts, packets, native_failures, start: Instant::now(), refreshes: 0 };
+        (emu, fake)
+    }
+
+    #[test]
+    fn holds_the_game_until_its_screen_paces_it() {
+        let _lock = lock_core();
+        let (emu, display) = on_a_fake_display("emu-held");
+
+        emu.run_frames(0);
+
+        assert_eq!(display.starts(), 0);
+        emu.stop();
+    }
+
+    #[test]
+    fn runs_and_sends_a_frame_on_each_refresh_of_the_display() {
+        let _lock = lock_core();
+        let (emu, mut display) = on_a_fake_display("emu-refresh");
+        emu.send(Command::Pace(PLAYING));
+        emu.run_frames(0);
+
+        display.refreshes(&emu, 3);
+
+        assert_eq!(display.frames_played(), [1, 2, 3]);
+        emu.stop();
+    }
+
+    #[test]
+    fn runs_the_fast_forward_speed_in_frames_each_refresh() {
+        let _lock = lock_core();
+        let (emu, mut display) = on_a_fake_display("emu-fast-forward");
+        emu.send(Command::Pace(Pacing { speed: 4, ..PLAYING }));
+        emu.run_frames(0);
+
+        display.refreshes(&emu, 2);
+
+        assert_eq!(display.frames_played(), [4, 8]);
+        emu.stop();
+    }
+
+    #[test]
+    fn stops_following_the_display_while_paused() {
+        let _lock = lock_core();
+        let (emu, mut display) = on_a_fake_display("emu-paced-pause");
+        emu.send(Command::Pace(PLAYING));
+        emu.run_frames(0);
+
+        emu.send(Command::Pace(Pacing { paused: true, ..PLAYING }));
+        display.refreshes(&emu, 2);
+        assert_eq!(display.frames_played(), Vec::<u32>::new());
+
+        emu.send(Command::Pace(PLAYING));
+        emu.run_frames(0);
+        assert_eq!(display.starts(), 2);
+        emu.stop();
+    }
+
+    #[test]
+    fn steps_frames_while_paused() {
+        let _lock = lock_core();
+        let (emu, display) = on_a_fake_display("emu-step");
+
+        emu.run_frames(2);
+
+        assert_eq!(display.frames_played(), [2]);
+        emu.stop();
+    }
+
     #[test]
     fn packs_a_frame_behind_a_16_byte_header() {
-        let frame = Frame {
-            width: 2,
-            height: 1,
-            pixels: vec![0xF800, 0x001F],
-            fresh: true,
-        };
-
-        let packet = frame_packet(7, &frame, 1234.5);
+        let packet = frame_packet(7, pace::Counts { skipped: 3, repeated: 5 }, (2, 1), &[0xF800, 0x001F]);
 
         assert_eq!(&packet[0..4], &7u32.to_le_bytes());
         assert_eq!(&packet[4..6], &2u16.to_le_bytes());
         assert_eq!(&packet[6..8], &1u16.to_le_bytes());
-        assert_eq!(&packet[8..16], &1234.5f64.to_le_bytes());
+        assert_eq!(&packet[8..12], &3u32.to_le_bytes());
+        assert_eq!(&packet[12..16], &5u32.to_le_bytes());
         assert_eq!(&packet[16..], &[0x00, 0xF8, 0x1F, 0x00]);
+    }
+
+    #[derive(Default)]
+    struct ScreenLog {
+        shown: Vec<(u32, u32)>,
+        redraws: u32,
+        layouts: u32,
+        cleared: u32,
+        failing: bool,
+        windowless: bool,
+    }
+
+    struct FakeScreen(Arc<std::sync::Mutex<ScreenLog>>);
+
+    impl Screen for FakeScreen {
+        fn has_window(&self) -> bool {
+            !self.0.lock().unwrap().windowless
+        }
+
+        fn show(&mut self, picture: Picture) -> Result<(), String> {
+            let mut log = self.0.lock().unwrap();
+            log.shown.push(picture.size());
+            if log.failing {
+                return Err("lost".into());
+            }
+            Ok(())
+        }
+
+        fn redraw(&mut self) -> Result<(), String> {
+            self.0.lock().unwrap().redraws += 1;
+            Ok(())
+        }
+
+        fn lay_out(&mut self, _layout: Layout) {
+            self.0.lock().unwrap().layouts += 1;
+        }
+
+        fn lean(&mut self, _parallax: Vec<screen::Parallax>) {}
+
+        fn window(&mut self, _change: WindowChange) -> Result<(), String> {
+            Ok(())
+        }
+
+        fn clear(&mut self) {
+            self.0.lock().unwrap().cleared += 1;
+        }
+    }
+
+    fn on_a_native_screen(name: &str) -> (Emu, FakeDisplay, Arc<std::sync::Mutex<ScreenLog>>) {
+        on_a_native_screen_asked(name, true)
+    }
+
+    fn on_a_native_screen_asked(name: &str, native: bool) -> (Emu, FakeDisplay, Arc<std::sync::Mutex<ScreenLog>>) {
+        let log: Arc<std::sync::Mutex<ScreenLog>> = Arc::default();
+        let screen = log.clone();
+        let fake_screen: MakeScreen = Box::new(move || Some(Box::new(FakeScreen(screen)) as Box<dyn Screen>));
+        let (emu, display) = on_a_fake_display_with(name, fake_screen, native);
+        (emu, display, log)
+    }
+
+    fn layout() -> Layout {
+        serde_json::from_str(
+            r#"{"page":[0,0,0],"area":{"x":0,"y":0,"width":1,"height":1},"areaColor":[0,0,0],
+                "canvas":{"x":0,"y":0},"border":0,"views":[],"look":null}"#,
+        )
+        .unwrap()
+    }
+
+    impl FakeDisplay {
+        fn packet_sizes(&self) -> Vec<usize> {
+            self.packets.lock().unwrap().iter().map(Vec::len).collect()
+        }
+
+        fn native_failures(&self) -> u32 {
+            self.native_failures.load(std::sync::atomic::Ordering::Relaxed)
+        }
+    }
+
+    #[test]
+    fn sends_frames_without_pixels_when_the_native_screen_draws_them() {
+        let _lock = lock_core();
+        let (emu, mut display, log) = on_a_native_screen("emu-native");
+        emu.send(Command::Pace(PLAYING));
+        emu.run_frames(0);
+
+        display.refreshes(&emu, 2);
+
+        assert_eq!(log.lock().unwrap().shown, [(160, 144), (160, 144)]);
+        assert_eq!(display.packet_sizes(), [16, 16]);
+        emu.stop();
+    }
+
+    #[test]
+    fn sends_frames_with_pixels_once_the_native_screen_fails() {
+        let _lock = lock_core();
+        let (emu, mut display, log) = on_a_native_screen("emu-native-fails");
+        log.lock().unwrap().failing = true;
+        emu.send(Command::Pace(PLAYING));
+        emu.run_frames(0);
+
+        display.refreshes(&emu, 2);
+
+        assert_eq!(log.lock().unwrap().shown.len(), 1);
+        assert_eq!(display.packet_sizes(), [16 + 160 * 144 * 2, 16 + 160 * 144 * 2]);
+        emu.stop();
+    }
+
+    #[test]
+    fn says_when_the_native_screen_fails() {
+        let _lock = lock_core();
+        let (emu, mut display, log) = on_a_native_screen("emu-native-fails-told");
+        log.lock().unwrap().failing = true;
+        emu.send(Command::Pace(PLAYING));
+        emu.run_frames(0);
+
+        display.refreshes(&emu, 2);
+
+        assert_eq!(display.native_failures(), 1);
+        emu.stop();
+    }
+
+    #[test]
+    fn says_native_failed_when_asked_for_with_no_native_screen() {
+        let _lock = lock_core();
+        let (emu, display) = on_a_fake_display_with("emu-native-missing", Box::new(|| None), true);
+
+        emu.run_frames(0);
+
+        assert_eq!(display.native_failures(), 1);
+        emu.stop();
+    }
+
+    #[test]
+    fn draws_in_the_webview_when_the_player_picks_compatible() {
+        let _lock = lock_core();
+        let (emu, mut display, log) = on_a_native_screen_asked("emu-native-compatible", false);
+        emu.send(Command::Pace(PLAYING));
+        emu.run_frames(0);
+
+        display.refreshes(&emu, 1);
+
+        assert_eq!(log.lock().unwrap().shown.len(), 0);
+        assert_eq!(display.packet_sizes(), [16 + 160 * 144 * 2]);
+        assert_eq!(display.native_failures(), 0);
+        emu.stop();
+    }
+
+    #[test]
+    fn sends_frames_with_pixels_while_the_native_screen_has_no_window() {
+        let _lock = lock_core();
+        let (emu, mut display, log) = on_a_native_screen("emu-native-windowless");
+        log.lock().unwrap().windowless = true;
+        emu.send(Command::Pace(PLAYING));
+        emu.run_frames(0);
+
+        display.refreshes(&emu, 1);
+
+        assert_eq!(log.lock().unwrap().shown.len(), 0);
+        assert_eq!(display.packet_sizes(), [16 + 160 * 144 * 2]);
+        emu.stop();
+    }
+
+    #[test]
+    fn redraws_a_paused_game_when_the_layout_changes() {
+        let _lock = lock_core();
+        let (emu, _display, log) = on_a_native_screen("emu-native-layout");
+        emu.run_frames(1);
+
+        emu.send(Command::Screen(layout()));
+        emu.run_frames(0);
+
+        let drawn = log.lock().map(|log| (log.layouts, log.redraws)).unwrap();
+        assert_eq!(drawn, (1, 1));
+        emu.stop();
+    }
+
+    #[test]
+    fn leaves_a_running_game_to_redraw_on_its_next_frame() {
+        let _lock = lock_core();
+        let (emu, _display, log) = on_a_native_screen("emu-native-running");
+        emu.send(Command::Pace(PLAYING));
+
+        emu.send(Command::Screen(layout()));
+        emu.run_frames(0);
+
+        let drawn = log.lock().map(|log| (log.layouts, log.redraws)).unwrap();
+        assert_eq!(drawn, (1, 0));
+        emu.stop();
+    }
+
+    #[test]
+    fn forgets_the_last_frame_when_the_game_stops() {
+        let _lock = lock_core();
+        let (emu, _display, log) = on_a_native_screen("emu-native-stop");
+        emu.run_frames(1);
+
+        emu.stop();
+
+        assert!(log.lock().unwrap().cleared >= 1);
     }
 }

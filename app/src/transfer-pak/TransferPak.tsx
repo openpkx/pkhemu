@@ -81,7 +81,7 @@ export function TransferPakScreen({
   useBack(() => (asking ? setAsking(undefined) : onBack()));
 
   return (
-    <div className="fixed inset-0 z-20 overflow-y-auto bg-background">
+    <div className="fixed inset-0 px-safe pb-safe z-20 overflow-y-auto bg-background">
       <PadNavigation input={input} />
       <ScreenHeader title="Transfer Pak" onBack={onBack} />
       <main className="mx-auto grid max-w-2xl gap-3 p-4" onKeyDown={moveFocusWithArrows}>

@@ -24,12 +24,12 @@ mod removed;
 #[cfg(test)]
 mod tests;
 
-#[cfg(target_os = "android")]
-pub use google::plugin as google_sign_in;
-#[cfg(target_os = "android")]
-pub use oauth::plugin as browser_sign_in;
-#[cfg(target_os = "android")]
-pub use network::plugin as network;
+#[cfg_attr(target_os = "android", path = "sync/android.rs")]
+#[cfg_attr(target_os = "ios", path = "sync/ios.rs")]
+#[cfg_attr(desktop, path = "sync/desktop.rs")]
+mod platform;
+
+pub use platform::*;
 
 pub use in_use::InUse;
 pub use oauth::{http, tls};
@@ -653,7 +653,7 @@ impl<R: Runtime> Engine<'_, R> {
     async fn sync_roms(&self, pending: Vec<PendingRom>, report: &mut Report) {
         let mut pending = pending.into_iter().peekable();
         while let Some(next) = pending.peek() {
-            if self.roms_wait() {
+            if self.stops_for_others() || self.roms_wait() {
                 break;
             }
             self.tracker.game(&next.rom);
@@ -664,7 +664,7 @@ impl<R: Runtime> Engine<'_, R> {
                     self.tracker.settle(&next.rom, 0);
                     self.rom_synced(next);
                 }
-                Err(_) if self.roms_wait() => break,
+                Err(_) if self.stops_for_others() || self.roms_wait() => break,
                 Err(e) => {
                     self.failed(&next.rom, &e);
                     self.emit_run();
@@ -1510,9 +1510,13 @@ impl<R: Runtime> Engine<'_, R> {
         let (blob, session, offset) = match resumed {
             Some(resumed) => resumed,
             None => {
+                // A sync that stopped after writing the record but before forgetting the upload leaves a blob
+                // the record still names. The record write that replaces it retires it then.
                 if let Some(PendingUpload { blob, session: None, .. }) = pending {
-                    if let Err(e) = self.provider.retire_blob(&blob).await {
-                        eprintln!("retiring blob {blob}: {e}");
+                    if !self.cached(game)?.is_some_and(|(_, record)| record.names(&blob)) {
+                        if let Err(e) = self.provider.retire_blob(&blob).await {
+                            eprintln!("retiring blob {blob}: {e}");
+                        }
                     }
                 }
                 let blob = uuid::Uuid::new_v4().to_string();
@@ -1826,18 +1830,6 @@ fn remove_file(file: &Path) -> Result<(), Error> {
         Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(io(file.display())(e)),
         _ => Ok(()),
     }
-}
-
-pub fn device_name() -> String {
-    #[cfg(target_os = "android")]
-    {
-        let mut model = [0 as libc::c_char; libc::PROP_VALUE_MAX as usize];
-        unsafe { libc::__system_property_get(c"ro.product.model".as_ptr(), model.as_mut_ptr()) };
-        let model = unsafe { std::ffi::CStr::from_ptr(model.as_ptr()) }.to_string_lossy().into_owned();
-        if model.is_empty() { "Android".into() } else { model }
-    }
-    #[cfg(not(target_os = "android"))]
-    tauri_plugin_os::hostname()
 }
 
 type Outcome = Result<Report, String>;
@@ -2345,7 +2337,7 @@ pub struct SyncGames {
 
 #[tauri::command]
 pub fn sync_games(state: State<'_, Syncer>) -> SyncGames {
-    let mobile_data = cfg!(target_os = "android").then(|| state.mobile_data());
+    let mobile_data = TELLS_MOBILE_DATA.then(|| state.mobile_data());
     SyncGames { on: state.sync_games.load(Ordering::Relaxed), mobile_data }
 }
 

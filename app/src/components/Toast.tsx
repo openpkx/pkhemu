@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
 import { usePresence } from "@/motion/motion";
 
-const TOAST_MS = 3000;
+export const TOAST_MS = 3000;
 
 export function useToast() {
   const [toast, setToast] = useState<string>();
@@ -25,11 +25,22 @@ export function Toast({ children, inline = false }: { children?: ReactNode; inli
       data-state={state}
       className={cn(
         "motion-toast w-fit rounded-full bg-overlay/70 px-3 py-1 text-sm text-white data-[state=closed]:**:pointer-events-none",
-        inline ? "text-center" : "pointer-events-none fixed inset-x-0 top-16 z-40 mx-auto",
+        inline ? "text-center" : "pointer-events-none fixed inset-x-0 top-[calc(4rem+env(safe-area-inset-top))] z-40 mx-auto",
       )}
     >
       {shown}
     </p>
   );
   return inline ? toast : createPortal(toast, document.body);
+}
+
+export function WithAction({ children, action, onAction }: { children: ReactNode; action: string; onAction(): void }) {
+  return (
+    <>
+      {children} ·{" "}
+      <button className="pointer-events-auto -mr-2 rounded-full px-2 font-medium hover:bg-white/20" onClick={onAction}>
+        {action}
+      </button>
+    </>
+  );
 }

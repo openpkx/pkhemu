@@ -95,7 +95,7 @@ export function CloudGamePage({
 
   return (
     <Screen>
-      <div className="min-h-screen md:grid md:grid-cols-2 md:gap-4 md:p-4">
+      <div className="min-h-screen pb-safe md:grid md:grid-cols-2 md:gap-4 md:p-4 md:pb-[max(1rem,env(safe-area-inset-bottom))]">
         <main className="grid content-start">
           <Hero
             game={game}

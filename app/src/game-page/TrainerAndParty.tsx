@@ -8,19 +8,21 @@ export function TrainerAndParty({ summary: { trainer, party, progress }, childre
   return (
     <>
       <div className="grid gap-1">
-        {/* pr-8 keeps the money clear of the card's ⋯ menu. */}
-        <div className="flex items-baseline justify-between gap-2 pr-8">
-          <Crossfade value={`${trainer.name} ${trainer.gender}`}>
-            <h2 className="font-heading text-lg font-medium break-words">
-              {trainer.name} {trainer.gender && genderSymbols[trainer.gender]}
-            </h2>
-          </Crossfade>
-          {trainer.money !== null && (
-            <Crossfade value={trainer.money}>
-              <span className="text-sm tabular-nums">₽{trainer.money.toLocaleString("en")}</span>
+        {trainer && (
+          // pr-8 keeps the money clear of the card's ⋯ menu.
+          <div className="flex items-baseline justify-between gap-2 pr-8">
+            <Crossfade value={`${trainer.name} ${trainer.gender}`}>
+              <h2 className="font-heading text-lg font-medium break-words">
+                {trainer.name} {trainer.gender && genderSymbols[trainer.gender]}
+              </h2>
             </Crossfade>
-          )}
-        </div>
+            {trainer.money !== null && (
+              <Crossfade value={trainer.money}>
+                <span className="text-sm tabular-nums">₽{trainer.money.toLocaleString("en")}</span>
+              </Crossfade>
+            )}
+          </div>
+        )}
         {children}
         <ProgressStats progress={progress} pixel />
       </div>

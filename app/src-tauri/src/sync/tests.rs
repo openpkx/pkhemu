@@ -358,12 +358,33 @@ fn leaves_the_game_being_played_alone() {
     }
     a.write("gba/Emerald.sav", b"save from A");
     a.sync_ok(&cloud);
-    block_on(b.in_use.start_playing(EMERALD));
+    block_on(b.in_use.start_playing(EMERALD, None));
 
     let report = b.sync(&cloud);
 
     assert!(!report.contains_key(EMERALD));
     assert_eq!(b.read("gba/Emerald.sav"), None);
+}
+
+#[test]
+fn leaves_the_cart_in_the_transfer_pak_alone_until_its_game_stops() {
+    let (a, b, cloud) = (device("cart", "A"), device("cart", "B"), Memory::new());
+    for device in [&a, &b] {
+        device.write("gb/Red.gb", b"red rom");
+    }
+    a.write("gb/Red.sav", b"save from A");
+    a.sync_ok(&cloud);
+    b.sync_ok(&cloud);
+    a.write("gb/Red.sav", b"newer save from A");
+    a.sync_ok(&cloud);
+    block_on(b.in_use.start_playing("n64/Stadium.z64", Some("gb/Red.gb")));
+
+    b.sync_ok(&cloud);
+
+    assert_eq!(b.read("gb/Red.sav").unwrap(), b"save from A");
+    b.in_use.playing(None, None);
+    b.sync_ok(&cloud);
+    assert_eq!(b.read("gb/Red.sav").unwrap(), b"newer save from A");
 }
 
 #[test]
@@ -705,6 +726,33 @@ fn a_rom_upload_stops_for_a_sync_that_waits_and_resumes_later() {
 }
 
 #[test]
+fn a_rom_upload_stopped_partway_for_a_waiting_sync_queues_another_full_sync() {
+    let (a, cloud) = (device("rom-stops-partway", "A"), FakeDrive::new());
+    a.sync_games(true);
+    let rom: Vec<u8> = (0..super::drive::CHUNK * 2 + 1000).map(|i| (i % 251) as u8).collect();
+    a.write(EMERALD, &rom);
+    let others_waiting = || cloud.uploaded_bytes() >= super::drive::CHUNK;
+    let engine = Engine { others_waiting: &others_waiting, ..a.engine(&cloud, &no_wait) };
+
+    let report = block_on(engine.sync_all()).unwrap();
+
+    assert!(report[EMERALD].error.is_none(), "{report:?}");
+    assert!(engine.stopped_early.load(Ordering::Relaxed));
+    assert!(cloud.records()[0]["rom"].get("blob").is_none());
+}
+
+#[test]
+fn a_rom_held_for_mobile_data_queues_no_other_full_sync() {
+    let (a, _, cloud) = syncing_games("rom-held-for-mobile-data");
+    a.metered.store(true, Ordering::Relaxed);
+    let engine = a.engine(&cloud, &no_wait);
+
+    block_on(engine.sync_all()).unwrap();
+
+    assert!(!engine.stopped_early.load(Ordering::Relaxed));
+}
+
+#[test]
 fn a_paused_game_sends_its_files_up_and_leaves_the_clouds_for_later() {
     let (a, b, cloud) = (device("lent", "A"), device("lent", "B"), Memory::new());
     for device in [&a, &b] {
@@ -715,7 +763,7 @@ fn a_paused_game_sends_its_files_up_and_leaves_the_clouds_for_later() {
     b.sync_ok(&cloud);
     a.write("gba/Emerald/states/slot-1.state", b"slot from A");
     a.sync_ok(&cloud);
-    block_on(b.in_use.start_playing(EMERALD));
+    block_on(b.in_use.start_playing(EMERALD, None));
     b.write("gba/Emerald.sav", b"save from B");
     b.write("gba/Emerald/states/resume.state", b"resume from B");
     b.in_use.lend();
@@ -726,7 +774,7 @@ fn a_paused_game_sends_its_files_up_and_leaves_the_clouds_for_later() {
     a.sync_ok(&cloud);
     assert_eq!(a.read("gba/Emerald.sav").unwrap(), b"save from B");
     assert_eq!(a.read("gba/Emerald/states/resume.state").unwrap(), b"resume from B");
-    b.in_use.playing(None);
+    b.in_use.playing(None, None);
     b.sync_ok(&cloud);
     assert_eq!(b.read("gba/Emerald/states/slot-1.state").unwrap(), b"slot from A");
 }
@@ -740,7 +788,7 @@ fn a_paused_game_deleted_elsewhere_stays_here() {
     a.write("gba/Emerald.sav", b"save");
     a.sync_ok(&cloud);
     b.sync_ok(&cloud);
-    block_on(b.in_use.start_playing(EMERALD));
+    block_on(b.in_use.start_playing(EMERALD, None));
     b.in_use.lend();
 
     a.delete(&cloud, EMERALD);
@@ -777,14 +825,14 @@ fn roms_wait_while_a_game_runs() {
     let (a, b, cloud) = syncing_games("roms-while-playing");
     a.write("gba/Emerald.sav", b"save");
     a.write(RUBY, b"ruby rom");
-    block_on(a.in_use.start_playing(RUBY));
+    block_on(a.in_use.start_playing(RUBY, None));
 
     a.sync_ok(&cloud);
     b.sync_ok(&cloud);
 
     assert_eq!(cloud.uploaded_bytes(), 4);
     assert!(b.cloud_games(&cloud).is_empty());
-    a.in_use.playing(None);
+    a.in_use.playing(None, None);
     a.sync_ok(&cloud);
     b.sync_ok(&cloud);
     assert_eq!(b.cloud_games(&cloud), [EMERALD, RUBY]);
@@ -803,18 +851,19 @@ fn a_rom_upload_stops_when_a_game_starts_and_finishes_in_the_full_sync_after_it_
     // The upload checks whether to stop before each read, so this starts a game partway through it.
     let game_starts_after_a_chunk = || {
         if uploaded(&cloud) >= chunk {
-            a.in_use.playing(Some(EMERALD));
+            a.in_use.playing(Some(EMERALD), None);
         }
         false
     };
 
-    let report =
-        block_on(Engine { others_waiting: &game_starts_after_a_chunk, ..a.engine(&cloud, &no_wait) }.sync_all())
-            .unwrap();
+    let engine = Engine { others_waiting: &game_starts_after_a_chunk, ..a.engine(&cloud, &no_wait) };
+
+    let report = block_on(engine.sync_all()).unwrap();
 
     assert!(report[EMERALD].error.is_none(), "{report:?}");
+    assert!(!engine.stopped_early.load(Ordering::Relaxed));
     assert_eq!(uploaded(&cloud), chunk);
-    a.in_use.playing(None);
+    a.in_use.playing(None, None);
     let report = block_on(a.engine(&cloud, &no_wait).sync(&[EMERALD.into()])).unwrap();
     assert!(report[EMERALD].error.is_none(), "{report:?}");
     assert_eq!(uploaded(&cloud), chunk);
@@ -864,11 +913,11 @@ fn a_game_deleted_elsewhere_while_played_here_goes_back_to_the_cloud_whole() {
     a.write("gba/Emerald/backups/2026-10-05_1412_edit.sav", b"backup");
     a.sync_ok(&cloud);
     b.sync_ok(&cloud);
-    block_on(b.in_use.start_playing(EMERALD));
+    block_on(b.in_use.start_playing(EMERALD, None));
 
     a.delete(&cloud, EMERALD);
     b.sync_ok(&cloud);
-    b.in_use.playing(None);
+    b.in_use.playing(None, None);
     b.sync_ok(&cloud);
     a.write(EMERALD, b"emerald rom");
     a.sync_ok(&cloud);
@@ -1227,7 +1276,7 @@ fn playing_on(a: &Device) -> crate::emu::Emu {
         std::env::temp_dir(),
         index,
         a.in_use.clone(),
-        Box::new(move |path| in_use.playing(path)),
+        Box::new(move |path, cart| in_use.playing(path, cart)),
         Box::new(|_| {}),
     );
     emu.play_into(&a.root.join("games"));
@@ -1278,7 +1327,7 @@ fn quitting_sends_the_game_up_before_the_app_exits() {
     let emu = playing_on(&a);
     let engine = a.engine(&cloud, &no_wait);
 
-    block_on(crate::stop_and_sync(&emu, |game| async move { engine.sync(&[game.path]).await.unwrap() }));
+    block_on(crate::platform::stop_and_sync(&emu, |game| async move { engine.sync(&[game.path]).await.unwrap() }));
 
     b.sync_ok(&cloud);
     has_the_game_as_it_was_left(&a, &b);
@@ -1293,7 +1342,7 @@ fn a_slow_cloud_holds_quitting_up_for_five_seconds_at_most() {
     let engine = Engine { provider: &slow, ..a.engine(&cloud, &no_wait) };
     let started = std::time::Instant::now();
 
-    block_on(crate::stop_and_sync(&emu, |game| async move { engine.sync(&[game.path]).await }));
+    block_on(crate::platform::stop_and_sync(&emu, |game| async move { engine.sync(&[game.path]).await }));
 
     let waited = started.elapsed();
     assert!(waited >= Duration::from_secs(5) && waited < Duration::from_secs(6), "{waited:?}");

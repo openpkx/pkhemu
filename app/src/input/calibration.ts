@@ -18,6 +18,10 @@ const standardButtons = [
   "stickDown",
   "stickLeft",
   "stickRight",
+  "rightStickUp",
+  "rightStickDown",
+  "rightStickLeft",
+  "rightStickRight",
 ] as const;
 
 export type StandardButton = (typeof standardButtons)[number];
@@ -54,6 +58,10 @@ const standardLayout: PadCalibration = {
   stickDown: { axis: 1, direction: 1 },
   stickLeft: { axis: 0, direction: -1 },
   stickRight: { axis: 0, direction: 1 },
+  rightStickUp: { axis: 3, direction: -1 },
+  rightStickDown: { axis: 3, direction: 1 },
+  rightStickLeft: { axis: 2, direction: -1 },
+  rightStickRight: { axis: 2, direction: 1 },
 };
 
 export const STICK_THRESHOLD = 0.5;
@@ -77,6 +85,17 @@ export function withPad(calibrations: Calibrations, id: string, calibration?: Pa
 
 export function calibrationFor(pad: Gamepad, calibrations: Calibrations) {
   return calibrations.pads[pad.id] ?? (pad.mapping === "standard" ? standardLayout : undefined);
+}
+
+// Setup asked for no right stick before, so a standard pad set up then keeps the standard one.
+export function rightStickFor(pad: Gamepad, calibration: PadCalibration) {
+  const { rightStickUp, rightStickDown, rightStickLeft, rightStickRight } =
+    calibration.rightStickUp || calibration.rightStickDown || calibration.rightStickLeft || calibration.rightStickRight
+      ? calibration
+      : pad.mapping === "standard"
+        ? standardLayout
+        : {};
+  return { up: rightStickUp, down: rightStickDown, left: rightStickLeft, right: rightStickRight };
 }
 
 const isStandardButton = (value: string): value is StandardButton => standardButtons.includes(value as StandardButton);

@@ -1,3 +1,10 @@
+#[cfg_attr(target_os = "android", path = "dropbox_sign_in/android.rs")]
+#[cfg_attr(target_os = "ios", path = "dropbox_sign_in/ios.rs")]
+#[cfg_attr(desktop, path = "dropbox_sign_in/desktop.rs")]
+mod platform;
+
+pub use platform::*;
+
 use super::dropbox::{self, Dropbox};
 use super::oauth::{http, offline, Grant, OAuthClient, Refresher, Saved, Service};
 use super::provider::Error;
@@ -43,17 +50,6 @@ pub async fn account(http: &Client, api: &str, access_token: &str) -> Result<Str
     Ok(info["email"].as_str().ok_or("Dropbox didn't say which account signed in")?.into())
 }
 
-#[cfg(not(target_os = "android"))]
-fn saved<R: Runtime>(_: &AppHandle<R>, service: &Service, account: &str) -> Result<Saved, Error> {
-    Ok(Saved::new(service, account))
-}
-
-#[cfg(target_os = "android")]
-fn saved<R: Runtime>(app: &AppHandle<R>, service: &Service, account: &str) -> Result<Saved, Error> {
-    use tauri::Manager;
-    Ok(Saved::new(&app.path().app_data_dir().map_err(|e| e.to_string())?, service, account))
-}
-
 async fn connect<R: Runtime>(
     app: &AppHandle<R>,
     http: Client,
@@ -75,49 +71,6 @@ pub fn reconnect<R: Runtime>(app: &AppHandle<R>, account: &str) -> Result<Dropbo
     let (http, service) = (http(), service());
     let tokens = Refresher::new(http.clone(), service.clone(), saved(app, &service, account)?, None);
     Ok(Dropbox::new(http, dropbox::API, dropbox::CONTENT, account.into(), Arc::new(tokens)))
-}
-
-#[cfg(not(target_os = "android"))]
-pub use desktop::*;
-
-#[cfg(not(target_os = "android"))]
-mod desktop {
-    use super::*;
-    use crate::sync::oauth::{self, Loopback, SignIn};
-
-    /// Dropbox only takes a redirect registered with it, port included, so the browser comes back to one of these.
-    pub const PORTS: [u16; 3] = [18734, 18735, 18736];
-
-    pub async fn start(service: &Service) -> Result<SignIn, Error> {
-        SignIn::start(service, Loopback::first_free(&PORTS).await?, &params(&SCOPES.join(" ")))
-    }
-
-    pub async fn sign_in<R: Runtime>(app: &AppHandle<R>) -> Result<Dropbox, Error> {
-        let (http, service) = (http(), service());
-        let grant = oauth::sign_in(app, start(&service).await?, &http, &service).await?;
-        connect(app, http, service, grant).await
-    }
-}
-
-#[cfg(target_os = "android")]
-pub use android::*;
-
-#[cfg(target_os = "android")]
-mod android {
-    use super::*;
-    use crate::sync::oauth::{self, Pkce};
-
-    /// Registered with Dropbox and in AndroidManifest.xml, so the Custom Tab comes back to the app.
-    pub const REDIRECT: &str = "fyi.openpkx.pkhemu://dropbox";
-
-    pub async fn sign_in<R: Runtime>(app: &AppHandle<R>) -> Result<Dropbox, Error> {
-        let (http, service, pkce) = (http(), service(), Pkce::new());
-        let url = service.authorize_url(&pkce, REDIRECT, &params(&SCOPES.join(" ")))?;
-        let redirected = oauth::browser_sign_in(app, &url, REDIRECT).await?;
-        let code = service.code(&pkce, &redirected).ok_or("Dropbox sent back a different sign-in")??;
-        let grant = service.exchange(&http, &pkce, &code, REDIRECT).await?;
-        connect(app, http, service, grant).await
-    }
 }
 
 #[cfg(test)]

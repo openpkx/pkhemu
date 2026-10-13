@@ -9,6 +9,7 @@ import { LibraryProvider, type LibraryHost } from "@/library/library";
 import { LibraryScreen } from "@/library/LibraryScreen";
 import { fakeSync } from "@/sync/fakeSync";
 import { SyncProvider } from "@/sync/sync";
+import { systems } from "@/systems";
 import { fakeImport } from "./fakeImport";
 import { ImportProvider, type ExistingSave } from "./importFiles";
 import type { ImportFile } from "./match";
@@ -45,7 +46,12 @@ const file = (name: string, more: Partial<ImportFile> = {}): ImportFile => ({ fi
 
 function renderImport(
   paths: string[],
-  { picked, sha1s, saves }: { picked: ImportFile[]; sha1s?: Record<string, string>; saves?: Record<string, ExistingSave> },
+  {
+    picked = [],
+    opened,
+    sha1s,
+    saves,
+  }: { picked?: ImportFile[]; opened?: ImportFile[]; sha1s?: Record<string, string>; saves?: Record<string, ExistingSave> },
 ) {
   const list = fakeFolder(paths);
   const library: LibraryHost = {
@@ -56,7 +62,7 @@ function renderImport(
     hasResumeState: async () => false,
     playHistory: async () => ({ lastPlayed: null, playTime: 0 }),
   };
-  const host = fakeImport({ picked, sha1s, saves, onCopy: (path) => void paths.push(path) });
+  const host = fakeImport({ picked, opened, sha1s, saves, onCopy: (path) => void paths.push(path) });
   render(
     <GamesFolderProvider host={gamesFolder}>
       <SyncProvider host={fakeSync({ available: false }).host}>
@@ -64,7 +70,7 @@ function renderImport(
           <BackProvider>
             <LibraryProvider host={library} folder="/games" onOpen={() => {}} onPlay={() => {}}>
               <ImportProvider host={host}>
-                <LibraryScreen onSettings={() => {}} />
+                <LibraryScreen systems={systems} onSettings={() => {}} />
               </ImportProvider>
             </LibraryProvider>
           </BackProvider>
@@ -94,9 +100,27 @@ it("adds a ROM and its save together", async () => {
 
   expect((await toast()).textContent).toBe("Added 1 game and 1 save");
   expect(host.copyRom).toHaveBeenCalledWith("/games", "/picked/Emerald.gba", "gba/Emerald.gba");
-  expect(host.copySave).toHaveBeenCalledWith("/games", "gba/Emerald.gba", srm);
+  expect(host.copySave).toHaveBeenCalledWith("/games", { file: srm, game: "gba/Emerald.gba" });
   expect(host.copyRom).toHaveBeenCalledTimes(1);
   expect(await screen.findByRole("button", { name: /Emerald/ })).toBeTruthy();
+});
+
+it("imports the files another app opened pkhemu with", async () => {
+  const host = renderImport(["gb/Red.gb"], { opened: [file("Emerald.gba"), file("Emerald.srm")] });
+
+  expect((await toast()).textContent).toBe("Added 1 game and 1 save");
+  expect(host.copyRom).toHaveBeenCalledWith("/games", "/picked/Emerald.gba", "gba/Emerald.gba");
+  expect(host.pick).not.toHaveBeenCalled();
+});
+
+it("imports files opened while pkhemu is running", async () => {
+  const host = renderImport(["gb/Red.gb"], {});
+  await screen.findAllByRole("region");
+
+  act(() => host.open([file("Emerald.gba")]));
+
+  expect((await toast()).textContent).toBe("Added 1 game");
+  expect(host.copyRom).toHaveBeenCalledWith("/games", "/picked/Emerald.gba", "gba/Emerald.gba");
 });
 
 it("skips a ROM already in pkhemu", async () => {
@@ -127,7 +151,7 @@ it("asks which game a save with no match is for, and uses the one picked", async
   fireEvent.click(await within(dialog).findByRole("button", { name: "Use for Emerald" }));
 
   expect((await toast()).textContent).toBe("Added 1 save");
-  expect(host.copySave).toHaveBeenCalledWith("/games", "gba/Emerald.gba", ruby);
+  expect(host.copySave).toHaveBeenCalledWith("/games", { file: ruby, game: "gba/Emerald.gba" });
 });
 
 it("leaves out a save the player skips", async () => {
@@ -155,7 +179,7 @@ it("asks before replacing a save, then replaces it", async () => {
   fireEvent.click(within(dialog).getByRole("button", { name: "Replace" }));
 
   expect((await toast()).textContent).toBe("Added 1 save");
-  expect(host.copySave).toHaveBeenCalledWith("/games", "gba/Emerald.gba", srm);
+  expect(host.copySave).toHaveBeenCalledWith("/games", { file: srm, game: "gba/Emerald.gba" });
 });
 
 it("keeps pkhemu's save when the player says so", async () => {
@@ -192,14 +216,13 @@ it("goes on past a file it can't import and says which", async () => {
 
   expect((await toast()).textContent).toBe("Added 1 save. Emerald.srm is a compressed RetroArch save, which pkhemu can't read");
   expect(host.copySave).toHaveBeenCalledTimes(1);
-  expect(host.copySave).toHaveBeenCalledWith("/games", "gba/Ruby.gba", file("Ruby.srm"));
+  expect(host.copySave).toHaveBeenCalledWith("/games", { file: file("Ruby.srm"), game: "gba/Ruby.gba" });
 });
 
 it("imports from the empty library", async () => {
   const host = renderImport(["gb/.keep"], { picked: [file("Red.gb")] });
 
   const empty = await screen.findByTestId("empty-library");
-  expect(within(empty).getByText("This app doesn't include any games.")).toBeTruthy();
   fireEvent.click(within(empty).getByRole("button", { name: "Import files" }));
 
   await waitFor(() => expect(host.copyRom).toHaveBeenCalledWith("/games", "/picked/Red.gb", "gb/Red.gb"));

@@ -403,7 +403,7 @@ export function TransferScreen({
   return (
     <>
       <Screen hidden={!!reviewing}>
-        <div className="fixed inset-0 z-20 flex flex-col bg-background">
+        <div className="fixed inset-0 px-safe pb-safe z-20 flex flex-col bg-background">
           <ScreenHeader title="Transfer" onBack={back} />
           {error && <p className="border-b px-4 py-2 text-sm text-destructive">{error}</p>}
           <main className="flex min-h-0 flex-1 flex-col overflow-y-auto md:grid md:grid-cols-2">

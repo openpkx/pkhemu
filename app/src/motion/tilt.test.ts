@@ -1,6 +1,6 @@
 import { expect, it } from "vitest";
 import type { Point } from "@/fit";
-import type { Gravity } from "@/gravity";
+import type { Gravity } from "@/gravity/gravity";
 import { handheld } from "@/systems";
 import { TILT, tilt, type Tilt } from "./tilt";
 

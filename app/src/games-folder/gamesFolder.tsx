@@ -1,17 +1,17 @@
-import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { systems } from "@/systems";
 
 export type GamesFolderHost = {
-  pickFolder(): Promise<string | null>;
+  pickFolder?(): Promise<string | null>;
   makeFolder(): Promise<string | null>;
-  findFolder(): Promise<string | null>;
+  findFolder?(): Promise<string | null>;
   listFolders(folder: string): Promise<string[]>;
   ensureFolder(parent: string, name: string): Promise<void>;
   folderExists(path: string): Promise<boolean>;
   loadSaved(): Promise<string | null>;
   save(folder: string): Promise<void>;
   label(folder: string): string;
-  device: "phone" | "Mac";
+  device: "phone" | "Mac" | "iPhone";
   openFolder?(): Promise<void>;
 };
 
@@ -24,9 +24,9 @@ export type GamesFolderState = (
 ) & {
   error?: string;
   device: GamesFolderHost["device"];
-  choose(): Promise<string | null>;
+  choose?(): Promise<string | null>;
   make(): Promise<string | null>;
-  pickPrevious(): Promise<UnfamiliarFolder | null>;
+  pickPrevious?(): Promise<UnfamiliarFolder | null>;
   keep(folder: string): Promise<string | null>;
 };
 
@@ -89,24 +89,31 @@ export function GamesFolderProvider({ host, children }: { host: GamesFolderHost;
     },
     [keep],
   );
-  const choose = useCallback(() => adopt(host.pickFolder), [adopt, host]);
+  const { pickFolder } = host;
+  const choose = useMemo(() => pickFolder && (() => adopt(pickFolder)), [adopt, pickFolder]);
   const make = useCallback(() => adopt(host.makeFolder), [adopt, host]);
-  const pickPrevious = useCallback(async () => {
-    try {
-      const picked = await host.findFolder();
-      if (!picked) return null;
-      const names = await host.listFolders(picked);
-      if (systems.some((system) => names.includes(system))) {
-        await keep(picked);
-        return null;
-      }
-      setError(undefined);
-      return { folder: picked, label: host.label(picked) };
-    } catch (reason) {
-      setError(String(reason));
-      return null;
-    }
-  }, [host, keep]);
+  const { findFolder } = host;
+  const pickPrevious = useMemo(
+    () =>
+      findFolder &&
+      (async () => {
+        try {
+          const picked = await findFolder();
+          if (!picked) return null;
+          const names = await host.listFolders(picked);
+          if (systems.some((system) => names.includes(system))) {
+            await keep(picked);
+            return null;
+          }
+          setError(undefined);
+          return { folder: picked, label: host.label(picked) };
+        } catch (reason) {
+          setError(String(reason));
+          return null;
+        }
+      }),
+    [findFolder, host, keep],
+  );
 
   const state =
     folder === undefined

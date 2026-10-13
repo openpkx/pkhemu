@@ -1,4 +1,4 @@
-import type { Gravity } from "@/gravity";
+import type { Gravity } from "@/gravity/gravity";
 import type { Tilt } from "@/motion/tilt";
 
 export { TILT, type Tilt } from "@/motion/tilt";

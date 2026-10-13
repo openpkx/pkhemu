@@ -1,11 +1,12 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Cloud, FilePlus, FolderOpen, FolderPlus, Play, Plus, RefreshCw, Settings } from "lucide-react";
 import { cn } from "cn";
+import { UpdateToast } from "@/app-update/UpdateToast";
 import { AppIcon } from "@/components/AppIcon";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { sectionHeading } from "@/components/sectionHeading";
 import { SyncBadge } from "@/components/SyncBadge";
-import { SystemChip } from "@/components/SystemChip";
+import { SystemChip, SystemChips } from "@/components/SystemChip";
 import { Toast, useToast } from "@/components/Toast";
 import { useCachedBoxArt } from "@/box-art/boxArt";
 import { BoxArtSheet } from "@/box-art/BoxArtSheet";
@@ -13,12 +14,15 @@ import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Spinner } from "@/components/ui/spinner";
 import { ago, gameTitle } from "@/game-page/details";
+import { useGamesFolder } from "@/games-folder/gamesFolder";
 import { useOpenFolder } from "@/games-folder/useOpenFolder";
-import { useImportFiles } from "@/import/importFiles";
+import { gameAt, useImportFiles, useImportHost } from "@/import/importFiles";
+import { useExperiment } from "@/lab/lab";
 import { useLongPress } from "@/lib/useLongPress";
 import { Shared, useStaggerOnce } from "@/motion/motion";
 import { useTileSync } from "@/sync/gameStatus";
-import { systemColors, systemNames } from "@/systems";
+import { useSync } from "@/sync/sync";
+import { systemColors, systemNames, type System } from "@/systems";
 import { useLibrary, type LastPlay, type OpenedFrom } from "./library";
 import type { Game } from "./scan";
 import { SyncRing } from "./SyncRing";
@@ -241,30 +245,68 @@ function Section({ id, title, caption, children }: { id: string; title: string; 
   );
 }
 
+function usePlayDemo() {
+  const host = useImportHost();
+  const gamesFolder = useGamesFolder();
+  const { refresh, play } = useLibrary();
+  const { synced } = useSync();
+  const [copying, setCopying] = useState(false);
+  const working = useRef(false);
+  const [error, setError] = useState<string>();
+
+  const playDemo = async () => {
+    if (gamesFolder.status !== "ready" || working.current) return;
+    working.current = true;
+    setCopying(true);
+    setError(undefined);
+    try {
+      const path = await host.copyDemo(gamesFolder.folder);
+      void synced(gamesFolder.folder, [path]);
+      await refresh();
+      play(gameAt(path), "new", { tile: tileName("grid", path) });
+    } catch (reason) {
+      setError(String(reason));
+    } finally {
+      working.current = false;
+      setCopying(false);
+    }
+  };
+
+  return { playDemo, copying, error };
+}
+
 function EmptyLibrary({
+  systems,
   importing,
   onImportFiles,
   onImportFolder,
   onOpenFolder,
 }: {
+  systems: readonly System[];
   importing: boolean;
   onImportFiles(): void;
   onImportFolder?(): void;
   onOpenFolder?(): Promise<void>;
 }) {
   const { open: openFolder, error: openError } = useOpenFolder(onOpenFolder);
+  const demo = useExperiment("demoGame") === "on";
+  const { playDemo, copying, error: demoError } = usePlayDemo();
 
   return (
     <div data-testid="empty-library" className="grid justify-items-center gap-4 py-16 text-center">
-      <p className="max-w-sm text-muted-foreground">This app doesn't include any games.</p>
+      <SystemChips systems={systems} />
+      <p className="max-w-sm text-muted-foreground">
+        {demo ? "Import your games, or try the free demo." : "This app doesn't include any games."}
+      </p>
       {openError && <p className="max-w-sm text-sm text-destructive">{openError}</p>}
+      {demoError && <p className="max-w-sm text-sm text-destructive">{demoError}</p>}
       <div className="flex flex-wrap justify-center gap-2">
-        <Button disabled={importing} onClick={onImportFiles}>
+        <Button disabled={importing || copying} onClick={onImportFiles}>
           {importing ? <Spinner /> : <FilePlus />}
           Import files
         </Button>
         {onImportFolder && (
-          <Button variant="outline" disabled={importing} onClick={onImportFolder}>
+          <Button variant="outline" disabled={importing || copying} onClick={onImportFolder}>
             <FolderPlus />
             Import folder
           </Button>
@@ -276,15 +318,23 @@ function EmptyLibrary({
           </Button>
         )}
       </div>
+      {demo && (
+        <Button variant="outline" disabled={importing || copying} onClick={() => void playDemo()}>
+          {copying ? <Spinner /> : <Play />}
+          Play a demo
+        </Button>
+      )}
     </div>
   );
 }
 
 export function LibraryScreen({
+  systems,
   onSettings,
   onOpenFolder,
   onImportFolder,
 }: {
+  systems: readonly System[];
   onSettings(): void;
   onOpenFolder?(): Promise<void>;
   onImportFolder?(): void;
@@ -301,7 +351,7 @@ export function LibraryScreen({
   const stopChangingBoxArt = () => setChangingBoxArt((was) => was && { ...was, open: false });
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen pb-safe">
       <ScreenHeader
         title={
           <span className="flex items-center gap-2.5">
@@ -333,6 +383,7 @@ export function LibraryScreen({
         {error && <p className="text-sm text-destructive">{error}</p>}
         {empty && (
           <EmptyLibrary
+            systems={systems}
             importing={importing}
             onImportFiles={() => void importFiles()}
             onImportFolder={onImportFolder}
@@ -393,6 +444,7 @@ export function LibraryScreen({
       )}
       {importDialogs}
       <Toast>{toast}</Toast>
+      <UpdateToast />
     </div>
   );
 }

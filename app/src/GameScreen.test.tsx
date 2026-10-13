@@ -4,12 +4,13 @@ import { EngineProvider } from "@pkhex-everywhere/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { BackProvider } from "./back/back";
 import { desktopBackHost } from "./back/desktopHost";
+import { iosBackHost } from "./back/iosHost";
 import { fakeEngine } from "./editor/fakeEngine";
 import type { Range } from "./game-memory/builds";
 import emeraldOverworld from "./game-memory/snapshots/emerald-overworld.json";
 import emeraldWild from "./game-memory/snapshots/emerald-wild.json";
 import { snapshotMemory } from "./game-memory/snapshots/snapshotMemory";
-import { fakePads } from "./input/fakePads";
+import { answerEverySetupStep, fakePads } from "./input/fakePads";
 import type { Input } from "./input/input";
 import { tauriCheatsHost } from "./cheats/tauriHost";
 import type { Game } from "./library/scan";
@@ -17,7 +18,8 @@ import { tauriTransferPakHost } from "./transfer-pak/tauriHost";
 import type { Rates } from "./fps-counter/fpsCounter";
 import { GameScreen } from "./GameScreen";
 import type { GameSettings } from "./preferences/gameSettings";
-import { PreferencesProvider } from "./preferences/preferences";
+import { GameSurfaceProvider, noGameSurfaceHost, type GameSurfaceHost } from "./game-surface/gameSurface";
+import { PreferencesProvider, type RendererChoice } from "./preferences/preferences";
 import { FakeGameArt } from "./game-art/fakeGameArt";
 import { GamesFolderProvider, type GamesFolderHost } from "./games-folder/gamesFolder";
 import { ExperimentsProvider } from "./lab/lab";
@@ -33,6 +35,9 @@ const game = vi.hoisted(() => ({
   onError: undefined as ((message: string) => void) | undefined,
   starts: [] as boolean[],
   transferPak: null as { game: string | null } | null,
+  pauseRequested: undefined as (() => void) | undefined,
+  renderer: undefined as string | undefined,
+  onNativeFailed: undefined as (() => void) | undefined,
 }));
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -52,6 +57,13 @@ vi.mock("./cheats/tauriHost", async () => ({
 }));
 
 vi.mock("./core-message/tauriHost", () => ({ tauriCoreMessages: () => () => {} }));
+
+vi.mock("./pause-menu/tauriHost", () => ({
+  tauriPauseRequests: (listener: () => void) => {
+    game.pauseRequested = listener;
+    return () => void (game.pauseRequested = undefined);
+  },
+}));
 
 vi.mock("./transfer-pak/tauriHost", () => ({
   tauriTransferPakHost: {
@@ -77,6 +89,8 @@ vi.mock("./Player", () => ({
     onStarted,
     onFps,
     onError,
+    renderer,
+    onNativeFailed,
   }: {
     input: Input;
     resume: boolean;
@@ -85,9 +99,13 @@ vi.mock("./Player", () => ({
     onStarted?(): Promise<void>;
     onFps?(rates: Rates): void;
     onError(message: string): void;
+    renderer: string;
+    onNativeFailed?(): void;
   }) {
     game.onFps = onFps;
     game.onError = onError;
+    game.renderer = renderer;
+    game.onNativeFailed = onNativeFailed;
     useEffect(() => void game.starts.push(resume), []);
     useEffect(() => void (holdMessage === undefined && onStarted?.()), [holdMessage]);
     useEffect(() => {
@@ -103,8 +121,6 @@ vi.mock("./Player", () => ({
     return <p data-testid="player" data-paused={paused || undefined} data-holding={holdMessage} />;
   },
 }));
-
-const STEPS = 17;
 
 let pads: ReturnType<typeof fakePads>;
 
@@ -165,28 +181,33 @@ async function play(
     played = emerald,
     games = [] as Game[],
     resume = false,
+    back = desktopBackHost,
+    renderer = "automatic" as RendererChoice,
+    gameSurface = noGameSurfaceHost,
   } = {},
 ) {
   render(
     <EngineProvider engine={using}>
-      <PreferencesProvider
-        host={{ load: async () => ({}), save: async () => {} }}
-        defaults={{ touchControls: false, fastForwardSpeed: 2, showFps, theme: "system", eventsNoticeDismissed: false, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1 }}
-      >
-        <GamesFolderProvider host={gamesFolder}>
-          <SyncProvider host={sync.host}>
-            <FakeGameArt>
-              <BackProvider host={desktopBackHost}>
-                <PlusProvider host={fakePlus({ status: plus }).host}>
-                  <ExperimentsProvider host={{ load: async () => ({}), save: async () => {} }} registry={[]}>
-                    <GameScreen folder="/games" game={played} games={games} resume={resume} dismissedPads={new Set()} onQuit={onQuit} onUnsupported={onUnsupported} />
-                  </ExperimentsProvider>
-                </PlusProvider>
-              </BackProvider>
-            </FakeGameArt>
-          </SyncProvider>
-        </GamesFolderProvider>
-      </PreferencesProvider>
+      <GameSurfaceProvider host={gameSurface}>
+        <PreferencesProvider
+          host={{ load: async () => ({}), save: async () => {} }}
+          defaults={{ touchControls: false, fastForwardSpeed: 2, showFps, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer }}
+        >
+          <GamesFolderProvider host={gamesFolder}>
+            <SyncProvider host={sync.host}>
+              <FakeGameArt>
+                <BackProvider host={back}>
+                  <PlusProvider host={fakePlus({ status: plus }).host}>
+                    <ExperimentsProvider host={{ load: async () => ({}), save: async () => {} }} registry={[]}>
+                      <GameScreen folder="/games" game={played} games={games} resume={resume} dismissedPads={new Set()} onQuit={onQuit} onUnsupported={onUnsupported} />
+                    </ExperimentsProvider>
+                  </PlusProvider>
+                </BackProvider>
+              </FakeGameArt>
+            </SyncProvider>
+          </GamesFolderProvider>
+        </PreferencesProvider>
+      </GameSurfaceProvider>
     </EngineProvider>,
   );
   await act(async () => {});
@@ -209,7 +230,7 @@ const holding = () => screen.getByTestId("player").getAttribute("data-holding");
 it("shows the frames drawn beside the FPS in builds that aren't store builds", async () => {
   await play(undefined, undefined, undefined, { showFps: true, plus: { state: "unlocked" } });
 
-  act(() => game.onFps!({ fps: 240, drawn: 120 }));
+  act(() => game.onFps!({ fps: 240, drawn: 120, skipped: 0, repeated: 0 }));
 
   expect(screen.getByText(/240/).textContent).toContain("120");
 });
@@ -217,9 +238,17 @@ it("shows the frames drawn beside the FPS in builds that aren't store builds", a
 it("shows only the FPS in store builds, even with Plus", async () => {
   await play(undefined, undefined, undefined, { showFps: true, plus: { state: "owned" } });
 
-  act(() => game.onFps!({ fps: 240, drawn: 120 }));
+  act(() => game.onFps!({ fps: 240, drawn: 120, skipped: 0, repeated: 0 }));
 
   expect(screen.getByText(/240/).textContent).not.toContain("120");
+});
+
+it("shows the frames skipped and repeated beside the FPS, even in store builds", async () => {
+  await play(undefined, undefined, undefined, { showFps: true, plus: { state: "owned" } });
+
+  act(() => game.onFps!({ fps: 240, drawn: 120, skipped: 13, repeated: 47 }));
+
+  expect(screen.getByText(/240/).textContent).toMatch(/13.*47/);
 });
 
 it("hands a load the device can't run back to the game page", async () => {
@@ -308,6 +337,36 @@ it("starts the game straight away when sync is off", async () => {
   expect(sync.host.syncGame).not.toHaveBeenCalled();
 });
 
+function swipeFromLeftEdge(target: Element) {
+  const at = (clientX: number) => [{ identifier: 0, clientX, clientY: 300 }];
+  fireEvent.touchStart(target, { touches: at(4), changedTouches: at(4) });
+  fireEvent.touchEnd(target, { touches: [], changedTouches: at(120) });
+}
+
+it("leaves a swipe from the left edge to the game on iOS", async () => {
+  const quits: string[] = [];
+  await play(engine, undefined, () => quits.push("quit"), { back: iosBackHost });
+
+  swipeFromLeftEdge(screen.getByTestId("player"));
+  swipeFromLeftEdge(screen.getByRole("banner"));
+
+  expect(pauseMenu()).toBeNull();
+  expect(quits).toEqual([]);
+});
+
+it("goes back from a screen over the game with a swipe from the left edge on iOS", async () => {
+  await play(engine, undefined, undefined, { back: iosBackHost });
+  await openPauseMenu();
+  fireEvent.click(screen.getByRole("button", { name: "Cheats" }));
+  await act(async () => {});
+
+  swipeFromLeftEdge(screen.getByRole("switch", { name: "Infinite money" }));
+  await act(async () => {});
+
+  expect(screen.queryByRole("switch", { name: "Infinite money" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Resume" })).toBeTruthy();
+});
+
 it("pauses the game to show the notice over the pause menu", async () => {
   await pressOddPad();
 
@@ -322,7 +381,7 @@ it("returns to the pause menu after setting up the pad", async () => {
   act(() => void vi.advanceTimersToNextFrame());
   expect(setupOpen()).toBe(true);
 
-  for (let button = 0; button < STEPS; button++) pad.press(button);
+  answerEverySetupStep(pad);
   await act(async () => {});
 
   expect(setupOpen()).toBe(false);
@@ -350,6 +409,15 @@ it("stays paused when another pad opens the pause menu over the notice", async (
 
   expect(notice()).toBeTruthy();
   expect(paused()).toBe(true);
+});
+
+it("pauses when the phone takes the sound away for a call or alarm", async () => {
+  await play();
+
+  act(() => game.pauseRequested!());
+
+  expect(paused()).toBe(true);
+  expect(pauseMenu()).toBeTruthy();
 });
 
 const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 50)));
@@ -559,4 +627,32 @@ it("shows no pill outside battle", async () => {
 
   expect(screen.queryByRole("button", { name: /Torchic/ })).toBeNull();
   expect(screen.queryByRole("complementary", { name: "Pokémon info" })).toBeNull();
+});
+
+const nativeSurface: GameSurfaceHost = { renderers: ["native", "compatible"], setPlaying() {} };
+
+it.each([
+  ["automatic", nativeSurface, "native"],
+  ["compatible", nativeSurface, "compatible"],
+  ["native", noGameSurfaceHost, "compatible"],
+] as const)("starts the game with the %s renderer's pick", async (renderer, gameSurface, picked) => {
+  await play(engine, undefined, undefined, { renderer, gameSurface });
+
+  expect(game.renderer).toBe(picked);
+});
+
+it("tells a player who picked Native that it failed", async () => {
+  await play(engine, undefined, undefined, { renderer: "native", gameSurface: nativeSurface });
+
+  act(() => game.onNativeFailed!());
+
+  expect(screen.getByRole("status")).toBeTruthy();
+});
+
+it("falls back quietly when Automatic's Native fails", async () => {
+  await play(engine, undefined, undefined, { renderer: "automatic", gameSurface: nativeSurface });
+
+  act(() => game.onNativeFailed!());
+
+  expect(screen.queryByRole("status")).toBeNull();
 });

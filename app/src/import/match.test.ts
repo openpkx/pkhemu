@@ -121,3 +121,26 @@ it("gives a different ROM a free name when its name is taken", () => {
 
   expect(plan.roms.map((rom) => rom.path)).toEqual(["gba/Emerald (3).gba", "gba/emerald (4).zip"]);
 });
+
+it("names ROMs that Delta named by SHA-1 from their headers, and pairs each with its save and clock", () => {
+  const [crystal, emerald, platinum] = ["c".repeat(40), "e".repeat(40), "f".repeat(40)];
+  const plan = planImport(
+    [
+      file(`${crystal}.gbc`, { title: "Crystal" }),
+      file(`${crystal}.sav`),
+      file(`${crystal}.rtc`),
+      file(`${emerald}.gba`, { title: "Emerald" }),
+      file(`${emerald}.sav`),
+      file(`${platinum}.nds`, { title: "Platinum" }),
+      file(`${platinum}.dsv`),
+    ],
+    empty,
+  );
+
+  expect(plan.roms.map((rom) => rom.path)).toEqual(["gbc/Crystal.gbc", "gba/Emerald.gba", "nds/Platinum.nds"]);
+  expect(plan.saves).toEqual([
+    { file: file(`${crystal}.sav`), game: "gbc/Crystal.gbc", clock: file(`${crystal}.rtc`) },
+    { file: file(`${emerald}.sav`), game: "gba/Emerald.gba" },
+    { file: file(`${platinum}.dsv`), game: "nds/Platinum.nds" },
+  ]);
+});

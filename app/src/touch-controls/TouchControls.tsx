@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useSyncExternalStore, type PointerEvent, t
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, FastForward as FastForwardIcon, Lock, Menu } from "lucide-react";
 import { cn } from "cn";
 import type { FastForward } from "@/fast-forward/fastForward";
-import { tap } from "@/haptics";
+import { useHaptics } from "@/haptics/haptics";
 import { bit, buttons, DPAD, n64Buttons, type Input } from "@/input/input";
 import { tilt } from "@/input/stick";
 import { usePreferences } from "@/preferences/preferences";
@@ -12,6 +12,7 @@ import { dpadDirection } from "./dpad";
 type Press = (pointerId: number, mask: number) => void;
 
 function usePress(input: Input): Press {
+  const { tap } = useHaptics();
   const held = useRef(new Map<number, number>());
 
   useEffect(() => () => input.touch(0), [input]);
@@ -29,6 +30,7 @@ function usePress(input: Input): Press {
 type Hold = { mode: boolean; held: number; switchMode(): void; flip(mask: number): void };
 
 function useHold(input: Input): Hold {
+  const { tap } = useHaptics();
   const [mode, setMode] = useState(false);
   const [held, setHeld] = useState(0);
 
@@ -129,6 +131,7 @@ function ActionButton({
   onPress(): void;
   children: ReactNode;
 }) {
+  const { tap } = useHaptics();
   return (
     <button
       type="button"
@@ -209,6 +212,7 @@ const STICK_REACH = 1 / 3;
 type StickTouch = { pointerId: number; x: number; y: number; tilt: [number, number] };
 
 function Stick({ input }: { input: Input }) {
+  const { tap } = useHaptics();
   const { stickSensitivity } = usePreferences().preferences;
   const [touch, setTouch] = useState<StickTouch>();
   const [reach, setReach] = useState(0);
@@ -273,8 +277,8 @@ function Side({ className, children }: { className?: string; children: ReactNode
   return <div className={cn("pointer-events-auto flex w-36 flex-col items-center gap-4", className)}>{children}</div>;
 }
 
-// A side's 9rem plus a gap, past the same edge padding as the controls. Spelled out whole so Tailwind finds it.
-export const clearOfTouchControls = "landscape:px-[calc(max(1.5rem,env(safe-area-inset-left),env(safe-area-inset-right))_+_9.5rem)]";
+// A side's 9rem plus a gap, past the same edge padding as the controls.
+export const clearOfTouchControls = "landscape:px-[11rem]";
 
 export function useTouchControlsShown(input: Input) {
   const { preferences } = usePreferences();
@@ -285,7 +289,7 @@ export function useTouchControlsShown(input: Input) {
 const shoulder = "h-11 w-21 rounded-lg";
 const small = "h-11 w-14 rounded-full text-sm landscape:h-9";
 const controlsBody =
-  "flex touch-none items-end justify-between bg-pad px-6 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] select-none landscape:pointer-events-none landscape:absolute landscape:inset-0 landscape:items-center landscape:bg-transparent landscape:px-[max(1.5rem,env(safe-area-inset-left),env(safe-area-inset-right))] landscape:opacity-70";
+  "flex touch-none items-end justify-between bg-pad px-6 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] select-none landscape:pointer-events-none landscape:absolute landscape:inset-0 landscape:items-center landscape:bg-transparent landscape:opacity-70";
 
 function PauseMenuButton({ input }: { input: Input }) {
   return (

@@ -4,6 +4,7 @@ import { afterEach, expect, it } from "vitest";
 import type { OnBackGesture } from "@/backGesture";
 import { BackProvider, useBack, useBackGesture, useGoBack, type BackHost } from "./back";
 import { desktopBackHost } from "./desktopHost";
+import { iosBackHost } from "./iosHost";
 
 afterEach(cleanup);
 
@@ -238,4 +239,19 @@ it("does nothing with Escape on a computer when no screen handles it", () => {
   fireEvent.keyDown(window, { key: "Escape" });
 
   expect(presses).toEqual([]);
+});
+
+it("goes back with a swipe from the left edge on iOS", () => {
+  const presses: string[] = [];
+  render(
+    <BackProvider host={iosBackHost}>
+      <Screen onBack={() => presses.push("settings")} />
+    </BackProvider>,
+  );
+  const at = (clientX: number) => [{ identifier: 0, clientX, clientY: 300 }];
+
+  fireEvent.touchStart(document.body, { touches: at(4), changedTouches: at(4) });
+  fireEvent.touchEnd(document.body, { touches: [], changedTouches: at(120) });
+
+  expect(presses).toEqual(["settings"]);
 });

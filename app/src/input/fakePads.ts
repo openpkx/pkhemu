@@ -5,6 +5,15 @@ export const padButtons = { b: 0, a: 1, up: 12, down: 13, left: 14, right: 15 } 
 
 type PadState = { id: string; mapping: GamepadMappingType; pressed: readonly number[]; axes: number[] };
 
+type FakePad = ReturnType<ReturnType<typeof fakePads>["connect"]>;
+
+// The buttons answer the 17 button and left stick steps, and the axes the right stick's two.
+export function answerEverySetupStep(pad: FakePad) {
+  for (let button = 0; button < 17; button++) pad.press(button);
+  pad.flick(3, -1);
+  pad.flick(2, -1);
+}
+
 export function fakePads() {
   const connected: PadState[] = [];
   const frame = () => act(() => void vi.advanceTimersToNextFrame());
@@ -38,7 +47,7 @@ export function fakePads() {
     return pad;
   }
 
-  let main: ReturnType<typeof connect> | undefined;
+  let main: FakePad | undefined;
   return {
     gamepads: () =>
       connected.map(

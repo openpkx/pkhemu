@@ -57,7 +57,7 @@ it("creates the system folders in the picked folder", async () => {
   const { result } = launch();
   await waitFor(() => expect(result.current.status).toBe("none"));
 
-  await act(() => result.current.choose());
+  await act(() => result.current.choose!());
 
   expect(result.current).toMatchObject({ status: "ready", folder: "/games" });
   expect([...disk]).toEqual(expect.arrayContaining(["/games/gb", "/games/gbc", "/games/gba"]));
@@ -69,7 +69,7 @@ it("reuses system folders that already exist", async () => {
   const { result } = launch();
   await waitFor(() => expect(result.current.status).toBe("none"));
 
-  await act(() => result.current.choose());
+  await act(() => result.current.choose!());
 
   expect(result.current).toMatchObject({ status: "ready", folder: "/roms" });
   expect([...disk]).toEqual(
@@ -82,7 +82,7 @@ it("opens the saved folder on the next launch", async () => {
   willPick("/games");
   const first = launch();
   await waitFor(() => expect(first.result.current.status).toBe("none"));
-  await act(() => first.result.current.choose());
+  await act(() => first.result.current.choose!());
   first.unmount();
 
   const { result } = launch();
@@ -95,7 +95,7 @@ it("recreates system folders deleted since the last launch", async () => {
   willPick("/games");
   const first = launch();
   await waitFor(() => expect(first.result.current.status).toBe("none"));
-  await act(() => first.result.current.choose());
+  await act(() => first.result.current.choose!());
   first.unmount();
   disk.delete("/games/gbc");
 
@@ -110,7 +110,7 @@ it("asks again when the saved folder is gone", async () => {
   willPick("/games");
   const first = launch();
   await waitFor(() => expect(first.result.current.status).toBe("none"));
-  await act(() => first.result.current.choose());
+  await act(() => first.result.current.choose!());
   first.unmount();
   disk.clear();
 
@@ -136,9 +136,9 @@ it("changes to another folder", async () => {
   willPick("/games", "/roms");
   const { result } = launch();
   await waitFor(() => expect(result.current.status).toBe("none"));
-  await act(() => result.current.choose());
+  await act(() => result.current.choose!());
 
-  await act(() => result.current.choose());
+  await act(() => result.current.choose!());
 
   expect(result.current).toMatchObject({ status: "ready", folder: "/roms" });
 });
@@ -148,9 +148,9 @@ it("keeps the current folder when the picker is cancelled", async () => {
   willPick("/games", null);
   const { result } = launch();
   await waitFor(() => expect(result.current.status).toBe("none"));
-  await act(() => result.current.choose());
+  await act(() => result.current.choose!());
 
-  await act(() => result.current.choose());
+  await act(() => result.current.choose!());
 
   expect(result.current).toMatchObject({ status: "ready", folder: "/games" });
 });
@@ -165,9 +165,9 @@ it("reports a folder that can't be set up and keeps the current one", async () =
   };
   const { result } = launch();
   await waitFor(() => expect(result.current.status).toBe("none"));
-  await act(() => result.current.choose());
+  await act(() => result.current.choose!());
 
-  await act(() => result.current.choose());
+  await act(() => result.current.choose!());
 
   expect(result.current).toMatchObject({ status: "ready", folder: "/games" });
   expect(result.current.error).toMatch(/permission denied/);
@@ -207,7 +207,7 @@ it("keeps a previous folder that has system folders", async () => {
   await waitFor(() => expect(result.current.status).toBe("none"));
 
   let unfamiliar: unknown;
-  await act(async () => void (unfamiliar = await result.current.pickPrevious()));
+  await act(async () => void (unfamiliar = await result.current.pickPrevious!()));
 
   expect(unfamiliar).toBeNull();
   expect(result.current).toMatchObject({ status: "ready", folder: "/Documents/pkhemu" });
@@ -220,7 +220,7 @@ it("hands back a previous folder with no system folders without keeping it", asy
   await waitFor(() => expect(result.current.status).toBe("none"));
 
   let unfamiliar: unknown;
-  await act(async () => void (unfamiliar = await result.current.pickPrevious()));
+  await act(async () => void (unfamiliar = await result.current.pickPrevious!()));
 
   expect(unfamiliar).toEqual({ folder: "/Documents", label: "/Documents" });
   expect(result.current.status).toBe("none");

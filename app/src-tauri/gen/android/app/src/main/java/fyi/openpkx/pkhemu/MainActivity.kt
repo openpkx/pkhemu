@@ -3,12 +3,17 @@ package fyi.openpkx.pkhemu
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Color
+import android.graphics.PixelFormat
 import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
+import android.os.Build
 import android.os.Bundle
 import android.view.HapticFeedbackConstants
+import android.view.Surface
+import android.view.SurfaceHolder
+import android.view.SurfaceView
 import android.view.View
 import android.view.ViewGroup
 import android.webkit.JavascriptInterface
@@ -22,6 +27,7 @@ import androidx.core.view.updateLayoutParams
 
 class MainActivity : TauriActivity() {
   private val gravity by lazy { Gravity() }
+  private val gameSurface by lazy { GameSurface() }
 
   override fun onCreate(savedInstanceState: Bundle?) {
     // Tauri can't give a second activity in the same process a webview. That happens when sync kept the process alive
@@ -57,9 +63,12 @@ class MainActivity : TauriActivity() {
 
   override fun onWebViewCreate(webView: WebView) {
     val light = (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) != Configuration.UI_MODE_NIGHT_YES
-    webView.addJavascriptInterface(SystemBars(webView, light), "androidSystemBars")
+    // The page paints its own background, and leaves the game's area clear for the surface behind it.
+    webView.setBackgroundColor(Color.TRANSPARENT)
+    webView.addJavascriptInterface(SystemBars(light), "androidSystemBars")
     webView.addJavascriptInterface(Haptics(webView), "androidHaptics")
     webView.addJavascriptInterface(gravity, "androidGravity")
+    webView.addJavascriptInterface(gameSurface, "androidGameSurface")
     ViewCompat.setOnApplyWindowInsetsListener(webView) { view, insets ->
       val bars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
       val allBars = insets.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.systemBars())
@@ -75,21 +84,28 @@ class MainActivity : TauriActivity() {
           margin(bars.bottom, allBars.bottom, cutout.bottom),
         )
       }
+      gameSurface.follow(view)
       insets
     }
-    // Gamepad keys only reach the WebView once it has focus, which otherwise takes a first touch.
-    webView.post { webView.requestFocus() }
+    // The WebView has no parent until this returns.
+    webView.post {
+      val margins = ViewGroup.MarginLayoutParams(webView.layoutParams as ViewGroup.MarginLayoutParams)
+      (webView.parent as? ViewGroup)?.addView(gameSurface.view, 0, margins)
+      // Gamepad keys only reach the WebView once it has focus, which otherwise takes a first touch.
+      webView.requestFocus()
+    }
   }
 
   private companion object {
     var windowGone = false
     const val SAMPLING_PERIOD_US = 33_333
     const val SPLASH_COLOR = 0xFF6D4AFF.toInt()
+    const val GAME_FPS = 60f
   }
 
   private fun windowColor(light: Boolean) = if (light) Color.WHITE else 0xFF0E0B1C.toInt()
 
-  inner class SystemBars(private val webView: WebView, private var light: Boolean) {
+  inner class SystemBars(private var light: Boolean) {
     private var splash = true
 
     init {
@@ -104,7 +120,8 @@ class MainActivity : TauriActivity() {
       else controller.show(WindowInsetsCompat.Type.systemBars())
     }
 
-    // The WebView sits inside margins, so the window background shows behind the bars.
+    // The WebView sits inside margins, so the window background shows behind the bars, and through the WebView until
+    // the page paints.
     @JavascriptInterface
     fun setLight(light: Boolean) = runOnUiThread {
       this.light = light
@@ -122,9 +139,50 @@ class MainActivity : TauriActivity() {
       val controller = WindowCompat.getInsetsController(window, window.decorView)
       controller.isAppearanceLightStatusBars = light && !splash
       controller.isAppearanceLightNavigationBars = light && !splash
-      val color = if (splash) SPLASH_COLOR else windowColor(light)
-      window.decorView.setBackgroundColor(color)
-      webView.setBackgroundColor(color)
+      window.decorView.setBackgroundColor(if (splash) SPLASH_COLOR else windowColor(light))
+    }
+  }
+
+  // Rust draws the game on this surface, behind the WebView and inside the same margins. It's shown only while a game
+  // runs, since an empty one shows black through the page.
+  inner class GameSurface : SurfaceHolder.Callback {
+    val view = SurfaceView(this@MainActivity)
+    private var playing = false
+
+    init {
+      view.visibility = View.GONE
+      view.holder.setFormat(PixelFormat.RGBX_8888)
+      view.holder.addCallback(this)
+    }
+
+    fun follow(webView: View) {
+      val margins = webView.layoutParams as ViewGroup.MarginLayoutParams
+      if (view.parent == null) return
+      view.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+        setMargins(margins.leftMargin, margins.topMargin, margins.rightMargin, margins.bottomMargin)
+      }
+    }
+
+    @JavascriptInterface
+    fun setPlaying(playing: Boolean) = runOnUiThread {
+      this.playing = playing
+      askFrameRate()
+      view.visibility = if (playing) View.VISIBLE else View.GONE
+    }
+
+    override fun surfaceCreated(holder: SurfaceHolder) = askFrameRate()
+
+    override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) =
+      NativeScreen.shown(holder.surface)
+
+    override fun surfaceDestroyed(holder: SurfaceHolder) = NativeScreen.gone()
+
+    // Games run at 60 Hz, so a faster display would show each frame more than once.
+    private fun askFrameRate() {
+      if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
+      val surface = view.holder.surface
+      if (!surface.isValid) return
+      surface.setFrameRate(if (playing) GAME_FPS else 0f, Surface.FRAME_RATE_COMPATIBILITY_DEFAULT)
     }
   }
 
@@ -185,4 +243,11 @@ class MainActivity : TauriActivity() {
 
     override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {}
   }
+}
+
+// Rust holds the game's surface between these, and lets go of it before gone returns.
+object NativeScreen {
+  @JvmStatic external fun shown(surface: Surface)
+
+  @JvmStatic external fun gone()
 }

@@ -19,3 +19,7 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+# Rust finds the native methods by name.
+-keepclasseswithmembers class fyi.openpkx.pkhemu.** {
+    native <methods>;
+}

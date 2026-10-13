@@ -31,6 +31,7 @@ import { openGameMemory } from "@/game-memory/gameMemory";
 import emeraldWild from "@/game-memory/snapshots/emerald-wild.json";
 import { snapshotMemory } from "@/game-memory/snapshots/snapshotMemory";
 import { GamesFolderProvider, type GamesFolderHost } from "@/games-folder/gamesFolder";
+import { GravityProvider, type GravityHost } from "@/gravity/gravity";
 import { GameScreen } from "@/GameScreen";
 import { Home } from "@/Home";
 import { ReplaceSaveDialog, WhichGameDialog } from "@/import/importFiles";
@@ -67,7 +68,7 @@ if (playing && devicePixelRatio !== 1) {
     }
   };
 }
-if (forcedShift) window.androidGravity = { start: () => {}, stop: () => {}, read: () => "0,0,9.81" };
+const gravityHost: GravityHost = { start() {}, stop() {}, read: () => (forcedShift ? { x: 0, y: 0, z: 9.81 } : undefined) };
 
 const callbacks = new Map<number, (message: unknown) => void>();
 
@@ -136,23 +137,27 @@ const preferences: Preferences = {
   showFps: false,
   theme,
   eventsNoticeDismissed: false,
+  updateDismissedVersion: 0,
   gameClockOffset: { days: 0, hours: 0 },
   restoreBackupsKept: 10,
   stickSensitivity: 1,
+  playInSilentMode: false,
+  renderer: "automatic",
 };
 
 const welcome = params.get("screen")?.startsWith("welcome") ?? false;
+const ios = params.get("screen")?.endsWith("-ios") ?? false;
 const gamesFolderHost: GamesFolderHost = {
   pickFolder: async () => "/games",
   makeFolder: async () => "/games",
-  findFolder: async () => "Documents",
+  ...(!ios && { findFolder: async () => "Documents" }),
   listFolders: async () => [],
   ensureFolder: async () => {},
   folderExists: async () => true,
   loadSaved: async () => (welcome ? null : "/games"),
   save: async () => {},
   label: (folder) => folder,
-  device: params.get("screen")?.endsWith("-mac") ? "Mac" : "phone",
+  device: ios ? "iPhone" : params.get("screen")?.endsWith("-mac") ? "Mac" : "phone",
   openFolder: async () => {},
 };
 
@@ -445,6 +450,8 @@ const screens: Record<string, () => ReactNode> = {
   "welcome-folder": () => <NewFolder onBack={() => {}} onReady={() => {}} />,
   "welcome-mac": () => <Home libraryHost={libraryHost()} gamePageHost={gamePageHost()} />,
   "welcome-folder-mac": () => <NewFolder onBack={() => {}} onReady={() => {}} />,
+  "welcome-ios": () => <Home libraryHost={libraryHost()} gamePageHost={gamePageHost()} systems={["gb", "gbc", "gba", "nds"]} />,
+  "welcome-folder-ios": () => <NewFolder onBack={() => {}} onReady={() => {}} />,
   "welcome-previous": () => <PreviousFolder onBack={() => {}} />,
   "welcome-previous-warning": () => <PreviousFolder onBack={() => {}} />,
   ...Object.fromEntries(
@@ -474,9 +481,11 @@ const screens: Record<string, () => ReactNode> = {
           }}
           registry={experiments}
         >
-          <FastForwardOn>
-            <GameScreen folder="/games" game={pageGames[system]} resume={false} dismissedPads={new Set()} onQuit={() => {}} onUnsupported={() => {}} />
-          </FastForwardOn>
+          <GravityProvider host={gravityHost}>
+            <FastForwardOn>
+              <GameScreen folder="/games" game={pageGames[system]} resume={false} dismissedPads={new Set()} onQuit={() => {}} onUnsupported={() => {}} />
+            </FastForwardOn>
+          </GravityProvider>
         </ExperimentsProvider>
       ),
     ]),
@@ -521,6 +530,7 @@ const screens: Record<string, () => ReactNode> = {
     </>
   ),
   "import-folder-where": () => <WhereAreYourGames onBack={() => {}} onChoose={() => {}} />,
+  "import-folder-where-delta-ios": () => <WhereAreYourGames delta onBack={() => {}} onChoose={() => {}} />,
   "import-folder-scanning": () => <Scanning folder="RetroArch" saves={false} />,
   "import-folder-summary": () => <FolderSummaryExample />,
   "import-folder-summary-onboarding": () => <FolderSummaryExample />,

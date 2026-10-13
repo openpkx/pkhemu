@@ -77,6 +77,23 @@ it("keeps a standard pad's right stick after it's set up", () => {
   expect(input.pollAnalog()).toEqual([0, 0, 0x7fff, 0]);
 });
 
+it("reads the right stick from a pad's right stick setup", () => {
+  calibrations = {
+    pads: {
+      Pad: {
+        rightStickUp: { axis: 5, direction: -1 },
+        rightStickDown: { axis: 5, direction: 1 },
+        rightStickLeft: { axis: 4, direction: -1 },
+        rightStickRight: { axis: 4, direction: 1 },
+      },
+    },
+  };
+  pad([], [0, 0, 1, 1, 0, -1]);
+
+  expect(input.poll(0)).toBe(0);
+  expect(input.pollAnalog()).toEqual([0, 0, 0, -0x7fff]);
+});
+
 it("ignores sticks resting near the centre", () => {
   pad([], [0.1, -0.1, 0.12, 0]);
   input.poll(0);

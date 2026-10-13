@@ -1,7 +1,12 @@
+#[cfg_attr(target_os = "android", path = "files/android.rs")]
+#[cfg_attr(target_os = "ios", path = "files/ios.rs")]
+#[cfg_attr(desktop, path = "files/desktop.rs")]
+mod platform;
+
 use std::fs::File;
+use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager, Runtime};
-use tauri_plugin_android_fs::{AndroidFsExt, FsUri};
 
 pub fn write_file(file: &Path, contents: &[u8]) -> std::io::Result<()> {
     if let Some(parent) = file.parent() {
@@ -17,11 +22,64 @@ pub fn cache_dir<R: Runtime>(app: &AppHandle<R>, name: &str) -> Result<PathBuf, 
     Ok(app.path().app_cache_dir().map_err(|e| e.to_string())?.join(name))
 }
 
-pub async fn open_picked<R: Runtime>(app: &AppHandle<R>, file: &str) -> Result<File, String> {
-    match FsUri::from_json_str(file) {
-        Ok(uri) => app.android_fs_async().open_file_readable(&uri).await.map_err(|e| e.to_string()),
-        Err(_) => File::open(file).map_err(|e| format!("{file}: {e}")),
+/// Access to a file or folder the player picked, held until it's dropped.
+#[derive(Default)]
+pub struct Reading(Option<Box<dyn FnOnce() + Send>>);
+
+impl Reading {
+    #[cfg_attr(not(target_os = "ios"), allow(dead_code))]
+    pub fn until(stop: impl FnOnce() + Send + 'static) -> Self {
+        Self(Some(Box::new(stop)))
     }
+}
+
+impl Drop for Reading {
+    fn drop(&mut self) {
+        if let Some(stop) = self.0.take() {
+            stop();
+        }
+    }
+}
+
+pub async fn reading<R: Runtime>(app: &AppHandle<R>, path: &str) -> Result<Reading, String> {
+    platform::reading(app, path).await
+}
+
+pub struct PickedFile {
+    file: File,
+    _reading: Reading,
+}
+
+impl PickedFile {
+    pub fn new(file: File, reading: Reading) -> Self {
+        Self { file, _reading: reading }
+    }
+
+    #[cfg_attr(not(target_os = "ios"), allow(dead_code))]
+    pub fn metadata(&self) -> std::io::Result<std::fs::Metadata> {
+        self.file.metadata()
+    }
+}
+
+impl Read for PickedFile {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        self.file.read(buf)
+    }
+}
+
+impl Seek for PickedFile {
+    fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
+        self.file.seek(pos)
+    }
+}
+
+pub async fn open_picked<R: Runtime>(app: &AppHandle<R>, file: &str) -> Result<PickedFile, String> {
+    let reading = reading(app, file).await?;
+    Ok(PickedFile::new(platform::open_picked(app, file).await?, reading))
+}
+
+fn open_path(file: &str) -> Result<File, String> {
+    File::open(file).map_err(|e| format!("{file}: {e}"))
 }
 
 /// Deletes the sprites earlier versions downloaded, which game art replaced.

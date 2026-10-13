@@ -4,12 +4,10 @@ import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { BackProvider } from "@/back/back";
 import { parseCalibrations, type Calibrations } from "@/input/calibration";
 import { CalibrationsProvider, useCalibrations, type CalibrationsHost } from "@/input/calibrations";
-import { fakePads } from "@/input/fakePads";
+import { answerEverySetupStep, fakePads } from "@/input/fakePads";
 import { createInput } from "@/input/input";
 import { PadNavigation } from "@/pad-navigation/PadNavigation";
 import { PadSetupPrompt } from "./PadSetupPrompt";
-
-const STEPS = 17;
 
 let pads: ReturnType<typeof fakePads>;
 
@@ -100,7 +98,7 @@ it("opens setup for the pad that was pressed", async () => {
   act(() => void vi.advanceTimersToNextFrame());
   expect(notice()).toBeNull();
   expect(setupOpen()).toBe(true);
-  for (let button = 0; button < STEPS; button++) pad.press(button);
+  answerEverySetupStep(pad);
   await act(async () => {});
 
   expect(setupOpen()).toBe(false);

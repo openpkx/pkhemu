@@ -72,9 +72,13 @@ const storeIcon = `<svg width="100" height="100" viewBox="0 0 100 100" xmlns="ht
 
 // iOS applies its own mask and App Store validation rejects icons with an alpha channel.
 const ios = new URL("ios/", icons);
+const appIconSet = new URL("src-tauri/gen/apple/Assets.xcassets/AppIcon.appiconset/", app);
 for (const name of readdirSync(ios)) {
   const size = name.match(/^AppIcon-([\d.]+)(?:x[\d.]+)?@(\d)x(?:-\d+)?\.png$/);
-  if (size) writeFileSync(new URL(name, ios), opaquePng(render(storeIcon, Number(size[1]) * Number(size[2]))));
+  if (!size) continue;
+  const png = opaquePng(render(storeIcon, Number(size[1]) * Number(size[2])));
+  writeFileSync(new URL(name, ios), png);
+  writeFileSync(new URL(name, appIconSet), png);
 }
 
 mkdirSync(out, { recursive: true });

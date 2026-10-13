@@ -89,6 +89,20 @@ it.each([
   expect(input.poll(0)).toBe(1 << button);
 });
 
+it.each([
+  ["a standard pad", { mapping: "standard", axes: [0, 0, 1, 1] }, {}],
+  [
+    "a calibrated pad",
+    { axes: [0, 0, HAT_NEUTRAL, 0, 0, -1] },
+    { "Odd Pad": { ...oddPad, rightStickUp: { axis: 5, direction: -1 }, rightStickLeft: { axis: 4, direction: -1 } } },
+  ],
+] as const)("presses no button from the right stick of %s", (_, state, calibrated) => {
+  calibrations = { pads: calibrated };
+  pad(state);
+
+  expect(input.poll(0)).toBe(0);
+});
+
 it("ignores a calibrated stick resting near the centre", () => {
   calibrations = { pads: { "Odd Pad": oddPad } };
   pad({ axes: [-0.3, 0.4, HAT_NEUTRAL, 0, 0.2] });

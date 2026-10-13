@@ -270,7 +270,7 @@ export function SlotGrid({
   const first = current && enabled(current) ? current : slots.find(enabled);
 
   return (
-    <div className="fixed inset-0 z-20 overflow-y-auto bg-background">
+    <div className="fixed inset-0 px-safe pb-safe z-20 overflow-y-auto bg-background">
       {input && <PadNavigation input={input} />}
       <ScreenHeader title={mode === "save" ? "Save state" : "Load state"} onBack={back} />
       <main className="mx-auto max-w-5xl p-4">

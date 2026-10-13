@@ -2,11 +2,13 @@ import type { ReactNode } from "react";
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it } from "vitest";
 import { PreferencesProvider, usePreferences, type Preferences, type Theme } from "@/preferences/preferences";
+import { SystemBarsProvider, type SystemBarsHost } from "@/system-bars/systemBars";
 import { useAppliedTheme } from "./theme";
 
 let deviceDark: boolean;
 let listeners: Set<() => void>;
 let barsLight: boolean[];
+let systemBars: SystemBarsHost;
 
 beforeEach(() => {
   deviceDark = true;
@@ -21,12 +23,11 @@ beforeEach(() => {
       addEventListener: (_: string, listener: () => void) => listeners.add(listener),
       removeEventListener: (_: string, listener: () => void) => listeners.delete(listener),
     }) as unknown as MediaQueryList;
-  window.androidSystemBars = { setHidden: () => {}, setLight: (light) => void barsLight.push(light), splashHidden: () => {} };
+  systemBars = { setHidden: () => {}, setLight: (light) => void barsLight.push(light), splashHidden: () => {} };
 });
 
 afterEach(() => {
   cleanup();
-  delete window.androidSystemBars;
   delete document.documentElement.dataset.theme;
 });
 
@@ -36,7 +37,7 @@ function changeDevice(dark: boolean) {
 }
 
 function applyTheme(theme: Theme) {
-  const defaults: Preferences = { touchControls: false, fastForwardSpeed: 2, showFps: false, theme, eventsNoticeDismissed: false, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1 };
+  const defaults: Preferences = { touchControls: false, fastForwardSpeed: 2, showFps: false, theme, eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic" };
   return renderHook(
     () => {
       useAppliedTheme();
@@ -44,9 +45,11 @@ function applyTheme(theme: Theme) {
     },
     {
       wrapper: ({ children }: { children: ReactNode }) => (
-        <PreferencesProvider host={{ load: async () => ({}), save: async () => {} }} defaults={defaults}>
-          {children}
-        </PreferencesProvider>
+        <SystemBarsProvider host={systemBars}>
+          <PreferencesProvider host={{ load: async () => ({}), save: async () => {} }} defaults={defaults}>
+            {children}
+          </PreferencesProvider>
+        </SystemBarsProvider>
       ),
     },
   );

@@ -31,6 +31,14 @@ it("links PKHeX's source in the save editor's components", () => {
   expect(within(saveEditor).getByRole("link", { name: /^Microsoft\.NETCore\.App\.Runtime/ })).toBeTruthy();
 });
 
+it("links the demo game's source next to its licences", () => {
+  render(<LicencesScreen onBack={() => {}} />);
+  const demo = within(screen.getByRole("region", { name: "Demo game" })).getByRole("link", { name: /Tobu Tobu Girl Deluxe/ });
+
+  expect(demo.getAttribute("href")).toBe("https://github.com/SimonLarsen/tobutobugirl-dx");
+  expect(within(demo.closest("li")!).getByText("MIT, CC BY 4.0")).toBeTruthy();
+});
+
 it("lists the Rust and npm dependencies", () => {
   render(<LicencesScreen onBack={() => {}} />);
 

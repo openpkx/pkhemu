@@ -1,3 +1,8 @@
+#[cfg_attr(target_os = "android", path = "box_art/android.rs")]
+#[cfg_attr(target_os = "ios", path = "box_art/ios.rs")]
+#[cfg_attr(desktop, path = "box_art/desktop.rs")]
+mod platform;
+
 use crate::bytes;
 use crate::files::{cache_dir, write_file};
 use crate::games_folder::GamesFolder;
@@ -283,38 +288,10 @@ pub async fn box_art_choose_url<R: Runtime>(
     Ok(())
 }
 
-#[cfg(target_os = "android")]
-async fn pick_image<R: Runtime>(app: &AppHandle<R>) -> Result<Option<Vec<u8>>, String> {
-    use tauri_plugin_android_fs::{AndroidFsExt, VisualMediaTarget};
-    let fs = app.android_fs_async();
-    let picked = fs.picker().pick_visual_media(VisualMediaTarget::ImageOnly, false).await.map_err(|e| e.to_string())?;
-    let Some(uri) = picked else {
-        return Ok(None);
-    };
-    fs.read(&uri).await.map(Some).map_err(|e| e.to_string())
-}
-
-#[cfg(not(target_os = "android"))]
-async fn pick_image<R: Runtime>(app: &AppHandle<R>) -> Result<Option<Vec<u8>>, String> {
-    use tauri_plugin_dialog::DialogExt;
-    let (picked, chosen) = tokio::sync::oneshot::channel();
-    app.dialog().file().add_filter("Images", &["png", "jpg", "jpeg", "gif", "webp", "bmp"]).pick_file(move |file| {
-        let _ = picked.send(file);
-    });
-    let Some(file) = chosen.await.map_err(|e| e.to_string())? else {
-        return Ok(None);
-    };
-    let path = file.into_path().map_err(|e| e.to_string())?;
-    let read = tauri::async_runtime::spawn_blocking(move || {
-        std::fs::read(&path).map_err(|e| format!("{}: {e}", path.display()))
-    });
-    read.await.map_err(|e| e.to_string())?.map(Some)
-}
-
 /// Answers false when the player closes the picker without choosing.
 #[tauri::command]
 pub async fn box_art_choose_file<R: Runtime>(app: AppHandle<R>, folder: String, path: String) -> Result<bool, String> {
-    let Some(bytes) = pick_image(&app).await? else {
+    let Some(bytes) = platform::pick_image(&app).await? else {
         return Ok(false);
     };
     let (name, contents) = prepared(bytes, NOT_A_FILE_IMAGE).await?;

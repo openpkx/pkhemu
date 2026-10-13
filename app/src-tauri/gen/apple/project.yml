@@ -1,0 +1,113 @@
+name: pkh-emu
+options:
+  bundleIdPrefix: fyi.openpkx.pkhemu
+  deploymentTarget:
+    iOS: 18.0
+fileGroups: [../../src]
+configs:
+  debug: debug
+  release: release
+settingGroups:
+  app:
+    base:
+      PRODUCT_NAME: pkhemu
+      PRODUCT_BUNDLE_IDENTIFIER: fyi.openpkx.pkhemu
+targetTemplates:
+  app:
+    type: application
+    sources:
+      - path: Sources
+    scheme:
+      environmentVariables:
+        RUST_BACKTRACE: full
+        RUST_LOG: info
+    settings:
+      groups: [app]
+targets:
+  pkh-emu_iOS:
+    type: application
+    platform: iOS
+    sources:
+      - path: Sources
+      - path: Assets.xcassets
+      # Exclude built static libs: regenerating with xcodegen after a build
+      # otherwise turns the per-configuration libapp.a copies into colliding
+      # resources ("Multiple commands produce …/libapp.a"). They are linked
+      # via LIBRARY_SEARCH_PATHS, never bundled as resources.
+      - path: Externals
+        excludes: ["**/*.a"]
+      - path: pkh-emu_iOS
+      - path: assets
+        buildPhase: resources
+        type: folder
+      - path: LaunchScreen.storyboard
+    info:
+      path: pkh-emu_iOS/Info.plist
+      properties:
+        LSRequiresIPhoneOS: true
+        UILaunchStoryboardName: LaunchScreen
+        UIRequiredDeviceCapabilities: [arm64, metal]
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        CFBundleShortVersionString: 0.1.3
+        CFBundleVersion: "0.1.3"
+    entitlements:
+      path: pkh-emu_iOS/pkh-emu_iOS.entitlements
+    scheme:
+      environmentVariables:
+        RUST_BACKTRACE: full
+        RUST_LOG: info
+    settings:
+      base:
+        ENABLE_BITCODE: false
+        TARGETED_DEVICE_FAMILY: 1
+        ARCHS: [arm64]
+        VALID_ARCHS: arm64 
+        LIBRARY_SEARCH_PATHS[arch=x86_64]: $(inherited) $(PROJECT_DIR)/Externals/x86_64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)
+        LIBRARY_SEARCH_PATHS[arch=arm64]: $(inherited) $(PROJECT_DIR)/Externals/arm64/$(CONFIGURATION) $(SDKROOT)/usr/lib/swift $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/$(PLATFORM_NAME) $(DEVELOPER_DIR)/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift-5.0/$(PLATFORM_NAME)
+        ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES: true
+        EXCLUDED_ARCHS[sdk=iphoneos*]: x86_64
+      groups: [app]
+    dependencies:
+      - framework: libapp.a
+        embed: false
+      - sdk: CoreGraphics.framework
+      - sdk: Metal.framework
+      - sdk: MetalKit.framework
+      - sdk: QuartzCore.framework
+      - sdk: Security.framework
+      - sdk: UIKit.framework
+      - sdk: WebKit.framework
+      - sdk: libsqlite3.tbd
+    preBuildScripts:
+      - script: |
+          npm run -- tauri ios xcode-script -v --platform "${PLATFORM_DISPLAY_NAME:?}" --sdk-root "${SDKROOT:?}" --framework-search-paths "${FRAMEWORK_SEARCH_PATHS:?}" --header-search-paths "${HEADER_SEARCH_PATHS:?}" --gcc-preprocessor-definitions "${GCC_PREPROCESSOR_DEFINITIONS:-}" --configuration "${CONFIGURATION:?}" ${FORCE_COLOR} ${ARCHS:?}
+        name: Build Rust Code
+        basedOnDependencyAnalysis: false
+        outputFiles:
+          - $(SRCROOT)/Externals/x86_64/${CONFIGURATION}/libapp.a
+          - $(SRCROOT)/Externals/arm64/${CONFIGURATION}/libapp.a
+    # The app opens cores with dlopen, and bundle.iOS.frameworks would link them too, clashing on retro_* (ADR 0005).
+    postBuildScripts:
+      - script: |
+          set -eu
+          frameworks="${TARGET_BUILD_DIR}/${FRAMEWORKS_FOLDER_PATH}"
+          mkdir -p "$frameworks"
+          cores="${SRCROOT}/../../cores/${PLATFORM_NAME}"
+          if ! ls "$cores"/*.framework >/dev/null 2>&1; then
+            echo "error: no cores in $cores. Cargo skipped build.rs; touch app/src-tauri/build.rs and build again." >&2
+            exit 1
+          fi
+          for core in "$cores"/*.framework; do
+            embedded="$frameworks/$(basename "$core")"
+            rm -rf "$embedded"
+            cp -R "$core" "$embedded"
+            if [ "${CODE_SIGNING_ALLOWED}" = YES ]; then
+              codesign --force --sign "${EXPANDED_CODE_SIGN_IDENTITY:--}" --timestamp=none "$embedded"
+            fi
+          done
+        name: Embed Cores
+        shell: /bin/bash
+        basedOnDependencyAnalysis: false

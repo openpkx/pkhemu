@@ -1,0 +1,13 @@
+{
+  "$schema": "../gen/schemas/mobile-schema.json",
+  "identifier": "ios-games-folder",
+  "description": "The games folder in the app's Documents, resolved on each launch since an update can move the app's container",
+  "windows": ["main"],
+  "platforms": ["iOS"],
+  "permissions": [
+    {
+      "identifier": "fs:scope",
+      "allow": [{ "path": "$DOCUMENT/pkhemu" }, { "path": "$DOCUMENT/pkhemu/**" }]
+    }
+  ]
+}

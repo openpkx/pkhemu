@@ -1,7 +1,7 @@
 import { ExternalLink } from "@/components/ExternalLink";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { TitledCard } from "@/components/TitledCard";
-import { appNotice, notices, type Notice } from "./notices";
+import { appNotice, demoNotice, notices, type Notice } from "./notices";
 
 function NoticeList({ title, list }: { title: string; list: Notice[] }) {
   return (
@@ -20,7 +20,7 @@ function NoticeList({ title, list }: { title: string; list: Notice[] }) {
 
 export function LicencesScreen({ onBack }: { onBack(): void }) {
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen pb-safe">
       <ScreenHeader title="Licences" onBack={onBack} />
       <main className="grid justify-items-center gap-4 p-4">
         <TitledCard title={appNotice.name} className="max-w-2xl">
@@ -33,6 +33,7 @@ export function LicencesScreen({ onBack }: { onBack(): void }) {
           </div>
         </TitledCard>
         <NoticeList title="Emulator cores" list={notices.core} />
+        <NoticeList title="Demo game" list={[demoNotice]} />
         <NoticeList title="Save editor" list={notices.engine} />
         <NoticeList title="Rust crates" list={notices.rust} />
         <NoticeList title="npm packages" list={notices.npm} />

@@ -18,7 +18,7 @@ export function BottomBar({
       data-state={openOnMount ? undefined : state}
       inert={state === "closed"}
       className={cn(
-        "motion-bottom-bar sticky bottom-0 flex flex-wrap items-center gap-x-3 gap-y-2 border-t bg-background/95 p-4 backdrop-blur",
+        "motion-bottom-bar sticky bottom-0 flex flex-wrap items-center gap-x-3 gap-y-2 border-t bg-background/95 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] backdrop-blur",
         className,
       )}
       {...props}

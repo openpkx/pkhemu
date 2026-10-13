@@ -38,9 +38,9 @@ export function BottomSheet({
         // Closing can re-attach the game's keyboard on window before this Esc bubbles up to it and reopens the menu.
         onEscapeKeyDown={(event) => event.stopPropagation()}
         className={cn(
-          "top-auto bottom-0 left-0 max-h-full max-w-none translate-x-0 translate-y-0 overflow-y-auto rounded-b-none pb-[max(1rem,env(safe-area-inset-bottom))]",
+          "top-auto bottom-0 left-0 max-h-[calc(100%-env(safe-area-inset-top))] max-w-none translate-x-0 translate-y-0 overflow-y-auto rounded-b-none pr-[max(1rem,env(safe-area-inset-right))] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))]",
           centeredFromSm &&
-            "sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:max-w-xs sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl sm:pb-4",
+            "sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:max-w-xs sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-xl sm:px-4 sm:pb-4",
           className,
         )}
       >

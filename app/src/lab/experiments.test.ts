@@ -11,3 +11,7 @@ it("offers display glass in the Lab, off by default", () => {
 it("names the tilt experiment after the handheld display's depth", () => {
   expect(experiment("tiltScreen")?.label).toBe("Handheld display depth");
 });
+
+it("offers the demo game, on by default", () => {
+  expect(experiment("demoGame")?.values[0]).toBe("on");
+});

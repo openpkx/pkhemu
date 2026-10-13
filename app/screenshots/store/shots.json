@@ -1,5 +1,5 @@
 [
-  { "name": "1-library", "raw": "library.png", "kicker": "GB · GBC · GBA · DS · N64", "title": "All your games in one library" },
+  { "name": "1-library", "raw": "library.png", "kicker": "GB · GBC · GBA · DS · N64", "ios": { "kicker": "GB · GBC · GBA · DS" }, "title": "All your games in one library" },
   { "name": "2-play", "raw": "playing-gbc.png", "kicker": "Touch controls", "title": "Play with touch, a gamepad or a keyboard" },
   { "name": "3-editor", "raw": "editor.png", "kicker": "Save editor", "title": "Pause, edit your save, keep playing" },
   { "name": "4-pause", "raw": "playing-pause.png", "kicker": "Pause menu", "title": "Save states, cheats and fast-forward" },

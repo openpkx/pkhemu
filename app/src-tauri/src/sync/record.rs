@@ -56,6 +56,10 @@ impl Record {
         Some(self.files.remove(at))
     }
 
+    pub fn names(&self, blob: &str) -> bool {
+        self.files.iter().any(|entry| entry.blob == blob) || self.rom.blob.as_ref().is_some_and(|rom| rom.id == blob)
+    }
+
     pub fn move_to(&mut self, path: &str) {
         let from = std::mem::replace(&mut self.rom.path, path.into());
         for entry in &mut self.files {

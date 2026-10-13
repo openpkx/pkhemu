@@ -4,10 +4,10 @@ import indexHtml from "../index.html?raw";
 import { hideSplash, playSplash } from "./splash";
 
 function fakeAnimate(this: Element, _keyframes: unknown, options?: number | KeyframeAnimationOptions) {
-  const { delay = 0, duration = 0 } = typeof options === "number" ? { duration: options } : (options ?? {});
+  const { delay = 0, duration = 0, endDelay = 0 } = typeof options === "number" ? { duration: options } : (options ?? {});
   let finish!: () => void;
   const finished = new Promise<void>((resolve) => (finish = resolve));
-  setTimeout(finish, delay + Number(duration));
+  setTimeout(finish, delay + Number(duration) + endDelay);
   return { finished, finish } as unknown as Animation;
 }
 
@@ -23,7 +23,6 @@ beforeEach(() => {
 afterEach(() => {
   splash()?.remove();
   delete (Element.prototype as Partial<Element>).animate;
-  delete window.androidSystemBars;
   vi.unstubAllGlobals();
   vi.useRealTimers();
 });
@@ -58,9 +57,18 @@ it("waits a moment before the animation starts", () => {
   expect(Math.min(...delays)).toBeGreaterThanOrEqual(250);
 });
 
+it("holds the full wordmark before the splash fades", async () => {
+  playSplash();
+  hideSplash();
+
+  await vi.advanceTimersByTimeAsync(2122 + 220);
+
+  expect(splash()).not.toBeNull();
+});
+
 it("hides the splash once the animation has ended and the app is ready", async () => {
   playSplash();
-  await vi.advanceTimersByTimeAsync(2122);
+  await vi.advanceTimersByTimeAsync(1940 + 400);
 
   hideSplash();
   await vi.advanceTimersByTimeAsync(220);
@@ -72,7 +80,7 @@ it("hides the splash when the animation ends after the app is ready", async () =
   playSplash();
   hideSplash();
 
-  await vi.advanceTimersByTimeAsync(2122 + 220);
+  await vi.advanceTimersByTimeAsync(1940 + 400 + 220);
 
   expect(splash()).toBeNull();
 });
@@ -100,11 +108,10 @@ it("fades the finished logo in when the system asks for reduced motion", async (
 
 it("gives Android its theme's bar colours back once the splash hides", async () => {
   const splashHidden = vi.fn();
-  window.androidSystemBars = { setHidden() {}, setLight() {}, splashHidden };
   playSplash();
-  hideSplash();
+  hideSplash(splashHidden);
 
-  await vi.advanceTimersByTimeAsync(2122);
+  await vi.advanceTimersByTimeAsync(1940 + 400);
   expect(splashHidden).not.toHaveBeenCalled();
 
   await vi.advanceTimersByTimeAsync(220);

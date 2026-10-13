@@ -28,6 +28,7 @@ const RECESS = {
 
 const float = (value: number) => value.toFixed(3);
 
+// The native twin of this shader is in app/src-tauri/src/screen.rs. A change to one belongs in both.
 // The window is the opening in the shell, and the game sits on a plate below it, seen from q at q - shift. A ray that leaves
 // the window first shows the wall it hits. The lip's shadow stays on the plate and leans away from a light fixed in the room.
 const fragment = `${precision}

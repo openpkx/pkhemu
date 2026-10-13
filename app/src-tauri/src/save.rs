@@ -11,7 +11,9 @@ use tauri::Runtime;
 pub(crate) mod n64;
 
 const CHECK_EVERY: u64 = 30;
+const CLOCK_BYTES: usize = 48;
 const SHORT_CLOCK_BYTES: usize = 44;
+const DAY: u64 = 24 * 60 * 60;
 const DSV_FOOTER_BYTES: usize = 0x7A;
 const DSV_MARKER: &[u8] = b"|-DESMUME SAVE-|";
 
@@ -267,7 +269,49 @@ pub fn fill(save_ram: &mut [u8], rtc: &mut [u8], file: &[u8]) {
         // The core's clock buffer starts as 0xFF, which would become the top half of the 64-bit timestamp.
         rtc[..SHORT_CLOCK_BYTES].copy_from_slice(clock);
         rtc[SHORT_CLOCK_BYTES..].fill(0);
+    } else if clock.is_empty() && rtc.len() == CLOCK_BYTES {
+        // mGBA reads its 0xFF clock buffer as a day counter that overflowed, which the game shows as a clock never set.
+        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs();
+        rtc.copy_from_slice(&mgba_clock(0, now));
     }
+}
+
+// mGBA's MBC3 clock: seconds, minutes, hours, days and the day high register, a latched copy of them, then the Unix time.
+fn mgba_clock(elapsed: u64, now: u64) -> Vec<u8> {
+    let days = elapsed / DAY;
+    let high = (days >> 8 & 1) | if days > 0x1FF { 0x80 } else { 0 };
+    let registers = [elapsed % 60, elapsed / 60 % 60, elapsed / 3600 % 24, days & 0xFF, high]
+        .map(|register| (register as u32).to_le_bytes())
+        .concat();
+    [registers.as_slice(), &registers, &now.to_le_bytes()].concat()
+}
+
+fn is_game_boy(rom: &str) -> bool {
+    matches!(rom.split('/').next(), Some("gb" | "gbc"))
+}
+
+pub fn without_clock<'a>(rom: &str, save: &'a [u8]) -> &'a [u8] {
+    let ram = save.len().checked_next_power_of_two().map_or(save.len(), |size| size / 2);
+    match is_game_boy(rom) && [CLOCK_BYTES, SHORT_CLOCK_BYTES].contains(&(save.len() - ram)) {
+        true => &save[..ram],
+        false => save,
+    }
+}
+
+pub fn with_clock(rom: &str, mut save: Vec<u8>, rtc: &[u8], now: u64) -> Vec<u8> {
+    if !is_game_boy(rom) || !save.len().is_power_of_two() {
+        return save;
+    }
+    match rtc.len() {
+        CLOCK_BYTES => save.extend_from_slice(rtc),
+        // Gambatte's, which Delta keeps: the big-endian Unix time the clock counts from.
+        4 => {
+            let base = u32::from_be_bytes(rtc.try_into().unwrap()) as u64;
+            save.extend(mgba_clock(now.saturating_sub(base), now));
+        }
+        _ => {}
+    }
+    save
 }
 
 #[derive(Clone)]
@@ -456,6 +500,40 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn turns_a_gambatte_base_time_into_an_mgba_clock() {
+        let now = 1_800_000_000;
+        let base = ((now - (3 * DAY + 5 * 3600 + 7 * 60 + 9)) as u32).to_be_bytes();
+
+        let file = with_clock("gbc/Crystal.gbc", vec![0; 0x8000], &base, now);
+
+        let registers: Vec<u8> = [9u32, 7, 5, 3, 0].iter().flat_map(|register| register.to_le_bytes()).collect();
+        assert_eq!(file[0x8000..], [registers.as_slice(), &registers, &now.to_le_bytes()].concat());
+    }
+
+    #[test]
+    fn puts_day_256_in_the_high_register_and_sets_the_carry_past_day_511() {
+        let day = |elapsed_days: u64| {
+            let clock = mgba_clock(elapsed_days * DAY, 0);
+            (clock[12], clock[16])
+        };
+
+        assert_eq!(day(255), (255, 0));
+        assert_eq!(day(300), (44, 1));
+        assert_eq!(day(600), (88, 0x80));
+    }
+
+    #[test]
+    fn adds_a_clock_only_to_a_game_boy_save_without_one() {
+        let rtc = 1_799_000_000u32.to_be_bytes();
+        let mgba = vec![5; CLOCK_BYTES];
+
+        assert_eq!(with_clock("gba/Emerald.gba", vec![0; 0x20000], &rtc, 1_800_000_000).len(), 0x20000);
+        assert_eq!(with_clock("gbc/Crystal.gbc", vec![0; 0x8000 + 48], &rtc, 1_800_000_000).len(), 0x8000 + 48);
+        assert_eq!(with_clock("gbc/Crystal.gbc", vec![0; 0x8000], &[0; 8], 1_800_000_000).len(), 0x8000);
+        assert_eq!(with_clock("gb/Red.gb", vec![0; 0x8000], &mgba, 1_800_000_000)[0x8000..], mgba);
+    }
+
+    #[test]
     fn zeroes_the_top_of_the_timestamp_for_a_44_byte_clock() {
         let file: Vec<u8> = (0..0x802C).map(|i| i as u8).collect();
         let mut save_ram = vec![0xFF; 0x8000];
@@ -466,6 +544,48 @@ pub(crate) mod tests {
         assert_eq!(save_ram, file[..0x8000]);
         assert_eq!(rtc[..44], file[0x8000..]);
         assert_eq!(rtc[44..], [0, 0, 0, 0]);
+    }
+
+    #[test]
+    fn starts_the_clock_at_day_0_now_for_a_save_without_one() {
+        let file = vec![7; 0x8000];
+        let mut save_ram = vec![0xFF; 0x8000];
+        let mut rtc = vec![0xFF; 48];
+
+        fill(&mut save_ram, &mut rtc, &file);
+
+        let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+        let timestamp = u64::from_le_bytes(rtc[40..].try_into().unwrap());
+        assert_eq!(save_ram, file);
+        assert_eq!(rtc[..40], [0; 40]);
+        assert!(now.abs_diff(timestamp) < 5);
+    }
+
+    #[test]
+    fn shows_day_0_to_a_game_whose_save_has_no_clock() {
+        use crate::test_games::{clock_rom, days_on_the_clock, lock_core};
+        let _lock = lock_core();
+        let mut core = crate::retro::Core::load(clock_rom(), &std::env::temp_dir()).unwrap();
+        let [save_ram, rtc] = core.save_memory();
+
+        fill(save_ram, rtc, &vec![0; 0x8000]);
+        for _ in 0..10 {
+            core.run_frame();
+        }
+
+        assert_eq!(days_on_the_clock(&mut core), 0);
+    }
+
+    #[test]
+    fn adds_no_clock_to_a_game_without_one() {
+        let file = vec![7; 0x8000];
+        let mut save_ram = vec![0xFF; 0x8000];
+        let mut rtc = vec![];
+
+        fill(&mut save_ram, &mut rtc, &file);
+
+        assert_eq!(save_ram, file);
+        assert!(rtc.is_empty());
     }
 
     const STADIUM: &str = "n64/Stadium.z64";

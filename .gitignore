@@ -4,6 +4,7 @@ target/
 .DS_Store
 *.gb
 *.gbc
+!app/src-tauri/demo/*.gbc
 *.gba
 *.nds
 *.sav
@@ -18,3 +19,6 @@ data/
 *.apk
 sync.env
 app/screenshots/out/
+*.mobileprovision
+*.cer
+AuthKey_*.p8

@@ -47,6 +47,21 @@ it("fills in missing saves from another folder and counts only the saves it take
   expect(summary.leftOut).toBe(1 + 2 + 1 + 1);
 });
 
+it("counts a clock that goes with a save as copied", () => {
+  const files = [file("Games/Crystal.gbc"), file("Games/Crystal.sav"), file("Games/Crystal.rtc", { size: 4 }), file("Games/Red.rtc")];
+
+  const summary = summarize(planImport(files, empty), { files, other: 0 });
+
+  expect(summary.leftOut).toBe(1);
+  expect(summary.size).toBe(4);
+});
+
+it("takes clocks along with the saves from another folder", () => {
+  const found = addSaves({ files: [file("roms/Crystal.gbc")], other: 0 }, { files: [file("saves/Crystal.sav"), file("saves/Crystal.rtc")], other: 0 });
+
+  expect(planImport(found.files, empty).saves).toEqual([{ file: file("saves/Crystal.sav"), game: "gbc/Crystal.gbc", clock: file("saves/Crystal.rtc") }]);
+});
+
 it("says what it copied, and how many of all when some didn't make it", () => {
   expect(folderImportToast({ games: 6, roms: 6, saves: 4, found: false, failed: [] })).toBe("Copied 6 games and 4 saves");
   expect(folderImportToast({ games: 1, roms: 1, saves: 0, found: false, failed: [] })).toBe("Copied 1 game");

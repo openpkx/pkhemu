@@ -20,6 +20,8 @@ import { fakeFolder } from "@/library/fakeFolder";
 import type { LibraryHost } from "@/library/library";
 import type { Game } from "@/library/scan";
 import { PatchRomProvider, type PatchRomHost } from "@/patch-rom/patchRom";
+import { androidHosts } from "@/platform/androidHosts";
+import { iosHosts } from "@/platform/iosHosts";
 import { PreferencesProvider, type Preferences } from "@/preferences/preferences";
 import { fakeSync } from "@/sync/fakeSync";
 import { SyncProvider } from "@/sync/sync";
@@ -27,6 +29,7 @@ import "@/index.css";
 
 const params = new URLSearchParams(location.search);
 const screen = params.get("screen") ?? "library";
+const hosts = params.get("platform") === "ios" ? iosHosts : androidHosts;
 const playing = screen.startsWith("playing-");
 
 if (playing && devicePixelRatio !== 1) {
@@ -94,7 +97,11 @@ for (const [key, frame] of Object.entries(covers)) boxArt.cache.set(`${games[key
 const resume: Record<string, Uint8Array> = {};
 for (const [key, frame] of Object.entries(lastScreens)) resume[games[key].path] = await bytes(frame);
 
-const list = fakeFolder(Object.values(games).map((game) => game.path));
+const list = fakeFolder(
+  Object.values(games)
+    .filter((game) => hosts.systems.includes(game.system))
+    .map((game) => game.path),
+);
 const libraryHost: LibraryHost = {
   listDir: (_folder, path) => list(path),
   recentlyPlayed: async () => recent.map((key) => games[key].path),
@@ -136,16 +143,7 @@ Object.assign(window, {
 });
 document.documentElement.dataset.theme = "dark";
 
-const preferences: Preferences = {
-  touchControls: playing,
-  fastForwardSpeed: 2,
-  showFps: false,
-  theme: "dark",
-  eventsNoticeDismissed: false,
-  gameClockOffset: { days: 0, hours: 0 },
-  restoreBackupsKept: 10,
-  stickSensitivity: 1,
-};
+const preferences: Preferences = { ...hosts.defaultPreferences, touchControls: playing, theme: "dark" };
 
 const gamesFolderHost: GamesFolderHost = {
   pickFolder: async () => "/games",
@@ -157,7 +155,7 @@ const gamesFolderHost: GamesFolderHost = {
   loadSaved: async () => "/games",
   save: async () => {},
   label: (folder) => folder,
-  device: "phone",
+  device: hosts.gamesFolder.device,
   openFolder: async () => {},
 };
 
@@ -310,8 +308,8 @@ for (const [index, creature] of creatures.entries()) {
 const gameArt = fakeGameArt({ games: { [editorGame.path]: artSha }, art: { [artSha]: art } });
 
 const screens: Record<string, () => ReactNode> = {
-  library: () => <Home libraryHost={libraryHost} gamePageHost={undefined as never} />,
-  "library-more": () => <Home libraryHost={libraryHost} gamePageHost={undefined as never} />,
+  library: () => <Home libraryHost={libraryHost} gamePageHost={undefined as never} systems={hosts.systems} />,
+  "library-more": () => <Home libraryHost={libraryHost} gamePageHost={undefined as never} systems={hosts.systems} />,
   editor: () => (
     <GameArtFor path={editorGame.path}>
       <EditorScreen

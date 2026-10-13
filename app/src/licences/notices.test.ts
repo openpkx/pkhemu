@@ -24,7 +24,7 @@ it("lists the licence of every npm package the app ships", () => {
 it("lists the licence of every Rust crate in the lockfile", () => {
   const rust = listed("rust");
   const crates = [...cargoLock.matchAll(/^name = "(.+)"\nversion = "(.+)"$/gm)]
-    .filter(([, name]) => name !== "pkh-emu" && name !== "rom-art")
+    .filter(([, name]) => !["pkh-emu", "rom-art", "tauri-plugin-pkhemu-ios"].includes(name))
     .map(([, name, version]) => `${name}@${version}`);
 
   expect(crates.length).toBeGreaterThan(0);

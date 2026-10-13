@@ -144,12 +144,14 @@ function BackupSummary({ summary }: { summary?: Summary }) {
   const { trainer, party, progress } = summary;
   return (
     <>
-      <span className="flex items-baseline justify-between gap-2 text-sm">
-        <span className="break-words">
-          {trainer.name} {trainer.gender && genderSymbols[trainer.gender]}
+      {trainer && (
+        <span className="flex items-baseline justify-between gap-2 text-sm">
+          <span className="break-words">
+            {trainer.name} {trainer.gender && genderSymbols[trainer.gender]}
+          </span>
+          {trainer.money !== null && <span className="tabular-nums">₽{trainer.money.toLocaleString("en")}</span>}
         </span>
-        {trainer.money !== null && <span className="tabular-nums">₽{trainer.money.toLocaleString("en")}</span>}
-      </span>
+      )}
       <ProgressStats progress={progress} withPokedex={false} />
       {party.length > 0 && (
         <span className="flex gap-1">
@@ -177,7 +179,7 @@ export function BackupsScreen({
   const now = new Date();
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen pb-safe">
       <ScreenHeader title="Backups" onBack={onBack} />
       <main className="mx-auto grid max-w-2xl gap-2 p-4">
         <ul className="grid gap-2">
@@ -226,7 +228,7 @@ export function BackupPage({
   useBack(unlessBusy(onBack));
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen pb-safe">
       <ScreenHeader title={backupLabel(backup, new Date())} onBack={unlessBusy(onBack)} />
       <main className="mx-auto grid max-w-2xl gap-3 p-4">
         <BackupNote note={backup.note} />

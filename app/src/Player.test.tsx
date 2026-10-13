@@ -2,7 +2,9 @@ import { act, cleanup, fireEvent, render, screen } from "@testing-library/react"
 import { invoke } from "@tauri-apps/api/core";
 import type { ComponentProps } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { GameSurfaceProvider, type GameSurfaceHost } from "./game-surface/gameSurface";
 import { createInput } from "./input/input";
+import { GravityProvider, type Gravity, type GravityHost } from "./gravity/gravity";
 import { experiments } from "./lab/experiments";
 import { ExperimentsProvider } from "./lab/lab";
 import { Player } from "./Player";
@@ -10,7 +12,9 @@ import type { Parallax } from "./screen";
 import { handheld } from "./systems";
 
 type FakeChannel<T> = { onmessage?(message: T): void };
-const played = vi.hoisted(() => [] as { onFrame: FakeChannel<ArrayBuffer>; onStep: FakeChannel<string> }[]);
+const played = vi.hoisted(
+  () => [] as { onFrame: FakeChannel<ArrayBuffer>; onStep: FakeChannel<string>; native: boolean; onNativeFailed: FakeChannel<null> }[],
+);
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(async (command: string, args: (typeof played)[number]) => {
@@ -47,12 +51,15 @@ afterEach(() => {
   vi.mocked(invoke).mockClear();
   played.length = 0;
   drawn.length = 0;
-  delete window.androidGravity;
+  gravity = undefined;
   vi.useRealTimers();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 const input = createInput(() => []);
+let gravity: GravityHost | undefined;
+const noSensor: GravityHost = { start() {}, stop() {}, read: () => undefined };
 const onError = () => {};
 
 function player(props: Partial<ComponentProps<typeof Player>> = {}) {
@@ -68,6 +75,7 @@ function player(props: Partial<ComponentProps<typeof Player>> = {}) {
       display={handheld.gba}
       swapped={false}
       clockOffset={0}
+      renderer="native"
       onError={onError}
       {...props}
     />
@@ -84,16 +92,42 @@ async function sendStep(step: string) {
   act(() => onStep.onmessage!(step));
 }
 
-async function sendFrame(width = 2, height = 2) {
-  const { onFrame } = await playing();
+function frame(width: number, height: number, counts = { frames: 0, skipped: 0, repeated: 0 }) {
   const buffer = new ArrayBuffer(16 + width * height * 2);
   const view = new DataView(buffer);
+  view.setUint32(0, counts.frames, true);
   view.setUint16(4, width, true);
   view.setUint16(6, height, true);
+  view.setUint32(8, counts.skipped, true);
+  view.setUint32(12, counts.repeated, true);
+  return buffer;
+}
+
+async function sendFrame(width = 2, height = 2) {
+  const { onFrame } = await playing();
   act(() => {
-    onFrame.onmessage!(buffer);
+    onFrame.onmessage!(frame(width, height));
     vi.advanceTimersToNextFrame();
   });
+}
+
+function header(width: number, height: number) {
+  return frame(width, height).slice(0, 16);
+}
+
+async function sendNativeFrame(width = 2, height = 2) {
+  const { onFrame } = await playing();
+  act(() => {
+    onFrame.onmessage!(header(width, height));
+    vi.advanceTimersToNextFrame();
+  });
+}
+
+function sent(command: string) {
+  return vi
+    .mocked(invoke)
+    .mock.calls.filter(([name]) => name === command)
+    .map(([, args]) => args);
 }
 
 function tick() {
@@ -200,58 +234,118 @@ it("plays an N64 game once and stops it only when the player leaves", async () =
 
 function withExperiment(id: string, value: string, props: Partial<ComponentProps<typeof Player>>) {
   return (
-    <ExperimentsProvider host={{ load: async () => ({ [id]: value }), save: async () => {} }} registry={experiments}>
-      {player(props)}
-    </ExperimentsProvider>
+    <GravityProvider host={gravity ?? noSensor}>
+      <ExperimentsProvider host={{ load: async () => ({ [id]: value }), save: async () => {} }} registry={experiments}>
+        {player(props)}
+      </ExperimentsProvider>
+    </GravityProvider>
   );
 }
 
-async function runFramesCalls(refreshes: number) {
-  await playing();
-  await act(async () => {});
-  for (let i = 0; i < refreshes; i++) await act(async () => void vi.advanceTimersToNextFrame());
-  return vi
-    .mocked(invoke)
-    .mock.calls.filter(([command]) => command === "run_frames")
-    .map(([, args]) => args as { count: number; fastForward: boolean; blend: boolean });
+function lastPacing() {
+  const calls = vi.mocked(invoke).mock.calls.filter(([command]) => command === "pace");
+  return (calls.at(-1)?.[1] as { pacing: object } | undefined)?.pacing;
 }
 
-it("keeps fast-forward silent", async () => {
-  render(player({ speed: 2 }));
+function sentInputs() {
+  return vi
+    .mocked(invoke)
+    .mock.calls.filter(([command]) => command === "set_input")
+    .map(([, args]) => args as { input: number; analog: number[]; pointer: number[] | null });
+}
 
-  const calls = await runFramesCalls(20);
-
-  expect(calls.length).toBeGreaterThan(0);
-  expect(calls.every((call) => call.fastForward)).toBe(true);
-});
-
-it("plays sound at normal speed", async () => {
-  render(player({ speed: 1 }));
-
-  const calls = await runFramesCalls(20);
-
-  expect(calls.length).toBeGreaterThan(0);
-  expect(calls.every((call) => !call.fastForward)).toBe(true);
-});
-
-it("runs whole refreshes of fast-forward", async () => {
+it("has Rust run the game at the speed asked for", async () => {
   render(player({ speed: 4 }));
 
-  const calls = await runFramesCalls(20);
+  await vi.waitFor(() => expect(lastPacing()).toEqual({ paused: false, speed: 4, steady: false, blend: false }));
+});
 
-  expect(calls.every((call) => call.count % 4 === 0)).toBe(true);
+it("pauses the game in Rust while paused", async () => {
+  const { rerender } = render(player());
+
+  rerender(player({ paused: true }));
+
+  await vi.waitFor(() => expect(lastPacing()).toMatchObject({ paused: true }));
+});
+
+it("pauses the game in Rust while the app is hidden", async () => {
+  render(player());
+  vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+
+  act(() => void document.dispatchEvent(new Event("visibilitychange")));
+
+  await vi.waitFor(() => expect(lastPacing()).toMatchObject({ paused: true }));
 });
 
 it.each([
-  ["off", false],
-  ["on", true],
-] as const)("asks for blending with motion blur %s", async (value, blend) => {
-  render(withExperiment("motionBlur", value, { speed: 4 }));
+  ["motionBlur", { blend: true }],
+  ["steadyFastForward", { steady: true }],
+] as const)("passes the %s experiment on to Rust", async (id, pacing) => {
+  render(withExperiment(id, "on", { speed: 4 }));
 
-  const calls = await runFramesCalls(20);
+  await vi.waitFor(() => expect(lastPacing()).toMatchObject(pacing));
+});
 
-  expect(calls.length).toBeGreaterThan(0);
-  expect(calls.every((call) => call.blend === blend)).toBe(true);
+function pressing() {
+  const pressed = createInput(() => []);
+  let buttons = 0;
+  vi.spyOn(pressed, "poll").mockImplementation(() => buttons);
+  return { input: pressed, press: (mask: number) => (buttons = mask) };
+}
+
+it("sends input to Rust only when it changes", async () => {
+  const pad = pressing();
+  render(player({ input: pad.input }));
+  await playing();
+  tick();
+  tick();
+  expect(sentInputs()).toEqual([{ input: 0, analog: [0, 0, 0, 0], pointer: null }]);
+
+  pad.press(1 << 8);
+  tick();
+  tick();
+
+  expect(sentInputs()).toHaveLength(2);
+  expect(sentInputs()[1]).toMatchObject({ input: 1 << 8 });
+});
+
+it("lets go of every button in Rust while paused", async () => {
+  const pad = pressing();
+  pad.press(1 << 3);
+  const { rerender } = render(player({ input: pad.input }));
+  await playing();
+  tick();
+
+  rerender(player({ input: pad.input, paused: true }));
+  tick();
+
+  expect(sentInputs().map(({ input }) => input)).toEqual([1 << 3, 0]);
+});
+
+it("draws a frame as soon as it arrives", async () => {
+  render(player());
+  await sendFrame();
+  const before = drawn.length;
+  const { onFrame } = await playing();
+
+  act(() => onFrame.onmessage!(frame(2, 2)));
+
+  expect(drawn.length).toBe(before + 1);
+});
+
+it("reports the frames Rust skipped and repeated", async () => {
+  const onFps = vi.fn();
+  let now = 0;
+  vi.spyOn(performance, "now").mockImplementation(() => now);
+  render(player({ onFps }));
+  const { onFrame } = await playing();
+
+  for (let i = 0; i <= 60; i++) {
+    now = (i * 1000) / 60;
+    act(() => onFrame.onmessage!(frame(2, 2, { frames: i, skipped: i, repeated: 2 * i })));
+  }
+
+  expect(onFps).toHaveBeenLastCalledWith({ fps: 60, drawn: 60, skipped: 60, repeated: 120 });
 });
 
 function media({ portrait = true, reduced = false } = {}) {
@@ -262,9 +356,9 @@ function media({ portrait = true, reduced = false } = {}) {
   }));
 }
 
-function sensor(read: () => string | null = () => null) {
+function sensor(read: () => Gravity | undefined = () => undefined) {
   const calls: string[] = [];
-  window.androidGravity = { start: () => void calls.push("start"), stop: () => void calls.push("stop"), read };
+  gravity = { start: () => void calls.push("start"), stop: () => void calls.push("stop"), read };
   return calls;
 }
 
@@ -294,12 +388,12 @@ it.each([
   ["with reduced motion", "on", { reduced: true }],
 ])("keeps the screen still and the sensor off %s", async (_, value, options) => {
   media(options);
-  let reading = "0,6.94,6.94";
+  let reading = { x: 0, y: 6.94, z: 6.94 };
   const calls = sensor(() => reading);
   render(withExperiment("tiltScreen", value, {}));
   await sendFrame();
 
-  reading = "4,6.3,6.3";
+  reading = { x: 4, y: 6.3, z: 6.3 };
   for (let i = 0; i < 10; i++) tick();
 
   expect(calls).toEqual([]);
@@ -319,27 +413,27 @@ it("keeps the screen still without a gravity reading", async () => {
 
 it("shifts the game image toward the edge the phone tilts up", async () => {
   media();
-  let reading = "0,6.94,6.94";
+  let reading = { x: 0, y: 6.94, z: 6.94 };
   sensor(() => reading);
   render(withExperiment("tiltScreen", "on", {}));
   await sendFrame();
   for (let i = 0; i < 10; i++) tick();
 
-  reading = "2.5,6.7,6.7";
+  reading = { x: 2.5, y: 6.7, z: 6.7 };
   for (let i = 0; i < 10; i++) tick();
 
   expect(shifts().at(-1)!.x).toBeGreaterThan(0);
 });
 
-function tilted(reading: () => string) {
+function tilted(reading: () => Gravity) {
   media();
   sensor(reading);
 }
 
-const rolledRight = "6.94,4.9,4.9";
+const rolledRight = { x: 6.94, y: 4.9, z: 4.9 };
 
 it("shifts past the margin, up to the most the tilt gives", async () => {
-  let reading = "0,6.94,6.94";
+  let reading = { x: 0, y: 6.94, z: 6.94 };
   tilted(() => reading);
   render(withExperiment("tiltScreen", "on", {}));
   await sendFrame();
@@ -354,7 +448,7 @@ it("shifts past the margin, up to the most the tilt gives", async () => {
 
 it("draws plain black with the sensor off for a system without a handheld display", async () => {
   media();
-  const calls = sensor(() => "0,6.94,6.94");
+  const calls = sensor(() => ({ x: 0, y: 6.94, z: 6.94 }));
   const { container } = render(withExperiment("tiltScreen", "on", { display: undefined }));
   await sendFrame();
   for (let i = 0; i < 10; i++) tick();
@@ -375,7 +469,7 @@ it("maps a touch on the tilted DS touchscreen, which moves half as far", async (
       disconnect() {}
     },
   );
-  let reading = "0,6.94,6.94";
+  let reading = { x: 0, y: 6.94, z: 6.94 };
   tilted(() => reading);
   const { marginDp, gapDp } = handheld.nds!;
   const touches = createInput(() => []);
@@ -398,4 +492,101 @@ it("maps a touch on the tilted DS touchscreen, which moves half as far", async (
   fireEvent.pointerDown(canvas, { button: 0, pointerId: 1, clientX: bottomScreen.x, clientY: bottomScreen.y });
 
   expect(touched).toHaveBeenLastCalledWith({ x: -0x7fff, y: 0 });
+});
+
+it("leaves a frame Rust drew natively to Rust and tells it where the game shows", async () => {
+  render(player());
+
+  await sendNativeFrame(240, 160);
+
+  expect(drawn).toHaveLength(0);
+  expect(screen.queryByRole("status")).toBeNull();
+  expect(sent("set_screen")).toEqual([
+    {
+      layout: expect.objectContaining({
+        canvas: { x: expect.any(Number), y: expect.any(Number) },
+        views: [expect.objectContaining({ window: 0 })],
+      }),
+    },
+  ]);
+});
+
+it("clears the page over the game while Rust draws it natively", async () => {
+  const { unmount } = render(player());
+  expect(document.documentElement.hasAttribute("data-native-screen")).toBe(false);
+
+  await sendNativeFrame();
+  expect(document.documentElement.hasAttribute("data-native-screen")).toBe(true);
+
+  unmount();
+  expect(document.documentElement.hasAttribute("data-native-screen")).toBe(false);
+});
+
+it("draws with WebGL once Rust sends the pixels again", async () => {
+  render(player());
+  await sendNativeFrame();
+
+  await sendFrame();
+
+  expect(drawn).toHaveLength(1);
+  expect(document.documentElement.hasAttribute("data-native-screen")).toBe(false);
+});
+
+it("sends the tilt to Rust while it draws natively", async () => {
+  media();
+  let reading = { x: 0, y: 6.94, z: 6.94 };
+  sensor(() => reading);
+  render(withExperiment("tiltScreen", "on", {}));
+  await sendNativeFrame();
+  for (let i = 0; i < 10; i++) tick();
+
+  reading = { x: 2.5, y: 6.7, z: 6.7 };
+  for (let i = 0; i < 10; i++) tick();
+
+  const parallax = sent("set_parallax").at(-1) as { parallax: Parallax[] };
+  expect(parallax.parallax[0].shift.x).not.toBe(0);
+});
+
+it("paints the page again while a game is held", async () => {
+  const { rerender } = render(player());
+  await sendNativeFrame();
+
+  rerender(player({ holdMessage: "Checking your other devices…" }));
+
+  expect(document.documentElement.hasAttribute("data-native-screen")).toBe(false);
+});
+
+it.each([
+  ["native", true],
+  ["compatible", false],
+] as const)("asks Rust to draw natively only for the %s renderer", async (renderer, native) => {
+  render(player({ renderer }));
+
+  expect((await playing()).native).toBe(native);
+});
+
+function onSurface(host: GameSurfaceHost, props: Partial<ComponentProps<typeof Player>>) {
+  return <GameSurfaceProvider host={host}>{player(props)}</GameSurfaceProvider>;
+}
+
+it("shows the native surface only for the native renderer, as the game started", async () => {
+  const calls: boolean[] = [];
+  const host: GameSurfaceHost = { renderers: ["native", "compatible"], setPlaying: (playing) => void calls.push(playing) };
+  const { rerender, unmount } = render(onSurface(host, { renderer: "compatible" }));
+  await playing();
+
+  rerender(onSurface(host, { renderer: "native" }));
+  unmount();
+
+  expect(calls).toEqual([]);
+});
+
+it("says when the native renderer fails", async () => {
+  const onNativeFailed = vi.fn();
+  render(player({ renderer: "native", onNativeFailed }));
+
+  const played = await playing();
+  act(() => played.onNativeFailed.onmessage!(null));
+
+  expect(onNativeFailed).toHaveBeenCalledOnce();
 });

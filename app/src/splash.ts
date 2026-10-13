@@ -3,6 +3,7 @@ const fallMs = 380;
 const settleMs = 440;
 const startMs = 250;
 const pace = 1.3;
+const wordmarkHoldMs = 400;
 const wordmarkWidth = 367.8;
 const letterEdges = [47.5, 109.2, 168.9, 228.6, 308.1, 367.8];
 
@@ -58,7 +59,7 @@ function timeline(piece: (name: string) => Element): Animation[] {
     ...drop("lower", 620, -1),
     piece("wordmark").animate(
       hidden.map((right) => ({ clipPath: `inset(0 ${right}% 0 0)`, easing: "step-end" })),
-      { delay: startMs + 940 * pace, duration: 360 * pace, fill: "both" },
+      { delay: startMs + 940 * pace, duration: 360 * pace, endDelay: wordmarkHoldMs, fill: "both" },
     ),
   ];
 }
@@ -87,13 +88,13 @@ export function playSplash() {
   ended.set(splash, Promise.allSettled(animations.map((animation) => animation.finished)));
 }
 
-export function hideSplash() {
+export function hideSplash(onHidden?: () => void) {
   const splash = document.getElementById("splash");
   if (!splash || hiding.has(splash)) return;
   hiding.add(splash);
   void (ended.get(splash) ?? Promise.resolve()).then(async () => {
     await splash.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 220, fill: "forwards" }).finished;
     splash.remove();
-    window.androidSystemBars?.splashHidden();
+    onHidden?.();
   });
 }

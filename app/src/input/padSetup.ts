@@ -25,6 +25,8 @@ export const setupSteps = [
   "guide",
   "stickUp",
   "stickLeft",
+  "rightStickUp",
+  "rightStickLeft",
 ] as const satisfies readonly StandardButton[];
 
 export type SetupStep = (typeof setupSteps)[number];
@@ -41,7 +43,12 @@ const SETTLED = 0.9;
 // A hat reporting as one axis rests outside -1..1; anything else rests inside it, even triggers at -1.
 const HAT_REST = 1 + HAT_TOLERANCE;
 
-const opposites: Partial<Record<SetupStep, StandardButton>> = { stickUp: "stickDown", stickLeft: "stickRight" };
+const opposites: Partial<Record<SetupStep, StandardButton>> = {
+  stickUp: "stickDown",
+  stickLeft: "stickRight",
+  rightStickUp: "rightStickDown",
+  rightStickLeft: "rightStickRight",
+};
 
 function activeInputs(pad: Gamepad, resting: readonly number[], settling?: number) {
   const active: RawInput[] = [];

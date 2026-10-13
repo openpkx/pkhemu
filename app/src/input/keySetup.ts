@@ -1,7 +1,7 @@
 import type { KeyboardCalibration } from "./calibration";
 import { HOLD_TO_SKIP_MS, IDLE_MS, setupSteps, type SetupEvent, type SetupStep } from "./padSetup";
 
-const padOnly: readonly SetupStep[] = ["l2", "r2", "guide", "stickUp", "stickLeft"];
+const padOnly: readonly SetupStep[] = ["l2", "r2", "guide", "stickUp", "stickLeft", "rightStickUp", "rightStickLeft"];
 export const keyboardSteps = setupSteps.filter((step) => !padOnly.includes(step));
 
 export const isSetupKey = (event: KeyboardEvent) =>

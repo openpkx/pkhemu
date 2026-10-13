@@ -1,0 +1,51 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "fileAssociations": [
+      {
+        "ext": ["gb", "gbc"],
+        "name": "Game Boy game",
+        "role": "Viewer",
+        "contentTypes": [
+          "com.rileytestut.delta.game.gbc",
+          "com.provenance.rom.gb",
+          "com.provenance.rom.gbc",
+          "public.aoshuang.game.gb",
+          "public.aoshuang.game.gbc"
+        ]
+      },
+      {
+        "ext": ["gba"],
+        "name": "Game Boy Advance game",
+        "role": "Viewer",
+        "contentTypes": ["com.rileytestut.delta.game.gba", "com.provenance.rom.gba", "public.aoshuang.game.gba"]
+      },
+      {
+        "ext": ["nds"],
+        "name": "DS game",
+        "role": "Viewer",
+        "contentTypes": ["com.rileytestut.delta.game.ds", "com.provenance.rom.ds", "public.aoshuang.game.ds"]
+      },
+      {
+        "ext": ["sav", "srm", "dsv"],
+        "name": "Save",
+        "role": "Viewer",
+        "contentTypes": ["public.aoshuang.gamesave"]
+      },
+      {
+        "ext": ["rtc"],
+        "name": "Game clock",
+        "description": "Game clock",
+        "role": "Viewer",
+        "exportedType": { "identifier": "fyi.openpkx.pkhemu.clock", "conformsTo": ["public.data"] }
+      },
+      {
+        "ext": ["zip"],
+        "name": "ZIP archive",
+        "role": "Viewer",
+        "rank": "Alternate",
+        "contentTypes": ["public.zip-archive"]
+      }
+    ]
+  }
+}

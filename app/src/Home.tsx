@@ -22,8 +22,9 @@ import { Welcome } from "./onboarding/Welcome";
 import { PadNavigation, reveal } from "./pad-navigation/PadNavigation";
 import { SettingsScreen } from "./SettingsScreen";
 import { hideSplash } from "./splash";
+import { useSystemBars } from "./system-bars/systemBars";
 import { syncingWrites, useSync } from "./sync/sync";
-import type { System } from "./systems";
+import { systems as allSystems, type System } from "./systems";
 
 type Screen =
   | { name: "library" }
@@ -81,9 +82,10 @@ const withAttribute = (attribute: string, value: string) =>
 function HideSplashOnceScanned() {
   const { library, error } = useLibrary();
   const scanned = Boolean(library || error);
+  const systemBars = useSystemBars();
   useEffect(() => {
-    if (scanned) hideSplash();
-  }, [scanned]);
+    if (scanned) hideSplash(systemBars.splashHidden);
+  }, [scanned, systemBars]);
   return null;
 }
 
@@ -93,7 +95,15 @@ function FindLibraryBoxArt() {
   return null;
 }
 
-export function Home({ libraryHost, gamePageHost }: { libraryHost: LibraryHost; gamePageHost: GamePageHost }) {
+export function Home({
+  libraryHost,
+  gamePageHost,
+  systems = allSystems,
+}: {
+  libraryHost: LibraryHost;
+  gamePageHost: GamePageHost;
+  systems?: readonly System[];
+}) {
   const gamesFolder = useGamesFolder();
   const { synced, syncNow } = useSync();
   const syncedGamePageHost = useMemo(() => syncingWrites(gamePageHost, synced), [gamePageHost, synced]);
@@ -102,19 +112,29 @@ export function Home({ libraryHost, gamePageHost }: { libraryHost: LibraryHost; 
   const [input] = useState(() => createInput(connectedGamepads, calibrations.current));
   const [dismissedPads] = useState(() => new Set<string>());
   const [unsupported, setUnsupported] = useState<ReadonlySet<System>>(() => new Set());
+  const unsupportedBy = (system: System) => {
+    if (!systems.includes(system)) return "platform";
+    if (unsupported.has(system)) return "device";
+  };
   const [toast, setToast] = useToast();
   const importHost = useImportHost();
-  const [folderImport, setFolderImport] = useState<{ from: "welcome" } | { from: "library"; source: PickedFolder }>();
+  const systemBars = useSystemBars();
+  const [folderImport, setFolderImport] = useState<{ from: "welcome" | "delta" } | { from: "library"; source: PickedFolder }>();
   const returnTo = useRef<{ scroll: number; focus: [attribute: string, value: string] }>(undefined);
   const openGame = useCallback((game: Game, from?: OpenedFrom) => {
     returnTo.current = from && { scroll: window.scrollY, focus: ["data-tile", backTile(game, from.tile)] };
     navigate("container", () => setScreen({ name: "game", game, tile: from?.tile, cover: from?.screenshot }));
   }, []);
-  const playFromLibrary = useCallback((game: Game, start: Start, from: OpenedFrom) => {
-    returnTo.current = { scroll: window.scrollY, focus: ["data-tile", from.tile] };
-    navigate("play", () => setScreen({ name: "game", game, start, tile: from.tile, cover: from.screenshot }));
-  }, []);
+  const playFromLibrary = useCallback(
+    (game: Game, start: Start, from: OpenedFrom) => {
+      if (!systems.includes(game.system)) return openGame(game, from);
+      returnTo.current = { scroll: window.scrollY, focus: ["data-tile", from.tile] };
+      navigate("play", () => setScreen({ name: "game", game, start, tile: from.tile, cover: from.screenshot }));
+    },
+    [systems, openGame],
+  );
   const play = (game: Game, start: Start, cover?: string) => {
+    if (!systems.includes(game.system)) return openGame(game);
     const tile = tileName("continue", game.path);
     const opened = screen.name === "game" && screen.game.path === game.path;
     if (returnTo.current && opened) returnTo.current.focus = ["data-tile", tile];
@@ -160,8 +180,8 @@ export function Home({ libraryHost, gamePageHost }: { libraryHost: LibraryHost; 
   }, [screen.name]);
 
   useEffect(() => {
-    if (gamesFolder.status === "none") hideSplash();
-  }, [gamesFolder.status]);
+    if (gamesFolder.status === "none") hideSplash(systemBars.splashHidden);
+  }, [gamesFolder.status, systemBars]);
 
   if (gamesFolder.status === "loading") return null;
   const playing = screen.name === "game" && screen.start;
@@ -172,6 +192,7 @@ export function Home({ libraryHost, gamePageHost }: { libraryHost: LibraryHost; 
         <ImportFolder
           libraryHost={libraryHost}
           source={folderImport.from === "library" ? folderImport.source : undefined}
+          delta={folderImport.from === "delta"}
           onClose={(message) =>
             navigate("back", () => {
               setFolderImport(undefined);
@@ -192,8 +213,9 @@ export function Home({ libraryHost, gamePageHost }: { libraryHost: LibraryHost; 
       <>
         <PadNavigation input={input} />
         <Welcome
+          systems={systems}
           onReady={() => setToast("Your games folder is ready")}
-          onImport={() => navigate("forward", () => setFolderImport({ from: "welcome" }))}
+          onImport={(from) => navigate("forward", () => setFolderImport({ from }))}
         />
       </>
     );
@@ -212,6 +234,7 @@ export function Home({ libraryHost, gamePageHost }: { libraryHost: LibraryHost; 
       {screen.name === "library" && (
         <MotionScreen>
           <LibraryScreen
+            systems={systems}
             onSettings={leaveForSettings}
             onOpenFolder={gamesFolder.openFolder}
             onImportFolder={() => void importFolder()}
@@ -260,7 +283,7 @@ export function Home({ libraryHost, gamePageHost }: { libraryHost: LibraryHost; 
                 game={screen.game}
                 sharedArt={screen.tile}
                 cover={screen.cover}
-                unsupported={unsupported.has(screen.game.system)}
+                unsupported={unsupportedBy(screen.game.system)}
                 onPlay={(start, game = screen.game, cover) => play(game, start, cover)}
                 onCreated={(game) => setToast(`Created ${game.name}`)}
                 onDownloaded={(game) => setScreen({ ...screen, game })}

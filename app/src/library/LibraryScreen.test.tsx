@@ -12,6 +12,7 @@ import { TICK_MS } from "@/sync/gameStatus";
 import { SyncProvider } from "@/sync/sync";
 import { fakeFolder } from "./fakeFolder";
 import type { Start } from "@/game-page/GamePage";
+import { systems } from "@/systems";
 import { LibraryProvider, type LibraryHost, type OpenedFrom } from "./library";
 import { LibraryScreen } from "./LibraryScreen";
 import type { Game } from "./scan";
@@ -88,7 +89,7 @@ function renderLibrary(
           <BackProvider>
             <LibraryProvider host={host} folder="/games" onOpen={onOpen} onPlay={onPlay}>
               <PadNavigation input={createInput(pads)} />
-              <LibraryScreen key={key} onSettings={onSettings} />
+              <LibraryScreen key={key} systems={systems} onSettings={onSettings} />
             </LibraryProvider>
           </BackProvider>
         </BoxArtProvider>

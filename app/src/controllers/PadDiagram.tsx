@@ -63,7 +63,11 @@ export function PadDiagram({ target, label }: { target: SetupStep; label: string
       </Part>
       {target === "stickUp" && <path d="M92 70 l-6 8 h12 Z" className="fill-primary" />}
       {target === "stickLeft" && <path d="M68 94 l8 -6 v12 Z" className="fill-primary" />}
-      <circle cx={148} cy={94} r={13} className="fill-muted stroke-border" />
+      <Part lit={target === "rightStickUp" || target === "rightStickLeft"}>
+        <circle cx={148} cy={94} r={13} />
+      </Part>
+      {target === "rightStickUp" && <path d="M148 70 l-6 8 h12 Z" className="fill-primary" />}
+      {target === "rightStickLeft" && <path d="M124 94 l8 -6 v12 Z" className="fill-primary" />}
     </svg>
   );
 }

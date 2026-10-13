@@ -5,12 +5,16 @@ import tailwindcss from "@tailwindcss/vite";
 import pkhexEngine from "@pkhex-everywhere/engine/vite";
 import { chromium } from "playwright";
 import { createServer } from "vite";
+import { devices, picked } from "./devices.mjs";
 
 const here = import.meta.dirname;
 const frames = path.resolve(here, "../../../data/store/frames");
 const out = path.resolve(here, "../../../data/store/raw");
 const only = process.argv.slice(2);
-const screens = ["library", "library-more", "editor", "playing-gbc", "playing-gba", "playing-nds", "playing-gb", "playing-pause"].filter((screen) => !only.length || only.includes(screen));
+const screens = picked(
+  ["library", "library-more", "editor", "playing-gbc", "playing-gba", "playing-nds", "playing-gb", "playing-pause"].map((name) => ({ name })),
+  only,
+).map((screen) => screen.name);
 
 const server = await createServer({
   configFile: false,
@@ -29,31 +33,33 @@ const server = await createServer({
 await server.listen();
 const url = new URL("screenshots/store/", server.resolvedUrls.local[0]);
 
-await mkdir(out, { recursive: true });
 const browser = await chromium.launch();
 try {
-  for (const screen of screens) {
-    const page = await browser.newPage({ viewport: { width: 390, height: 844 }, deviceScaleFactor: 3, colorScheme: "dark", hasTouch: true });
-    page.on("pageerror", (error) => console.error(`${screen}: ${error.message}`));
-    await page.route("**/store-frames/*.png", async (route) =>
-      route.fulfill({ contentType: "image/png", body: await readFile(path.join(frames, path.basename(new URL(route.request().url()).pathname))) }),
-    );
-    await page.goto(`${url}?screen=${screen}`);
-    await page.waitForLoadState("networkidle");
-    await page.evaluate(() => document.fonts.ready);
-    await page.waitForTimeout(1500);
-    if (screen === "library-more") {
-      await page.getByText("Game Boy Advance", { exact: true }).first().evaluate((heading) => heading.scrollIntoView({ block: "start" }));
-      await page.waitForTimeout(500);
+  for (const device of picked(devices, only)) {
+    await mkdir(path.join(out, device.name), { recursive: true });
+    for (const screen of screens) {
+      const page = await browser.newPage({ viewport: device.viewport, deviceScaleFactor: 3, colorScheme: "dark", hasTouch: true });
+      page.on("pageerror", (error) => console.error(`${device.name}/${screen}: ${error.message}`));
+      await page.route("**/store-frames/*.png", async (route) =>
+        route.fulfill({ contentType: "image/png", body: await readFile(path.join(frames, path.basename(new URL(route.request().url()).pathname))) }),
+      );
+      await page.goto(`${url}?screen=${screen}&platform=${device.platform}`);
+      await page.waitForLoadState("networkidle");
+      await page.evaluate(() => document.fonts.ready);
+      await page.waitForTimeout(1500);
+      if (screen === "library-more") {
+        await page.getByText("Game Boy Advance", { exact: true }).first().evaluate((heading) => heading.scrollIntoView({ block: "start" }));
+        await page.waitForTimeout(500);
+      }
+      if (screen === "playing-pause") {
+        await page.getByRole("button", { name: "Pause menu" }).first().click();
+        await page.waitForTimeout(1000);
+      }
+      const file = path.join(out, device.name, `${screen}.png`);
+      await page.screenshot({ path: file, animations: "disabled" });
+      console.log(file);
+      await page.close();
     }
-    if (screen === "playing-pause") {
-      await page.getByRole("button", { name: "Pause menu" }).first().click();
-      await page.waitForTimeout(1000);
-    }
-    const file = path.join(out, `${screen}.png`);
-    await page.screenshot({ path: file, animations: "disabled" });
-    console.log(file);
-    await page.close();
   }
 } finally {
   await browser.close();

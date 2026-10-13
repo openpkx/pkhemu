@@ -38,6 +38,7 @@ while IFS= read -r -d '' entry; do
   case "$name" in
     .env | .env.* | *.env) fail "$path: environment file" ;;
     *.jks | *.keystore | *.p12 | *.pfx | *.pem | *.key) fail "$path: keystore or key file" ;;
+    *.mobileprovision | *.cer | AuthKey_*.p8) fail "$path: Apple signing file" ;;
     *.gb | *.gbc | *.gba | *.nds | *.dsi | *.n64 | *.z64 | *.v64 | *.rom) fail "$path: ROM" ;;
     *.sav | *.srm | *.dsv | *.ss[0-9] | *.state) fail "$path: save file" ;;
     *bios*.bin | firmware*.bin) fail "$path: BIOS" ;;

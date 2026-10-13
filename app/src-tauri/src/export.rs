@@ -1,17 +1,15 @@
+#[cfg_attr(target_os = "android", path = "export/android.rs")]
+#[cfg_attr(target_os = "ios", path = "export/ios.rs")]
+#[cfg_attr(desktop, path = "export/desktop.rs")]
+mod platform;
+
 use crate::bytes;
 use crate::files::cache_dir;
-use percent_encoding::{utf8_percent_encode, AsciiSet, NON_ALPHANUMERIC};
 use std::path::{Path, PathBuf};
 use tauri::ipc::Request;
 use tauri::{AppHandle, Runtime};
-use tauri_plugin_android_fs::{AndroidFsExt, FsUri};
 
 const EXPORTS: &str = "exports";
-const UNRESERVED: &AsciiSet = &NON_ALPHANUMERIC
-    .remove(b'-')
-    .remove(b'_')
-    .remove(b'.')
-    .remove(b'~');
 
 fn replace(root: &Path, files: &[(&str, &[u8])]) -> Result<Vec<PathBuf>, String> {
     for (name, _) in files {
@@ -38,15 +36,6 @@ fn replace(root: &Path, files: &[(&str, &[u8])]) -> Result<Vec<PathBuf>, String>
     Ok(written)
 }
 
-fn content_uri(identifier: &str, name: &str) -> String {
-    // The ExportProvider in AndroidManifest.xml, under the applicationId, which is the same string as the identifier.
-    let authority = format!("{identifier}.exports");
-    format!(
-        "content://{authority}/{EXPORTS}/{}",
-        utf8_percent_encode(name, UNRESERVED)
-    )
-}
-
 #[tauri::command]
 pub async fn export_share<R: Runtime>(
     app: AppHandle<R>,
@@ -63,13 +52,8 @@ pub async fn export_share<R: Runtime>(
                 .ok()
         })
         .ok_or("name the file in a name header")?;
-    replace(&cache_dir(&app, EXPORTS)?, &[(&name, &contents)])?;
-    let uri = FsUri::from_uri(content_uri(&app.config().identifier, &name));
-    app.android_fs_async()
-        .opener()
-        .share_file(&uri)
-        .await
-        .map_err(|e| e.to_string())
+    let files = replace(&cache_dir(&app, EXPORTS)?, &[(&name, &contents)])?;
+    platform::share_file(&app, &files[0]).await
 }
 
 #[derive(serde::Deserialize)]
@@ -87,16 +71,8 @@ pub async fn export_share_files<R: Runtime>(
         .iter()
         .map(|file| (file.name.as_str(), file.bytes.as_slice()))
         .collect();
-    replace(&cache_dir(&app, EXPORTS)?, &named)?;
-    let uris: Vec<FsUri> = files
-        .iter()
-        .map(|file| FsUri::from_uri(content_uri(&app.config().identifier, &file.name)))
-        .collect();
-    app.android_fs_async()
-        .opener()
-        .share_files(&uris)
-        .await
-        .map_err(|e| e.to_string())
+    let files = replace(&cache_dir(&app, EXPORTS)?, &named)?;
+    platform::share_files(&app, &files).await
 }
 
 #[cfg(test)]
@@ -151,13 +127,5 @@ mod tests {
         for name in ["", "../Pikachu.pk3", "a/Pikachu.pk3", ".pk3"] {
             assert!(replace(&root, &[("Mew.pk3", &[1]), (name, &[1])]).is_err(), "{name}");
         }
-    }
-
-    #[test]
-    fn points_the_content_uri_at_the_export_provider() {
-        assert_eq!(
-            content_uri("fyi.openpkx.pkhemu", "Mr. Mime ♂.pk3"),
-            "content://fyi.openpkx.pkhemu.exports/exports/Mr.%20Mime%20%E2%99%82.pk3"
-        );
     }
 }

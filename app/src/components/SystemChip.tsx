@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import { cn } from "cn";
 import { Badge } from "@/components/ui/badge";
-import { systemColors, type System } from "@/systems";
+import { systemColors, systemNames, type System } from "@/systems";
 
 export function SystemChip({ system, className }: { system: System; className?: string }) {
   const { dark, light } = systemColors[system];
@@ -21,5 +21,17 @@ export function SystemChip({ system, className }: { system: System; className?: 
     >
       {system.toUpperCase()}
     </Badge>
+  );
+}
+
+export function SystemChips({ systems }: { systems: readonly System[] }) {
+  const names = systems.map((system) => systemNames[system]);
+  const list = names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names.at(-1)}` : names.join("");
+  return (
+    <div role="img" aria-label={`Plays ${list} games`} className="flex flex-wrap justify-center gap-2">
+      {systems.map((system) => (
+        <SystemChip key={system} system={system} />
+      ))}
+    </div>
   );
 }

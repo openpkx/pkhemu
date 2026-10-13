@@ -188,14 +188,35 @@
     }
   body {
     @apply bg-background text-foreground;
+    padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    }
+  input, textarea, [contenteditable] {
+    -webkit-user-select: text;
+    user-select: text;
     }
   html {
     @apply font-sans;
     }
 }
 
+/* The game draws on a native surface behind the page, which paints what the page would have around it. */
+html[data-native-screen] body {
+  background: transparent;
+}
+
 [data-gamepad] :focus {
   @apply ring-3 ring-ring/50;
+}
+
+@utility px-safe {
+  padding-inline: env(safe-area-inset-left) env(safe-area-inset-right);
+}
+
+@utility pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
 }
 
 @utility dot-grid {

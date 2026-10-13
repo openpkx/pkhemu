@@ -36,4 +36,11 @@ export const experiments: Experiment[] = [
     values: ["off", "on"],
     players: false,
   },
+  {
+    id: "demoGame",
+    label: "Demo game",
+    line: "The empty library offers a free demo game to play.",
+    values: ["on", "off"],
+    players: false,
+  },
 ];

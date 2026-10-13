@@ -1,5 +1,5 @@
 import { origin, type Point } from "@/fit";
-import type { Gravity } from "@/gravity";
+import type { Gravity } from "@/gravity/gravity";
 
 export const TILT = {
   neutralSeconds: 3,

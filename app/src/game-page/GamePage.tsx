@@ -184,7 +184,7 @@ export function Hero({
           className="absolute inset-0 -z-10 dot-grid mask-[linear-gradient(160deg,#000,transparent_55%)]"
         />
       )}
-      <div className="grid gap-4 p-4">
+      <div className="grid gap-4 p-4 pt-[max(1rem,env(safe-area-inset-top))]">
         <div className="flex justify-between">
           <Button variant="ghost" size="icon" aria-label="Back" onClick={onBack} className="hover:bg-white/15 hover:text-white">
             <ChevronLeft />
@@ -331,7 +331,7 @@ export function GamePage({
   games?: Game[];
   sharedArt?: string;
   cover?: string;
-  unsupported?: boolean;
+  unsupported?: "device" | "platform";
   onPlay(start: Start, game?: Game, cover?: string): void;
   onPatched?(game: Game): void;
   onGone?(game: Game, how: Gone): void;
@@ -394,6 +394,14 @@ export function GamePage({
 
   const chooseFormat = async (formatId: string | null) => {
     await host.keepSaveFormat(game.path, formatId ? { id: formatId, chosen: true } : null).catch((error) => console.error(error));
+    setReload((reload) => reload + 1);
+  };
+
+  const play: typeof onPlay = (...args) => {
+    const [, other] = args;
+    if (!unsupported || other) return onPlay(...args);
+    setWarning(undefined);
+    if (editing) navigate("back", () => setEditing(false));
     setReload((reload) => reload + 1);
   };
 
@@ -468,6 +476,17 @@ export function GamePage({
     picking.current = undefined;
     if (found) setWarning({ ...found, consequence: "Restoring a backup drops the resume point.", go: () => void restore(backup) });
     else setConfirmingRestore(backup);
+  };
+
+  const changeCart = async (cart: string | null) => {
+    await transferPak.choose(cart);
+    setReload((reload) => reload + 1);
+  };
+
+  const chooseCart = async (cart: string | null) => {
+    const found = await findUnsavedPlay(host, folder, game.path);
+    if (found) setWarning({ ...found, consequence: "Changing the Transfer Pak drops the resume point.", go: () => void changeCart(cart) });
+    else await changeCart(cart);
   };
 
   const backFromBackup = () => {
@@ -554,7 +573,7 @@ export function GamePage({
         </Screen>
       )}
       <Screen hidden={showingBackups || showingStates || !!transferring}>
-        <div className="min-h-screen md:grid md:grid-cols-2 md:gap-4 md:p-4">
+        <div className="min-h-screen pb-safe md:grid md:grid-cols-2 md:gap-4 md:p-4 md:pb-[max(1rem,env(safe-area-inset-bottom))]">
           <main className="grid content-start">
             <Hero
               game={game}
@@ -588,7 +607,9 @@ export function GamePage({
               onBack={onBack}
             />
             {unsupported ? (
-              <p className="p-4 text-sm text-muted-foreground md:px-0">{systemNames[game.system]} games don't run on this device.</p>
+              <p className="p-4 text-sm text-muted-foreground md:px-0">
+                {unsupported === "platform" ? "Not supported on this device yet." : `${systemNames[game.system]} games don't run on this device.`}
+              </p>
             ) : details && (
               <div className="grid gap-2 p-4 md:px-0">
                 {details.resume && (
@@ -659,7 +680,7 @@ export function GamePage({
               onBackups={() => navigate("forward", () => setShowingBackups(true))}
             />
             {transferPak.pak && (
-              <TransferPakCard games={games} chosen={transferPak.pak.game} onChoose={(cart) => void transferPak.choose(cart)} />
+              <TransferPakCard games={games} chosen={transferPak.pak.game} onChoose={(cart) => void chooseCart(cart)} />
             )}
           </aside>
         </div>
@@ -667,7 +688,7 @@ export function GamePage({
       <UnsavedResumeDialog
         unsaved={warning}
         consequence={warning?.consequence ?? ""}
-        onResume={() => onPlay("resume", undefined, details?.screenshot)}
+        onResume={() => play("resume", undefined, details?.screenshot)}
         onContinue={() => {
           setWarning(undefined);
           warning?.go();
@@ -704,9 +725,9 @@ export function GamePage({
             home={saveHome}
             onBackGesture={onBackGesture}
             onClose={() => navigate("back", () => setEditing(false))}
-            onSaveFirst={() => onPlay(details?.resume ? "resume" : "new")}
+            onSaveFirst={() => play(details?.resume ? "resume" : "new")}
             afterApply="play"
-            onApplied={() => onPlay("new")}
+            onApplied={() => play("new")}
             confirmApply={!!details?.resume}
           />
         </Screen>

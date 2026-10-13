@@ -1,3 +1,8 @@
+#[cfg_attr(target_os = "android", path = "games_folder/android.rs")]
+#[cfg_attr(target_os = "ios", path = "games_folder/ios.rs")]
+#[cfg_attr(desktop, path = "games_folder/desktop.rs")]
+pub mod platform;
+
 use std::fs::File;
 use std::io::Write;
 use std::path::{Path, PathBuf};
@@ -5,11 +10,8 @@ use std::sync::{Arc, Mutex};
 use std::time::SystemTime;
 
 use tauri::{AppHandle, Manager, Runtime};
-use tauri_plugin_android_fs::{api::api_async::AndroidFs, AndroidFsExt, FsUri, UriPermission};
-use tauri_plugin_opener::OpenerExt;
 use tauri_plugin_store::StoreExt;
 
-use crate::files::cache_dir;
 use crate::index::{self, Index};
 use crate::{game_art, rom, sync};
 
@@ -27,19 +29,19 @@ pub struct GamesFolder<'a, R: Runtime> {
 
 enum Place<'a, R: Runtime> {
     Path(PathBuf),
-    Tree(&'a AppHandle<R>, FsUri),
+    Tree(platform::Tree<'a, R>),
 }
 
 fn error(reason: impl ToString) -> String {
     reason.to_string()
 }
 
-fn partial_path(path: &str) -> String {
+pub(crate) fn partial_path(path: &str) -> String {
     format!("{path}.partial")
 }
 
 // A different suffix from write()'s, so read() never promotes a file that's still being written.
-fn incomplete_path(path: &str) -> String {
+pub(crate) fn incomplete_path(path: &str) -> String {
     format!("{path}.incomplete")
 }
 
@@ -72,32 +74,15 @@ impl Drop for Writing {
     }
 }
 
-fn split(path: &str) -> (&str, &str) {
+pub(crate) fn split(path: &str) -> (&str, &str) {
     path.rsplit_once('/').unwrap_or(("", path))
-}
-
-async fn promote<R: Runtime>(
-    fs: &AndroidFs<R>,
-    staged: &FsUri,
-    path: &str,
-    staged_path: fn(&str) -> String,
-) -> Result<FsUri, String> {
-    let (_, name) = split(path);
-    let file = fs.rename(staged, name).await.map_err(error)?;
-    match fs.get_name(&file).await.map_err(error)? {
-        renamed if renamed == name => Ok(file),
-        renamed => {
-            let _ = fs.rename(&file, staged_path(name)).await;
-            Err(format!("{path} was renamed to {renamed}"))
-        }
-    }
 }
 
 impl<'a, R: Runtime> GamesFolder<'a, R> {
     pub fn open(app: &'a AppHandle<R>, folder: &str) -> Self {
-        let place = match FsUri::from_json_str(folder) {
-            Ok(uri) => Place::Tree(app, uri),
-            Err(_) => Place::Path(folder.into()),
+        let place = match platform::Tree::open(app, folder) {
+            Some(tree) => Place::Tree(tree),
+            None => Place::Path(folder.into()),
         };
         GamesFolder { place, deletion_log: app.try_state::<Arc<Index>>().map(|index| index.inner().clone()) }
     }
@@ -123,43 +108,21 @@ impl<'a, R: Runtime> GamesFolder<'a, R> {
     pub async fn exists(&self) -> bool {
         match &self.place {
             Place::Path(root) => root.is_dir(),
-            Place::Tree(app, root) => {
-                let fs = app.android_fs_async();
-                fs.picker()
-                    .check_persisted_uri_permission(root, UriPermission::ReadAndWrite)
-                    .await
-                    .unwrap_or(false)
-                    && fs.get_type(root).await.is_ok_and(|kind| kind.is_dir())
-            }
+            Place::Tree(tree) => tree.exists().await,
         }
     }
 
     pub async fn keep(&self) -> Result<(), String> {
         match &self.place {
             Place::Path(_) => Ok(()),
-            Place::Tree(app, root) => {
-                let picker = app.android_fs_async().picker();
-                picker.persist_uri_permission(root).await.map_err(error)?;
-                // Android caps how many URI grants an app can persist, so drop the previous folder's.
-                // Persisting first means a folder that can't be kept leaves the previous one alone.
-                picker
-                    .release_all_persisted_uri_permissions()
-                    .await
-                    .map_err(error)?;
-                picker.persist_uri_permission(root).await.map_err(error)
-            }
+            Place::Tree(tree) => tree.keep().await,
         }
     }
 
     pub async fn create_dir(&self, path: &str) -> Result<(), String> {
         match &self.place {
             Place::Path(root) => std::fs::create_dir_all(root.join(path)).map_err(error),
-            Place::Tree(app, root) => app
-                .android_fs_async()
-                .create_dir_all(root, path)
-                .await
-                .map(|_| ())
-                .map_err(error),
+            Place::Tree(tree) => tree.create_dir(path).await,
         }
     }
 
@@ -178,57 +141,21 @@ impl<'a, R: Runtime> GamesFolder<'a, R> {
                         .collect()
                 })
                 .map_err(error),
-            Place::Tree(app, root) => {
-                let fs = app.android_fs_async();
-                let dir = if path.is_empty() {
-                    root.clone()
-                } else {
-                    fs.resolve_dir_uri(root, path).await.map_err(error)?
-                };
-                Ok(fs
-                    .read_dir(&dir)
-                    .await
-                    .map_err(error)?
-                    .into_iter()
-                    .map(|entry| DirEntry {
-                        name: entry.name().to_owned(),
-                        is_directory: entry.is_dir(),
-                    })
-                    .collect())
-            }
-        }
-    }
-
-    async fn find(&self, fs: &AndroidFs<R>, root: &FsUri, path: &str) -> Result<FsUri, String> {
-        match fs.resolve_file_uri(root, path).await {
-            Ok(file) => Ok(file),
-            Err(e) if self.lists(path).await => Err(error(e)),
-            Err(missing) => match fs.resolve_file_uri(root, partial_path(path)).await {
-                Ok(partial) => promote(fs, &partial, path, partial_path).await,
-                Err(_) => Err(error(missing)),
-            },
+            Place::Tree(tree) => tree.read_dir(path).await,
         }
     }
 
     pub async fn read(&self, path: &str) -> Result<Vec<u8>, String> {
         match &self.place {
             Place::Path(root) => std::fs::read(root.join(path)).map_err(error),
-            Place::Tree(app, root) => {
-                let fs = app.android_fs_async();
-                let file = self.find(fs, root, path).await?;
-                fs.read(&file).await.map_err(error)
-            }
+            Place::Tree(tree) => tree.read(path).await,
         }
     }
 
     pub async fn open_file(&self, path: &str) -> Result<File, String> {
         match &self.place {
             Place::Path(root) => File::open(root.join(path)).map_err(error),
-            Place::Tree(app, root) => {
-                let fs = app.android_fs_async();
-                let file = self.find(fs, root, path).await?;
-                fs.open_file_readable(&file).await.map_err(error)
-            }
+            Place::Tree(tree) => tree.open_file(path).await,
         }
     }
 
@@ -239,8 +166,7 @@ impl<'a, R: Runtime> GamesFolder<'a, R> {
         }
         let dir = match &self.place {
             Place::Path(_) => std::env::temp_dir(),
-            // std::env::temp_dir() isn't writable on Android.
-            Place::Tree(app, _) => cache_dir(app, "unpacked")?,
+            Place::Tree(tree) => tree.unpack_dir()?,
         };
         let name = path.to_owned();
         tauri::async_runtime::spawn_blocking(move || rom::unpack_to_file(&name, file, &dir))
@@ -258,12 +184,7 @@ impl<'a, R: Runtime> GamesFolder<'a, R> {
                 let file = root.join(path).metadata().map_err(error)?;
                 Ok((file.len(), file.modified().map_err(error)?))
             }
-            Place::Tree(app, root) => {
-                let fs = app.android_fs_async();
-                let file = fs.resolve_file_uri(root, path).await.map_err(error)?;
-                let info = fs.get_info(&file).await.map_err(error)?;
-                Ok((info.file_len().ok_or_else(|| format!("{path}: not a file"))?, info.last_modified()))
-            }
+            Place::Tree(tree) => tree.stat(path).await,
         }
     }
 
@@ -279,26 +200,6 @@ impl<'a, R: Runtime> GamesFolder<'a, R> {
             .is_ok_and(|entries| entries.iter().any(|entry| entry.name == name))
     }
 
-    async fn stage(&self, fs: &AndroidFs<R>, root: &FsUri, staged: &str) -> Result<FsUri, String> {
-        let file = match fs.resolve_file_uri(root, staged).await {
-            Ok(file) => file,
-            Err(_) => fs.create_new_file(root, staged, None).await.map_err(error)?,
-        };
-        if fs.get_name(&file).await.map_err(error)? != split(staged).1 {
-            return Err(format!("couldn't create {staged}"));
-        }
-        Ok(file)
-    }
-
-    // SAF can't rename over a file, so the target goes before the staged file is renamed.
-    async fn clear(&self, fs: &AndroidFs<R>, root: &FsUri, path: &str) -> Result<bool, String> {
-        match fs.resolve_file_uri(root, path).await {
-            Ok(file) => fs.remove_file(&file).await.map(|_| true).map_err(error),
-            Err(e) if self.lists(path).await => Err(error(e)),
-            Err(_) => Ok(false),
-        }
-    }
-
     pub async fn write(&self, path: &str, contents: &[u8]) -> Result<(), String> {
         match &self.place {
             Place::Path(root) => {
@@ -310,21 +211,14 @@ impl<'a, R: Runtime> GamesFolder<'a, R> {
                 std::fs::write(&partial, contents).map_err(error)?;
                 std::fs::rename(&partial, file).map_err(error)
             }
-            Place::Tree(app, root) => {
-                let fs = app.android_fs_async();
-                let partial = self.stage(fs, root, &partial_path(path)).await?;
-                fs.write(&partial, contents).await.map_err(error)?;
-                // If the app dies before the rename, read() finishes it.
-                self.clear(fs, root, path).await?;
-                promote(fs, &partial, path, partial_path).await.map(|_| ())
-            }
+            Place::Tree(tree) => tree.write(path, contents).await,
         }
     }
 
     fn writing_key(&self, staged: &str) -> String {
         match &self.place {
             Place::Path(root) => root.join(staged).to_string_lossy().into_owned(),
-            Place::Tree(_, root) => format!("{}/{staged}", root.uri),
+            Place::Tree(tree) => tree.writing_key(staged),
         }
     }
 
@@ -344,21 +238,9 @@ impl<'a, R: Runtime> GamesFolder<'a, R> {
                     _writing: writing,
                 })
             }
-            Place::Tree(app, root) => {
-                let fs = app.android_fs_async();
-                let incomplete = self.stage(fs, root, &staged).await?;
-                let mut writer = FileWriter {
-                    file: None,
-                    staged: Some(Staged::Tree {
-                        app: (*app).clone(),
-                        root: root.clone(),
-                        incomplete: incomplete.clone(),
-                        path: path.to_owned(),
-                    }),
-                    _writing: writing,
-                };
-                writer.file = Some(fs.open_file_writable(&incomplete).await.map_err(error)?);
-                Ok(writer)
+            Place::Tree(tree) => {
+                let (file, staged) = tree.create_file(path, &staged).await?;
+                Ok(FileWriter { file: Some(file), staged: Some(Staged::Tree(staged)), _writing: writing })
             }
         }
     }
@@ -399,11 +281,7 @@ impl<'a, R: Runtime> GamesFolder<'a, R> {
     pub async fn remove_unlogged(&self, path: &str) -> Result<(), String> {
         match &self.place {
             Place::Path(root) => std::fs::remove_file(root.join(path)).map_err(error),
-            Place::Tree(app, root) => {
-                let fs = app.android_fs_async();
-                let file = fs.resolve_file_uri(root, path).await.map_err(error)?;
-                fs.remove_file(&file).await.map_err(error)
-            }
+            Place::Tree(tree) => tree.remove_file(path).await,
         }
     }
 
@@ -413,14 +291,7 @@ impl<'a, R: Runtime> GamesFolder<'a, R> {
                 Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(error(e)),
                 _ => Ok(()),
             },
-            Place::Tree(app, root) => {
-                let fs = app.android_fs_async();
-                match fs.resolve_dir_uri(root, path).await {
-                    Ok(dir) => fs.remove_dir_all(&dir).await.map_err(error),
-                    Err(_) if !self.lists(path).await => Ok(()),
-                    Err(e) => Err(error(e)),
-                }
-            }
+            Place::Tree(tree) => tree.remove_dir(path).await,
         }
     }
 
@@ -467,7 +338,7 @@ impl<'a, R: Runtime> GamesFolder<'a, R> {
 
 enum Staged<R: Runtime> {
     Path { incomplete: PathBuf, file: PathBuf },
-    Tree { app: AppHandle<R>, root: FsUri, incomplete: FsUri, path: String },
+    Tree(platform::StagedTree<R>),
 }
 
 /// A file being written to the games folder. It appears under its name on [`FileWriter::finish`],
@@ -486,20 +357,9 @@ impl<R: Runtime> FileWriter<R> {
     pub async fn finish(mut self) -> Result<(), String> {
         self.file().flush().map_err(error)?;
         drop(self.file.take());
-        let mut cleared = false;
-        let finished = match self.staged.as_ref().expect("staged until finish") {
-            Staged::Path { incomplete, file } => std::fs::rename(incomplete, file).map_err(error),
-            Staged::Tree { app, root, incomplete, path } => {
-                let fs = app.android_fs_async();
-                let folder = GamesFolder { place: Place::Tree(app, root.clone()), deletion_log: None };
-                match folder.clear(fs, root, path).await {
-                    Ok(removed) => {
-                        cleared = removed;
-                        promote(fs, incomplete, path, incomplete_path).await.map(|_| ())
-                    }
-                    Err(e) => Err(e),
-                }
-            }
+        let (finished, cleared) = match self.staged.as_ref().expect("staged until finish") {
+            Staged::Path { incomplete, file } => (std::fs::rename(incomplete, file).map_err(error), false),
+            Staged::Tree(staged) => staged.finish().await,
         };
         // Once the old file is gone, the new one is all that's left, so a failed rename keeps it.
         if finished.is_ok() || cleared {
@@ -526,92 +386,10 @@ impl<R: Runtime> Drop for FileWriter<R> {
             Some(Staged::Path { incomplete, .. }) => {
                 let _ = std::fs::remove_file(incomplete);
             }
-            // By path, since a failed promote renames the file back under a new URI.
-            Some(Staged::Tree { app, root, path, .. }) => {
-                tauri::async_runtime::spawn(async move {
-                    let fs = app.android_fs_async();
-                    if let Ok(file) = fs.resolve_file_uri(&root, incomplete_path(&path)).await {
-                        let _ = fs.remove_file(&file).await;
-                    }
-                });
-            }
+            Some(Staged::Tree(staged)) => staged.discard(),
             None => {}
         }
     }
-}
-
-#[tauri::command]
-pub async fn games_folder_pick<R: Runtime>(app: AppHandle<R>) -> Result<Option<String>, String> {
-    let picked = app
-        .android_fs_async()
-        .picker()
-        .pick_dir(None, true)
-        .await
-        .map_err(error)?;
-    picked
-        .map(|uri| uri.to_json_string().map_err(error))
-        .transpose()
-}
-
-// Needs no permission from Android 10. Before that the folder isn't made and the picker opens wherever it falls back to.
-#[cfg(target_os = "android")]
-#[tauri::command]
-pub async fn games_folder_make<R: Runtime>(app: AppHandle<R>) -> Result<Option<String>, String> {
-    let picker = app.android_fs_async().picker();
-    let initial = picker
-        .resolve_public_storage_initial_location(
-            None,
-            tauri_plugin_android_fs::PublicGeneralPurposeDir::Documents,
-            "pkhemu",
-            true,
-        )
-        .await
-        .ok();
-    let picked = picker.pick_dir(initial.as_ref(), true).await.map_err(error)?;
-    picked
-        .map(|uri| uri.to_json_string().map_err(error))
-        .transpose()
-}
-
-// Opens at Documents/pkhemu when an earlier install left it there, but never makes it, since the player's old folder may be elsewhere.
-// Only a path can tell whether it's there before the player grants anything, though the plugin deprecates paths.
-#[tauri::command]
-pub async fn games_folder_find<R: Runtime>(app: AppHandle<R>) -> Result<Option<String>, String> {
-    use tauri_plugin_android_fs::PublicGeneralPurposeDir::Documents;
-    let fs = app.android_fs_async();
-    #[allow(deprecated)]
-    let left = fs
-        .public_storage()
-        .resolve_path(None, Documents)
-        .await
-        .is_ok_and(|documents| documents.join("pkhemu").is_dir());
-    let picker = fs.picker();
-    let initial = picker
-        .resolve_public_storage_initial_location(None, Documents, if left { "pkhemu" } else { "" }, false)
-        .await
-        .ok();
-    let picked = picker.pick_dir(initial.as_ref(), true).await.map_err(error)?;
-    picked.map(|uri| uri.to_json_string().map_err(error)).transpose()
-}
-
-#[cfg(not(target_os = "android"))]
-#[derive(serde::Serialize)]
-pub struct MadeFolder {
-    path: String,
-    made: bool,
-}
-
-// macOS lets the app use a folder it made in Documents without asking, but asks for one it didn't make.
-#[cfg(not(target_os = "android"))]
-#[tauri::command]
-pub async fn games_folder_make<R: Runtime>(app: AppHandle<R>) -> Result<MadeFolder, String> {
-    use tauri_plugin_fs::FsExt;
-    let path = app.path().document_dir().map_err(error)?.join("pkhemu");
-    let made = std::fs::create_dir(&path).is_ok();
-    if made {
-        app.fs_scope().allow_directory(&path, true).map_err(error)?;
-    }
-    Ok(MadeFolder { path: path.to_string_lossy().into_owned(), made })
 }
 
 #[tauri::command]
@@ -651,16 +429,8 @@ pub async fn games_folder_read_dir<R: Runtime>(
 // Opens the saved folder rather than a path from the webview, so the webview can't launch arbitrary files.
 #[tauri::command]
 pub fn games_folder_open<R: Runtime>(app: AppHandle<R>) -> Result<(), String> {
-    let folder = app
-        .store("settings.json")
-        .map_err(error)?
-        .get("gamesFolder")
-        .and_then(|folder| folder.as_str().map(PathBuf::from))
-        .filter(|folder| folder.is_dir())
-        .ok_or("No games folder")?;
-    app.opener()
-        .open_path(folder.to_string_lossy(), None::<&str>)
-        .map_err(error)
+    let saved = app.store("settings.json").map_err(error)?.get("gamesFolder");
+    platform::open(&app, saved.as_ref().and_then(|folder| folder.as_str()).ok_or("No games folder")?)
 }
 
 #[cfg(test)]

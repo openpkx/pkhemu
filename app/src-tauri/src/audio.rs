@@ -1,3 +1,8 @@
+#[cfg_attr(target_os = "android", path = "audio/android.rs")]
+#[cfg_attr(target_os = "ios", path = "audio/ios.rs")]
+#[cfg_attr(desktop, path = "audio/desktop.rs")]
+pub mod platform;
+
 use crate::resample::{correction, Resampler};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use ringbuf::traits::{Consumer, Observer, Producer, Split};

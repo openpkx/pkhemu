@@ -1,3 +1,4 @@
+mod app_update;
 mod audio;
 mod backups;
 mod box_art;
@@ -7,6 +8,7 @@ mod edit;
 mod emu;
 mod export;
 mod files;
+mod frame_time;
 mod game_art;
 mod games_folder;
 mod gl;
@@ -18,6 +20,10 @@ mod memory;
 mod pace;
 mod patch;
 mod patching;
+#[cfg_attr(target_os = "android", path = "platform/android.rs")]
+#[cfg_attr(target_os = "ios", path = "platform/ios.rs")]
+#[cfg_attr(desktop, path = "platform/desktop.rs")]
+mod platform;
 mod plus;
 mod pokemon_file;
 mod resample;
@@ -25,8 +31,10 @@ mod resume;
 mod retro;
 mod rom;
 mod save;
+mod screen;
 mod states;
 mod sync;
+mod system_bars;
 #[cfg(test)]
 mod test_games;
 mod transfer_pak;
@@ -34,7 +42,7 @@ mod writer;
 
 use backups::Reason;
 use clock::Clock;
-use emu::{Command, Emu, Playing};
+use emu::{Command, Emu, Pacing, Playing};
 use games_folder::GamesFolder;
 use index::Index;
 use memory::Range;
@@ -43,7 +51,7 @@ use game_art::GameArt;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tauri::ipc::{Channel, InvokeBody, InvokeResponseBody, Request, Response};
-use tauri::{AppHandle, Emitter, Manager, RunEvent, Runtime, State, WindowEvent};
+use tauri::{AppHandle, Emitter, Manager, Runtime, State};
 use tokio::sync::{mpsc, oneshot};
 
 #[tauri::command]
@@ -62,13 +70,34 @@ async fn play<R: Runtime>(
     clock_offset: i64,
     on_frame: Channel<InvokeResponseBody>,
     on_step: Channel<String>,
+    native: bool,
+    on_native_failed: Channel<()>,
 ) -> Result<f64, String> {
     stop_game(&emu).await?;
     let in_use = app.state::<sync::Syncer>().in_use.clone();
-    in_use.start_playing(&path).await;
-    let started = start_game(app, emu, index, folder, path, resume, clock_offset, on_frame, on_step).await;
+    let cart = transfer_pak::cart(&GamesFolder::open(&app, &folder), &path)
+        .await
+        .inspect_err(|e| eprintln!("the Transfer Pak: {e}"))
+        .ok()
+        .flatten();
+    in_use.start_playing(&path, cart.as_deref()).await;
+    let started = start_game(
+        app,
+        emu,
+        index,
+        folder,
+        path,
+        cart,
+        resume,
+        clock_offset,
+        on_frame,
+        on_step,
+        native,
+        on_native_failed,
+    )
+    .await;
     if started.is_err() {
-        in_use.playing(None);
+        in_use.playing(None, None);
     }
     started
 }
@@ -79,10 +108,13 @@ async fn start_game<R: Runtime>(
     index: State<'_, Arc<Index>>,
     folder: String,
     path: String,
+    cart: Option<String>,
     resume: bool,
     clock_offset: i64,
     on_frame: Channel<InvokeResponseBody>,
     on_step: Channel<String>,
+    native: bool,
+    on_native_failed: Channel<()>,
 ) -> Result<f64, String> {
     let games = GamesFolder::open(&app, &folder);
     let _ = on_step.send("rom".into());
@@ -106,12 +138,9 @@ async fn start_game<R: Runtime>(
             eprintln!("backing up {path}: {e}");
         }
     }
-    let cart = match rom::is_n64(&path) && transfer_pak::uses(&rom.bytes) {
-        true => transfer_pak_cart(&app, &folder, &path, &rom.bytes).await.unwrap_or_else(|e| {
-            eprintln!("the Transfer Pak: {e}");
-            None
-        }),
-        false => None,
+    let cart = match cart {
+        Some(gb) => transfer_pak_cart(&app, &folder, gb).await.inspect_err(|e| eprintln!("the Transfer Pak: {e}")).ok(),
+        None => None,
     };
     let mark_cheats = mark_cheats(index.inner().clone(), path.clone(), slot.clone());
     let back_up = {
@@ -148,6 +177,8 @@ async fn start_game<R: Runtime>(
         mark_cheats,
         writer,
         on_frame,
+        native,
+        on_native_failed,
         reply,
     });
     let fps = result.await.map_err(|e| e.to_string())??;
@@ -161,11 +192,9 @@ async fn start_game<R: Runtime>(
 async fn transfer_pak_cart<R: Runtime>(
     app: &AppHandle<R>,
     folder: &str,
-    path: &str,
-    n64_rom: &[u8],
-) -> Result<Option<transfer_pak::Cart>, String> {
+    gb: String,
+) -> Result<transfer_pak::Cart, String> {
     let games = GamesFolder::open(app, folder);
-    let Some(gb) = transfer_pak::fill(&games, path, n64_rom).await? else { return Ok(None) };
     let rom = rom::unpack(&gb, games.read(&gb).await?)?;
     let (slot, save) = save::open(&games, &gb).await?;
     let back_up = {
@@ -176,7 +205,7 @@ async fn transfer_pak_cart<R: Runtime>(
         }
     };
     let dir = files::cache_dir(app, "transfer-pak")?;
-    Ok(Some(transfer_pak::Cart { dir, rom, save, slot, back_up: Box::new(back_up) }))
+    Ok(transfer_pak::Cart { path: gb, dir, rom, save, slot, back_up: Box::new(back_up) })
 }
 
 async fn back_up_at_start<R: Runtime>(
@@ -229,24 +258,6 @@ async fn stop_playing(emu: &Emu) -> Result<Option<Playing>, String> {
     let (writes, game) = stopped.await.map_err(|e| e.to_string())?;
     writes.finished().await?;
     Ok(game)
-}
-
-#[cfg(desktop)]
-const EXIT_WAIT: std::time::Duration = std::time::Duration::from_secs(5);
-
-#[cfg(desktop)]
-pub(crate) async fn stop_and_sync<F, Fut>(emu: &Emu, sync: F)
-where
-    F: FnOnce(Playing) -> Fut,
-    Fut: std::future::Future,
-{
-    match stop_playing(emu).await {
-        Ok(Some(game)) => {
-            let _ = tokio::time::timeout(EXIT_WAIT, sync(game)).await;
-        }
-        Ok(None) => {}
-        Err(e) => eprintln!("saving on exit: {e}"),
-    }
 }
 
 #[tauri::command]
@@ -329,18 +340,35 @@ async fn play_time_since_save(emu: State<'_, Emu>) -> Result<Option<f64>, String
 }
 
 #[tauri::command]
-async fn run_frames(
-    emu: State<'_, Emu>,
-    count: u32,
-    fast_forward: bool,
-    blend: bool,
-    input: u16,
-    analog: [i16; 4],
-    pointer: Option<[i16; 2]>,
-) -> Result<(), String> {
+async fn pace(emu: State<'_, Emu>, pacing: Pacing) -> Result<(), String> {
+    emu.send(Command::Pace(pacing));
+    Ok(())
+}
+
+#[tauri::command]
+async fn set_screen(emu: State<'_, Emu>, layout: screen::Layout) -> Result<(), String> {
+    emu.send(Command::Screen(layout));
+    Ok(())
+}
+
+#[tauri::command]
+async fn set_parallax(emu: State<'_, Emu>, parallax: Vec<screen::Parallax>) -> Result<(), String> {
+    emu.send(Command::Parallax(parallax));
+    Ok(())
+}
+
+#[tauri::command]
+async fn step(emu: State<'_, Emu>, frames: u32) -> Result<(), String> {
     let (done, finished) = oneshot::channel();
-    emu.send(Command::RunFrames { count, fast_forward, blend, input, analog, pointer, done });
+    emu.send(Command::Step { frames, done });
     finished.await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn set_input(input: u16, analog: [i16; 4], pointer: Option<[i16; 2]>) {
+    retro::set_input(input);
+    retro::set_analog(analog);
+    retro::set_pointer(pointer);
 }
 
 #[tauri::command]
@@ -525,38 +553,12 @@ async fn can_undo_edit(emu: State<'_, Emu>) -> Result<bool, String> {
     result.await.map_err(|e| e.to_string())
 }
 
-#[cfg(mobile)]
-fn pause_and_sync<R: Runtime>(app: &AppHandle<R>) {
-    if !app.state::<sync::Syncer>().in_use.any_playing() {
-        return;
-    }
-    // Android only lets the service start as the app leaves the foreground, before the game's files are written.
-    keep_alive::begin(app);
-    let (reply, paused) = oneshot::channel();
-    app.state::<Emu>().send(Command::Pause { reply });
-    let app = app.clone();
-    tauri::async_runtime::spawn(async move {
-        if let Ok(Some(game)) = paused.await {
-            if let Err(e) = sync::queue_game(app.clone(), game).await {
-                eprintln!("syncing the paused game: {e}");
-            }
-        }
-        keep_alive::end(&app);
-    });
-}
-
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let builder = tauri::Builder::default();
-    #[cfg(target_os = "android")]
-    let builder = builder
-        .plugin(sync::google_sign_in())
-        .plugin(sync::browser_sign_in())
-        .plugin(sync::network())
-        .plugin(plus::plugin())
-        .plugin(keep_alive::plugin());
-    builder
-        .plugin(tauri_plugin_android_fs::init())
+    // Tauri's mobile dev server proxy builds a reqwest client without a TLS provider of its own.
+    let _ = rustls::crypto::ring::default_provider().install_default();
+    platform::plugins(tauri::Builder::default())
+        .manage(import::Opened::default())
         .plugin(tauri_plugin_clipboard_manager::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
@@ -576,8 +578,8 @@ pub fn run() {
             let emu_in_use = in_use.clone();
             let on_game = {
                 let (art, in_use) = (art.clone(), in_use.clone());
-                Box::new(move |path: Option<&str>| {
-                    in_use.playing(path);
+                Box::new(move |path: Option<&str>, cart: Option<&str>| {
+                    in_use.playing(path, cart);
                     art.playing(path.map(String::from))
                 })
             };
@@ -599,6 +601,7 @@ pub fn run() {
                 })
             };
             app.manage(Emu::start(data_dir.join("system"), index.clone(), emu_in_use, on_game, on_message));
+            audio::platform::watch(app.handle());
             app.manage(art);
             app.manage(index);
             Ok(())
@@ -612,7 +615,12 @@ pub fn run() {
             resume_info,
             read_save_file,
             read_save_files,
-            run_frames,
+            pace,
+            set_screen,
+            set_parallax,
+            screen::platform::screen_set_playing,
+            step,
+            set_input,
             stop,
             play_time_since_save,
             read_save,
@@ -646,22 +654,24 @@ pub fn run() {
             kept_copies::kept_copies,
             kept_copies::keep_copies,
             index::save_had_cheats,
-            games_folder::games_folder_pick,
-            games_folder::games_folder_make,
-            games_folder::games_folder_find,
+            games_folder::platform::games_folder_pick,
+            games_folder::platform::games_folder_make,
+            games_folder::platform::games_folder_find,
             games_folder::games_folder_keep,
             games_folder::games_folder_exists,
             games_folder::games_folder_create_dir,
             games_folder::games_folder_read_dir,
             games_folder::games_folder_open,
             import::import_pick,
+            import::import_opened,
             import::import_pick_folder,
             import::import_scan,
             import::import_sha1s,
             import::import_rom,
+            import::import_demo,
             import::import_existing_save,
             import::import_save,
-            pokemon_file::pokemon_file_pick,
+            pokemon_file::platform::pokemon_file_pick,
             patching::patch_pick,
             patching::patch_dropped,
             patching::patch_base_build,
@@ -713,32 +723,16 @@ pub fn run() {
             plus::plus_status,
             plus::plus_buy,
             plus::plus_restore,
+            app_update::platform::app_update_check,
+            app_update::platform::app_update_start,
+            app_update::platform::app_update_complete,
+            audio::platform::audio_play_in_silent_mode,
+            system_bars::platform::system_bars_set_hidden,
+            system_bars::platform::system_bars_set_light,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
-        .run(|app, event| match event {
-            RunEvent::WindowEvent { event: WindowEvent::Focused(false), .. } => {
-                app.state::<Emu>().send(Command::Suspend);
-            }
-            #[cfg(mobile)]
-            RunEvent::WindowEvent { event: WindowEvent::Suspended, .. } => pause_and_sync(app),
-            #[cfg(mobile)]
-            RunEvent::WindowEvent { event: WindowEvent::Resumed, .. } => app.state::<Emu>().send(Command::Resume),
-            // Cmd+Q on a Mac skips ExitRequested and ends here, so this is where the game gets its last upload.
-            #[cfg(desktop)]
-            RunEvent::Exit => {
-                let sync = |game| sync::queue_game(app.clone(), game);
-                tauri::async_runtime::block_on(stop_and_sync(&app.state(), sync));
-            }
-            #[cfg(mobile)]
-            RunEvent::Exit => {
-                let finished = tauri::async_runtime::block_on(stop_game(&app.state()));
-                if let Err(e) = finished {
-                    eprintln!("saving on exit: {e}");
-                }
-            }
-            _ => {}
-        });
+        .run(platform::on_event);
 }
 
 #[cfg(test)]

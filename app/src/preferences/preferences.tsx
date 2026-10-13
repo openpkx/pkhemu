@@ -25,6 +25,14 @@ export function isTheme(value: unknown): value is Theme {
   return themes.includes(value as Theme);
 }
 
+export const rendererChoices = ["automatic", "native", "compatible"] as const;
+
+export type RendererChoice = (typeof rendererChoices)[number];
+
+export function isRendererChoice(value: unknown): value is RendererChoice {
+  return rendererChoices.includes(value as RendererChoice);
+}
+
 export type GameClockOffset = { days: number; hours: number };
 
 export const maxClockDays = 365;
@@ -43,6 +51,10 @@ export function isRestoreBackupsKept(value: unknown): value is number {
   return inRange(value, minRestoreBackupsKept, maxRestoreBackupsKept);
 }
 
+export function isVersionCode(value: unknown): value is number {
+  return Number.isInteger(value) && (value as number) >= 0;
+}
+
 export function offsetSeconds({ days, hours }: GameClockOffset) {
   return (days * 24 + hours) * 60 * 60;
 }
@@ -54,8 +66,11 @@ export type Preferences = {
   showFps: boolean;
   theme: Theme;
   eventsNoticeDismissed: boolean;
+  updateDismissedVersion: number;
   gameClockOffset: GameClockOffset;
   restoreBackupsKept: number;
+  playInSilentMode: boolean;
+  renderer: RendererChoice;
 };
 
 export type PreferencesHost = {
@@ -78,8 +93,13 @@ function withDefaults(stored: Partial<Preferences>, defaults: Preferences): Pref
     theme: isTheme(stored.theme) ? stored.theme : defaults.theme,
     eventsNoticeDismissed:
       typeof stored.eventsNoticeDismissed === "boolean" ? stored.eventsNoticeDismissed : defaults.eventsNoticeDismissed,
+    updateDismissedVersion: isVersionCode(stored.updateDismissedVersion)
+      ? stored.updateDismissedVersion
+      : defaults.updateDismissedVersion,
     gameClockOffset: isGameClockOffset(stored.gameClockOffset) ? stored.gameClockOffset : defaults.gameClockOffset,
     restoreBackupsKept: isRestoreBackupsKept(stored.restoreBackupsKept) ? stored.restoreBackupsKept : defaults.restoreBackupsKept,
+    playInSilentMode: typeof stored.playInSilentMode === "boolean" ? stored.playInSilentMode : defaults.playInSilentMode,
+    renderer: isRendererChoice(stored.renderer) ? stored.renderer : defaults.renderer,
   };
 }
 

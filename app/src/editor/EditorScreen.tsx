@@ -200,7 +200,7 @@ export function EditorScreen({
   return (
     <DraftsContext.Provider value={open?.drafts ?? null}>
       <ApplyContext.Provider value={applyAction}>
-        <div className="fixed inset-0 z-20 flex flex-col bg-background">
+        <div className="fixed inset-0 px-safe pb-safe z-20 flex flex-col bg-background">
           <ScreenHeader title={top.page.title} onBack={applying ? undefined : back} />
           {error && <p className="border-b px-4 py-2 text-sm text-destructive">{error}</p>}
           <main className="flex min-h-0 flex-1">

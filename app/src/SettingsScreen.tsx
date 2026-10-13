@@ -1,16 +1,20 @@
 import { useId, useState, type ReactNode } from "react";
 import { FolderOpen, RefreshCw, Scale } from "lucide-react";
+import { useAppUpdate } from "@/app-update/appUpdate";
+import { useAudioSession } from "@/audio-session/audioSession";
 import { ExternalLink } from "@/components/ExternalLink";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { NumberInput } from "@/components/NumberInput";
 import { TitledCard } from "@/components/TitledCard";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { ControllersSettings } from "./controllers/ControllersSettings";
 import { useGameArt, useGameArtProgress } from "./game-art/gameArt";
+import { useRenderer, type Renderer } from "./game-surface/gameSurface";
 import { GameClockSetting, useMinute } from "./game-clock/GameClockSetting";
 import { ago } from "./game-page/details";
 import { useGamesFolder } from "./games-folder/gamesFolder";
@@ -19,10 +23,12 @@ import { LabSettings } from "./lab/LabSettings";
 import {
   fastForwardSpeeds,
   isFastForwardSpeed,
+  isRendererChoice,
   isStickSensitivity,
   isTheme,
   maxRestoreBackupsKept,
   minRestoreBackupsKept,
+  rendererChoices,
   stickSensitivities,
   themes,
   usePreferences,
@@ -50,9 +56,11 @@ function GamesFolderSettings() {
     <SettingsCard title="Games folder">
       {gamesFolder.status === "ready" && <p className="break-all text-muted-foreground">{gamesFolder.label}</p>}
       {gamesFolder.error && <p className="text-destructive">{gamesFolder.error}</p>}
-      <Button variant="outline" className="justify-self-start" onClick={gamesFolder.choose}>
-        {gamesFolder.status === "ready" ? "Change folder" : "Choose folder"}
-      </Button>
+      {gamesFolder.choose && (
+        <Button variant="outline" className="justify-self-start" onClick={gamesFolder.choose}>
+          {gamesFolder.status === "ready" ? "Change folder" : "Choose folder"}
+        </Button>
+      )}
     </SettingsCard>
   );
 }
@@ -245,12 +253,19 @@ const stickSensitivityLines = {
   1.5: "The N64 touch stick tilts all the way after a short slide.",
 };
 
+const rendererNames: Record<Renderer, string> = { native: "Native (OpenGL ES)", compatible: "Compatible (WebGL)" };
+
 function PlayingSettings({ system }: { system?: System }) {
   const { preferences, error, change } = usePreferences();
+  const { silentSwitch } = useAudioSession();
+  const { renderers, automatic } = useRenderer();
+  const rendererLabels = { automatic: `Automatic: ${rendererNames[automatic]}`, ...rendererNames };
   const touchId = useId();
+  const silentId = useId();
   const speedId = useId();
   const stickId = useId();
   const fpsId = useId();
+  const rendererId = useId();
 
   return (
     <SettingsCard title="Playing">
@@ -262,6 +277,16 @@ function PlayingSettings({ system }: { system?: System }) {
           onCheckedChange={(touchControls) => void change({ touchControls })}
         />
       </div>
+      {silentSwitch && (
+        <div className="flex items-center justify-between gap-3">
+          <label htmlFor={silentId}>Play sound in silent mode</label>
+          <Switch
+            id={silentId}
+            checked={preferences.playInSilentMode}
+            onCheckedChange={(playInSilentMode) => void change({ playInSilentMode })}
+          />
+        </div>
+      )}
       <div className="flex items-center justify-between gap-3">
         <span id={speedId}>Fast-forward speed</span>
         <ToggleGroup
@@ -307,6 +332,28 @@ function PlayingSettings({ system }: { system?: System }) {
         <label htmlFor={fpsId}>Show FPS</label>
         <Switch id={fpsId} checked={preferences.showFps} onCheckedChange={(showFps) => void change({ showFps })} />
       </div>
+      {renderers.length > 1 && (
+        <div className="flex items-center justify-between gap-3">
+          <span id={rendererId}>Renderer</span>
+          <Select
+            value={preferences.renderer}
+            onValueChange={(renderer) => {
+              if (isRendererChoice(renderer)) void change({ renderer });
+            }}
+          >
+            <SelectTrigger aria-labelledby={rendererId}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {rendererChoices.map((choice) => (
+                <SelectItem key={choice} value={choice}>
+                  {rendererLabels[choice]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
       {system !== "n64" && <GameClockSetting />}
       {error && <p className="text-destructive">{error}</p>}
     </SettingsCard>
@@ -417,11 +464,12 @@ function AboutSettings({ onLicences }: { onLicences(): void }) {
   const plusStatus = usePlus().status;
   const sync = useSync();
   const mentionsPlus = sync.available && plusStatus !== undefined && plusStatus.state !== "unlocked";
+  const update = useAppUpdate();
 
   return (
     <SettingsCard title="About">
       <p className="text-muted-foreground">
-        The emulator, the editor and every Pokémon feature are free.{mentionsPlus && " Plus adds sync."}
+        The emulator, the editor and every Pokémon feature are free.{mentionsPlus && " Plus adds sync and the Lab."}
       </p>
       <p>
         Built on <ExternalLink href="https://github.com/sponsors/kwsch">PKHeX</ExternalLink>,{" "}
@@ -432,13 +480,21 @@ function AboutSettings({ onLicences }: { onLicences(): void }) {
         <Scale />
         View licences
       </Button>
+      {update.state !== "none" && (
+        <div className="flex items-center justify-between gap-3">
+          <span>{update.state === "available" ? "New version available" : "Update downloaded"}</span>
+          <Button variant="outline" onClick={update.state === "available" ? update.start : update.complete}>
+            {update.state === "available" ? "Update" : "Restart"}
+          </Button>
+        </div>
+      )}
     </SettingsCard>
   );
 }
 
 export function SettingsScreen({ system, onBack, onLicences }: { system?: System; onBack(): void; onLicences(): void }) {
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen pb-safe">
       <ScreenHeader title="Settings" onBack={onBack} />
       <main className="grid justify-items-center gap-4 p-4">
         <GamesFolderSettings />

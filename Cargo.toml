@@ -1,5 +1,7 @@
 [workspace]
 members = ["app/src-tauri", "crates/rom-art"]
+# Built only for iOS, as the app's iOS dependency.
+exclude = ["crates/tauri-plugin-pkhemu-ios"]
 resolver = "2"
 
 [profile.release]

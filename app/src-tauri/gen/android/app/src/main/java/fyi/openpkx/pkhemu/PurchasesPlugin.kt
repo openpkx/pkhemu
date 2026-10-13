@@ -1,7 +1,6 @@
 package fyi.openpkx.pkhemu
 
 import android.app.Activity
-import android.os.Build
 import android.util.Log
 import app.tauri.annotation.Command
 import app.tauri.annotation.InvokeArg
@@ -47,15 +46,7 @@ class PurchasesPlugin(private val activity: Activity) : Plugin(activity), Purcha
 
   // Play only sells to a copy it installed, so a sideloaded one reports Plus as unavailable.
   private val fromPlay: Boolean
-    get() {
-      val packages = activity.packageManager
-      val installer = if (Build.VERSION.SDK_INT >= 30) {
-        packages.getInstallSourceInfo(activity.packageName).installingPackageName
-      } else {
-        @Suppress("DEPRECATION") packages.getInstallerPackageName(activity.packageName)
-      }
-      return installer == "com.android.vending"
-    }
+    get() = installedByPlay(activity)
 
   @Command
   fun products(invoke: Invoke) {

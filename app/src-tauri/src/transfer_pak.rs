@@ -1,12 +1,13 @@
 use crate::backups::Reason;
-use crate::emu::BackUp;
+use crate::emu::{BackUp, Emu};
 use crate::games_folder::GamesFolder;
+use crate::resume;
 use crate::rom::{self, Rom};
 use crate::save::Slot;
 use serde::{Deserialize, Serialize};
 use std::io::Read;
 use std::path::{Path, PathBuf};
-use tauri::{AppHandle, Runtime};
+use tauri::{AppHandle, Runtime, State};
 
 include!(concat!(env!("OUT_DIR"), "/transfer_pak_crcs.rs"));
 
@@ -67,6 +68,23 @@ pub async fn fill<R: Runtime>(
     Ok(picked)
 }
 
+pub async fn cart<R: Runtime>(folder: &GamesFolder<'_, R>, rom: &str) -> Result<Option<String>, String> {
+    if !rom::is_n64(rom) {
+        return Ok(None);
+    }
+    let header = header(folder, rom).await?;
+    if !uses(&header) {
+        return Ok(None);
+    }
+    fill(folder, rom, &header).await
+}
+
+/// A resume point holds the old cart's state, so it goes with the change.
+pub async fn change<R: Runtime>(folder: &GamesFolder<'_, R>, rom: &str, game: Option<String>) -> Result<(), String> {
+    resume::remove(folder, rom).await?;
+    choose(folder, rom, game).await
+}
+
 #[tauri::command]
 pub async fn transfer_pak<R: Runtime>(
     app: AppHandle<R>,
@@ -87,11 +105,13 @@ pub async fn transfer_pak<R: Runtime>(
 #[tauri::command]
 pub async fn choose_transfer_pak<R: Runtime>(
     app: AppHandle<R>,
+    emu: State<'_, Emu>,
     folder: String,
     path: String,
     game: Option<String>,
 ) -> Result<(), String> {
-    choose(&GamesFolder::open(&app, &folder), &path, game).await
+    crate::stop_game(&emu).await?;
+    change(&GamesFolder::open(&app, &folder), &path, game).await
 }
 
 fn wanted(n64_rom: &[u8]) -> &'static [&'static [&'static str]] {
@@ -199,6 +219,7 @@ pub fn merge(library: &[u8], working: &[u8], ram_size: usize) -> Vec<u8> {
 }
 
 pub struct Cart {
+    pub path: String,
     pub dir: PathBuf,
     pub rom: Rom,
     pub save: Option<Vec<u8>>,
@@ -432,6 +453,29 @@ mod tests {
     }
 
     #[test]
+    fn fills_the_cart_of_an_n64_game_that_uses_the_transfer_pak() {
+        let folder = library("cart", &[("gb/Red.gb", b"POKEMON RED")]);
+        block_on(folder.write("n64/Stadium.z64", &n64_header(b"NPOE", STADIUM_CRCS))).unwrap();
+        block_on(folder.write("n64/Mario.z64", &n64_header(b"NSME", (0x635A2BFF, 0x8B022326)))).unwrap();
+
+        assert_eq!(block_on(cart(&folder, "n64/Stadium.z64")), Ok(Some("gb/Red.gb".into())));
+        assert_eq!(block_on(chosen(&folder, "n64/Stadium.z64")), Ok(Some(Setting { game: Some("gb/Red.gb".into()) })));
+        assert_eq!(block_on(cart(&folder, "n64/Mario.z64")), Ok(None));
+        assert_eq!(block_on(cart(&folder, "gb/Red.gb")), Ok(None));
+    }
+
+    #[test]
+    fn changing_the_cart_drops_the_resume_point() {
+        let folder = library("change", &[("gb/Red.gb", b"POKEMON RED")]);
+        block_on(folder.write(&rom::resume_path("n64/Stadium.z64"), b"state")).unwrap();
+
+        block_on(change(&folder, "n64/Stadium.z64", Some("gb/Red.gb".into()))).unwrap();
+
+        assert_eq!(block_on(chosen(&folder, "n64/Stadium.z64")), Ok(Some(Setting { game: Some("gb/Red.gb".into()) })));
+        assert!(!block_on(folder.has_file(&rom::resume_path("n64/Stadium.z64"))));
+    }
+
+    #[test]
     fn reads_the_header_of_a_zipped_game() {
         let folder = library("zipped", &[]);
         let mut zip = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
@@ -449,6 +493,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("pkh-emu-transfer-pak-session-{name}-{}", std::process::id()));
         let (slot, _) = Slot::new("gbc/Crystal.sav".into(), Vec::new());
         let cart = Cart {
+            path: "gbc/Crystal.gbc".into(),
             dir,
             rom: Rom { name: "Crystal.gbc".into(), bytes: gb_header(b"PM_CRYSTAL", 0x10, 0x03) },
             save,

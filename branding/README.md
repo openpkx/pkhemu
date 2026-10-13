@@ -22,7 +22,7 @@ npm run branding
 |---|---|
 | Windows, Linux | `icon.svg` as drawn: a rounded square filling the canvas. |
 | macOS (`icon.icns`) | The rounded square at 824×824 in the middle of a 1024 canvas, as Big Sur and later expect. |
-| iOS (`ios/AppIcon-*.png`) | A full square with no alpha channel, since iOS applies its own mask and App Store validation rejects alpha. |
+| iOS (`ios/AppIcon-*.png`) | A full square with no alpha channel, since iOS applies its own mask and App Store validation rejects alpha. The same PNGs go into the Xcode asset catalog, `app/src-tauri/gen/apple/Assets.xcassets/AppIcon.appiconset/`. |
 | Android | The glyph on a `#6d4aff` adaptive background. The launcher applies the mask. |
 
 opentype.js outlined the wordmark once from `pixelify-sans-latin-600-normal.woff` in `@fontsource/pixelify-sans`. Redo that only if the wordmark changes.

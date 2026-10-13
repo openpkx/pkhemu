@@ -1,5 +1,7 @@
-#[cfg(target_os = "android")]
-mod android;
+#[cfg_attr(target_os = "android", path = "plus/android.rs")]
+#[cfg_attr(target_os = "ios", path = "plus/ios.rs")]
+#[cfg_attr(desktop, path = "plus/desktop.rs")]
+pub mod platform;
 #[cfg(test)]
 pub mod fake;
 #[cfg(test)]
@@ -10,9 +12,6 @@ use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Runtime, State};
-
-#[cfg(target_os = "android")]
-pub use android::plugin;
 
 pub const PRODUCT: &str = "plus";
 
@@ -65,12 +64,10 @@ pub trait Purchases: Send + Sync {
 }
 
 pub fn store<R: Runtime>(app: &AppHandle<R>, build: Build) -> Option<Arc<dyn Purchases>> {
-    #[cfg(target_os = "android")]
-    if build == (Build::Store { plus: true }) {
-        return android::store(app);
+    match build {
+        Build::Store { plus: true } => platform::store(app),
+        _ => None,
     }
-    let _ = (app, build);
-    None
 }
 
 pub type OnChange = Box<dyn Fn(&Status) + Send + Sync>;

@@ -58,7 +58,9 @@ function launch({
   sha1s,
   saves,
   onCopy,
+  device = "phone",
 }: {
+  device?: GamesFolderHost["device"];
   games?: string[];
   onboarding?: boolean;
   folders: (PickedFolder | null)[];
@@ -77,7 +79,7 @@ function launch({
     folderExists: async () => true,
     loadSaved: async () => (onboarding ? null : "/games"),
     save: async () => {},
-    device: "phone",
+    device,
     label: (folder) => folder,
   };
   const list = fakeFolder(paths);
@@ -114,7 +116,7 @@ function launch({
     <EngineProvider engine={engine}>
       <PreferencesProvider
         host={{ load: async () => ({}), save: async () => {} }}
-        defaults={{ touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1 }}
+        defaults={{ touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic" }}
       >
         <GamesFolderProvider host={gamesFolderHost}>
           <SyncProvider host={fakeSync({ available: false }).host}>
@@ -176,11 +178,31 @@ it("imports a RetroArch folder with its saves from the welcome screen", async ()
   expect((await toast()).textContent).toBe("Copied 2 games and 2 saves");
   expect(host.copyRom).toHaveBeenCalledWith("/games", "/RetroArch/roms/gba/Emerald.gba", "gba/Emerald.gba");
   expect(host.copyRom).toHaveBeenCalledWith("/games", "/RetroArch/roms/gbc/Crystal.gbc", "gbc/Crystal.gbc");
-  expect(host.copySave).toHaveBeenCalledWith("/games", "gba/Emerald.gba", file("saves/Emerald.srm"));
-  expect(host.copySave).toHaveBeenCalledWith("/games", "gbc/Crystal.gbc", file("roms/gbc/Crystal.sav"));
+  expect(host.copySave).toHaveBeenCalledWith("/games", { file: file("saves/Emerald.srm"), game: "gba/Emerald.gba" });
+  expect(host.copySave).toHaveBeenCalledWith("/games", { file: file("roms/gbc/Crystal.sav"), game: "gbc/Crystal.gbc" });
   expect(host.copySave).toHaveBeenCalledTimes(2);
   expect(paths).toEqual(expect.arrayContaining(["gba/Emerald.gba", "gbc/Crystal.gbc"]));
   expect(await screen.findByRole("button", { name: /Emerald/ })).toBeTruthy();
+});
+
+it("copies a Delta library under the games' own names, each save with its clock", async () => {
+  const delta: PickedFolder = { folder: "/Delta/Database", name: "Database" };
+  const sha1 = "c".repeat(40);
+  const games = (name: string, more: Partial<ImportFile> = {}) => ({ ...file(`Games/${name}`, more), file: `/Delta/Database/Games/${name}` });
+  const { host } = launch({
+    games: ["gb/Red.gb"],
+    folders: [delta],
+    scans: { [delta.folder]: { files: [games(`${sha1}.gbc`, { title: "Crystal" }), games(`${sha1}.sav`), games(`${sha1}.rtc`)], other: 0 } },
+  });
+
+  await importFolderFromLibrary();
+  expect(await screen.findByRole("heading", { name: "Found 1 game" })).toBeTruthy();
+  expect(listed()).toEqual(["GBCCrystalSave"]);
+  fireEvent.click(screen.getByRole("button", { name: "Copy 1 game" }));
+
+  expect((await toast()).textContent).toBe("Copied 1 game and 1 save");
+  expect(host.copyRom).toHaveBeenCalledWith("/games", `/Delta/Database/Games/${sha1}.gbc`, "gbc/Crystal.gbc");
+  expect(host.copySave).toHaveBeenCalledWith("/games", { file: games(`${sha1}.sav`), game: "gbc/Crystal.gbc", clock: games(`${sha1}.rtc`) });
 });
 
 it("opens the picker straight from the library and copies what it found", async () => {
@@ -244,6 +266,31 @@ it("stays on the library when the picker is cancelled", async () => {
   await waitFor(() => expect(host.pickFolder).toHaveBeenCalled());
   expect(host.scan).not.toHaveBeenCalled();
   expect(screen.getByRole("button", { name: /Red/ })).toBeTruthy();
+});
+
+it("imports Delta's folder from the welcome screen on an iPhone", async () => {
+  const delta: PickedFolder = { folder: "/Delta", name: "Delta" };
+  const { host } = launch({
+    device: "iPhone",
+    folders: [delta],
+    scans: { [delta.folder]: { files: [{ ...file("Games/Crystal.gbc"), file: "/Delta/Database/Games/Crystal.gbc" }], other: 0 } },
+  });
+
+  fireEvent.click(await screen.findByRole("button", { name: /I'm coming from Delta/ }));
+  fireEvent.click(await screen.findByRole("button", { name: "Choose folder" }));
+
+  expect(await screen.findByRole("heading", { name: "Found 1 game" })).toBeTruthy();
+  expect(host.scan).toHaveBeenCalledWith(delta.folder, false);
+});
+
+it("goes back from Delta's folder to the welcome screen", async () => {
+  const { back } = launch({ device: "iPhone", folders: [], scans: {} });
+
+  fireEvent.click(await screen.findByRole("button", { name: /I'm coming from Delta/ }));
+  await screen.findByRole("button", { name: "Choose folder" });
+  back();
+
+  expect(await screen.findByRole("button", { name: /I'm coming from Delta/ })).toBeTruthy();
 });
 
 it("goes back from where the games are to the welcome screen", async () => {
@@ -327,7 +374,7 @@ it("asks once about saves pkhemu has, and replaces only the ticked ones", async 
   expect((await toast()).textContent).toBe("Copied 1 save");
   expect(host.copyRom).not.toHaveBeenCalled();
   expect(host.copySave).toHaveBeenCalledTimes(1);
-  expect(host.copySave).toHaveBeenCalledWith("/games", "gba/Ruby.gba", file("Ruby.srm"));
+  expect(host.copySave).toHaveBeenCalledWith("/games", { file: file("Ruby.srm"), game: "gba/Ruby.gba" });
 });
 
 it("hashes the ROMs it finds only when the library has games to compare them with", async () => {

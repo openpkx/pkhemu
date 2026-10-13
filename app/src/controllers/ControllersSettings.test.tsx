@@ -13,7 +13,8 @@ const HAT_UP = -1;
 const HAT_RIGHT = -0.428571;
 const HAT_DOWN = 0.142857;
 const HAT_LEFT = 0.714286;
-const STEPS = 17;
+const STEPS = 19;
+const LEFT_STICK = 15;
 
 let pads: ReturnType<typeof fakePads>;
 
@@ -67,6 +68,11 @@ async function pressEach(pad: Pad, buttonsToPress: number[]) {
 
 const range = (from: number, to: number) => Array.from({ length: to - from }, (_, i) => from + i);
 
+async function skipRightStick() {
+  for (let i = 0; i < 2; i++) fireEvent.click(screen.getByRole("button", { name: "Skip" }));
+  await act(async () => {});
+}
+
 it("lists connected controllers", async () => {
   connectOddPad();
   pads.connect({ id: "Standard Pad" });
@@ -91,7 +97,7 @@ it("saves a setup that drives the game", async () => {
   for (const button of [8, 9, 12]) pad.press(button);
   pad.flick(1, -1);
   pad.flick(0, -1);
-  await act(async () => {});
+  await skipRightStick();
 
   expect(setupOpen()).toBe(false);
   expect(screen.getByRole("status")).toBeTruthy();
@@ -109,6 +115,48 @@ it("saves a setup that drives the game", async () => {
   expect(input.poll(48)).toBe(1 << buttons.down);
 });
 
+it("drives the N64 right stick from the right stick steps", async () => {
+  const pad = pads.connect({ id: "Odd Pad", mapping: "", axes: [0, 0, 0, 0, 0, 0] });
+  const { saved } = await openSettings();
+  configure("Odd Pad");
+  await pressEach(pad, range(0, LEFT_STICK));
+  pad.flick(1, -1);
+  pad.flick(0, -1);
+  expect(currentStep()).toBe(LEFT_STICK + 2);
+
+  pad.flick(5, -1);
+  pad.flick(4, -1);
+  await act(async () => {});
+
+  expect(setupOpen()).toBe(false);
+  const input = createInput(pads.gamepads, saved, "n64");
+  const detach = input.attach(window);
+  pad.move(4, 1);
+  expect(input.poll(0)).toBe(0);
+  expect(input.pollAnalog()).toEqual([0, 0, 0x7fff, 0]);
+  detach();
+});
+
+it("leaves a pad without a right stick when its steps are skipped", async () => {
+  const pad = connectOddPad();
+  const { saved } = await openSettings();
+  configure("Odd Pad");
+  await pressEach(pad, range(0, LEFT_STICK));
+  pad.flick(1, -1);
+  pad.flick(0, -1);
+
+  await skipRightStick();
+
+  expect(setupOpen()).toBe(false);
+  expect(Object.keys(saved().pads["Odd Pad"] ?? {}).filter((step) => step.startsWith("rightStick"))).toEqual([]);
+  const input = createInput(pads.gamepads, saved, "n64");
+  const detach = input.attach(window);
+  pad.move(3, 1);
+  input.poll(0);
+  expect(input.pollAnalog()).toEqual([0, 0, 0, 0]);
+  detach();
+});
+
 it("skips a step when a button is held for 2 seconds", async () => {
   const pad = connectOddPad();
   const { saved } = await openSettings();
@@ -118,7 +166,8 @@ it("skips a step when a button is held for 2 seconds", async () => {
   act(() => void vi.advanceTimersByTime(2000));
   pad.hold();
   expect(currentStep()).toBe(1);
-  await pressEach(pad, range(0, STEPS - 1));
+  await pressEach(pad, range(0, STEPS - 3));
+  await skipRightStick();
 
   expect(saved().pads["Odd Pad"]?.up).toBeUndefined();
   expect(saved().pads["Odd Pad"]?.down).toEqual({ button: 0 });
@@ -131,7 +180,8 @@ it("skips a step from the Skip button", async () => {
 
   fireEvent.click(screen.getByRole("button", { name: "Skip" }));
   expect(currentStep()).toBe(1);
-  await pressEach(pad, range(0, STEPS - 1));
+  await pressEach(pad, range(0, STEPS - 3));
+  await skipRightStick();
 
   expect(saved().pads["Odd Pad"]?.up).toBeUndefined();
   expect(saved().pads["Odd Pad"]?.down).toEqual({ button: 0 });
@@ -181,13 +231,13 @@ it("treats the stick's opposite direction as bound", async () => {
   const pad = connectOddPad();
   await openSettings();
   configure("Odd Pad");
-  await pressEach(pad, range(0, STEPS - 2));
+  await pressEach(pad, range(0, LEFT_STICK));
   pad.flick(1, -1);
   act(() => void vi.advanceTimersByTime(1000));
 
   pad.flick(1, 1);
 
-  expect(currentStep()).toBe(STEPS - 1);
+  expect(currentStep()).toBe(LEFT_STICK + 1);
 });
 
 const previous: Calibrations = { pads: { "Odd Pad": { east: { button: 7 } } } };
@@ -236,7 +286,7 @@ it("learns where a trigger rests after its first pull", async () => {
   await pressEach(pad, range(10, 14));
   pad.flick(1, -1);
   pad.flick(0, -1);
-  await act(async () => {});
+  await skipRightStick();
 
   expect(setupOpen()).toBe(false);
   expect(saved().pads["Odd Pad"]).toMatchObject({ l2: { axis: 3, direction: 1 }, r2: { button: 10 }, stickUp: { axis: 1, direction: -1 } });

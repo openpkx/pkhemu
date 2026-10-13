@@ -14,6 +14,10 @@ use std::time::UNIX_EPOCH;
 use tauri::ipc::Response;
 use tauri::{AppHandle, Emitter, Runtime, State};
 
+#[cfg_attr(target_os = "android", path = "game_art/android.rs")]
+#[cfg_attr(target_os = "ios", path = "game_art/ios.rs")]
+#[cfg_attr(target_os = "macos", path = "game_art/macos.rs")]
+mod platform;
 mod retail;
 
 const MANIFEST: &str = "manifest.json";
@@ -418,7 +422,9 @@ impl GameArt {
         std::thread::Builder::new()
             .name("game-art".into())
             .spawn(move || {
-                lower_priority();
+                // The worker only runs while no game does, except to extract the running game's own art, which
+                // shouldn't cost it frames.
+                platform::lower_priority();
                 run(&worker, &queue)
             })
             .expect("failed to start the game art thread");
@@ -591,21 +597,6 @@ fn run_scan<H: Host>(worker: &Worker<H>, shared: &Shared, mut scan: Scan) {
         eprintln!("deleting game art: {e}");
     }
 }
-
-// The worker only runs while no game does, except to extract the running game's own art, which shouldn't cost it frames.
-#[cfg(target_vendor = "apple")]
-fn lower_priority() {
-    unsafe { libc::pthread_set_qos_class_self_np(libc::qos_class_t::QOS_CLASS_UTILITY, 0) };
-}
-
-// Linux and Android give each thread its own nice value.
-#[cfg(any(target_os = "linux", target_os = "android"))]
-fn lower_priority() {
-    unsafe { libc::setpriority(libc::PRIO_PROCESS as _, libc::gettid() as _, 10) };
-}
-
-#[cfg(not(any(target_vendor = "apple", target_os = "linux", target_os = "android")))]
-fn lower_priority() {}
 
 fn sha1_folder(root: &Path, sha1: &str) -> Result<PathBuf, String> {
     if sha1.len() != 40 || !sha1.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f')) {

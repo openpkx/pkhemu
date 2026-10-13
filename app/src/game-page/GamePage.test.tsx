@@ -32,9 +32,12 @@ const defaultPreferences: Preferences = {
   showFps: false,
   theme: "system",
   eventsNoticeDismissed: false,
+  updateDismissedVersion: 0,
   gameClockOffset: { days: 0, hours: 0 },
   restoreBackupsKept: 10,
   stickSensitivity: 1,
+  playInSilentMode: false,
+  renderer: "automatic",
 };
 
 const emerald: Game = { system: "gba", name: "Pokemon - Emerald Version (USA, Europe)", path: "gba/Emerald.gba" };
@@ -141,7 +144,10 @@ function fakeHost({
       if (info?.slot === slot) info = { ...info, slot: undefined };
     }),
     transferPak: vi.fn(async () => transferPak),
-    chooseTransferPak: vi.fn(async (_folder: string, _path: string, game: string | null) => void (transferPak = { game })),
+    chooseTransferPak: vi.fn(async (_folder: string, _path: string, game: string | null) => {
+      transferPak = { game };
+      resume = false;
+    }),
   } satisfies GamePageHost;
 }
 
@@ -170,6 +176,7 @@ async function launch(
     preferences = {} as Partial<Preferences>,
     patchedFrom = null as PatchedFrom | null,
     sync = fakeSync({ available: false }),
+    unsupported = undefined as "device" | "platform" | undefined,
   } = {},
 ) {
   const props = { onPlay: vi.fn(), onBack: vi.fn() };
@@ -198,7 +205,7 @@ async function launch(
                   <ExportProvider host={exportHost}>
                     <PatchRomProvider host={patchRomHost}>
                       <PadNavigation input={createInput(pads.gamepads)} />
-                      <GamePage host={host} folder="/games" game={game} games={games} cover={cover} {...props} />
+                      <GamePage host={host} folder="/games" game={game} games={games} cover={cover} unsupported={unsupported} {...props} />
                     </PatchRomProvider>
                   </ExportProvider>
                 </BackProvider>
@@ -238,6 +245,52 @@ it("puts a Game Boy game from the library in the Transfer Pak", async () => {
 
   expect(host.chooseTransferPak).toHaveBeenCalledWith("/games", "n64/Stadium.z64", "gbc/Crystal.gbc");
   expect(within(card).getByRole("combobox").textContent).toContain("Crystal");
+});
+
+async function pickCart(name: string) {
+  fireEvent.click(within(screen.getByRole("region", { name: "Transfer Pak" })).getByRole("combobox"));
+  fireEvent.click(within(await screen.findByRole("listbox")).getByRole("option", { name }));
+  await act(async () => {});
+}
+
+it("warns before changing the Transfer Pak when the resume point has unsaved play", async () => {
+  const host = fakeHost({ transferPak: { game: "gb/Red.gb" }, info: { playSinceSave: 720 } });
+  await launch(host, undefined, { game: stadium, games: gameBoyLibrary });
+
+  await pickCart("Crystal");
+
+  const dialog = screen.getByRole("alertdialog");
+  expect(dialog.textContent).toMatch(/12 minutes of play that isn't in the save/);
+  expect(dialog.textContent).toMatch(/Changing the Transfer Pak drops the resume point/);
+  expect(host.chooseTransferPak).not.toHaveBeenCalled();
+  fireEvent.click(within(dialog).getByRole("button", { name: "Continue anyway" }));
+  await act(async () => {});
+  expect(host.chooseTransferPak).toHaveBeenCalledWith("/games", "n64/Stadium.z64", "gbc/Crystal.gbc");
+  expect(button("Resume")).toBeNull();
+});
+
+it("resumes instead of changing the Transfer Pak to save first", async () => {
+  const host = fakeHost({ transferPak: { game: "gb/Red.gb" }, info: { playSinceSave: 720 } });
+  const { onPlay } = await launch(host, undefined, { game: stadium, games: gameBoyLibrary });
+
+  await pickCart("Crystal");
+  fireEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Resume and save first" }));
+  await act(async () => {});
+
+  expect(onPlay).toHaveBeenCalledWith("resume", undefined, expect.anything());
+  expect(host.chooseTransferPak).not.toHaveBeenCalled();
+});
+
+it("drops a resume point with no unsaved play when the Transfer Pak changes", async () => {
+  const host = fakeHost({ transferPak: { game: "gb/Red.gb" }, info: { playSinceSave: 30 } });
+  await launch(host, undefined, { game: stadium, games: gameBoyLibrary });
+  expect(button("Resume")).toBeTruthy();
+
+  await pickCart("Crystal");
+
+  expect(screen.queryByRole("alertdialog")).toBeNull();
+  expect(host.chooseTransferPak).toHaveBeenCalledWith("/games", "n64/Stadium.z64", "gbc/Crystal.gbc");
+  expect(button("Resume")).toBeNull();
 });
 
 it("has no Transfer Pak for a game that doesn't use one", async () => {
@@ -421,6 +474,16 @@ it("leaves money out when the save has none", async () => {
   await launch(fakeHost({ save: true }), fakeEngine({ trainer: { ...may, money: null }, party: mayParty }));
 
   expect(screen.getByRole("region", { name: "Save" }).textContent).not.toMatch(/₽/);
+});
+
+it("leaves the trainer out for a Stadium save, which has teams instead", async () => {
+  const teams = [{ name: null, cup: "Poké Cup", members: [] }];
+  await launch(fakeHost({ save: true }), fakeEngine({ trainer: { ...may, name: "PKHeXWeb", money: 0 }, teams, progress }));
+
+  const card = screen.getByRole("region", { name: "Save" }).textContent;
+  expect(card).not.toMatch(/PKHeXWeb|₽/);
+  expect(card).toMatch(/41:02/);
+  expect(screen.getByText("Emerald")).toBeTruthy();
 });
 
 it("closes the save in the engine once it's summed up", async () => {
@@ -724,6 +787,29 @@ it("edits the save from the page, then applies and plays", async () => {
 
   await waitFor(() => expect(onPlay).toHaveBeenCalledWith("new"));
   expect(host.applyEdit).toHaveBeenCalledWith("/games", "gba/Emerald.gba", new Uint8Array([9, 2, 3]));
+});
+
+it("applies an edit and stays on the page when this device can't play the game", async () => {
+  const engine = fakeEngine({ trainer: may, party: mayParty });
+  const { host, onPlay } = await launch(fakeHost({ save: true, resume: false }), engine, { unsupported: "platform" });
+
+  await editSave();
+  await act(() => engine.engine.trainer.setMoney(9));
+  fireEvent.click(await screen.findByRole("button", { name: "Apply and play" }));
+
+  await waitFor(() => expect(editor()).toBeNull());
+  expect(host.applyEdit).toHaveBeenCalledWith("/games", "gba/Emerald.gba", new Uint8Array([9, 2, 3]));
+  expect(onPlay).not.toHaveBeenCalled();
+});
+
+it("closes the save-first dialog without playing when this device can't play the game", async () => {
+  const { onPlay } = await launch(fakeHost({ save: true, info: { playSinceSave: 720 } }), undefined, { unsupported: "platform" });
+  await editSave();
+
+  fireEvent.click(within(screen.getByRole("alertdialog")).getByRole("button", { name: "Resume and save first" }));
+
+  await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+  expect(onPlay).not.toHaveBeenCalled();
 });
 
 it("asks before applying and playing when there's a resume point", async () => {

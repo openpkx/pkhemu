@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>pkhemu: an emulator with a save editor built in</title>
-<meta name="description" content="pkhemu is a GB, GBC, GBA and DS emulator with a save editor built in, for Android and macOS.">
+<meta name="description" content="pkhemu is a GB, GBC, GBA, DS and N64 emulator with a save editor built in. In testing on Android, coming soon to iOS and macOS.">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=3">
 </head>
 <body>
 <div class="page">
@@ -21,29 +21,60 @@
         <span class="chip gbc">GBC</span>
         <span class="chip gba">GBA</span>
         <span class="chip nds">NDS</span>
+        <span class="chip n64">N64</span>
       </div>
       <h1>pkhemu is an emulator with a save editor built in</h1>
-      <p>pkhemu plays GB, GBC, GBA and DS games. For supported games, pause and edit your save, then keep playing.</p>
-      <span class="status">Coming soon to Android and macOS</span>
+      <p>Play GB, GBC, GBA, DS and N64 games. For supported games, pause, edit your save and keep playing.</p>
+      <div class="actions">
+        <a class="button" href="#join">Join the Android test</a>
+        <span class="note">Coming soon to iOS and macOS</span>
+      </div>
     </section>
 
-    <h2>What it does</h2>
-    <ul>
-      <li><strong>Bring your own games.</strong> pkhemu ships no games or BIOS files. Add the games you own from a folder on your device.</li>
-      <li><strong>Edit saves.</strong> For supported games, change your save while the game is paused, and move characters and items between your saves.</li>
-      <li><strong>Save states and backups.</strong> Save anywhere, and go back to an earlier copy of your save.</li>
-      <li><strong>Open source.</strong> pkhemu is licensed under the GPL-3.0. The source code is published with the first release.</li>
-    </ul>
+    <section id="join" class="join">
+      <h2>Join the Android test</h2>
+      <p>Google Play needs testers to stay in the test for a while before pkhemu can launch.</p>
+      <ol class="steps">
+        <li>
+          <span class="step">1</span>
+          <h3>Join the group</h3>
+          <p>Use the Google account on your Android phone.</p>
+          <a class="button" href="https://groups.google.com/g/pkhemu-testers">Join the group</a>
+        </li>
+        <li>
+          <span class="step">2</span>
+          <h3>Become a tester</h3>
+          <p>Open the testing page and tap Become a tester.</p>
+          <a class="button" href="https://play.google.com/apps/testing/fyi.openpkx.pkhemu">Open Google Play</a>
+        </li>
+        <li>
+          <span class="step">3</span>
+          <h3>Install and play</h3>
+          <p>Install pkhemu from Google Play and keep it for a couple of weeks.</p>
+        </li>
+      </ol>
+      <p class="aside">Found a bug? Email <a href="mailto:pkhemu@openpkx.fyi">pkhemu@openpkx.fyi</a>.</p>
+    </section>
 
-    <h2>Your data</h2>
-    <p>pkhemu runs no servers and has no accounts, ads or analytics. Your games and saves stay on your device.</p>
-    <p>You can connect your Google Drive or Dropbox to copy your saves and save states between your own devices. pkhemu then asks Google for two things: your email address, to show which account is connected, and access to a private app folder in your Drive that only pkhemu can see. It can't see any other file in your Drive. The <a href="/privacy">privacy policy</a> has the details.</p>
+    <section>
+      <h2>What it does</h2>
+      <ul class="features">
+        <li><h3>Bring your own games</h3><p>pkhemu ships no games or BIOS files. Add the games you own from a folder.</p></li>
+        <li><h3>Edit saves</h3><p>Change your save while the game is paused, and move characters and items between saves.</p></li>
+        <li><h3>Save states and backups</h3><p>Save anywhere, and go back to an earlier copy of your save.</p></li>
+        <li><h3>Open source</h3><p>Licensed under the GPL-3.0. The source of each release is on <a href="https://github.com/openpkx/pkhemu">GitHub</a>.</p></li>
+      </ul>
+    </section>
 
-    <h2>Built on</h2>
-    <p><a href="https://github.com/kwsch/PKHeX">PKHeX</a> for save editing, and <a href="https://mgba.io">mGBA</a> and <a href="https://melonds.kuribo64.net">melonDS</a> for emulation. Consider supporting them.</p>
+    <section>
+      <h2>Your data</h2>
+      <p class="lead">No servers, accounts, ads or analytics. Your games and saves stay on your device.</p>
+      <p class="small">You can connect your Google Drive or Dropbox to copy your saves and save states between your own devices. pkhemu then asks Google for two things: your email address, to show which account is connected, and access to a private app folder in your Drive that only pkhemu can see. It can't see any other file in your Drive. The <a href="/privacy">privacy policy</a> has the details.</p>
+    </section>
   </main>
 
   <footer>
+    <p>Built on <a href="https://github.com/kwsch/PKHeX">PKHeX</a> for save editing, and <a href="https://mgba.io">mGBA</a>, <a href="https://melonds.kuribo64.net">melonDS</a> and <a href="https://github.com/libretro/mupen64plus-libretro-nx">Mupen64Plus-Next</a> for emulation. Consider supporting them.</p>
     <nav>
       <a href="/privacy">Privacy policy</a>
       <a href="mailto:pkhemu@openpkx.fyi">pkhemu@openpkx.fyi</a>

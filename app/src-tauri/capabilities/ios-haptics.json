@@ -1,0 +1,8 @@
+{
+  "$schema": "../gen/schemas/mobile-schema.json",
+  "identifier": "ios-haptics",
+  "description": "Haptics for the touch controls",
+  "windows": ["main"],
+  "platforms": ["iOS"],
+  "permissions": ["haptics:allow-impact-feedback"]
+}

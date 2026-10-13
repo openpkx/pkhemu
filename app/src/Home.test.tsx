@@ -10,6 +10,12 @@ import { GameArtProvider } from "./game-art/gameArt";
 import { fakeBoxArt } from "./box-art/fakeBoxArt";
 import { GamesFolderProvider, type GamesFolderHost } from "./games-folder/gamesFolder";
 import { Home } from "./Home";
+import { fakeImport } from "./import/fakeImport";
+import { ImportProvider } from "./import/importFiles";
+import { ExperimentsProvider, type ExperimentValues } from "./lab/lab";
+import { experiments as registry } from "./lab/experiments";
+import { fakePlus } from "./plus/fakePlus";
+import { PlusProvider } from "./plus/plus";
 import { pngDataUrl } from "./lib/utils";
 import { fakePads, padButtons } from "./input/fakePads";
 import { fakeFolder } from "./library/fakeFolder";
@@ -21,6 +27,7 @@ import { PreferencesProvider } from "./preferences/preferences";
 import { hideSplash } from "./splash";
 import { fakeSync } from "./sync/fakeSync";
 import { SyncProvider } from "./sync/sync";
+import type { System } from "./systems";
 
 vi.mock("./splash", () => ({ hideSplash: vi.fn() }));
 
@@ -87,21 +94,26 @@ function launch({
   listDir = undefined as LibraryHost["listDir"] | undefined,
   makeFolder = vi.fn(async () => "/games" as string | null),
   findFolder = vi.fn(async () => "/games" as string | null),
+  canFindFolder = true,
+  device = "phone" as GamesFolderHost["device"],
   listFolders = async (_folder: string) => ["gba"],
+  systems = undefined as readonly System[] | undefined,
+  experiments = undefined as ExperimentValues | undefined,
 } = {}) {
   const paths: string[] = [];
+  const importHost = fakeImport({ onCopy: (path) => void paths.push(path) });
   const openFolder = vi.fn(async () => {});
   const save = vi.fn(async (_folder: string) => {});
   const gamesFolderHost: GamesFolderHost = {
     pickFolder: async () => "/games",
     makeFolder,
-    findFolder,
+    ...(canFindFolder && { findFolder }),
     listFolders,
     ensureFolder: async (_parent, name) => void paths.push(`${name}/`),
     folderExists: async () => true,
     loadSaved,
     save,
-    device: "phone",
+    device,
     label: (folder) => folder,
     ...(canOpenFolder && { openFolder }),
   };
@@ -173,7 +185,7 @@ function launch({
     <EngineProvider engine={idleEngine}>
       <PreferencesProvider
         host={{ load: async () => ({}), save: async () => {} }}
-        defaults={{ touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1 }}
+        defaults={{ touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic" }}
       >
         <GamesFolderProvider host={gamesFolderHost}>
           <SyncProvider host={sync.host}>
@@ -181,7 +193,17 @@ function launch({
               <BoxArtProvider host={boxArt.host}>
                 <GameArtProvider host={fakeGameArt().host}>
                   <PatchRomProvider host={patchRomHost}>
-                    <Home libraryHost={libraryHost} gamePageHost={gamePageHost} />
+                    <ImportProvider host={importHost}>
+                      {experiments ? (
+                        <PlusProvider host={fakePlus({ status: { state: "unlocked" } }).host}>
+                          <ExperimentsProvider host={{ load: async () => experiments, save: async () => {} }} registry={registry}>
+                            <Home libraryHost={libraryHost} gamePageHost={gamePageHost} systems={systems} />
+                          </ExperimentsProvider>
+                        </PlusProvider>
+                      ) : (
+                        <Home libraryHost={libraryHost} gamePageHost={gamePageHost} systems={systems} />
+                      )}
+                    </ImportProvider>
                   </PatchRomProvider>
                 </GameArtProvider>
               </BoxArtProvider>
@@ -191,7 +213,7 @@ function launch({
       </PreferencesProvider>
     </EngineProvider>,
   );
-  return { paths, openFolder, save, makeFolder, gamePageHost, back: () => act(pressBack), exit: backHost.exit };
+  return { paths, openFolder, save, makeFolder, gamePageHost, importHost, back: () => act(pressBack), exit: backHost.exit };
 }
 
 it("keeps the splash while the games folder loads", async () => {
@@ -230,6 +252,33 @@ it("welcomes a player with no games folder with three ways in", async () => {
   expect(await screen.findByRole("button", { name: /I'm new to emulators/ })).toBeTruthy();
   expect(screen.getByRole("button", { name: /I have ROMs on this phone/ })).toBeTruthy();
   expect(screen.getByRole("button", { name: /I've used pkhemu before/ })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: /Delta/ })).toBeNull();
+});
+
+it("welcomes a player on a Mac with the Mac's three ways in", async () => {
+  launch({ device: "Mac" });
+
+  expect(await screen.findByRole("button", { name: /I'm new to emulators/ })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /I have ROMs on this Mac/ })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /I've used pkhemu before/ })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: /Delta/ })).toBeNull();
+});
+
+it("welcomes a player on an iPhone with games on the iPhone and Delta, not a previous folder", async () => {
+  launch({ device: "iPhone", canFindFolder: false });
+
+  expect(await screen.findByRole("button", { name: /I'm new to emulators/ })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /I have games on this iPhone/ })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /I'm coming from Delta/ })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: /I've used pkhemu before/ })).toBeNull();
+});
+
+it("makes the games folder for a new player on an iPhone", async () => {
+  const { save } = launch({ device: "iPhone", canFindFolder: false });
+
+  await chooseFolder();
+
+  expect(save).toHaveBeenCalledWith("/games");
 });
 
 async function makeFolder() {
@@ -354,6 +403,32 @@ it("goes from first launch to the library once a ROM is added", async () => {
   expect(screen.queryByTestId("empty-library")).toBeNull();
 });
 
+it("shows the platform's consoles on the welcome screen", async () => {
+  launch();
+
+  await screen.findByRole("button", { name: /I'm new to emulators/ });
+
+  expect(screen.getByRole("img", { name: /Game Boy Advance.*Nintendo 64/ })).toBeTruthy();
+});
+
+it("shows a chip for each console on the empty library", async () => {
+  launch();
+
+  const chips = within(await chooseFolder()).getByRole("img", { name: /Game Boy.*Nintendo DS.*Nintendo 64/ });
+
+  for (const system of ["GB", "GBC", "GBA", "NDS", "N64"]) expect(within(chips).getByText(system)).toBeTruthy();
+});
+
+it("leaves N64 off the empty library where the platform doesn't offer it", async () => {
+  launch({ systems: ["gb", "gbc", "gba", "nds"] });
+
+  const chips = within(await chooseFolder()).getByRole("img", { name: /Nintendo DS/ });
+
+  expect(within(chips).getByText("NDS")).toBeTruthy();
+  expect(within(chips).queryByText("N64")).toBeNull();
+  expect(chips.getAttribute("aria-label")).not.toMatch(/Nintendo 64/);
+});
+
 it("opens the games folder from the empty library", async () => {
   const { openFolder } = launch();
 
@@ -379,6 +454,49 @@ it("shows why the games folder couldn't be opened", async () => {
   fireEvent.click(within(ready).getByRole("button", { name: "Open folder" }));
 
   expect(await within(ready).findByText(/folder is gone/)).toBeTruthy();
+});
+
+it("copies the demo into the games folder and starts it from the empty library", async () => {
+  const { importHost, paths } = launch();
+
+  const ready = await chooseFolder();
+  fireEvent.click(within(ready).getByRole("button", { name: "Play a demo" }));
+
+  expect(await screen.findByRole("heading", { name: "Playing Tobu Tobu Girl Deluxe" })).toBeTruthy();
+  expect(importHost.copyDemo).toHaveBeenCalledWith("/games");
+  expect(importHost.copyDemo).toHaveBeenCalledTimes(1);
+  expect(paths).toContain("gbc/Tobu Tobu Girl Deluxe.gbc");
+});
+
+it("shows why the demo couldn't be copied and starts nothing", async () => {
+  const { importHost } = launch();
+  vi.mocked(importHost.copyDemo).mockRejectedValue("gbc/Tobu Tobu Girl Deluxe.gbc is already there");
+
+  const ready = await chooseFolder();
+  fireEvent.click(within(ready).getByRole("button", { name: "Play a demo" }));
+
+  expect(await within(ready).findByText(/is already there/)).toBeTruthy();
+  expect(screen.queryByRole("heading", { name: /Playing/ })).toBeNull();
+});
+
+it("offers no demo once the library has a game", async () => {
+  const { paths } = launch();
+
+  await chooseFolder();
+  paths.push("gba/Emerald.gba");
+  fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+
+  expect(await screen.findByRole("button", { name: /Emerald/ })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Play a demo" })).toBeNull();
+});
+
+it("shows the empty library without the demo when the Demo game experiment is off", async () => {
+  launch({ experiments: { demoGame: "off" } });
+
+  const ready = await chooseFolder();
+
+  expect(within(ready).getByRole("button", { name: "Import files" })).toBeTruthy();
+  expect(within(ready).queryByRole("button", { name: "Play a demo" })).toBeNull();
 });
 
 it("exits on back from the library", async () => {
@@ -497,6 +615,34 @@ it("shows on the game page that N64 games don't run on this device once one fail
   expect(await screen.findByRole("heading", { name: "Stadium 2" })).toBeTruthy();
   expect(await screen.findByText(/this device/)).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Start" })).toBeNull();
+});
+
+it("shows that a game whose system this platform doesn't offer isn't supported, without starting it", async () => {
+  const { paths } = launch({ resume: false, systems: ["gb", "gbc", "gba", "nds"] });
+  await chooseFolder();
+  paths.push("n64/Stadium.z64");
+  fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  fireEvent.click(await screen.findByRole("button", { name: /Stadium/ }));
+
+  expect(await screen.findByRole("heading", { name: "Stadium" })).toBeTruthy();
+  expect(await screen.findByText(/Not supported on this device yet/)).toBeTruthy();
+  expect(screen.queryByRole("button", { name: "Start" })).toBeNull();
+});
+
+it("opens the page of a game whose system this platform doesn't offer when it's played from the library", async () => {
+  const { paths, back } = launch({ systems: ["gb", "gbc", "gba", "nds"] });
+  await chooseFolder();
+  paths.push("n64/Stadium.z64");
+  fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  fireEvent.click(await screen.findByRole("button", { name: /Stadium/ }));
+  await screen.findByText(/Not supported on this device yet/);
+  back();
+  const card = await screen.findByRole("region", { name: "Continue" });
+
+  fireEvent.click(await within(card).findByRole("button", { name: "Resume" }));
+
+  expect(await screen.findByText(/Not supported on this device yet/)).toBeTruthy();
+  expect(screen.queryByRole("heading", { name: /Playing/ })).toBeNull();
 });
 
 it("returns to the game page on quit", async () => {

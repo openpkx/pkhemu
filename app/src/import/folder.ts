@@ -1,13 +1,13 @@
 import { byName, gameName } from "@/library/scan";
 import type { System } from "@/systems";
-import { isSave, type ImportFile, type ImportPlan } from "./match";
+import { isClock, isSave, type ImportFile, type ImportPlan } from "./match";
 
 export type FolderScan = { files: ImportFile[]; other: number };
 export type FolderGame = { path: string; name: string; system: System; save: boolean };
 export type FolderSummary = { games: FolderGame[]; withSave: number; size: number; leftOut: number; known: number };
 
 export function addSaves(found: FolderScan, saves: FolderScan): FolderScan {
-  const taken = saves.files.filter((file) => isSave(file.name));
+  const taken = saves.files.filter((file) => isSave(file.name) || isClock(file.name));
   return { files: [...found.files, ...taken], other: found.other + saves.other + saves.files.length - taken.length };
 }
 
@@ -16,7 +16,7 @@ export function summarize(plan: ImportPlan, found: FolderScan): FolderSummary {
   const games = plan.roms
     .map(({ path }) => ({ path, name: gameName(path), system: path.split("/")[0] as System, save: saved.has(path) }))
     .sort((a, b) => byName.compare(a.name, b.name));
-  const copied = [...plan.roms, ...plan.saves].map((item) => item.file);
+  const copied = [...plan.roms.map((rom) => rom.file), ...plan.saves.flatMap((save) => (save.clock ? [save.file, save.clock] : [save.file]))];
   return {
     games,
     withSave: games.filter((game) => game.save).length,

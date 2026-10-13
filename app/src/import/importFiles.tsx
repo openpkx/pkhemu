@@ -29,25 +29,31 @@ import { byName, gameName, type Game } from "@/library/scan";
 import { useSync } from "@/sync/sync";
 import type { System } from "@/systems";
 import { count, type FolderScan } from "./folder";
-import { newestPerGame, planImport, type ImportFile } from "./match";
+import { newestPerGame, planImport, type ImportFile, type SaveImport } from "./match";
 
 export type ExistingSave = { modified: number; same: boolean };
 export type PickedFolder = { folder: string; name: string };
 
 export type ImportHost = {
   pick(): Promise<ImportFile[]>;
+  opened(): Promise<ImportFile[]>;
+  onOpened(listener: () => void): () => void;
   sha1s(folder: string, paths: string[]): Promise<Record<string, string>>;
   copyRom(folder: string, file: string, path: string): Promise<void>;
+  copyDemo(folder: string): Promise<string>;
   existingSave(folder: string, rom: string, file: ImportFile): Promise<ExistingSave | null>;
-  copySave(folder: string, rom: string, file: ImportFile): Promise<void>;
+  copySave(folder: string, save: SaveImport): Promise<void>;
   pickFolder(): Promise<PickedFolder | null>;
   scan(folder: string, hash: boolean): Promise<FolderScan>;
 };
 
 const noHost: ImportHost = {
   pick: () => Promise.reject(new Error("Importing needs an ImportProvider")),
+  opened: async () => [],
+  onOpened: () => () => {},
   sha1s: () => Promise.reject(new Error("Importing needs an ImportProvider")),
   copyRom: () => Promise.reject(new Error("Importing needs an ImportProvider")),
+  copyDemo: () => Promise.reject(new Error("Importing needs an ImportProvider")),
   existingSave: () => Promise.reject(new Error("Importing needs an ImportProvider")),
   copySave: () => Promise.reject(new Error("Importing needs an ImportProvider")),
   pickFolder: () => Promise.reject(new Error("Importing needs an ImportProvider")),
@@ -165,11 +171,19 @@ export function useImportFiles(onDone: (message: string) => void) {
   const host = useContext(ImportContext);
   const gamesFolder = useGamesFolder();
   const { library, refresh } = useLibrary();
+  const latest = useRef(library);
+  latest.current = library;
   const { synced } = useSync();
   const [asked, setAsked] = useState<Asked>();
   const [busy, setBusy] = useState(false);
+  const [openings, setOpenings] = useState(1);
+  const [running, setRunning] = useState(false);
+  const working = useRef(false);
+  const imported = useRef(0);
   const mounted = useRef(false);
   const cancel = useRef<() => void>(undefined);
+
+  useEffect(() => host.onOpened(() => setOpenings((count) => count + 1)), [host]);
 
   useEffect(() => {
     mounted.current = true;
@@ -191,65 +205,90 @@ export function useImportFiles(onDone: (message: string) => void) {
       setAsked({ question: question(answer), open: true });
     });
 
-  const importFiles = async () => {
-    if (gamesFolder.status !== "ready" || busy) return;
-    const { folder } = gamesFolder;
-    setBusy(true);
-    try {
-      const files = await host.pick();
-      if (!files.length) return;
-      const games = library?.sections.flatMap((section) => section.games) ?? [];
-      const local = games.filter((game) => !game.cloudOnly);
-      const sha1s = files.some((file) => file.sha1) ? await host.sha1s(folder, local.map((game) => game.path)) : {};
-      const plan = planImport(files, { games, sha1s });
-      const failed: string[] = [];
-      const tried = <T,>(work: () => Promise<T>) =>
-        work().then(
-          (value) => ({ value }),
-          (reason) => void failed.push(String(reason)),
+  const importPicked = async (folder: string, files: ImportFile[]) => {
+    const games = latest.current?.sections.flatMap((section) => section.games) ?? [];
+    const local = games.filter((game) => !game.cloudOnly);
+    const sha1s = files.some((file) => file.sha1) ? await host.sha1s(folder, local.map((game) => game.path)) : {};
+    const plan = planImport(files, { games, sha1s });
+    const failed: string[] = [];
+    const tried = <T,>(work: () => Promise<T>) =>
+      work().then(
+        (value) => ({ value }),
+        (reason) => void failed.push(String(reason)),
+      );
+
+    const copied: string[] = [];
+    for (const rom of plan.roms) if (await tried(() => host.copyRom(folder, rom.file.file, rom.path))) copied.push(rom.path);
+    const missing = new Set(plan.roms.map((rom) => rom.path).filter((path) => !copied.includes(path)));
+
+    const choices = [...local, ...copied.map(gameAt)].sort((a, b) => byName.compare(a.name, b.name));
+    const saves = plan.saves.filter((save) => !missing.has(save.game));
+    for (const file of plan.unmatched) {
+      const game = await ask<string | null>((answer) => ({ kind: "game", file, games: choices, answer }), null);
+      if (game) saves.push({ file, game });
+    }
+
+    const added: string[] = [];
+    let found = plan.known > 0;
+    for (const save of newestPerGame(saves)) {
+      const checked = await tried(() => host.existingSave(folder, save.game, save.file));
+      if (!checked) continue;
+      const current = checked.value;
+      if (current?.same) {
+        found = true;
+        continue;
+      }
+      if (current) {
+        const game = choices.find((game) => game.path === save.game) ?? gameAt(save.game);
+        const replace = await ask<boolean>(
+          (answer) => ({ kind: "replace", game, existing: current.modified, picked: save.file.modified, answer }),
+          false,
         );
-
-      const copied: string[] = [];
-      for (const rom of plan.roms) if (await tried(() => host.copyRom(folder, rom.file.file, rom.path))) copied.push(rom.path);
-      const missing = new Set(plan.roms.map((rom) => rom.path).filter((path) => !copied.includes(path)));
-
-      const choices = [...local, ...copied.map(gameAt)].sort((a, b) => byName.compare(a.name, b.name));
-      const saves = plan.saves.filter((save) => !missing.has(save.game));
-      for (const file of plan.unmatched) {
-        const game = await ask<string | null>((answer) => ({ kind: "game", file, games: choices, answer }), null);
-        if (game) saves.push({ file, game });
+        if (!replace) continue;
       }
+      if (await tried(() => host.copySave(folder, save))) added.push(save.game);
+    }
 
-      const added: string[] = [];
-      let found = plan.known > 0;
-      for (const save of newestPerGame(saves)) {
-        const checked = await tried(() => host.existingSave(folder, save.game, save.file));
-        if (!checked) continue;
-        const current = checked.value;
-        if (current?.same) {
-          found = true;
-          continue;
-        }
-        if (current) {
-          const game = choices.find((game) => game.path === save.game) ?? gameAt(save.game);
-          const replace = await ask<boolean>(
-            (answer) => ({ kind: "replace", game, existing: current.modified, picked: save.file.modified, answer }),
-            false,
-          );
-          if (!replace) continue;
-        }
-        if (await tried(() => host.copySave(folder, save.game, save.file))) added.push(save.game);
-      }
+    void synced(folder, [...copied, ...added]);
+    await refresh();
+    onDone(importSummary(copied.length, added.length, found, failed));
+  };
 
-      void synced(folder, [...copied, ...added]);
-      await refresh();
-      onDone(importSummary(copied.length, added.length, found, failed));
+  const run = async (work: (folder: string) => Promise<void>) => {
+    if (gamesFolder.status !== "ready" || working.current) return;
+    working.current = true;
+    setRunning(true);
+    try {
+      await work(gamesFolder.folder);
     } catch (reason) {
       onDone(String(reason));
     } finally {
+      working.current = false;
+      setRunning(false);
       setBusy(false);
     }
   };
+
+  const importFiles = () =>
+    run(async (folder) => {
+      setBusy(true);
+      const files = await host.pick();
+      if (files.length) await importPicked(folder, files);
+    });
+
+  const importOpened = () =>
+    run(async (folder) => {
+      for (let files = await host.opened(); files.length; files = await host.opened()) {
+        setBusy(true);
+        await importPicked(folder, files);
+      }
+    });
+
+  useEffect(() => {
+    if (imported.current === openings || running || gamesFolder.status !== "ready") return;
+    imported.current = openings;
+    void importOpened();
+  }, [openings, running, gamesFolder.status]);
 
   return { importFiles, busy, dialogs: <ImportDialogs asked={asked} /> };
 }

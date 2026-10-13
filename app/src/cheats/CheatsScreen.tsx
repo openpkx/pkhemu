@@ -214,7 +214,7 @@ export function CheatsScreen({
   const edit = (form: Form) => !busy && setForm(form);
 
   return (
-    <div className="fixed inset-0 z-20 overflow-y-auto bg-background">
+    <div className="fixed inset-0 px-safe pb-safe z-20 overflow-y-auto bg-background">
       <PadNavigation input={input} />
       <ScreenHeader title="Cheats" onBack={back} />
       <main className="mx-auto grid max-w-2xl gap-3 p-4" onKeyDown={moveFocusWithArrows}>

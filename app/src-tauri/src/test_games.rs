@@ -54,6 +54,35 @@ pub fn clock_save() -> Vec<u8> {
     [vec![0; 0x8000 + 40], now.to_le_bytes().to_vec()].concat()
 }
 
+pub fn gba_header(title: &[u8], code: &[u8], revision: u8) -> Vec<u8> {
+    let mut rom = vec![0; 0x200];
+    rom[0xA0..0xA0 + title.len()].copy_from_slice(title);
+    rom[0xAC..0xB0].copy_from_slice(code);
+    rom[0xB2] = 0x96;
+    rom[0xBC] = revision;
+    rom[0xBD] = rom[0xA0..0xBD].iter().fold(0u8, |sum, &b| sum.wrapping_sub(b)).wrapping_sub(0x19);
+    rom
+}
+
+pub fn nds_header(code: &[u8], revision: u8) -> Vec<u8> {
+    let mut rom = vec![0; 0x200];
+    rom[0x0C..0x10].copy_from_slice(code);
+    rom[0x1E] = revision;
+    let crc = rom[..0x15E].iter().fold(0xFFFFu16, |crc, &byte| {
+        (0..8).fold(crc ^ byte as u16, |crc, _| if crc & 1 == 1 { (crc >> 1) ^ 0xA001 } else { crc >> 1 })
+    });
+    rom[0x15E..0x160].copy_from_slice(&crc.to_le_bytes());
+    rom
+}
+
+pub fn gb_header(title: &[u8], revision: u8) -> Vec<u8> {
+    let mut rom = vec![0; 0x200];
+    rom[0x134..0x134 + title.len()].copy_from_slice(title);
+    rom[0x14C] = revision;
+    rom[0x14D] = rom[0x134..0x14D].iter().fold(0u8, |sum, &b| sum.wrapping_sub(b).wrapping_sub(1));
+    rom
+}
+
 // An ARM branch to itself, with the header byte mGBA looks for.
 pub fn gba_rom() -> Rom {
     let mut rom = vec![0; 0x200];
@@ -142,7 +171,7 @@ fn header_of(path: &Path) -> Option<([u8; 4], u8)> {
     header(&name, &start)
 }
 
-fn files_in(dir: &Path) -> Vec<PathBuf> {
+pub fn files_in(dir: &Path) -> Vec<PathBuf> {
     let Ok(entries) = std::fs::read_dir(dir) else { return Vec::new() };
     let mut files: Vec<PathBuf> = entries.flatten().map(|entry| entry.path()).collect();
     files.sort();

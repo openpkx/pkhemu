@@ -2,8 +2,12 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import { createEngine, type EngineHost } from "@pkhex-everywhere/engine";
 import { EngineProvider } from "@pkhex-everywhere/react";
 import { afterEach, expect, it, vi } from "vitest";
+import { fakeAppUpdate } from "./app-update/fakeAppUpdate";
+import { AppUpdateProvider } from "./app-update/appUpdate";
+import { AudioSessionProvider, type AudioSessionHost } from "./audio-session/audioSession";
 import { fakeGameArt } from "./game-art/fakeGameArt";
 import { GameArtProvider } from "./game-art/gameArt";
+import { GameSurfaceProvider, noGameSurfaceHost, type GameSurfaceHost } from "./game-surface/gameSurface";
 import { GamesFolderProvider, type GamesFolderHost } from "./games-folder/gamesFolder";
 import { ExperimentsProvider } from "./lab/lab";
 import { fakePlus } from "./plus/fakePlus";
@@ -18,7 +22,7 @@ vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn(async () => ({ name: "mGB
 
 afterEach(cleanup);
 
-const defaults: Preferences = { touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1 };
+const defaults: Preferences = { touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic" };
 
 const idleEngine: EngineHost = {
   ready: () => new Promise(() => {}),
@@ -29,14 +33,18 @@ const idleEngine: EngineHost = {
 
 function openSettings({
   canOpenFolder = true,
+  canPickFolder = true,
   sync = fakeSync({ available: false }),
   plus = undefined as ReturnType<typeof fakePlus> | undefined,
   system = undefined as System | undefined,
+  audioSession = undefined as AudioSessionHost | undefined,
+  gameSurface = noGameSurfaceHost as GameSurfaceHost,
+  update = fakeAppUpdate(),
 } = {}) {
   const openFolder = vi.fn(async () => {});
   const onLicences = vi.fn();
   const gamesFolderHost: GamesFolderHost = {
-    pickFolder: async () => "/roms",
+    ...(canPickFolder && { pickFolder: async () => "/roms" }),
     makeFolder: async () => "/roms",
     findFolder: async () => "/roms",
     listFolders: async () => [],
@@ -56,6 +64,13 @@ function openSettings({
     },
   };
   const gameArt = fakeGameArt();
+  const settings = (
+    <GameSurfaceProvider host={gameSurface}>
+      <AppUpdateProvider host={update.host}>
+        <SettingsScreen system={system} onBack={() => {}} onLicences={onLicences} />
+      </AppUpdateProvider>
+    </GameSurfaceProvider>
+  );
   const synced = (
     <SyncProvider host={sync.host}>
       <GameArtProvider host={gameArt.host}>
@@ -63,7 +78,7 @@ function openSettings({
           host={{ load: async () => ({ blend: "on" }), save: async () => {} }}
           registry={[{ id: "blend", label: "Blend frames", line: "Blends skipped frames.", values: ["off", "on"], players: true }]}
         >
-          <SettingsScreen system={system} onBack={() => {}} onLicences={onLicences} />
+          {audioSession ? <AudioSessionProvider host={audioSession}>{settings}</AudioSessionProvider> : settings}
         </ExperimentsProvider>
       </GameArtProvider>
     </SyncProvider>
@@ -88,6 +103,14 @@ it("shows the games folder and changes it", async () => {
   fireEvent.click(within(section).getByRole("button", { name: "Change folder" }));
 
   expect(await within(section).findByText("/roms")).toBeTruthy();
+});
+
+it("offers no other folder when the platform has only its own", async () => {
+  openSettings({ canPickFolder: false });
+  const section = await screen.findByRole("region", { name: "Games folder" });
+  expect(within(section).getByText("/games")).toBeTruthy();
+
+  expect(within(section).queryByRole("button")).toBeNull();
 });
 
 it("hides Sync when this build can't sync", async () => {
@@ -387,6 +410,26 @@ it("turns touch controls on", async () => {
   expect(saved().touchControls).toBe(true);
 });
 
+it("plays sound in silent mode once it's turned on", async () => {
+  const audioSession = { silentSwitch: true, playInSilentMode: vi.fn(async () => {}) };
+  const { saved } = openSettings({ audioSession });
+  const toggle = await screen.findByRole("switch", { name: "Play sound in silent mode" });
+  expect(toggle.getAttribute("aria-checked")).toBe("false");
+
+  await act(async () => fireEvent.click(toggle));
+
+  expect(toggle.getAttribute("aria-checked")).toBe("true");
+  expect(saved().playInSilentMode).toBe(true);
+  expect(audioSession.playInSilentMode).toHaveBeenLastCalledWith(true);
+});
+
+it("has no silent mode switch where the device has no silent mode", async () => {
+  openSettings();
+  await screen.findByRole("switch", { name: "Touch controls" });
+
+  expect(screen.queryByRole("switch", { name: "Play sound in silent mode" })).toBeNull();
+});
+
 it("switches fast-forward to 4×", async () => {
   const { saved } = openSettings();
   const speeds = await screen.findByRole("radiogroup", { name: "Fast-forward speed" });
@@ -418,6 +461,35 @@ it("turns the FPS counter on", async () => {
 
   expect(toggle.getAttribute("aria-checked")).toBe("true");
   expect(saved().showFps).toBe(true);
+});
+
+const nativeSurface: GameSurfaceHost = { renderers: ["native", "compatible"], setPlaying() {} };
+
+it("has no renderer setting where only one renderer exists", async () => {
+  openSettings();
+  await screen.findByRole("switch", { name: "Show FPS" });
+
+  expect(screen.queryByRole("combobox", { name: "Renderer" })).toBeNull();
+});
+
+it("shows which renderer Automatic picks", async () => {
+  openSettings({ gameSurface: nativeSurface });
+
+  const renderer = await screen.findByRole("combobox", { name: "Renderer" });
+
+  expect(renderer.textContent).toMatch(/Automatic.*Native/);
+});
+
+it("saves the renderer the player picks", async () => {
+  Element.prototype.hasPointerCapture ??= () => false;
+  Element.prototype.scrollIntoView ??= () => {};
+  const { saved } = openSettings({ gameSurface: nativeSurface });
+  const renderer = await screen.findByRole("combobox", { name: "Renderer" });
+
+  fireEvent.keyDown(renderer, { key: "Enter" });
+  await act(async () => fireEvent.click(await screen.findByRole("option", { name: /Compatible/ })));
+
+  expect(saved().renderer).toBe("compatible");
 });
 
 it("sets the game clock ahead", async () => {
@@ -535,7 +607,7 @@ it("says what's free and what Plus adds in a store build", async () => {
   const section = await screen.findByRole("region", { name: "About" });
 
   expect(within(section).getByText(/are free/)).toBeTruthy();
-  expect(await within(section).findByText(/Plus adds sync/)).toBeTruthy();
+  expect(await within(section).findByText(/Plus adds/)).toBeTruthy();
 });
 
 it("leaves Plus out of About in an unlocked build", async () => {
@@ -553,6 +625,40 @@ it("leaves Plus out of About in a store build that hides sync", async () => {
   await act(async () => {});
 
   expect(within(section).queryByText(/Plus/)).toBeNull();
+});
+
+it("offers an available update at the end of About", async () => {
+  const update = fakeAppUpdate({ check: { available: true, versionCode: 7, downloaded: false } });
+  openSettings({ update });
+  const section = await screen.findByRole("region", { name: "About" });
+
+  const button = await within(section).findByRole("button", { name: "Update" });
+  expect(within(section).queryByRole("button", { name: "Restart" })).toBeNull();
+  expect(within(section).getAllByRole("button").at(-1)).toBe(button);
+  fireEvent.click(button);
+
+  expect(update.host.start).toHaveBeenCalled();
+});
+
+it("offers to restart into a downloaded update in About", async () => {
+  const update = fakeAppUpdate({ check: { available: true, versionCode: 7, downloaded: false } });
+  openSettings({ update });
+  const section = await screen.findByRole("region", { name: "About" });
+  await within(section).findByRole("button", { name: "Update" });
+
+  act(() => update.download());
+  fireEvent.click(await within(section).findByRole("button", { name: "Restart" }));
+
+  expect(within(section).queryByRole("button", { name: "Update" })).toBeNull();
+  expect(update.host.complete).toHaveBeenCalled();
+});
+
+it("leaves About as it is without an update", async () => {
+  openSettings();
+  const section = await screen.findByRole("region", { name: "About" });
+  await act(async () => {});
+
+  expect(within(section).getAllByRole("button").map((button) => button.textContent)).toEqual(["View licences"]);
 });
 
 it("credits PKHeX, melonDS and mGBA with links to their sponsor pages in the system browser", async () => {

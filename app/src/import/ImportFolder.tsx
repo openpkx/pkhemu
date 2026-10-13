@@ -20,7 +20,7 @@ import { dateTime, gameAt, useImportHost, type PickedFolder } from "./importFile
 import { planImport, romSystem, type ImportLibrary, type RomImport, type SaveImport } from "./match";
 
 function Page({ children }: { children: ReactNode }) {
-  return <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 p-6">{children}</main>;
+  return <main className="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 p-6 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">{children}</main>;
 }
 
 function Heading({ icon, title, children }: { icon?: ReactNode; title: string; children?: ReactNode }) {
@@ -37,13 +37,27 @@ function Actions({ children }: { children: ReactNode }) {
   return <div className="flex gap-3 [&>*]:flex-1">{children}</div>;
 }
 
-export function WhereAreYourGames({ error, onBack, onChoose }: { error?: string; onBack(): void; onChoose(): void }) {
+export function WhereAreYourGames({
+  delta = false,
+  error,
+  onBack,
+  onChoose,
+}: {
+  delta?: boolean;
+  error?: string;
+  onBack(): void;
+  onChoose(): void;
+}) {
   return (
     <Page>
       <Heading icon={<FolderSearch />} title="Where are your games?">
-        <p className="text-sm text-muted-foreground">Pick the folder with your ROMs. pkhemu looks in every folder inside it, saves included.</p>
+        <p className="text-sm text-muted-foreground">
+          {delta
+            ? "Pick On My iPhone › Delta. pkhemu copies your games and saves. Delta's files stay where they are."
+            : "Pick the folder with your ROMs. pkhemu looks in every folder inside it, saves included."}
+        </p>
       </Heading>
-      <p className="rounded-lg border bg-card px-3 py-2.5 text-sm text-muted-foreground">Another emulator's folder works too, like RetroArch's.</p>
+      {!delta && <p className="rounded-lg border bg-card px-3 py-2.5 text-sm text-muted-foreground">Another emulator's folder works too, like RetroArch's.</p>}
       {error && <p className="text-sm text-destructive">{error}</p>}
       <Actions>
         <Button variant="outline" size="lg" onClick={onBack}>
@@ -267,11 +281,13 @@ type CopyStep = { name: string; rom?: RomImport; save?: SaveImport };
 export function ImportFolder({
   libraryHost,
   source,
+  delta = false,
   onClose,
   onDone,
 }: {
   libraryHost: LibraryHost;
   source?: PickedFolder;
+  delta?: boolean;
   onClose(message?: string): void;
   onDone(message: string): void;
 }) {
@@ -397,7 +413,7 @@ export function ImportFolder({
           copied.roms.push(rom.path);
         }
         if (save) {
-          await host.copySave(folder, save.game, save.file);
+          await host.copySave(folder, save);
           copied.saves.push(save.game);
         }
       } catch (reason) {
@@ -446,7 +462,7 @@ export function ImportFolder({
     <>
       {step.name === "where" && (
         <Screen key="where">
-          <WhereAreYourGames error={error} onBack={back} onChoose={() => void choose(false)} />
+          <WhereAreYourGames delta={delta} error={error} onBack={back} onChoose={() => void choose(false)} />
         </Screen>
       )}
       {step.name === "scanning" && (

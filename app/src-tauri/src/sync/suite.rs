@@ -379,7 +379,7 @@ fn an_upload_cut_off_partway_resumes_at_the_next_sync() {
 }
 
 #[test]
-fn a_change_after_a_sync_stopped_before_it_forgot_the_upload_keeps_the_recorded_blob() {
+fn a_change_after_a_sync_stopped_before_it_forgot_the_upload_keeps_the_recorded_blob_until_a_new_record() {
     let (a, b, cloud) = devices("leftover-upload");
     a.write("gba/Emerald.sav", b"save 1");
     a.sync_ok(&cloud);
@@ -392,9 +392,30 @@ fn a_change_after_a_sync_stopped_before_it_forgot_the_upload_keeps_the_recorded_
 
     assert!(a.sync(&cloud)[EMERALD].error.is_some());
 
-    assert_eq!(cloud.retired(), [b"save 1".to_vec()]);
+    assert!(cloud.retired().is_empty());
     b.sync_ok(&cloud);
     assert_eq!(b.read("gba/Emerald.sav").unwrap(), b"save 1");
+    a.sync_ok(&cloud);
+    assert_eq!(cloud.retired(), [b"save 1".to_vec()]);
+    b.sync_ok(&cloud);
+    assert_eq!(b.read("gba/Emerald.sav").unwrap(), b"save 2, longer than the first");
+}
+
+#[test]
+fn a_change_after_an_upload_no_record_names_retires_that_upload() {
+    let (a, _, cloud) = devices("orphan-upload");
+    a.write("gba/Emerald.sav", b"save 1");
+    a.sync_ok(&cloud);
+    let game = cloud.records()[0]["id"].as_str().unwrap().to_string();
+    put_blob(&cloud, "orphan", b"save 2");
+    let pending = PendingUpload { sha1: game_art::sha1_of(b"save 2"), blob: "orphan".into(), session: None };
+    a.index.keep_sync_upload(&game, "gba/Emerald.sav", &pending).unwrap();
+    a.write("gba/Emerald.sav", b"save 3, longer than the first");
+    cloud.drop_upload_after(4);
+
+    assert!(a.sync(&cloud)[EMERALD].error.is_some());
+
+    assert_eq!(cloud.retired(), [b"save 2".to_vec()]);
 }
 
 #[test]

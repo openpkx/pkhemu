@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { Toast } from "@/components/Toast";
+import { Toast, WithAction } from "@/components/Toast";
 import type { SaveHost } from "./editSession";
 
 const POLL_MS = 250;
@@ -59,11 +59,8 @@ export function UndoToast({ children, onUndo }: { children?: ReactNode; onUndo()
 
 export function WithUndo({ children, onUndo }: { children: ReactNode; onUndo(): void }) {
   return (
-    <>
-      {children} ·{" "}
-      <button className="pointer-events-auto -mr-2 rounded-full px-2 font-medium hover:bg-white/20" onClick={onUndo}>
-        Undo
-      </button>
-    </>
+    <WithAction action="Undo" onAction={onUndo}>
+      {children}
+    </WithAction>
   );
 }
