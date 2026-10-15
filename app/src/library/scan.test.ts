@@ -41,6 +41,23 @@ it("finds DS games, plain and zipped, in the nds folder", async () => {
   ]);
 });
 
+it("finds 3DS games in the 3ds folder", async () => {
+  const listDir = fakeFolder(["3ds/PKSM.3dsx", "3ds/X.3ds", "3ds/Y.cci", "3ds/Sun.cxi", "3ds/Moon.app", "gb/Red.gb"]);
+
+  const library = await scanLibrary(listDir);
+
+  expect(library.sections[1]).toEqual({
+    system: "3ds",
+    games: [
+      { system: "3ds", name: "Moon", path: "3ds/Moon.app" },
+      { system: "3ds", name: "PKSM", path: "3ds/PKSM.3dsx" },
+      { system: "3ds", name: "Sun", path: "3ds/Sun.cxi" },
+      { system: "3ds", name: "X", path: "3ds/X.3ds" },
+      { system: "3ds", name: "Y", path: "3ds/Y.cci" },
+    ],
+  });
+});
+
 it("finds N64 games in every byte order, plain and zipped, in the n64 folder", async () => {
   const listDir = fakeFolder(["n64/Stadium.z64", "n64/Stadium 2.zip", "n64/Snap.N64", "n64/Puzzle League.v64", "n64/Stadium.fla"]);
 

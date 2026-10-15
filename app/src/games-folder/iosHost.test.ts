@@ -1,4 +1,4 @@
-import { beforeEach, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { iosGamesFolderHost } from "./iosHost";
 
 const container = vi.hoisted(() => ({ documents: "" }));
@@ -17,6 +17,7 @@ vi.mock("@/settings", () => ({
 }));
 
 beforeEach(() => stored.clear());
+afterEach(() => delete window.iosDevice);
 
 it("finds the folder again after iOS moves the app's container", async () => {
   container.documents = "/var/mobile/Containers/Data/Application/OLD/Documents";
@@ -36,4 +37,13 @@ it("refuses a folder outside Documents", async () => {
 
   await expect(iosGamesFolderHost.save("/var/mobile/Containers/Data/Application/A/Documents-old/pkhemu")).rejects.toThrow();
   expect(stored.has("gamesFolder")).toBe(false);
+});
+
+it.each(["iPhone", "iPad"] as const)("names the device iOS reports, %s", async (device) => {
+  window.iosDevice = device;
+  vi.resetModules();
+
+  const { iosGamesFolderHost } = await import("./iosHost");
+
+  expect(iosGamesFolderHost.device).toBe(device);
 });

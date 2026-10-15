@@ -9,6 +9,8 @@ use std::path::Path;
 pub struct Record {
     pub id: String,
     pub rom: Rom,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub update: Option<Update>,
     pub files: Vec<Entry>,
 }
 
@@ -20,6 +22,16 @@ pub struct Rom {
     pub size: u64,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub blob: Option<Blob>,
+}
+
+/// A 3DS game's update, which syncs with the ROM. The higher version wins on either side.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Update {
+    pub version: u16,
+    pub sha1: String,
+    pub size: u64,
+    pub blob: String,
 }
 
 /// The ROM's file as the games folder holds it. Its hash differs from the ROM's when the file is an archive.
@@ -57,7 +69,9 @@ impl Record {
     }
 
     pub fn names(&self, blob: &str) -> bool {
-        self.files.iter().any(|entry| entry.blob == blob) || self.rom.blob.as_ref().is_some_and(|rom| rom.id == blob)
+        self.files.iter().any(|entry| entry.blob == blob)
+            || self.rom.blob.as_ref().is_some_and(|rom| rom.id == blob)
+            || self.update.as_ref().is_some_and(|update| update.blob == blob)
     }
 
     pub fn move_to(&mut self, path: &str) {
@@ -127,10 +141,15 @@ pub fn decides(rom: &str, path: &str) -> bool {
     }
 }
 
+// A 3DS update syncs with the ROM, outside the game's other files.
 pub fn syncs(rom: &str, path: &str) -> bool {
     let name = path.rsplit('/').next().unwrap_or(path);
     let before_load = format!("{}/states/{}.", rom::data_dir(rom), StateName::BeforeLoad);
-    !name.starts_with('.') && !name.ends_with(".partial") && !name.ends_with(".incomplete") && !path.starts_with(&before_load)
+    !name.starts_with('.')
+        && !name.ends_with(".partial")
+        && !name.ends_with(".incomplete")
+        && !path.starts_with(&before_load)
+        && path != crate::three_ds::update::path(rom)
 }
 
 impl From<&Entry> for SyncedFile {
@@ -200,5 +219,11 @@ mod tests {
         assert!(!syncs("gba/Emerald.sav.partial"));
         assert!(!syncs("gba/Emerald/states/slot-1.state.incomplete"));
         assert!(!syncs("gba/Emerald/.DS_Store"));
+    }
+
+    #[test]
+    fn leaves_out_a_3ds_update() {
+        assert!(!syncs("3ds/X.3ds", "3ds/X/update.cia"));
+        assert!(syncs("3ds/X.3ds", "3ds/X/backups/2026-10-05_1412_edit.sav"));
     }
 }

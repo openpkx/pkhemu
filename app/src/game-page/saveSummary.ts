@@ -18,6 +18,7 @@ export type SaveSummary = {
   revision: number;
   version: string | null;
   formatId: string | null;
+  generation: number | null;
   trainer: Pick<TrainerCard, "name" | "gender" | "money"> | null;
   party: PartyMember[];
   progress: GameProgress;
@@ -34,7 +35,7 @@ export type SaveSummaryHost = SummaryCacheHost &
   };
 
 // Bump when an engine update changes what a summary holds, so cached summaries are made again.
-export const summaryRevision = 2;
+export const summaryRevision = 3;
 
 export const genderSymbols = { male: "♂", female: "♀" };
 
@@ -88,6 +89,7 @@ async function summarise(
       revision: summaryRevision,
       version: version?.version ?? null,
       formatId: version?.formatId ?? null,
+      generation: version?.generationId ?? null,
       // A Stadium save has no single trainer, yet the engine still answers with a placeholder name and money.
       trainer: teams.length ? null : { name: trainer.name, gender: trainer.gender, money: trainer.money },
       party: party.map(({ speciesId, speciesIndex, species, isUnknown, isShiny, gender, isEgg, types, level, form }) => ({

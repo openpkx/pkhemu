@@ -29,8 +29,11 @@ export const buttons = {
   l2: 12,
 } as const;
 
-// The core reads the RetroPad's B as A, Y as B and L2 as Z. The C buttons and the keyboard's stick sit past the
-// RetroPad's 16 bits and reach the core as the right and left sticks.
+// The keyboard's stick sits past the RetroPad's 16 bits and reaches the core as the left stick.
+const stickButtons = { up: 20, down: 21, left: 22, right: 23 } as const;
+
+// The core reads the RetroPad's B as A, Y as B and L2 as Z. The C buttons also sit past the 16 bits, and reach the core
+// as the right stick.
 export const n64Buttons = {
   a: buttons.b,
   b: buttons.y,
@@ -39,10 +42,10 @@ export const n64Buttons = {
   cDown: 17,
   cLeft: 18,
   cRight: 19,
-  stickUp: 20,
-  stickDown: 21,
-  stickLeft: 22,
-  stickRight: 23,
+  stickUp: stickButtons.up,
+  stickDown: stickButtons.down,
+  stickLeft: stickButtons.left,
+  stickRight: stickButtons.right,
 } as const;
 
 export const connectedGamepads = () => navigator.getGamepads?.() ?? [];
@@ -91,6 +94,13 @@ const n64KeyButtons: Record<string, number> = {
   ...n64CAndDpadKeys,
 };
 
+const circlePadKeys: Record<string, number> = {
+  KeyI: stickButtons.up,
+  KeyK: stickButtons.down,
+  KeyJ: stickButtons.left,
+  KeyL: stickButtons.right,
+};
+
 const keyEvents: Record<string, InputEvent> = {
   Tab: "fastForward",
   Escape: "pauseMenu",
@@ -118,15 +128,19 @@ const consoleButtons: Partial<Record<StandardButton, number>> = {
   stickRight: buttons.right,
 };
 
-// R2 would hold the core's C buttons mode, so both triggers press Z.
-const n64PadButtons: Partial<Record<StandardButton, number>> = {
+const padButtonsWithStick: Partial<Record<StandardButton, number>> = {
   ...consoleButtons,
-  l2: n64Buttons.z,
-  r2: n64Buttons.z,
   stickUp: undefined,
   stickDown: undefined,
   stickLeft: undefined,
   stickRight: undefined,
+};
+
+// R2 would hold the core's C buttons mode, so both triggers press Z.
+const n64PadButtons: Partial<Record<StandardButton, number>> = {
+  ...padButtonsWithStick,
+  l2: n64Buttons.z,
+  r2: n64Buttons.z,
 };
 
 // A keyboard has no positions, so its keys keep their labels: A is A and B is B.
@@ -193,11 +207,11 @@ function readPads(
   return { mask, guide, left, right };
 }
 
-function n64Analog(mask: number, pads: { left: [number, number]; right: [number, number] }, touch: [number, number]) {
+function analogFrom(mask: number, pads: { left: [number, number]; right: [number, number] }, touch: [number, number]) {
   const on = (button: number) => (mask & bit(button) ? 1 : 0);
   const [leftX, leftY] = clampToCircle(
-    pads.left[0] + touch[0] + on(n64Buttons.stickRight) - on(n64Buttons.stickLeft),
-    pads.left[1] + touch[1] + on(n64Buttons.stickDown) - on(n64Buttons.stickUp),
+    pads.left[0] + touch[0] + on(stickButtons.right) - on(stickButtons.left),
+    pads.left[1] + touch[1] + on(stickButtons.down) - on(stickButtons.up),
   );
   const [rightX, rightY] = clampToCircle(
     pads.right[0] + on(n64Buttons.cRight) - on(n64Buttons.cLeft),
@@ -226,9 +240,11 @@ function createUnreadablePressDetector() {
   };
 }
 
-function keyboardLayout(calibration: KeyboardCalibration | undefined, n64: boolean) {
-  if (!calibration) return { buttons: n64 ? n64KeyButtons : keyButtons, guide: undefined };
-  const calibrated: Record<string, number> = n64 ? { ...n64CAndDpadKeys } : {};
+function keyboardLayout(calibration: KeyboardCalibration | undefined, system: System | undefined) {
+  const n64 = system === "n64";
+  const extraKeys = n64 ? n64CAndDpadKeys : system === "3ds" ? circlePadKeys : {};
+  if (!calibration) return { buttons: n64 ? n64KeyButtons : { ...keyButtons, ...extraKeys }, guide: undefined };
+  const calibrated: Record<string, number> = { ...extraKeys };
   const layout = n64 ? n64KeyboardButtons : consoleButtons;
   for (const [standard, code] of Object.entries(calibration) as [StandardButton, string][]) {
     const button = layout[standard];
@@ -245,6 +261,8 @@ export function createInput(
   system?: System,
 ) {
   const n64 = system === "n64";
+  const hasSticks = n64 || system === "3ds";
+  const padLayout = n64 ? n64PadButtons : padButtonsWithStick;
   let keysHeld = 0;
   let keysTapped = 0;
   let touchHeld = 0;
@@ -261,7 +279,7 @@ export function createInput(
   let ignored = 0;
   let lastUsed: InputSource | undefined;
   let keyboardCalibration: KeyboardCalibration | undefined;
-  let keyboard = keyboardLayout(undefined, n64);
+  let keyboard = keyboardLayout(undefined, system);
   // Menus read the same input while it's detached, where the stick moves through them like the D-pad.
   let attached = false;
   let touchStick: [number, number] = [0, 0];
@@ -283,7 +301,7 @@ export function createInput(
     const calibration = calibrations().keyboard;
     if (calibration !== keyboardCalibration) {
       keyboardCalibration = calibration;
-      keyboard = keyboardLayout(calibration, n64);
+      keyboard = keyboardLayout(calibration, system);
       keysHeld = 0;
     }
     return keyboard;
@@ -347,10 +365,12 @@ export function createInput(
     poll(now: number): number {
       const pads = gamepads();
       const calibrated = calibrations();
-      const playingN64 = n64 && attached;
-      const read = readPads(pads, calibrated, playingN64 ? n64PadButtons : consoleButtons);
+      const playingSticks = hasSticks && attached;
+      const read = readPads(pads, calibrated, playingSticks ? padLayout : consoleButtons);
+      // The 3DS runs as an Old 3DS, which has no C-stick.
+      if (system === "3ds") read.right = [0, 0];
       for (const pad of unreadablePresses(pads, calibrated)) unreadableListeners.forEach((listener) => listener(pad));
-      const tilted = playingN64 && [...read.left, ...read.right].some((axis) => axis !== 0);
+      const tilted = playingSticks && [...read.left, ...read.right].some((axis) => axis !== 0);
       if ((read.mask && read.mask !== padHeld) || (read.guide && !guideHeld) || (tilted && !padTilted)) markUsed("gamepad");
       padTilted = tilted;
       if (read.guide && !guideHeld) send("pauseMenu");
@@ -382,11 +402,11 @@ export function createInput(
       touchTapped = 0;
       const pad = padHeld & ~ignored;
       const mask = keys | (startHeldForPause ? pad & ~bit(buttons.start) : pad);
-      if (!playingN64) {
+      if (!playingSticks) {
         analog = centred;
         return mask;
       }
-      analog = n64Analog(mask, read, touchStick);
+      analog = analogFrom(mask, read, touchStick);
       return mask & 0xffff;
     },
 

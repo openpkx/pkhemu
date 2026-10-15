@@ -6,6 +6,7 @@ use tauri::{AppHandle, Manager, RunEvent, Runtime};
 struct State {
     holds: usize,
     leaving: bool,
+    percent: Option<u8>,
 }
 
 struct KeepAlive<R: Runtime> {
@@ -34,7 +35,7 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
                 // Back on the library exits. Going to the background instead leaves sync running.
                 Some(_) => {
                     drop(state);
-                    run(&keep_alive.plugin, "moveToBack");
+                    run(&keep_alive.plugin, "moveToBack", ());
                 }
             }
         })
@@ -50,18 +51,33 @@ pub fn set<R: Runtime>(app: &AppHandle<R>, busy: bool) {
         if was_busy == (state.holds > 0) {
             return;
         }
+        if !busy {
+            state.percent = None;
+        }
         state.leaving
     };
     // Without a window, the plugin can't reach Kotlin and panics. Exiting stops the service anyway.
     if !leaving {
-        run(&keep_alive.plugin, if busy { "begin" } else { "end" });
+        run(&keep_alive.plugin, if busy { "begin" } else { "end" }, ());
     } else if !busy {
         app.exit(0);
     }
 }
 
-fn run<R: Runtime>(plugin: &PluginHandle<R>, command: &str) {
-    if let Err(e) = plugin.run_mobile_plugin::<serde_json::Value>(command, ()) {
+pub fn progress<R: Runtime>(app: &AppHandle<R>, percent: Option<u8>) {
+    let Some(keep_alive) = app.try_state::<KeepAlive<R>>() else { return };
+    {
+        let mut state = keep_alive.state.lock().unwrap_or_else(|e| e.into_inner());
+        if state.holds == 0 || state.leaving || state.percent == percent {
+            return;
+        }
+        state.percent = percent;
+    }
+    run(&keep_alive.plugin, "progress", serde_json::json!({ "percent": percent }));
+}
+
+fn run<R: Runtime>(plugin: &PluginHandle<R>, command: &str, payload: impl serde::Serialize) {
+    if let Err(e) = plugin.run_mobile_plugin::<serde_json::Value>(command, payload) {
         eprintln!("keeping the app alive: {e}");
     }
 }

@@ -1,8 +1,9 @@
 [
-  { "name": "1-library", "raw": "library.png", "kicker": "GB · GBC · GBA · DS · N64", "ios": { "kicker": "GB · GBC · GBA · DS" }, "title": "All your games in one library" },
-  { "name": "2-play", "raw": "playing-gbc.png", "kicker": "Touch controls", "title": "Play with touch, a gamepad or a keyboard" },
-  { "name": "3-editor", "raw": "editor.png", "kicker": "Save editor", "title": "Pause, edit your save, keep playing" },
-  { "name": "4-pause", "raw": "playing-pause.png", "kicker": "Pause menu", "title": "Save states, cheats and fast-forward" },
-  { "name": "5-ds", "raw": "playing-nds.png", "kicker": "DS games", "title": "Both screens, with touch" },
-  { "name": "6-library", "raw": "library-more.png", "kicker": "Bring your own games", "title": "Sorted by console, with box art" }
+  { "name": "1-library", "raw": "library.png", "kicker": "GB · GBC · GBA · DS · N64", "title": "All your games in one library" },
+  { "name": "2-play", "raw": "playing-gb.png", "kicker": "Touch controls", "title": "Play with touch, a gamepad or a keyboard" },
+  { "name": "3-skins", "raw": "playing-gba.png", "kicker": "Skins", "title": "Each console in its own colours" },
+  { "name": "4-editor", "raw": "editor.png", "kicker": "Save editor", "title": "Pause, edit your save, keep playing" },
+  { "name": "5-pause", "raw": "playing-pause.png", "kicker": "Pause menu", "title": "Save states, cheats and fast-forward" },
+  { "name": "6-ds", "raw": "playing-nds.png", "kicker": "DS games", "title": "Both screens, with touch" },
+  { "name": "7-library", "raw": "library-more.png", "kicker": "Bring your own games", "title": "Sorted by console, with box art" }
 ]

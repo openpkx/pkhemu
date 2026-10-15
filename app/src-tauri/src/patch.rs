@@ -69,20 +69,93 @@ pub fn detect(magic: &[u8]) -> Option<Format> {
     }
 }
 
+pub fn inspect(mut patch: impl Read) -> std::io::Result<Option<Patched>> {
+    let mut magic = Vec::new();
+    patch.by_ref().take(5).read_to_end(&mut magic)?;
+    let Some(format) = detect(&magic) else {
+        return Ok(None);
+    };
+    let base_checked = match format {
+        Format::Ips => false,
+        Format::Ups | Format::Bps => true,
+        Format::Xdelta => xdelta::checksummed(Cursor::new(magic).chain(patch)),
+    };
+    Ok(Some(Patched { format, base_checked }))
+}
+
+trait Rom: Read + Seek {}
+
+impl<T: Read + Seek> Rom for T {}
+
 // Patches are made against big-endian .z64 dumps, so .v64 and .n64 ROMs are put in that order first.
-pub fn apply(
-    patch: impl Read,
-    mut base: impl Read + Seek,
-    output: &mut impl Write,
-    system: System,
-) -> Result<Patched, PatchError> {
+fn in_patch_order<'a>(mut base: impl Read + Seek + 'a, system: System) -> std::io::Result<Box<dyn Rom + 'a>> {
     if system != System::N64 {
-        return apply_to(patch, base, output, system);
+        return Ok(Box::new(base));
     }
     let mut rom = Vec::new();
     base.read_to_end(&mut rom)?;
-    let rom = rom_art::n64_big_endian(&rom).unwrap_or(rom);
-    apply_to(patch, Cursor::new(rom), output, system)
+    Ok(Box::new(Cursor::new(rom_art::n64_big_endian(&rom).unwrap_or(rom))))
+}
+
+pub fn apply(
+    patch: impl Read,
+    base: impl Read + Seek,
+    output: &mut impl Write,
+    system: System,
+) -> Result<Patched, PatchError> {
+    apply_to(patch, in_patch_order(base, system)?, output, system)
+}
+
+#[derive(Debug)]
+pub enum Fit {
+    Crc32 { size: u64, crc32: u32 },
+    FirstWindow(xdelta::FirstWindow),
+    Unchecked,
+}
+
+impl Fit {
+    pub fn checked(&self) -> bool {
+        !matches!(self, Fit::Unchecked)
+    }
+
+    pub fn fits(&self, base: impl Read + Seek, system: System) -> Result<bool, PatchError> {
+        match self {
+            Fit::Crc32 { size, crc32 } => Ok(base_crc32(base, system)? == (*size, *crc32)),
+            Fit::FirstWindow(window) => window.fits(in_patch_order(base, system)?),
+            Fit::Unchecked => Ok(true),
+        }
+    }
+}
+
+pub fn fit(mut patch: impl Read) -> Result<Fit, PatchError> {
+    let mut magic = Vec::new();
+    patch.by_ref().take(5).read_to_end(&mut magic)?;
+    let format = detect(&magic).ok_or(PatchError::UnknownFormat)?;
+    let patch = Cursor::new(magic).chain(patch);
+    match format {
+        Format::Ips => Ok(Fit::Unchecked),
+        Format::Ups | Format::Bps => {
+            let patch = read_patch(patch, System::Ds.max_rom_size())?;
+            let header = Header::read(&patch)?;
+            Ok(Fit::Crc32 { size: header.base_size, crc32: header.base_crc32 })
+        }
+        Format::Xdelta => Ok(xdelta::first_window(patch)?.map_or(Fit::Unchecked, Fit::FirstWindow)),
+    }
+}
+
+pub fn base_crc32(base: impl Read + Seek, system: System) -> std::io::Result<(u64, u32)> {
+    let mut base = in_patch_order(base, system)?;
+    let mut hasher = crc32fast::Hasher::new();
+    let mut buffer = vec![0; 1 << 16];
+    let mut size = 0;
+    loop {
+        let read = base.read(&mut buffer)?;
+        if read == 0 {
+            return Ok((size, hasher.finalize()));
+        }
+        hasher.update(&buffer[..read]);
+        size += read as u64;
+    }
 }
 
 fn apply_to(

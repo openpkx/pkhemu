@@ -9,6 +9,8 @@ export type ExperimentValues = Record<string, string>;
 export type ExperimentsHost = {
   load(): Promise<unknown>;
   save(values: ExperimentValues): Promise<void>;
+  hidden?(): Promise<readonly string[]>;
+  lines?: Readonly<Record<string, string>>;
 };
 
 export type ExperimentsState = {
@@ -59,12 +61,15 @@ export function ExperimentsProvider({
 }) {
   const lab = labFor(usePlus().status?.state);
   const [stored, setStored] = useState<ExperimentValues>();
+  const [hidden, setHidden] = useState<readonly string[]>([]);
   const [error, setError] = useState<string>();
   const latest = useRef<ExperimentValues>(undefined);
-  const shown = useMemo(
-    () => (lab === "all" ? registry : lab === "players" ? registry.filter(({ players }) => players) : []),
-    [lab, registry],
-  );
+  const shown = useMemo(() => {
+    const offered = registry
+      .filter(({ id }) => !hidden.includes(id))
+      .map((experiment) => ({ ...experiment, line: host.lines?.[experiment.id] ?? experiment.line }));
+    return lab === "all" ? offered : lab === "players" ? offered.filter(({ players }) => players) : [];
+  }, [lab, registry, hidden, host]);
   const values = useMemo(() => {
     if (!stored) return undefined;
     const running = firstValues(registry);
@@ -74,10 +79,17 @@ export function ExperimentsProvider({
 
   useEffect(() => {
     let current = true;
-    host.load().then(
-      (stored) => current && setStored((latest.current = withDefaults(stored, registry))),
-      () => current && setStored((latest.current = firstValues(registry))),
-    );
+    Promise.all([
+      host.load().then(
+        (stored) => withDefaults(stored, registry),
+        () => firstValues(registry),
+      ),
+      (host.hidden?.() ?? Promise.resolve([])).catch(() => []),
+    ]).then(([stored, hidden]) => {
+      if (!current) return;
+      setHidden(hidden);
+      setStored((latest.current = stored));
+    });
     return () => {
       current = false;
     };

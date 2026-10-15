@@ -150,13 +150,15 @@ class PkhemuPlugin: Plugin {
 
   @objc public func startReading(_ invoke: Invoke) throws {
     let args = try invoke.parseArgs(ReadArgs.self)
-    guard let folder = folder(containing: args.path) else { return invoke.resolve(Started(id: nil)) }
-    let url = URL(fileURLWithPath: args.path)
+    // A file picked on its own arrives as a file:// URL and is its own scope.
+    let picked = args.path.hasPrefix("file:") ? URL(string: args.path) : nil
+    let url = picked ?? URL(fileURLWithPath: args.path)
+    guard let scope = folder(containing: url.path) ?? picked else { return invoke.resolve(Started(id: nil)) }
     let id = UUID().uuidString
     DispatchQueue.global(qos: .userInitiated).async {
-      let scoped = folder.startAccessingSecurityScopedResource()
+      let scoped = scope.startAccessingSecurityScopedResource()
       let stopAccess = {
-        if scoped { folder.stopAccessingSecurityScopedResource() }
+        if scoped { scope.stopAccessingSecurityScopedResource() }
       }
       // Holding a coordinated read on a folder could keep iCloud from writing the files it downloads into it.
       if (try? url.resourceValues(forKeys: [.isDirectoryKey]))?.isDirectory == true {
@@ -334,6 +336,11 @@ private func replayOnConnect() {
     }
   }
   method_setImplementation(method, imp_implementationWithBlock(replaying))
+}
+
+@_cdecl("pkhemu_ios_is_ipad")
+public func isIPad() -> Bool {
+  return UIDevice.current.userInterfaceIdiom == .pad
 }
 
 @_cdecl("init_plugin_pkhemu_ios")

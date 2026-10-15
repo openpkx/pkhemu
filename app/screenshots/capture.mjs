@@ -10,6 +10,7 @@ const here = import.meta.dirname;
 const out = path.join(here, "out");
 const screens = [
   "library",
+  "library-3ds",
   "library-no-resume",
   "library-cloud",
   "library-unplayed",
@@ -20,7 +21,10 @@ const screens = [
   "import-which-game",
   "import-replace",
   "import-folder-where",
-  "import-folder-where-delta-ios",
+  "import-folder-where-emulator",
+  "import-folder-where-emulator-ios",
+  "import-folder-where-emulator-ipad",
+  "import-folder-where-emulator-mac",
   "import-folder-scanning",
   "import-folder-summary",
   "import-folder-summary-onboarding",
@@ -29,51 +33,101 @@ const screens = [
   "import-folder-copying",
   "import-folder-conflicts",
   "settings",
+  "settings-skins",
   "welcome",
   "welcome-folder",
   "welcome-mac",
   "welcome-folder-mac",
   "welcome-ios",
   "welcome-folder-ios",
+  "welcome-ipad",
   "welcome-previous",
   "welcome-previous-warning",
-  ...["gb", "gbc", "gba", "nds", "n64"].flatMap((system) => [`game-page-${system}`, `game-page-${system}-art`]),
+  ...["gb", "gbc", "gba", "nds", "n64", "3ds"].flatMap((system) => [`game-page-${system}`, `game-page-${system}-art`]),
   "game-page-gba-menu",
   "patch-rom",
   "box-art-sheet",
   "editor",
   "editor-stadium",
   "editor-teams",
+  "editor-events",
+  "editor-events-confirm",
+  "editor-mystery-gift",
+  "editor-mystery-gift-preview",
+  "editor-mystery-gift-review",
   "playing-gb",
+  "playing-gbc",
   "playing-gba",
   "playing-nds",
   "playing-n64",
+  "playing-3ds",
+  "skin-picker-gb",
+  "skin-picker-gbc",
+  "skin-picker-gba",
+  "skin-picker-nds",
+  "skin-picker-n64",
+  "skin-picker-3ds",
   "overlays",
   "overlays-dialog",
   "transfer",
   "transfer-pak",
 ];
 const themes = ["dark", "light"];
+const shownOnPhone = (screen) => screen.startsWith("playing-") || screen.startsWith("skin-picker-");
 const viewports = (screen) =>
-  screen.startsWith("playing-")
+  shownOnPhone(screen)
     ? [
         { name: "portrait", width: 390, height: 844 },
         { name: "landscape", width: 844, height: 390 },
       ]
     : [390, 1280].map((width) => ({ name: width, width, height: 844 }));
 // A full-page shot stretches the viewport, which moves a sheet sized to it.
-const sheets = new Set(["box-art-sheet"]);
-const variants = (screen, viewport) =>
-  ["playing-gb", "playing-nds"].includes(screen) && viewport === "portrait"
+const sheets = new Set(["box-art-sheet", "settings-skins"]);
+const lightSkins = {
+  "playing-gb": "classic-grey",
+  "playing-gba": "glacier",
+  "playing-nds": "polar-white",
+  "playing-n64": "gold",
+  "playing-3ds": "polar-white",
+};
+const freeSkins = {
+  "playing-gb": "classic-grey",
+  "playing-gbc": "berry",
+  "playing-gba": "indigo",
+  "playing-nds": "polar-white",
+  "playing-n64": "charcoal",
+  "playing-3ds": "polar-white",
+};
+const skinShots = (screen) =>
+  [...new Set([lightSkins[screen], freeSkins[screen]])]
+    .filter(Boolean)
+    .flatMap((skin) => [
+      { name: `-skin-${skin}`, query: `&skin=${skin}` },
+      ...(skin === freeSkins[screen] ? [{ name: `-skin-${skin}-frosted`, query: `&skin=${skin}&look=frosted` }] : []),
+    ]);
+const variants = (screen, viewport) => [
+  { name: "", query: screen.startsWith("skin-picker-") ? "&hinted" : "" },
+  ...(screen.startsWith("skin-picker-") && viewport === "portrait"
     ? [
-        { name: "", query: "" },
+        { name: "-empty", query: "&hinted&empty" },
+        { name: "-frosted", query: "&hinted&look=frosted" },
+        { name: "-swiping", query: "&hinted", swipe: true },
+      ]
+    : []),
+  ...(screen.startsWith("playing-") ? [{ name: "-paused", query: `&skin=${freeSkins[screen]}`, pause: true }] : []),
+  ...(screen.startsWith("playing-") && viewport === "portrait"
+    ? [{ name: "-frosted", query: "&look=frosted" }, ...skinShots(screen)]
+    : []),
+  ...(["playing-gb", "playing-nds", "playing-3ds"].includes(screen) && viewport === "portrait"
+    ? [
         { name: "-shift+5+5", query: "&shift=5,5" },
         { name: "-shift-5-5", query: "&shift=-5,-5" },
         { name: "-glass", query: "&glass=on" },
         { name: "-glass-shift+5+5", query: "&glass=on&shift=5,5" },
       ]
-    : [{ name: "", query: "" }];
-const pointers = (screen) => (screen.startsWith("playing-") ? ["touch"] : ["touch", "mouse"]);
+    : []),
+];
+const pointers = (screen) => (shownOnPhone(screen) ? ["touch"] : ["touch", "mouse"]);
 const only = process.argv.slice(2);
 
 const placeholder = (url) => {
@@ -112,7 +166,7 @@ try {
           const shot = `${screen}-${theme}-${name}${variant.name}-${pointer}`;
           const page = await browser.newPage({
             viewport: { width, height },
-            deviceScaleFactor: screen.startsWith("playing-") ? 3 : 1,
+            deviceScaleFactor: shownOnPhone(screen) ? 3 : 1,
             colorScheme: theme,
             hasTouch: pointer === "touch",
           });
@@ -133,9 +187,52 @@ try {
             await page.getByRole("button", { name: "Choose folder" }).click();
             await page.getByRole("alert").waitFor();
           }
+          if (screen.startsWith("editor-events")) {
+            await page.getByRole("button", { name: "Add a Pokémon" }).click();
+            await page.getByRole("button", { name: /^Events/ }).click();
+            const events = page.getByRole("list", { name: "Events" });
+            await events.getByRole("button").first().waitFor();
+            if (screen.endsWith("-confirm")) {
+              await events.getByRole("button", { name: /WISHMKR/ }).click();
+              await page.getByRole("alertdialog").waitFor();
+            }
+            await page.waitForTimeout(800);
+          }
+          if (screen.startsWith("editor-mystery-gift")) {
+            await page.getByRole("button", { name: "Mystery Gift" }).click();
+            const events = page.getByRole("list", { name: "Events" });
+            await events.waitFor();
+            if (screen !== "editor-mystery-gift") {
+              await events.getByRole("button", { name: /Manaphy/ }).click();
+              await page.getByRole("alertdialog").waitFor();
+            }
+            if (screen.endsWith("-review")) {
+              await page.getByRole("button", { name: "Review" }).click();
+              await page.getByRole("article").waitFor();
+            }
+            await page.waitForTimeout(800);
+          }
+          if (variant.pause) {
+            await page.getByRole("button", { name: "Pause menu" }).first().click();
+            await page.getByRole("dialog").waitFor();
+            await page.getByRole("button", { name: /^Skin/ }).scrollIntoViewIfNeeded();
+            await page.waitForTimeout(500);
+          }
+          if (screen === "settings-skins") {
+            await page.getByRole("button", { name: "Skins" }).click();
+            await page.getByRole("list", { name: "Systems" }).waitFor();
+            await page.waitForTimeout(500);
+          }
+          if (variant.swipe) {
+            const box = await page.getByLabel("Preview").boundingBox();
+            await page.mouse.move(box.x + box.width * 0.8, box.y + box.height / 2);
+            await page.mouse.down();
+            await page.mouse.move(box.x + box.width * 0.5, box.y + box.height / 2, { steps: 8 });
+            await page.waitForTimeout(100);
+          }
           if (pointer === "touch") {
             const small = await page.evaluate(() =>
-              [...document.querySelectorAll("[data-slot=button]:not([data-slot=input-group] *), [role^=menuitem]")]
+              [...document.querySelectorAll("[data-slot=button]:not([data-slot=input-group] *, [inert] *), [role^=menuitem]")]
                 .map((target) => ({ target, box: target.getBoundingClientRect() }))
                 .filter(({ box }) => box.width && box.height && (box.width < 44 || box.height < 44))
                 .map(({ target, box }) => `${target.getAttribute("aria-label") ?? target.textContent} ${box.width}×${box.height}`),

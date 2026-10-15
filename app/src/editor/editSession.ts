@@ -13,7 +13,7 @@ import {
   type Topic,
 } from "@pkhex-everywhere/engine";
 
-const saveTopics: Topic[] = ["party", "box", "inventory", "events", "trainer", "team"];
+const saveTopics: Topic[] = ["party", "box", "inventory", "events", "trainer", "team", "mysteryGift"];
 
 export const noSaveYet = "no-save-yet";
 

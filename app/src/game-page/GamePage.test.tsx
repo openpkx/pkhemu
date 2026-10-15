@@ -6,7 +6,7 @@ import { BackProvider } from "@/back/back";
 import { BoxArtProvider } from "@/box-art/boxArt";
 import { fakeBoxArt } from "@/box-art/fakeBoxArt";
 import { ExportProvider } from "@/editor/exportFile";
-import { fakeEngine } from "@/editor/fakeEngine";
+import { fakeEngine, type FakeTransfer } from "@/editor/fakeEngine";
 import { fakePads, padButtons } from "@/input/fakePads";
 import { createInput } from "@/input/input";
 import { pngDataUrl } from "@/lib/utils";
@@ -19,12 +19,17 @@ import type { PatchedFrom, SaveFormat } from "@/preferences/gameSettings";
 import type { SavedState } from "@/save-states/StatesScreen";
 import { PatchRomProvider, type PatchRomHost } from "@/patch-rom/patchRom";
 import { GamesFolderProvider, type GamesFolderHost } from "@/games-folder/gamesFolder";
+import { fakeImport } from "@/import/fakeImport";
+import { ImportProvider, type ImportHost } from "@/import/importFiles";
+import { fakeFolder } from "@/library/fakeFolder";
+import { LibraryProvider, type LibraryHost } from "@/library/library";
 import { fakeSync } from "@/sync/fakeSync";
 import { SyncProvider } from "@/sync/sync";
 import type { TransferPak } from "@/transfer-pak/setting";
 import { GamePage, type GamePageHost } from "./GamePage";
 import { summaryRevision, type SaveSummary } from "./saveSummary";
 import type { ResumeInfo } from "./unsavedResume";
+import { defaultSkins } from "@/skins";
 
 const defaultPreferences: Preferences = {
   touchControls: false,
@@ -38,6 +43,11 @@ const defaultPreferences: Preferences = {
   stickSensitivity: 1,
   playInSilentMode: false,
   renderer: "automatic",
+  skins: defaultSkins,
+  skinHintSeen: false,
+  screenDepth: true,
+  screenGlass: true,
+  asyncShaders: false,
 };
 
 const emerald: Game = { system: "gba", name: "Pokemon - Emerald Version (USA, Europe)", path: "gba/Emerald.gba" };
@@ -93,6 +103,7 @@ function fakeHost({
   others = {} as Record<string, "readable" | "unreadable">,
   formats = {} as Record<string, SaveFormat>,
   romNames = {} as Record<string, string>,
+  updates = {} as Record<string, number>,
   saveFiles = undefined as { extension: string; bytes: number[] }[] | undefined,
   transferPak = null as TransferPak | null,
 } = {}) {
@@ -105,6 +116,7 @@ function fakeHost({
     }),
     readSaveFiles: vi.fn(async (_folder: string, _path: string) => saveFiles ?? (file ? [{ extension: "sav", bytes: file.bytes }] : [])),
     romGameName: vi.fn(async (_folder: string, path: string) => romNames[path] ?? null),
+    threeDsUpdate: vi.fn(async (_folder: string, path: string) => updates[path] ?? null),
     saveSummary: vi.fn(async (sha256: string) => summaries.get(sha256) ?? null),
     keepSaveSummary: vi.fn(async (sha256: string, summary: SaveSummary) => void summaries.set(sha256, summary)),
     saveFormat: vi.fn(async (path: string) => formats[path] ?? null),
@@ -177,9 +189,10 @@ async function launch(
     patchedFrom = null as PatchedFrom | null,
     sync = fakeSync({ available: false }),
     unsupported = undefined as "device" | "platform" | undefined,
+    importHost = fakeImport() as ImportHost,
   } = {},
 ) {
-  const props = { onPlay: vi.fn(), onBack: vi.fn() };
+  const props = { onPlay: vi.fn(), onDelete: vi.fn(), onBack: vi.fn() };
   const exportHost = {
     saveFile: vi.fn(async ({ fileName }: { fileName: string }) => fileName),
     saveFiles: vi.fn(async (files: { fileName: string }[]) => files.map((file) => file.fileName).join(", ")),
@@ -188,11 +201,21 @@ async function launch(
   const patchRomHost: PatchRomHost = {
     baseBuild: async () => "Emerald EN 1.0",
     pick: async () => null,
+    bases: async () => ({ checked: true, games: [] }),
     dropped: () => Promise.reject(new Error("No drops here")),
     checkName: async () => {},
-    create: async () => ({ path: "", sha256: "" }),
+    create: async () => ({ path: "", sha256: "", baseChecked: false }),
     patchedFrom: async () => patchedFrom,
     keepPatchedFrom: async () => {},
+  };
+  const list = fakeFolder([game.path]);
+  const library: LibraryHost = {
+    listDir: (_folder, path) => list(path),
+    recentlyPlayed: async () => [],
+    scanGameArt: async () => {},
+    resumeScreenshot: async () => null,
+    hasResumeState: async () => false,
+    playHistory: async () => ({ lastPlayed: null, playTime: 0 }),
   };
   render(
     <GamesFolderProvider host={gamesFolder}>
@@ -204,8 +227,12 @@ async function launch(
                 <BackProvider>
                   <ExportProvider host={exportHost}>
                     <PatchRomProvider host={patchRomHost}>
-                      <PadNavigation input={createInput(pads.gamepads)} />
-                      <GamePage host={host} folder="/games" game={game} games={games} cover={cover} unsupported={unsupported} {...props} />
+                      <LibraryProvider host={library} folder="/games" onOpen={() => {}} onPlay={() => {}}>
+                        <ImportProvider host={importHost}>
+                          <PadNavigation input={createInput(pads.gamepads)} />
+                          <GamePage host={host} folder="/games" game={game} games={games} cover={cover} unsupported={unsupported} {...props} />
+                        </ImportProvider>
+                      </LibraryProvider>
                     </PatchRomProvider>
                   </ExportProvider>
                 </BackProvider>
@@ -327,13 +354,13 @@ it("shows where the game was left off", async () => {
 
 it.each<{ game: Game; cropped: boolean }>([
   { game: { system: "nds", name: "Platinum", path: "nds/Platinum.nds" }, cropped: true },
+  { game: { system: "3ds", name: "PKSM", path: "3ds/PKSM.3dsx" }, cropped: true },
   { game: emerald, cropped: false },
 ])("crops the last screen of $game.system to the top screen: $cropped", async ({ game, cropped }) => {
   await launch(fakeHost(), undefined, { game });
 
   const shot = screen.getByRole("img", { name: "Where you left off" });
-  expect(shot.parentElement!.classList.contains("aspect-[4/3]")).toBe(cropped);
-  expect(shot.classList.contains("object-top")).toBe(cropped);
+  expect(shot.style.height === "200%").toBe(cropped);
 });
 
 const boxArtPng = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 1]);
@@ -711,10 +738,27 @@ it("offers no export when there's no save", async () => {
   expect(within(screen.getByRole("region", { name: "Save" })).queryByRole("button", { name: "More" })).toBeNull();
 });
 
-async function openGameMenu() {
-  fireEvent.keyDown(within(screen.getByRole("region", { name: /Emerald/ })).getByRole("button", { name: "More" }), { key: "Enter" });
+async function openGameMenu(name = /Emerald/) {
+  fireEvent.keyDown(within(screen.getByRole("region", { name })).getByRole("button", { name: "More" }), { key: "Enter" });
   return screen.findByRole("menu");
 }
+
+it("shows a 3DS game's update and picks another from the game menu", async () => {
+  const importHost = fakeImport();
+  await launch(fakeHost({ updates: { [x.path]: 5232 } }), undefined, { game: x, importHost });
+
+  expect(await screen.findByText("Update v5232")).toBeTruthy();
+  fireEvent.click(within(await openGameMenu(/Pokemon X/)).getByRole("menuitem", { name: "Install update…" }));
+
+  await waitFor(() => expect(importHost.pick).toHaveBeenCalled());
+});
+
+it("offers updates only for 3DS games", async () => {
+  await launch(fakeHost({ updates: { [emerald.path]: 1 } }));
+
+  expect(within(await openGameMenu()).queryByRole("menuitem", { name: "Install update…" })).toBeNull();
+  expect(screen.queryByText(/^Update v/)).toBeNull();
+});
 
 it("re-extracts this game's art from the game menu", async () => {
   const gameArt = fakeGameArt();
@@ -916,6 +960,51 @@ it("offers a Stadium save as a partner for a Gen 1 save", async () => {
   expect(within(sendTo).getByRole("button", { name: /^Stadium/ })).toBeTruthy();
 });
 
+const x: Game = { system: "3ds", name: "Pokemon X (USA)", path: "3ds/X.3ds" };
+const omegaRuby: Game = { system: "3ds", name: "Pokemon Omega Ruby (USA)", path: "3ds/Omega Ruby.3ds" };
+const black2: Game = { system: "nds", name: "Pokemon - Black Version 2 (USA, Europe)", path: "nds/Black 2.nds" };
+const sun: Game = { system: "3ds", name: "Pokemon Sun (USA)", path: "3ds/Sun.3ds" };
+const ultraMoon: Game = { system: "3ds", name: "Pokemon Ultra Moon (USA)", path: "3ds/Ultra Moon.3ds" };
+const generations: [Game, string, number][] = [
+  [fireRed, "FireRed", 3],
+  [black2, "Black 2", 5],
+  [x, "X", 6],
+  [omegaRuby, "Omega Ruby", 6],
+  [sun, "Sun", 7],
+  [ultraMoon, "Ultra Moon", 7],
+];
+
+async function partnersOf(game: Game) {
+  const summaries = new Map(
+    generations.map(([game, version, generation]): [string, SaveSummary] => [
+      game.path,
+      {
+        revision: summaryRevision,
+        version,
+        formatId: null,
+        generation,
+        trainer: null,
+        party: [],
+        progress: { playTime: null, badges: null, pokedex: null },
+      },
+    ]),
+  );
+  const others = Object.fromEntries(generations.map(([game]) => [game.path, "readable" as const]));
+  const games = generations.map(([game]) => game);
+  await launch(fakeHost({ resume: false, summaries, others }), fakeEngine({ trainer: may, party: mayParty }), { game, games });
+
+  fireEvent.click(await screen.findByRole("button", { name: "Transfer Pokémon" }));
+  const sendTo = await screen.findByRole("region", { name: "Send to" });
+  await act(async () => {});
+  return within(sendTo)
+    .getAllByRole("button")
+    .map((partner) => generations.find(([, version]) => partner.textContent?.startsWith(version))?.[0]);
+}
+
+it.each(generations.map(([game, version]) => [version, game]))("offers every other save as a partner for %s", async (_, game) => {
+  expect(await partnersOf(game)).toEqual(generations.map(([other]) => other).filter((other) => other !== game));
+});
+
 it("names another game by its ROM, not the engine's guess", async () => {
   await launch(fakeHost({ save: true, resume: false, others: { [fireRed.path]: "readable" }, romNames: { [fireRed.path]: "Sapphire" } }), undefined, {
     games: library,
@@ -969,7 +1058,7 @@ it("warns before a transfer when the resume point has unsaved play", async () =>
 it("resumes the other game to save it first", async () => {
   const host = fakeHost({ save: true, resume: false, others: { [fireRed.path]: "readable" } });
   host.hasResumeState.mockImplementation(async (_folder: string, path: string) => path === fireRed.path);
-  const transfer = { partners: { "FireRed.sav": { version: "FireRed", routes: { send: "link", receive: "link" }, room: { mine: 1, partner: 1 } } } } as const;
+  const transfer = { partners: { "FireRed.sav": { version: "FireRed", routes: { send: ["link"], receive: ["link"] }, room: { mine: 1, partner: 1 } } } } satisfies FakeTransfer;
   const { onPlay } = await launch(host, fakeEngine({ trainer: may, party: mayParty, transfer }), { games: library });
   fireEvent.click(await screen.findByRole("button", { name: "Transfer Pokémon" }));
   await act(async () => {});
@@ -987,6 +1076,7 @@ const brendan: SaveSummary = {
   revision: summaryRevision,
   version: "Emerald",
   formatId: null,
+  generation: 3,
   trainer: { name: "BRENDAN", gender: "male", money: 500 },
   party: [
     {

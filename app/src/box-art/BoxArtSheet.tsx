@@ -11,7 +11,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { Game } from "@/library/scan";
 import { messageOf } from "@/lib/utils";
 import { imageUrl, useBoxArtContext, useFolder, type BoxArtKind } from "./boxArt";
-import { rankBoxArt } from "./match";
+import { matchBoxArt, rankBoxArt } from "./match";
 
 const PAGE = 30;
 
@@ -45,12 +45,14 @@ function Gallery({
   game,
   kind,
   query,
+  base,
   saving,
   onPick,
 }: {
   game: Game;
   kind: BoxArtKind;
   query: string;
+  base?: string;
   saving: Saving | undefined;
   onPick(image: string): void;
 }) {
@@ -61,6 +63,7 @@ function Gallery({
     if (!Array.isArray(names)) return [];
     return query.trim() ? rankBoxArt(query, names) : names;
   }, [names, query]);
+  const selected = useMemo(() => (base && Array.isArray(names) ? matchBoxArt(base, names) : undefined), [base, names]);
 
   useEffect(() => setShown(PAGE), [results]);
 
@@ -90,10 +93,11 @@ function Gallery({
               key={name}
               variant="ghost"
               aria-label={name}
+              aria-current={name === selected || undefined}
               aria-busy={picking || undefined}
               disabled={!!saving}
               onClick={() => onPick(image)}
-              className="relative h-auto flex-col items-stretch gap-1 rounded-lg p-1.5 whitespace-normal"
+              className="relative h-auto flex-col items-stretch gap-1 rounded-lg p-1.5 whitespace-normal aria-[current=true]:ring-2 aria-[current=true]:ring-primary"
             >
               <span className="grid aspect-square place-items-center overflow-hidden rounded-md bg-muted">
                 <img src={image} alt="" loading="lazy" className="max-h-full max-w-full object-contain" />
@@ -115,18 +119,20 @@ function Gallery({
 export function BoxArtSheet({
   open,
   game,
+  base,
   onClose,
   onChanged,
 }: {
   open: boolean;
   game: Game;
+  base?: string;
   onClose(): void;
   onChanged(): void;
 }) {
   const boxArt = useBoxArtContext();
   const folder = useFolder();
   const [chosen, setChosen] = useState<boolean>();
-  const [query, setQuery] = useState(game.name);
+  const [query, setQuery] = useState(base ?? game.name);
   const [kind, setKind] = useState<BoxArtKind>("Named_Boxarts");
   const [typingUrl, setTypingUrl] = useState(false);
   const [url, setUrl] = useState("");
@@ -254,6 +260,7 @@ export function BoxArtSheet({
               game={game}
               kind={kind}
               query={query}
+              base={base}
               saving={saving}
               onPick={(image) => void save({ image }, (folder, path) => boxArt.pick(folder, path, image))}
             />

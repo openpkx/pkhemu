@@ -1,0 +1,57 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "bundle": {
+    "fileAssociations": [
+      {
+        "ext": ["gb", "gbc"],
+        "name": "Game Boy game",
+        "role": "Viewer"
+      },
+      {
+        "ext": ["gba"],
+        "name": "Game Boy Advance game",
+        "role": "Viewer"
+      },
+      {
+        "ext": ["nds"],
+        "name": "DS game",
+        "role": "Viewer"
+      },
+      {
+        "ext": ["z64", "n64", "v64"],
+        "name": "N64 game",
+        "role": "Viewer"
+      },
+      {
+        "ext": ["sav", "srm", "dsv"],
+        "name": "Save",
+        "role": "Viewer"
+      },
+      {
+        "ext": ["rtc"],
+        "name": "Game clock",
+        "role": "Viewer",
+        "exportedType": { "identifier": "fyi.openpkx.pkhemu.clock", "conformsTo": ["public.data"] }
+      },
+      {
+        "ext": ["ips", "ups", "bps", "xdelta", "vcdiff"],
+        "name": "Patch",
+        "role": "Viewer",
+        "exportedType": { "identifier": "fyi.openpkx.pkhemu.patch", "conformsTo": ["public.data"] }
+      },
+      {
+        "ext": ["zip"],
+        "name": "ZIP archive",
+        "role": "Viewer",
+        "rank": "Alternate",
+        "contentTypes": ["public.zip-archive"]
+      },
+      {
+        "ext": ["7z"],
+        "name": "7z archive",
+        "role": "Viewer",
+        "rank": "Alternate"
+      }
+    ]
+  }
+}

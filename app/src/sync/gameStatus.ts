@@ -15,12 +15,15 @@ const stages: Record<SyncStage, string> = {
   uploadingSaves: "Uploading saves",
   downloadingSaves: "Downloading saves",
   uploadingRom: "Uploading ROM",
+  uploadingUpdate: "Uploading update",
+  downloadingUpdate: "Downloading update",
 };
 
 const waits: Record<WaitReason, string> = {
   offline: "Waiting for a connection",
   mobileData: "Waiting for Wi-Fi",
   playing: "Waiting for the game to close",
+  stopped: "Sync stopped",
 };
 
 const percent = ({ done, total }: { done: number; total: number }) =>

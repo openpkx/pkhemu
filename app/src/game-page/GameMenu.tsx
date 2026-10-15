@@ -22,9 +22,19 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { isUnavailable, useGameArt, type GameArtStatus } from "@/game-art/gameArt";
+import { useImportFiles } from "@/import/importFiles";
 import type { Game } from "@/library/scan";
 import { PatchRomDialog, usePatchRom } from "@/patch-rom/patchRom";
 import type { PatchedFrom } from "@/preferences/gameSettings";
+
+// Stays mounted while the menu closes, so the import it starts can still ask about other files picked with the update.
+function UpdateInstaller({ requests, onDone }: { requests: number; onDone(message: string): void }) {
+  const { importFiles, dialogs } = useImportFiles(onDone, { takesOpened: false });
+  useEffect(() => {
+    if (requests) void importFiles();
+  }, [requests]);
+  return dialogs;
+}
 
 export function GameMenu({
   folder,
@@ -32,6 +42,7 @@ export function GameMenu({
   deletesEverywhere,
   onChangeFormat,
   onPatched,
+  onUpdated,
   onRemove,
   onDelete,
 }: {
@@ -40,6 +51,7 @@ export function GameMenu({
   deletesEverywhere: boolean;
   onChangeFormat?(): void;
   onPatched?(game: Game): void;
+  onUpdated?(): void;
   onRemove?(): Promise<void>;
   onDelete(): Promise<void>;
 }) {
@@ -56,7 +68,9 @@ export function GameMenu({
   const [toast, setToast] = useToast();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [updateRequests, setUpdateRequests] = useState(0);
   const cloudOnly = !!game.cloudOnly;
+  const takesUpdates = game.system === "3ds" && !cloudOnly;
 
   useEffect(() => {
     if (cloudOnly) return;
@@ -130,6 +144,9 @@ export function GameMenu({
               <DropdownMenuItem onSelect={() => void reextract()}>Re-extract game art</DropdownMenuItem>
               {onChangeFormat && <DropdownMenuItem onSelect={onChangeFormat}>Change save format</DropdownMenuItem>}
               <DropdownMenuItem onSelect={openPatching}>Patch ROM…</DropdownMenuItem>
+              {takesUpdates && (
+                <DropdownMenuItem onSelect={() => setUpdateRequests((requests) => requests + 1)}>Install update…</DropdownMenuItem>
+              )}
               <DropdownMenuSeparator />
             </>
           )}
@@ -183,6 +200,15 @@ export function GameMenu({
           onChanged={() => {
             setChangingBoxArt(false);
             setToast("Box art changed");
+          }}
+        />
+      )}
+      {takesUpdates && (
+        <UpdateInstaller
+          requests={updateRequests}
+          onDone={(message) => {
+            setToast(message);
+            onUpdated?.();
           }}
         />
       )}

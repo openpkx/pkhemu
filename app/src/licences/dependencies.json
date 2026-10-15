@@ -114,49 +114,222 @@
       "name": "GLideN64",
       "version": "modified",
       "licence": "GPL-2.0-only",
-      "source": "https://github.com/pkhex-web/mupen64plus-libretro-nx/tree/14bbeae0b4e1a99261cb3b7ce8b1164e4d7d4a2b/GLideN64"
+      "source": "https://github.com/pkhex-web/mupen64plus-libretro-nx/tree/fa57784d6ed26521661665a01670134bc5e1fc10/GLideN64"
     },
     {
       "name": "cxd4 RSP",
       "licence": "CC0-1.0",
-      "source": "https://github.com/pkhex-web/mupen64plus-libretro-nx/tree/14bbeae0b4e1a99261cb3b7ce8b1164e4d7d4a2b/mupen64plus-rsp-cxd4"
+      "source": "https://github.com/pkhex-web/mupen64plus-libretro-nx/tree/fa57784d6ed26521661665a01670134bc5e1fc10/mupen64plus-rsp-cxd4"
     },
     {
       "name": "libpng (Mupen64Plus-Next)",
       "licence": "Libpng",
-      "source": "https://github.com/pkhex-web/mupen64plus-libretro-nx/tree/14bbeae0b4e1a99261cb3b7ce8b1164e4d7d4a2b/custom/dependencies/libpng"
+      "source": "https://github.com/pkhex-web/mupen64plus-libretro-nx/tree/fa57784d6ed26521661665a01670134bc5e1fc10/custom/dependencies/libpng"
     },
     {
       "name": "zlib (Mupen64Plus-Next)",
       "licence": "Zlib",
-      "source": "https://github.com/pkhex-web/mupen64plus-libretro-nx/tree/14bbeae0b4e1a99261cb3b7ce8b1164e4d7d4a2b/custom/dependencies/libzlib"
+      "source": "https://github.com/pkhex-web/mupen64plus-libretro-nx/tree/fa57784d6ed26521661665a01670134bc5e1fc10/custom/dependencies/libzlib"
     },
     {
       "name": "minizip",
       "licence": "Zlib",
-      "source": "https://github.com/pkhex-web/mupen64plus-libretro-nx/tree/14bbeae0b4e1a99261cb3b7ce8b1164e4d7d4a2b/mupen64plus-core/subprojects/minizip"
+      "source": "https://github.com/pkhex-web/mupen64plus-libretro-nx/tree/fa57784d6ed26521661665a01670134bc5e1fc10/mupen64plus-core/subprojects/minizip"
     },
     {
       "name": "md5",
       "licence": "Zlib",
-      "source": "https://github.com/pkhex-web/mupen64plus-libretro-nx/tree/14bbeae0b4e1a99261cb3b7ce8b1164e4d7d4a2b/mupen64plus-core/subprojects/md5"
+      "source": "https://github.com/pkhex-web/mupen64plus-libretro-nx/tree/fa57784d6ed26521661665a01670134bc5e1fc10/mupen64plus-core/subprojects/md5"
     },
     {
       "name": "xxHash",
       "licence": "BSD-2-Clause",
-      "source": "https://github.com/pkhex-web/mupen64plus-libretro-nx/tree/14bbeae0b4e1a99261cb3b7ce8b1164e4d7d4a2b/xxHash"
+      "source": "https://github.com/pkhex-web/mupen64plus-libretro-nx/tree/fa57784d6ed26521661665a01670134bc5e1fc10/xxHash"
     },
     {
       "name": "libretro-common (Mupen64Plus-Next)",
       "licence": "MIT",
-      "source": "https://github.com/pkhex-web/mupen64plus-libretro-nx/tree/14bbeae0b4e1a99261cb3b7ce8b1164e4d7d4a2b/libretro-common"
+      "source": "https://github.com/pkhex-web/mupen64plus-libretro-nx/tree/fa57784d6ed26521661665a01670134bc5e1fc10/libretro-common"
+    },
+    {
+      "name": "Azahar",
+      "version": "2127.0-alpha1, modified",
+      "licence": "GPL-3.0-or-later",
+      "source": "https://github.com/pkhex-web/azahar/tree/pkh-emu"
+    },
+    {
+      "name": "Open-source system archives",
+      "licence": "GPL-2.0-only",
+      "source": "https://github.com/pkhex-web/azahar/tree/f3381e6e2ec2682d9461f3789911bc05a1c25381/externals/open_source_archives"
+    },
+    {
+      "name": "Montserrat",
+      "licence": "OFL-1.1",
+      "source": "https://github.com/B3n30/citra_system_archives/tree/master/shared_font"
+    },
+    {
+      "name": "GNU Unifont",
+      "version": "10.0.05",
+      "licence": "GPL-2.0-or-later WITH Font-exception-2.0",
+      "source": "https://github.com/B3n30/citra_system_archives/tree/master/shared_font"
+    },
+    {
+      "name": "Boost",
+      "licence": "BSL-1.0",
+      "source": "https://github.com/azahar-emu/ext-boost/tree/6a85c3100499e886e11c87a5c2109eedacea0a61"
+    },
+    {
+      "name": "Crypto++",
+      "licence": "BSL-1.0",
+      "source": "https://github.com/cryptopp-modern/cryptopp-modern/tree/8d92d788421483a43e09acf1cd4a2861cb2b8cab"
+    },
+    {
+      "name": "dynarmic",
+      "licence": "0BSD",
+      "source": "https://github.com/azahar-emu/dynarmic/tree/a46601580d5512d324104f985b5f0209dc980ddc"
+    },
+    {
+      "name": "mcl",
+      "licence": "MIT",
+      "source": "https://github.com/azahar-emu/mcl/tree/5fc4beaf331037649b10625736b41365defb4f50"
+    },
+    {
+      "name": "robin-map",
+      "licence": "MIT",
+      "source": "https://github.com/Tessil/robin-map/tree/054ec5ad67440fcd65e0497e5a27ef31f53fcc7f"
+    },
+    {
+      "name": "oaknut",
+      "licence": "MIT",
+      "source": "https://github.com/merryhime/oaknut/tree/6b1d57ea7ed4882d32a91eeaa6557b0ecb4da152"
+    },
+    {
+      "name": "ENet",
+      "licence": "MIT",
+      "source": "https://github.com/lsalzman/enet/tree/2662c0de09e36f2a2030ccc2c528a3e4c9e8138a"
+    },
+    {
+      "name": "FAAD2",
+      "licence": "GPL-2.0-or-later",
+      "source": "https://github.com/knik0/faad2/tree/216f00e8ddba6f2c64caf481a04f1ddd78b93e78"
+    },
+    {
+      "name": "fmt (Azahar)",
+      "licence": "MIT",
+      "source": "https://github.com/fmtlib/fmt/tree/e424e3f2e607da02742f73db84873b8084fc714c"
+    },
+    {
+      "name": "glslang",
+      "licence": "BSD-3-Clause",
+      "source": "https://github.com/KhronosGroup/glslang/tree/fc9889c889561c5882e83819dcaffef5ed45529b"
+    },
+    {
+      "name": "glad",
+      "licence": "MIT",
+      "source": "https://github.com/pkhex-web/azahar/tree/f3381e6e2ec2682d9461f3789911bc05a1c25381/externals/glad"
+    },
+    {
+      "name": "LibreSSL",
+      "licence": "OpenSSL AND ISC",
+      "source": "https://github.com/azahar-emu/ext-libressl-portable/tree/88b8e41b71099fabc57813bc06d8bc1aba050a19"
+    },
+    {
+      "name": "LodePNG",
+      "licence": "Zlib",
+      "source": "https://github.com/lvandeve/lodepng/tree/0b1d9ccfc2093e5d6620cd9a11d03ee6ff6705f5"
+    },
+    {
+      "name": "nihstro",
+      "licence": "BSD-3-Clause",
+      "source": "https://github.com/neobrain/nihstro/tree/f4d8659decbfe5d234f04134b5002b82dc515a44"
+    },
+    {
+      "name": "dds-ktx",
+      "licence": "BSD-2-Clause",
+      "source": "https://github.com/septag/dds-ktx/tree/c3ca8febc2457ab5c581604f3236a8a511fc2e45"
+    },
+    {
+      "name": "JSON for Modern C++",
+      "licence": "MIT",
+      "source": "https://github.com/pkhex-web/azahar/tree/f3381e6e2ec2682d9461f3789911bc05a1c25381/externals/json"
+    },
+    {
+      "name": "sirit",
+      "licence": "BSD-3-Clause",
+      "source": "https://github.com/azahar-emu/sirit/tree/37d49d2aa4c0a62f872720d6e5f2eaf90b2c95fa"
+    },
+    {
+      "name": "SoundTouch",
+      "licence": "LGPL-2.1-or-later",
+      "source": "https://github.com/azahar-emu/soundtouch/tree/9ef8458d8561d9471dd20e9619e3be4cfe564796"
+    },
+    {
+      "name": "SPIRV-Tools",
+      "licence": "Apache-2.0",
+      "source": "https://github.com/KhronosGroup/SPIRV-Tools/tree/a62abcb402009b9ca5975e6167c09f237f630e0e"
+    },
+    {
+      "name": "SPIRV-Headers",
+      "licence": "MIT",
+      "source": "https://github.com/KhronosGroup/SPIRV-Headers/tree/aa6cef192b8e693916eb713e7a9ccadf06062ceb"
+    },
+    {
+      "name": "Teakra (Azahar)",
+      "licence": "MIT",
+      "source": "https://github.com/wwylele/teakra/tree/3d697a18df504f4677b65129d9ab14c7c597e3eb"
+    },
+    {
+      "name": "Vulkan Memory Allocator",
+      "licence": "MIT",
+      "source": "https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/tree/c788c52156f3ef7bc7ab769cb03c110a53ac8fcb"
+    },
+    {
+      "name": "Vulkan-Headers",
+      "licence": "Apache-2.0",
+      "source": "https://github.com/KhronosGroup/Vulkan-Headers/tree/409c16be502e39fe70dd6fe2d9ad4842ef2c9a53"
+    },
+    {
+      "name": "xxHash (Azahar)",
+      "licence": "BSD-2-Clause",
+      "source": "https://github.com/Cyan4973/xxHash/tree/e626a72bc2321cd320e953a0ccf1584cad60f363"
+    },
+    {
+      "name": "Zstandard",
+      "licence": "BSD-3-Clause OR GPL-2.0-only",
+      "source": "https://github.com/facebook/zstd/tree/f8745da6ff1ad1e7bab384bd1f9d742439278e99"
+    },
+    {
+      "name": "libretro-common (Azahar)",
+      "licence": "MIT",
+      "source": "https://github.com/libretro/libretro-common/tree/7fc7feeddca391be65c94e6541381467684b814d"
+    },
+    {
+      "name": "MoltenVK",
+      "version": "1.4.2",
+      "licence": "Apache-2.0",
+      "source": "https://github.com/KhronosGroup/MoltenVK/tree/v1.4.2"
+    },
+    {
+      "name": "SPIRV-Cross",
+      "licence": "Apache-2.0",
+      "source": "https://github.com/KhronosGroup/MoltenVK/tree/v1.4.2/ExternalRevisions"
+    },
+    {
+      "name": "SPIRV-Tools (MoltenVK)",
+      "licence": "Apache-2.0",
+      "source": "https://github.com/KhronosGroup/MoltenVK/tree/v1.4.2/ExternalRevisions"
+    },
+    {
+      "name": "cereal",
+      "licence": "BSD-3-Clause",
+      "source": "https://github.com/KhronosGroup/MoltenVK/tree/v1.4.2/ExternalRevisions"
     }
   ],
   "engine": [
     {
       "name": "ICU",
       "licence": "Unicode-3.0",
-      "source": "https://github.com/dotnet/dotnet/blob/95017c711e6afc1085133d440e42b4bd78155701/src/runtime/eng/Version.Details.xml"
+      "source": "https://github.com/dotnet/dotnet/blob/4099f83977f4d29604a9aeb971fb0a7bc1d5f699/src/runtime/eng/Version.Details.xml"
     },
     {
       "name": "Microsoft.Extensions.DependencyInjection",
@@ -172,9 +345,9 @@
     },
     {
       "name": "Microsoft.NETCore.App.Runtime.Mono.browser-wasm",
-      "version": "10.0.12",
+      "version": "10.0.13",
       "licence": "MIT",
-      "source": "https://github.com/dotnet/dotnet/tree/95017c711e6afc1085133d440e42b4bd78155701"
+      "source": "https://github.com/dotnet/dotnet/tree/4099f83977f4d29604a9aeb971fb0a7bc1d5f699"
     },
     {
       "name": "PKHeX",
@@ -243,6 +416,12 @@
       "version": "3.6.1",
       "licence": "MIT OR Apache-2.0",
       "source": "https://github.com/1Password/arboard"
+    },
+    {
+      "name": "ash",
+      "version": "0.38.0+1.3.281",
+      "licence": "MIT OR Apache-2.0",
+      "source": "https://github.com/ash-rs/ash"
     },
     {
       "name": "async-broadcast",
@@ -321,12 +500,6 @@
       "version": "1.1.2",
       "licence": "Apache-2.0 OR MIT",
       "source": "https://github.com/smol-rs/atomic-waker"
-    },
-    {
-      "name": "autocfg",
-      "version": "1.5.1",
-      "licence": "Apache-2.0 OR MIT",
-      "source": "https://github.com/cuviper/autocfg"
     },
     {
       "name": "base64",
@@ -473,22 +646,10 @@
       "source": "https://github.com/oli-obk/cargo_metadata"
     },
     {
-      "name": "cargo_toml",
-      "version": "1.0.1",
-      "licence": "Apache-2.0 OR MIT",
-      "source": "https://gitlab.com/lib.rs/cargo_toml"
-    },
-    {
       "name": "cargo-platform",
       "version": "0.1.9",
       "licence": "MIT OR Apache-2.0",
       "source": "https://github.com/rust-lang/cargo"
-    },
-    {
-      "name": "cc",
-      "version": "1.6.0",
-      "licence": "MIT OR Apache-2.0",
-      "source": "https://github.com/rust-lang/cc-rs"
     },
     {
       "name": "cesu8",
@@ -501,18 +662,6 @@
       "version": "0.14.0",
       "licence": "MIT",
       "source": "https://github.com/mdsteele/rust-cfb"
-    },
-    {
-      "name": "cfg_aliases",
-      "version": "0.2.2",
-      "licence": "MIT",
-      "source": "https://github.com/katharostech/cfg_aliases"
-    },
-    {
-      "name": "cfg-expr",
-      "version": "0.15.8",
-      "licence": "MIT OR Apache-2.0",
-      "source": "https://github.com/EmbarkStudios/cfg-expr"
     },
     {
       "name": "cfg-if",
@@ -531,12 +680,6 @@
       "version": "5.4.1",
       "licence": "BSL-1.0",
       "source": "https://github.com/DoumanAsh/clipboard-win"
-    },
-    {
-      "name": "cmake",
-      "version": "0.1.58",
-      "licence": "MIT OR Apache-2.0",
-      "source": "https://github.com/rust-lang/cmake-rs"
     },
     {
       "name": "color_quant",
@@ -827,12 +970,6 @@
       "source": "https://github.com/nvzqz/embed-plist-rs"
     },
     {
-      "name": "embed-resource",
-      "version": "3.0.11",
-      "licence": "MIT",
-      "source": "https://github.com/nabijaczleweli/rust-embed-resource"
-    },
-    {
       "name": "endi",
       "version": "1.1.1",
       "licence": "MIT",
@@ -921,12 +1058,6 @@
       "version": "0.3.6",
       "licence": "MIT OR Apache-2.0",
       "source": "https://github.com/Diggsey/rust-field-offset"
-    },
-    {
-      "name": "find-msvc-tools",
-      "version": "0.1.14",
-      "licence": "MIT OR Apache-2.0",
-      "source": "https://github.com/rust-lang/cc-rs"
     },
     {
       "name": "fixedbitset",
@@ -1565,6 +1696,12 @@
       "source": "https://github.com/nagisa/rust_libloading/"
     },
     {
+      "name": "libm",
+      "version": "0.2.16",
+      "licence": "MIT",
+      "source": "https://github.com/rust-lang/compiler-builtins"
+    },
+    {
       "name": "libredox",
       "version": "0.1.25",
       "licence": "MIT",
@@ -1967,12 +2104,6 @@
       "source": "https://github.com/rust-phf/rust-phf"
     },
     {
-      "name": "phf_codegen",
-      "version": "0.13.1",
-      "licence": "MIT",
-      "source": "https://github.com/rust-phf/rust-phf"
-    },
-    {
       "name": "phf_generator",
       "version": "0.13.1",
       "licence": "MIT",
@@ -2001,12 +2132,6 @@
       "version": "0.2.5",
       "licence": "MIT OR Apache-2.0",
       "source": "https://github.com/smol-rs/piper"
-    },
-    {
-      "name": "pkg-config",
-      "version": "0.3.34",
-      "licence": "MIT OR Apache-2.0",
-      "source": "https://github.com/rust-lang/pkg-config-rs"
     },
     {
       "name": "plist",
@@ -2229,12 +2354,6 @@
       "version": "0.40.2",
       "licence": "MIT",
       "source": "https://github.com/rusqlite/rusqlite"
-    },
-    {
-      "name": "rustc_version",
-      "version": "0.4.1",
-      "licence": "MIT OR Apache-2.0",
-      "source": "https://github.com/djc/rustc-version-rs"
     },
     {
       "name": "rustc-hash",
@@ -2477,12 +2596,6 @@
       "source": "https://github.com/RustCrypto/hashes"
     },
     {
-      "name": "shlex",
-      "version": "2.0.1",
-      "licence": "MIT OR Apache-2.0",
-      "source": "https://github.com/comex/rust-shlex"
-    },
-    {
       "name": "signal-hook-registry",
       "version": "1.4.8",
       "licence": "MIT OR Apache-2.0",
@@ -2567,12 +2680,6 @@
       "source": "https://github.com/servo/string-cache"
     },
     {
-      "name": "string_cache_codegen",
-      "version": "0.6.1",
-      "licence": "MIT OR Apache-2.0",
-      "source": "https://github.com/servo/string-cache"
-    },
-    {
       "name": "strsim",
       "version": "0.11.1",
       "licence": "MIT",
@@ -2633,12 +2740,6 @@
       "source": "https://github.com/1Password/sys-locale"
     },
     {
-      "name": "system-deps",
-      "version": "6.2.2",
-      "licence": "MIT OR Apache-2.0",
-      "source": "https://github.com/gdesmott/system-deps"
-    },
-    {
       "name": "tao",
       "version": "0.37.1",
       "licence": "Apache-2.0",
@@ -2651,20 +2752,8 @@
       "source": "https://github.com/tauri-apps/tao"
     },
     {
-      "name": "target-lexicon",
-      "version": "0.12.16",
-      "licence": "Apache-2.0 WITH LLVM-exception",
-      "source": "https://github.com/bytecodealliance/target-lexicon"
-    },
-    {
       "name": "tauri",
       "version": "2.12.3",
-      "licence": "Apache-2.0 OR MIT",
-      "source": "https://github.com/tauri-apps/tauri"
-    },
-    {
-      "name": "tauri-build",
-      "version": "2.7.2",
       "licence": "Apache-2.0 OR MIT",
       "source": "https://github.com/tauri-apps/tauri"
     },
@@ -2677,12 +2766,6 @@
     {
       "name": "tauri-macros",
       "version": "2.7.2",
-      "licence": "Apache-2.0 OR MIT",
-      "source": "https://github.com/tauri-apps/tauri"
-    },
-    {
-      "name": "tauri-plugin",
-      "version": "2.7.1",
       "licence": "Apache-2.0 OR MIT",
       "source": "https://github.com/tauri-apps/tauri"
     },
@@ -2757,12 +2840,6 @@
       "version": "2.10.1",
       "licence": "Apache-2.0 OR MIT",
       "source": "https://github.com/tauri-apps/tauri"
-    },
-    {
-      "name": "tauri-winres",
-      "version": "0.3.6",
-      "licence": "MIT",
-      "source": "https://github.com/tauri-apps/winres"
     },
     {
       "name": "tempfile",
@@ -2859,12 +2936,6 @@
       "version": "0.7.19",
       "licence": "MIT",
       "source": "https://github.com/tokio-rs/tokio"
-    },
-    {
-      "name": "toml",
-      "version": "0.8.2",
-      "licence": "MIT OR Apache-2.0",
-      "source": "https://github.com/toml-rs/toml"
     },
     {
       "name": "toml",
@@ -3039,36 +3110,6 @@
       "version": "1.27.0",
       "licence": "Apache-2.0 OR MIT",
       "source": "https://github.com/uuid-rs/uuid"
-    },
-    {
-      "name": "vcpkg",
-      "version": "0.2.15",
-      "licence": "MIT/Apache-2.0",
-      "source": "https://github.com/mcgoo/vcpkg-rs"
-    },
-    {
-      "name": "version_check",
-      "version": "0.9.5",
-      "licence": "MIT/Apache-2.0",
-      "source": "https://github.com/SergioBenitez/version_check"
-    },
-    {
-      "name": "version-compare",
-      "version": "0.2.1",
-      "licence": "MIT",
-      "source": "https://gitlab.com/timvisee/version-compare"
-    },
-    {
-      "name": "vswhom",
-      "version": "0.1.0",
-      "licence": "MIT",
-      "source": "https://github.com/nabijaczleweli/vswhom.rs"
-    },
-    {
-      "name": "vswhom-sys",
-      "version": "0.1.3",
-      "licence": "MIT",
-      "source": "https://github.com/nabijaczleweli/vswhom-sys.rs"
     },
     {
       "name": "walkdir",
@@ -3474,12 +3515,6 @@
     },
     {
       "name": "windows-sys",
-      "version": "0.59.0",
-      "licence": "MIT OR Apache-2.0",
-      "source": "https://github.com/microsoft/windows-rs"
-    },
-    {
-      "name": "windows-sys",
       "version": "0.60.2",
       "licence": "MIT OR Apache-2.0",
       "source": "https://github.com/microsoft/windows-rs"
@@ -3531,12 +3566,6 @@
       "version": "1.0.4",
       "licence": "MIT",
       "source": "https://github.com/winnow-rs/winnow"
-    },
-    {
-      "name": "winreg",
-      "version": "0.55.0",
-      "licence": "MIT",
-      "source": "https://github.com/gentoo90/winreg-rs"
     },
     {
       "name": "wit-bindgen",
@@ -4022,15 +4051,15 @@
     },
     {
       "name": "@pkhex-everywhere/engine",
-      "version": "0.20.0",
+      "version": "0.26.0",
       "licence": "GPL-3.0-or-later",
-      "source": "https://www.npmjs.com/package/@pkhex-everywhere/engine/v/0.20.0"
+      "source": "https://www.npmjs.com/package/@pkhex-everywhere/engine/v/0.26.0"
     },
     {
       "name": "@pkhex-everywhere/react",
-      "version": "0.20.0",
+      "version": "0.26.0",
       "licence": "GPL-3.0-or-later",
-      "source": "https://www.npmjs.com/package/@pkhex-everywhere/react/v/0.20.0"
+      "source": "https://www.npmjs.com/package/@pkhex-everywhere/react/v/0.26.0"
     },
     {
       "name": "@radix-ui/number",

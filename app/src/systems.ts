@@ -1,4 +1,4 @@
-export const systems = ["gb", "gbc", "gba", "nds", "n64"] as const;
+export const systems = ["gb", "gbc", "gba", "nds", "n64", "3ds"] as const;
 
 export type System = (typeof systems)[number];
 
@@ -8,6 +8,7 @@ export const systemNames: Record<System, string> = {
   gba: "Game Boy Advance",
   nds: "Nintendo DS",
   n64: "Nintendo 64",
+  "3ds": "Nintendo 3DS",
 };
 
 type ThemeColors = { chip: string; chipText: string; pattern: string };
@@ -39,6 +40,11 @@ export const systemColors: Record<System, { dark: ThemeColors; light: ThemeColor
     light: { chip: "#fadadc", chipText: "#7c1820", pattern: "#d63a45" },
     hero: "#350a0d",
   },
+  "3ds": {
+    dark: { chip: "#103a36", chipText: "#8fe3d6", pattern: "#4fd1c0" },
+    light: { chip: "#d3f2ed", chipText: "#0f5a50", pattern: "#23a08f" },
+    hero: "#06332f",
+  },
 };
 
 export type HandheldWindow = { depth: number };
@@ -46,11 +52,14 @@ export type HandheldDisplay = { marginDp: number; radiusDp: number; gapDp: numbe
 
 const oneWindow: HandheldDisplay = { marginDp: 4, radiusDp: 3, gapDp: 0, windows: [{ depth: 1 }] };
 
-// The DS touchscreen sits almost flush, as on the DS Lite.
+// The touchscreen sits almost flush, as on the DS Lite.
+const twoWindows: HandheldDisplay = { ...oneWindow, gapDp: 8, windows: [{ depth: 1 }, { depth: 0.5 }] };
+
 export const handheld: Partial<Record<System, HandheldDisplay>> = {
   gb: oneWindow,
   gbc: oneWindow,
   gba: oneWindow,
-  nds: { ...oneWindow, gapDp: 8, windows: [{ depth: 1 }, { depth: 0.5 }] },
+  nds: twoWindows,
   n64: oneWindow,
+  "3ds": twoWindows,
 };

@@ -51,10 +51,13 @@ const refusals: Record<TransferRefusal, (names: Names, pokemon: PokemonSummary) 
   eggAcrossGenerations: () => "Eggs can't move to another generation",
   languageMismatch: () => "Japanese and international games can't trade",
   speciesNotInGame: ({ destination }, pokemon) => `${destination} doesn't have ${pokemon.species}`,
+  notInGame: ({ destination }, pokemon) => `${pokemon.species} has a move, item or ability ${destination} doesn't have`,
   lastPartyMember: () => "Keep one Pokémon in the party",
   noRoom: ({ destination }) => `Not enough room in ${destination}`,
   bagFull: ({ source }) => `${source}'s bag is full`,
   conversionFailed: ({ destination }) => `${destination} can't take this Pokémon`,
+  fused: ({ destination }, pokemon) => `Separate ${pokemon.species} before sending it to ${destination}`,
+  holdingItem: ({ destination }, pokemon) => `Take ${pokemon.species}'s held item before sending it to ${destination}`,
 };
 
 const saveName = (game: Game) => `${game.path.slice(game.path.lastIndexOf("/") + 1).replace(/\.[^.]+$/, "")}.sav`;
@@ -65,10 +68,12 @@ const keyOf = (at: PokemonHandle) => `${at.source}:${at.box ?? ""}:${at.slot}`;
 
 const offerOf = (pokemon: PokemonSummary[]): TransferOffer => ({ send: pokemon.map(({ at }) => at), receive: [] });
 
-function blockedReason(routes: Map<string, TransferRoutes | null>, partner: Partner) {
+type PartnerRoutes = { routes: TransferRoutes; generation: number };
+
+function blockedReason(routes: Map<string, PartnerRoutes | null>, partner: Partner) {
   const found = routes.get(partner.game.path);
   if (found === null) return "Can't read this save";
-  if (found && !found.send) return `Can't send to ${partner.name}`;
+  if (found && !found.routes.send) return `Can't send to ${partner.name}`;
 }
 
 type RouteStatus = "official" | "unofficial" | "blocked" | "checking";
@@ -80,10 +85,17 @@ const statusDots: Record<RouteStatus, string> = {
   checking: "bg-muted-foreground/40",
 };
 
-function routeStatus(routes: Map<string, TransferRoutes | null>, partner: Partner): RouteStatus {
+function routeStatus(routes: Map<string, PartnerRoutes | null>, partner: Partner): RouteStatus {
   if (!routes.has(partner.game.path)) return "checking";
   if (blockedReason(routes, partner)) return "blocked";
-  return routes.get(partner.game.path)?.send === "unofficial" ? "unofficial" : "official";
+  return routes.get(partner.game.path)?.routes.send?.includes("unofficial") ? "unofficial" : "official";
+}
+
+function unofficialHint(routes: Map<string, PartnerRoutes | null>, partner: Partner, myGeneration?: number) {
+  const found = routes.get(partner.game.path);
+  return found && myGeneration !== undefined && found.generation < myGeneration
+    ? "The games only moved Pokémon forward"
+    : "Not possible in the real games";
 }
 
 const listFormat = new Intl.ListFormat("en-GB", { type: "conjunction" });
@@ -254,7 +266,8 @@ export function TransferScreen({
 }) {
   const engine = useEngine();
   const [loaded, setLoaded] = useState(false);
-  const [routes, setRoutes] = useState(new Map<string, TransferRoutes | null>());
+  const [routes, setRoutes] = useState(new Map<string, PartnerRoutes | null>());
+  const [generation, setGeneration] = useState<number>();
   const [picked, setPicked] = useState<Partner>();
   const [transfer, setTransfer] = useState<TransferSummary>();
   const [warning, setWarning] = useState<UnsavedPlay & { partner: Partner }>();
@@ -286,16 +299,18 @@ export function TransferScreen({
     };
     inTurn(async () => {
       await engine.game.load(await bytesOf(game.path), saveName(game), await storedFormatId(host, game.path));
+      const loadedSave = await engine.game.get();
       if (!current) return;
       setLoaded(true);
+      setGeneration(loadedSave?.generation);
       setRoutes(new Map());
-      const found = new Map<string, TransferRoutes | null>();
+      const found = new Map<string, PartnerRoutes | null>();
       for (const partner of partners) {
         if (!current) return;
         const opened = await bytesOf(partner.game.path)
           .then(async (bytes) => engine.transfer.open(bytes, saveName(partner.game), await storedFormatId(host, partner.game.path)))
           .catch(() => null);
-        found.set(partner.game.path, opened?.routes ?? null);
+        found.set(partner.game.path, opened ? { routes: opened.routes, generation: opened.partner.generation } : null);
         if (current) setRoutes(new Map(found));
       }
       await engine.transfer.close();
@@ -414,7 +429,7 @@ export function TransferScreen({
               name="Send to"
               status={transfer && picked ? `${emptySlots(transfer.room.partner)} in ${picked.name}` : undefined}
               note={
-                transfer?.routes.send === "unofficial" && picked
+                transfer?.routes.send?.includes("unofficial") && picked
                   ? `Pokémon may fail the legality check, and lose what ${picked.name} can't hold.`
                   : undefined
               }
@@ -424,7 +439,7 @@ export function TransferScreen({
                 {partners.map((partner) => {
                   const reason = blockedReason(routes, partner);
                   const status = routeStatus(routes, partner);
-                  const hint = reason ?? (status === "unofficial" ? "Not possible in the real games" : undefined);
+                  const hint = reason ?? (status === "unofficial" ? unofficialHint(routes, partner, generation) : undefined);
                   const checking = status === "checking";
                   return (
                     <Button

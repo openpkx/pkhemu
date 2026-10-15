@@ -95,6 +95,13 @@ CREATE TABLE sync_conflicts (
     PRIMARY KEY (game, path)
 );",
     "DROP TABLE box_art_misses;",
+    "CREATE TABLE rom_crc32s (
+    path TEXT PRIMARY KEY,
+    size INTEGER NOT NULL,
+    mtime INTEGER NOT NULL,
+    rom_size INTEGER NOT NULL,
+    crc32 INTEGER NOT NULL
+);",
 ];
 
 const SYNC_TABLES: [&str; 8] = [
@@ -127,6 +134,15 @@ pub struct RomArtRow {
     pub sha1: String,
     pub decoder_version: u32,
     pub status: String,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct RomCrc32 {
+    pub path: String,
+    pub size: i64,
+    pub mtime: i64,
+    pub rom_size: i64,
+    pub crc32: u32,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -267,6 +283,31 @@ impl Index {
             .map_err(|e| e.to_string())
     }
 
+    pub fn rom_crc32(&self, path: &str) -> Result<Option<RomCrc32>, String> {
+        self.conn()
+            .query_row("SELECT path, size, mtime, rom_size, crc32 FROM rom_crc32s WHERE path = ?1", [path], |row| {
+                Ok(RomCrc32 {
+                    path: row.get(0)?,
+                    size: row.get(1)?,
+                    mtime: row.get(2)?,
+                    rom_size: row.get(3)?,
+                    crc32: row.get(4)?,
+                })
+            })
+            .optional()
+            .map_err(|e| e.to_string())
+    }
+
+    pub fn keep_rom_crc32(&self, row: &RomCrc32) -> Result<(), String> {
+        self.conn()
+            .execute(
+                "INSERT OR REPLACE INTO rom_crc32s (path, size, mtime, rom_size, crc32) VALUES (?1, ?2, ?3, ?4, ?5)",
+                params![row.path, row.size, row.mtime, row.rom_size, row.crc32],
+            )
+            .map(|_| ())
+            .map_err(|e| e.to_string())
+    }
+
     pub fn rom_art_status(&self, sha1: &str) -> Result<Option<String>, String> {
         self.conn()
             .query_row("SELECT status FROM rom_art WHERE sha1 = ?1 LIMIT 1", [sha1], |row| row.get(0))
@@ -288,7 +329,7 @@ impl Index {
         self.conn().execute("DELETE FROM rom_art WHERE path = ?1", [path]).map(|_| ()).map_err(|e| e.to_string())
     }
 
-    pub fn forget_rom_art_except(&self, paths: &[String]) -> Result<(), String> {
+    pub fn forget_roms_except(&self, paths: &[String]) -> Result<(), String> {
         let mut conn = self.conn();
         let tx = conn.transaction().map_err(|e| e.to_string())?;
         tx.execute_batch("CREATE TEMP TABLE IF NOT EXISTS scanned (path TEXT PRIMARY KEY); DELETE FROM scanned;")
@@ -297,6 +338,8 @@ impl Index {
             tx.execute("INSERT OR IGNORE INTO scanned (path) VALUES (?1)", [path]).map_err(|e| e.to_string())?;
         }
         tx.execute("DELETE FROM rom_art WHERE path NOT IN (SELECT path FROM scanned)", [])
+            .map_err(|e| e.to_string())?;
+        tx.execute("DELETE FROM rom_crc32s WHERE path NOT IN (SELECT path FROM scanned)", [])
             .map_err(|e| e.to_string())?;
         tx.commit().map_err(|e| e.to_string())
     }
@@ -803,6 +846,19 @@ mod tests {
     }
 
     #[test]
+    fn keeps_a_roms_crc32_until_the_rom_leaves_the_library() {
+        let (index, _) = temp_index("rom-crc32");
+        let row = RomCrc32 { path: "gba/Emerald.gba".into(), size: 512, mtime: 1_000, rom_size: 512, crc32: u32::MAX };
+
+        index.keep_rom_crc32(&row).unwrap();
+        assert_eq!(index.rom_crc32("gba/Emerald.gba"), Ok(Some(row.clone())));
+        index.forget_roms_except(&["gba/Emerald.gba".into()]).unwrap();
+        assert_eq!(index.rom_crc32("gba/Emerald.gba"), Ok(Some(row)));
+        index.forget_roms_except(&[]).unwrap();
+        assert_eq!(index.rom_crc32("gba/Emerald.gba"), Ok(None));
+    }
+
+    #[test]
     fn marks_every_copy_of_a_rom_at_once() {
         let (index, _) = temp_index("rom-art-mark");
         index.keep_rom_art(&art_row("gba/Emerald.gba", "abc"), 1_000).unwrap();
@@ -826,11 +882,11 @@ mod tests {
         index.keep_rom_art(&art_row("gba/Emerald.gba", "abc"), 1_000).unwrap();
         index.keep_rom_art(&art_row("gba/Ruby.gba", "def"), 1_000).unwrap();
 
-        index.forget_rom_art_except(&["gba/Ruby.gba".into(), "gb/Red.gb".into()]).unwrap();
+        index.forget_roms_except(&["gba/Ruby.gba".into(), "gb/Red.gb".into()]).unwrap();
 
         assert_eq!(index.rom_art("gba/Emerald.gba"), Ok(None));
         assert_eq!(index.rom_art_sha1s(), Ok(HashSet::from(["def".into()])));
-        index.forget_rom_art_except(&[]).unwrap();
+        index.forget_roms_except(&[]).unwrap();
         assert_eq!(index.rom_art_sha1s(), Ok(HashSet::new()));
     }
 

@@ -153,6 +153,7 @@ h1 {
 .gba { background: #2a2152; color: #c9b9ff; }
 .nds { background: #14304a; color: #9fd8fa; }
 .n64 { background: #3d1518; color: #f5a3a8; }
+.n3ds { background: #103a36; color: #8fe3d6; }
 
 .actions {
   display: flex;

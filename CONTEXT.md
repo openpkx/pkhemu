@@ -1,6 +1,6 @@
 # pkhemu
 
-An emulator for GB, GBC, GBA and DS Pokémon games with save editing built in. These are the words the app, its issues and its code use for what the player plays, saves and moves.
+An emulator for GB, GBC, GBA, DS, N64 and 3DS Pokémon games with save editing built in. These are the words the app, its issues and its code use for what the player plays, saves and moves.
 
 ## Playing
 
@@ -9,7 +9,7 @@ A ROM in the player's library, together with everything the app keeps beside it.
 _Avoid_: Title, cartridge
 
 **Save file**:
-The game's own save, written when the player saves in game. It's the only progress the game itself knows about. An N64 game's save file is several files, one for each kind of save memory the game writes: `.eep`, `.mpk` for the Controller Paks, `.sra` and `.fla`. Backups, sync and export treat them as one save.
+The game's own save, written when the player saves in game. It's the only progress the game itself knows about. An N64 game's save file is several files, one for each kind of save memory the game writes: `.eep`, `.mpk` for the Controller Paks, `.sra` and `.fla`. Backups, sync and export treat them as one save. A 3DS Pokémon game's save file is the game's `main`, from Azahar's virtual SD card, kept beside the ROM as `.sav`.
 _Avoid_: Save data, SRAM, in-game save (as a noun)
 
 **Save format**:
@@ -51,6 +51,18 @@ _Avoid_: Tracker, overlay, HUD
 A game the player marks as coming from a randomizer, per game. The engine's species tables, such as abilities and types, don't match its ROM, so features leave out what they take from them.
 _Avoid_: Random, randomizer mode
 
+**Virtual SD card**:
+The SD card Azahar gives 3DS games, a folder in the app's private storage. Games keep their save data and installed updates on it. The app puts a Pokémon game's save file there as `main` before it boots, or once the game has formatted its save data. Other games' saves live only there, with no backups or sync.
+_Avoid_: sdmc, SD card (on its own)
+
+**Title id**:
+The number that names a 3DS game, read from the ROM. Homebrew has none. It picks the game's folder on the virtual SD card, tells the eight Pokémon games apart and matches a game update to its game.
+_Avoid_: Program id, game code (GB to DS headers have that)
+
+**Game update**:
+Nintendo's update for a 3DS game, imported as a decrypted CIA and kept with the game in the games folder. The app installs it onto the virtual SD card, where the core loads it at boot.
+_Avoid_: App update, patch (that makes a ROM hack), DLC
+
 **Game clock**:
 The time games see: real time plus the offset the player sets in Settings.
 _Avoid_: RTC, system time
@@ -66,6 +78,14 @@ _Avoid_: Sprites (as the umbrella term), assets, artwork
 **Retail ROM**:
 A ROM whose SHA-1 matches a No-Intro dump of a main-series game. Only a retail ROM lends its art, since a hack's sprites may not be the species' own.
 _Avoid_: Official ROM, clean ROM
+
+**Patch**:
+A file of changes that turns a base ROM into a ROM hack: IPS, UPS, BPS or xdelta. UPS and BPS name their base by CRC32, and xdelta can carry checksums. IPS and xdelta without checksums can't tell whether a base fits.
+_Avoid_: Mod, diff
+
+**ROM hack**:
+A game the player made by applying a patch to a ROM in the library, such as Radical Red from FireRed. It's a new game beside its base, which stays as it was.
+_Avoid_: Hacked ROM, patched game, mod
 
 **Sprite**:
 One Pokémon image from game art, such as a front sprite or its shiny version.
@@ -91,6 +111,14 @@ _Avoid_: Default mapping, profile
 What a pad model's own buttons, axes and hat mean in the standard layout, saved once per model. The keyboard has one too. A pad that reports the standard layout itself needs none.
 _Avoid_: Mapping, binding, remap
 
+**Shell**:
+The body around the game screen in portrait, behind the header, the screens and the touch controls.
+_Avoid_: Body, case, frame
+
+**Skin**:
+The plastic and button look that covers the shell, chosen per system along with its look, Moulded or Frosted. 3DS uses the DS skins. The choice syncs, the one setting that does, and the newer change wins.
+_Avoid_: Theme (that's light or dark), shell theme
+
 ## Editing
 
 **Edit**:
@@ -114,18 +142,18 @@ The N64 accessory that plugs a Game Boy game into the controller, so a game like
 _Avoid_: Transfer (that's moving Pokémon between saves)
 
 **Route**:
-The way the games themselves move a Pokémon between two games: link trade, Time Capsule, Pal Park or Poké Transfer. A transfer without one is unofficial.
+The way the games themselves move a Pokémon between two games: link trade, Time Capsule, Pal Park, Poké Transfer, and the moves from Gen 5 into Gen 6 and 7, from Gen 6 into Gen 7, and from Gen 1 and 2 into Gen 7. One transfer can chain several, such as Emerald to Sun. A transfer without one is unofficial.
 
 **Unofficial transfer**:
 A transfer on a route no game has, such as Platinum to Ruby. The Pokémon may fail the legality check and loses what the destination can't hold.
 
 **Kept copy**:
-A Pokémon as it was before a transfer to an older game, kept in the app's data. A later transfer forward puts back what the older game dropped and anything the player didn't change there.
+A Pokémon as it was before a transfer to an older game, kept in the app's data. A later transfer forward puts back what the older game dropped and anything the player didn't change there. It wins over the conversion a route would make, such as Red to Sun.
 
 ## Sync
 
 **Sync**:
-Keeping a player's games the same on all their devices through their own Google Drive or Dropbox.
+Keeping a player's games and skins the same on all their devices through their own Google Drive or Dropbox.
 _Avoid_: Cloud save, backup (for the cloud copy)
 
 **Cloud-only game**:

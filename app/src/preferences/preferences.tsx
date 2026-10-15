@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { inRange } from "@/lib/utils";
+import { isSkinChoice, type SkinChoice } from "@/skins";
+import { systems, type System } from "@/systems";
 
 export const fastForwardSpeeds = [2, 4] as const;
 
@@ -71,18 +73,39 @@ export type Preferences = {
   restoreBackupsKept: number;
   playInSilentMode: boolean;
   renderer: RendererChoice;
+  skins: Record<System, SkinChoice>;
+  skinHintSeen: boolean;
+  screenDepth: boolean;
+  screenGlass: boolean;
+  asyncShaders: boolean;
 };
 
 export type PreferencesHost = {
   load(): Promise<Partial<Preferences>>;
   save(preferences: Preferences): Promise<void>;
+  // A host that syncs skins saves each system's choice on its own, so saving never writes over a choice synced from
+  // another device or one this build doesn't know.
+  chooseSkin?(system: System, choice: SkinChoice): Promise<void>;
+  onSkinsChanged?(listener: (won: Partial<Record<System, unknown>>) => void): () => void;
 };
 
 export type PreferencesState = {
   preferences: Preferences;
   error?: string;
   change(update: Partial<Preferences>): Promise<void>;
+  chooseSkin(system: System, choice: SkinChoice): Promise<void>;
 };
+
+function skinsWithDefaults(stored: unknown, defaults: Record<System, SkinChoice>) {
+  return Object.fromEntries(
+    systems.map((system) => {
+      const choice = (stored as Partial<Record<System, unknown>> | undefined)?.[system];
+      return [system, isSkinChoice(system, choice) ? { skin: choice.skin, look: choice.look } : defaults[system]];
+    }),
+  ) as Record<System, SkinChoice>;
+}
+
+const sameChoice = (a: SkinChoice, b: SkinChoice) => a.skin === b.skin && a.look === b.look;
 
 function withDefaults(stored: Partial<Preferences>, defaults: Preferences): Preferences {
   return {
@@ -100,6 +123,11 @@ function withDefaults(stored: Partial<Preferences>, defaults: Preferences): Pref
     restoreBackupsKept: isRestoreBackupsKept(stored.restoreBackupsKept) ? stored.restoreBackupsKept : defaults.restoreBackupsKept,
     playInSilentMode: typeof stored.playInSilentMode === "boolean" ? stored.playInSilentMode : defaults.playInSilentMode,
     renderer: isRendererChoice(stored.renderer) ? stored.renderer : defaults.renderer,
+    skins: skinsWithDefaults(stored.skins, defaults.skins),
+    skinHintSeen: typeof stored.skinHintSeen === "boolean" ? stored.skinHintSeen : defaults.skinHintSeen,
+    screenDepth: typeof stored.screenDepth === "boolean" ? stored.screenDepth : defaults.screenDepth,
+    screenGlass: typeof stored.screenGlass === "boolean" ? stored.screenGlass : defaults.screenGlass,
+    asyncShaders: typeof stored.asyncShaders === "boolean" ? stored.asyncShaders : defaults.asyncShaders,
   };
 }
 
@@ -117,25 +145,62 @@ export function PreferencesProvider({
   const [preferences, setPreferences] = useState<Preferences>();
   const [error, setError] = useState<string>();
   const latest = useRef<Preferences>(undefined);
+  const wonWhileLoading = useRef<Partial<Record<System, unknown>>>({});
 
   useEffect(() => {
     let current = true;
+    const loaded = (preferences: Preferences) => {
+      const skins = skinsWithDefaults({ ...preferences.skins, ...wonWhileLoading.current }, defaults.skins);
+      if (current) setPreferences((latest.current = { ...preferences, skins }));
+    };
     host.load().then(
-      (stored) => current && setPreferences((latest.current = withDefaults(stored, defaults))),
-      () => current && setPreferences((latest.current = defaults)),
+      (stored) => loaded(withDefaults(stored, defaults)),
+      () => loaded(defaults),
     );
     return () => {
       current = false;
     };
   }, [host, defaults]);
 
+  useEffect(
+    () =>
+      host.onSkinsChanged?.((won) => {
+        if (!latest.current) {
+          Object.assign(wonWhileLoading.current, won);
+          return;
+        }
+        latest.current = { ...latest.current, skins: skinsWithDefaults({ ...latest.current.skins, ...won }, defaults.skins) };
+        setPreferences(latest.current);
+      }),
+    [host, defaults],
+  );
+
   const change = useCallback(
     async (update: Partial<Preferences>) => {
-      const next = { ...latest.current!, ...update };
+      const previous = latest.current!;
+      const next = { ...previous, ...update };
       latest.current = next;
       setPreferences(next);
       try {
         await host.save(next);
+        for (const system of systems) {
+          if (!sameChoice(next.skins[system], previous.skins[system])) await host.chooseSkin?.(system, next.skins[system]);
+        }
+        setError(undefined);
+      } catch (reason) {
+        setError(String(reason));
+      }
+    },
+    [host],
+  );
+
+  const chooseSkin = useCallback(
+    async (system: System, choice: SkinChoice) => {
+      const next = { ...latest.current!, skins: { ...latest.current!.skins, [system]: choice } };
+      latest.current = next;
+      setPreferences(next);
+      try {
+        await (host.chooseSkin ? host.chooseSkin(system, choice) : host.save(next));
         setError(undefined);
       } catch (reason) {
         setError(String(reason));
@@ -147,7 +212,7 @@ export function PreferencesProvider({
   if (!preferences) return null;
 
   return (
-    <PreferencesContext.Provider value={{ preferences, error, change }}>{children}</PreferencesContext.Provider>
+    <PreferencesContext.Provider value={{ preferences, error, change, chooseSkin }}>{children}</PreferencesContext.Provider>
   );
 }
 

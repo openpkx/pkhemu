@@ -2,7 +2,9 @@ use super::{GLenum, GLint, GLuint, GL_COLOR_ATTACHMENT0, GL_FRAMEBUFFER, GL_FRAM
 use objc2::rc::{Allocated, Retained};
 use objc2::runtime::AnyObject;
 use objc2::{class, msg_send};
+use std::cell::RefCell;
 use std::ffi::{c_void, CStr};
+use std::sync::OnceLock;
 
 const EAGL_RENDERING_API_OPENGLES3: usize = 3;
 const GL_RENDERBUFFER_WIDTH: GLenum = 0x8D42;
@@ -11,21 +13,48 @@ const GL_RENDERBUFFER_HEIGHT: GLenum = 0x8D43;
 #[link(name = "OpenGLES", kind = "framework")]
 extern "C" {
     fn glGetRenderbufferParameteriv(target: GLenum, name: GLenum, value: *mut GLint);
-    fn glFinish();
 }
 
-pub struct Context;
+thread_local! {
+    // The screen's sharegroup. The core's contexts join it, so the screen draws their frames.
+    static SHAREGROUP: RefCell<Option<Retained<AnyObject>>> = const { RefCell::new(None) };
+}
+
+// One report has App Review's devices answering nil, which has to show as an unsupported device rather than crash.
+fn new_context(sharegroup: Option<&AnyObject>) -> Result<Retained<AnyObject>, String> {
+    let context: Option<Retained<AnyObject>> = unsafe {
+        let allocated: Allocated<AnyObject> = msg_send![class!(EAGLContext), alloc];
+        msg_send![allocated, initWithAPI: EAGL_RENDERING_API_OPENGLES3, sharegroup: sharegroup]
+    };
+    context.ok_or_else(|| "creating an OpenGL ES 3 context failed".into())
+}
+
+pub struct Context(Retained<AnyObject>);
 
 impl Context {
     pub fn new() -> Result<Context, String> {
-        Err("OpenGL isn't available to cores on iOS yet".into())
+        let context = SHAREGROUP.with_borrow(|sharegroup| new_context(sharegroup.as_deref()))?;
+        set_current(Some(&context))?;
+        Ok(Context(context))
     }
 
-    pub fn make_current(&self) {}
+    pub fn make_current(&self) {
+        let _ = set_current(Some(&self.0));
+    }
 }
 
+// Leaves no context current, like dropping any context does.
+impl Drop for Context {
+    fn drop(&mut self) {
+        let _ = set_current(None);
+    }
+}
+
+// The screen draws OpenGL on the layer and Vulkan on the Metal layer above it.
+#[derive(Clone)]
 pub struct Window {
     layer: Retained<AnyObject>,
+    metal: Retained<AnyObject>,
     size: (i32, i32),
 }
 
@@ -33,9 +62,18 @@ pub struct Window {
 unsafe impl Send for Window {}
 
 impl Window {
-    pub unsafe fn from_layer(layer: *mut c_void, width: i32, height: i32) -> Option<Window> {
+    pub unsafe fn from_layers(layer: *mut c_void, metal: *mut c_void, width: i32, height: i32) -> Option<Window> {
         let layer = Retained::retain(layer.cast::<AnyObject>())?;
-        Some(Window { layer, size: (width, height) })
+        let metal = Retained::retain(metal.cast::<AnyObject>())?;
+        Some(Window { layer, metal, size: (width, height) })
+    }
+
+    pub fn metal(&self) -> &AnyObject {
+        &self.metal
+    }
+
+    pub fn size(&self) -> (i32, i32) {
+        self.size
     }
 }
 
@@ -63,14 +101,11 @@ fn set_current(context: Option<&AnyObject>) -> Result<(), String> {
 
 impl ScreenContext {
     fn new() -> Result<ScreenContext, String> {
-        let context: Option<Retained<AnyObject>> = unsafe {
-            let allocated: Allocated<AnyObject> = msg_send![class!(EAGLContext), alloc];
-            msg_send![allocated, initWithAPI: EAGL_RENDERING_API_OPENGLES3]
-        };
-        let context = context.ok_or("creating an OpenGL ES 3 context failed")?;
+        let context = new_context(None)?;
         set_current(Some(&context))?;
         let mut framebuffer = 0;
         unsafe { super::glGenFramebuffers(1, &mut framebuffer) };
+        SHAREGROUP.set(unsafe { msg_send![&*context, sharegroup] });
         Ok(ScreenContext { context, framebuffer, shown: None })
     }
 
@@ -120,7 +155,7 @@ impl ScreenContext {
             super::glBindFramebuffer(GL_FRAMEBUFFER, self.framebuffer);
             super::glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_RENDERBUFFER, 0);
             super::glDeleteRenderbuffers(1, &shown.renderbuffer);
-            glFinish();
+            super::glFinish();
         }
     }
 
@@ -147,12 +182,17 @@ impl ScreenContext {
 impl Drop for ScreenContext {
     fn drop(&mut self) {
         self.detach();
+        SHAREGROUP.set(None);
         let _ = set_current(Some(&self.context));
         unsafe { super::glDeleteFramebuffers(1, &self.framebuffer) };
         let _ = set_current(None);
     }
 }
 
-pub fn proc_address(_name: &CStr) -> *const c_void {
-    std::ptr::null()
+pub fn proc_address(name: &CStr) -> *const c_void {
+    static OPENGLES: OnceLock<usize> = OnceLock::new();
+    let library = *OPENGLES.get_or_init(|| unsafe {
+        libc::dlopen(c"/System/Library/Frameworks/OpenGLES.framework/OpenGLES".as_ptr(), libc::RTLD_LAZY) as usize
+    });
+    unsafe { libc::dlsym(library as *mut c_void, name.as_ptr()) }
 }

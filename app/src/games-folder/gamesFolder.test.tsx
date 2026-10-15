@@ -63,6 +63,17 @@ it("creates the system folders in the picked folder", async () => {
   expect([...disk]).toEqual(expect.arrayContaining(["/games/gb", "/games/gbc", "/games/gba"]));
 });
 
+it("makes a 3ds folder", async () => {
+  const { launch, willPick, disk } = fakeDisk(["/games"]);
+  willPick("/games");
+  const { result } = launch();
+  await waitFor(() => expect(result.current.status).toBe("none"));
+
+  await act(() => result.current.choose!());
+
+  expect(disk.has("/games/3ds")).toBe(true);
+});
+
 it("reuses system folders that already exist", async () => {
   const { launch, willPick, disk } = fakeDisk(["/roms", "/roms/gba", "/roms/gba/emerald.gba"]);
   willPick("/roms");

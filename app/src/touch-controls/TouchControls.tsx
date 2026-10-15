@@ -3,7 +3,7 @@ import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, FastForward as FastF
 import { cn } from "cn";
 import type { FastForward } from "@/fast-forward/fastForward";
 import { useHaptics } from "@/haptics/haptics";
-import { bit, buttons, DPAD, n64Buttons, type Input } from "@/input/input";
+import { bit, buttons, createInput, DPAD, n64Buttons, type Input } from "@/input/input";
 import { tilt } from "@/input/stick";
 import { usePreferences } from "@/preferences/preferences";
 import type { System } from "@/systems";
@@ -81,12 +81,16 @@ const padSurface = "bg-pad text-pad-foreground active:bg-pad-pressed data-[press
 const faceSurface =
   "border border-pad-face-border bg-pad-face text-pad-face-foreground active:bg-pad-face-pressed data-[pressed=true]:bg-pad-face-pressed";
 
+type Part = "face" | "shoulder" | "pill" | "c";
+
 function GameButton({
   label,
   button,
   press,
   hold,
-  face,
+  part,
+  tint,
+  printed,
   className,
   children = label,
 }: {
@@ -94,7 +98,9 @@ function GameButton({
   button: number;
   press: Press;
   hold: Hold;
-  face?: boolean;
+  part: Part;
+  tint?: "a" | "b" | "z";
+  printed?: boolean;
   className?: string;
   children?: ReactNode;
 }) {
@@ -106,7 +112,10 @@ function GameButton({
       tabIndex={-1}
       aria-label={label}
       data-pressed={held}
-      className={cn("flex items-center justify-center font-pixel", face ? faceSurface : cn("border border-pad-border", padSurface), className)}
+      data-part={part}
+      data-tint={tint}
+      data-printed={printed || undefined}
+      className={cn("flex items-center justify-center font-pixel", part === "face" ? faceSurface : cn("border border-pad-border", padSurface), className)}
       onPointerDown={(event) => {
         if (event.button === 0 && (hold.mode || held)) hold.flip(bit(button));
         else pointers.down(event, bit(button));
@@ -139,6 +148,7 @@ function ActionButton({
       aria-label={label}
       aria-pressed={pressed}
       data-pressed={pressed}
+      data-part="action"
       className={cn(
         "flex size-11 items-center justify-center rounded-full border border-pad-border landscape:size-9 [&_svg]:size-4.5",
         padSurface,
@@ -167,9 +177,11 @@ function Dpad({ press, hold, className = "size-36" }: { press: Press; hold: Hold
     return dpadDirection((event.clientX - box.left - radius) / radius, (event.clientY - box.top - radius) / radius);
   };
   const release = (event: PointerEvent) => pointers.up(event) && setDirection(0);
-  const arm = (button: number, className: string, icon: ReactNode) => (
+  const arm = (button: number, side: "up" | "down" | "left" | "right", className: string, icon: ReactNode) => (
     <div
       data-pressed={!!((direction || hold.held) & bit(button))}
+      data-part="arm"
+      data-side={side}
       className={cn("absolute flex size-1/3 items-center justify-center ring-1 ring-pad-border", padSurface, className)}
     >
       {icon}
@@ -179,6 +191,7 @@ function Dpad({ press, hold, className = "size-36" }: { press: Press; hold: Hold
   return (
     <div
       aria-label="D-pad"
+      data-part="dpad"
       className={cn("relative text-pad-foreground", className)}
       onPointerDown={(event) => {
         const mask = pointedAt(event);
@@ -196,11 +209,11 @@ function Dpad({ press, hold, className = "size-36" }: { press: Press; hold: Hold
       onLostPointerCapture={release}
     >
       {/* Each arm's ring reaches under the arms drawn after it and the centre, leaving one outline around the cross. */}
-      {arm(buttons.up, "top-0 left-1/3 rounded-t-lg", <ChevronUp />)}
-      {arm(buttons.down, "bottom-0 left-1/3 rounded-b-lg", <ChevronDown />)}
-      {arm(buttons.left, "top-1/3 left-0 rounded-l-lg", <ChevronLeft />)}
-      {arm(buttons.right, "top-1/3 right-0 rounded-r-lg", <ChevronRight />)}
-      <div className="absolute top-1/3 left-1/3 size-1/3 bg-pad" />
+      {arm(buttons.up, "up", "top-0 left-1/3 rounded-t-lg", <ChevronUp />)}
+      {arm(buttons.down, "down", "bottom-0 left-1/3 rounded-b-lg", <ChevronDown />)}
+      {arm(buttons.left, "left", "top-1/3 left-0 rounded-l-lg", <ChevronLeft />)}
+      {arm(buttons.right, "right", "top-1/3 right-0 rounded-r-lg", <ChevronRight />)}
+      <div data-part="dpad-centre" className="absolute top-1/3 left-1/3 size-1/3 bg-pad" />
     </div>
   );
 }
@@ -231,6 +244,7 @@ function Stick({ input }: { input: Input }) {
   return (
     <div
       aria-label="Stick"
+      data-part="stick"
       className="relative size-32 rounded-full border border-pad-border landscape:size-26"
       onPointerDown={(event) => {
         if (event.button !== 0 || touch) return;
@@ -260,12 +274,14 @@ function Stick({ input }: { input: Input }) {
     >
       {touch && (
         <div
+          data-part="reach"
           className="pointer-events-none absolute -translate-1/2 rounded-full border border-pad-border"
           style={{ left: touch.x, top: touch.y, width: reach * 2, height: reach * 2 }}
         />
       )}
       <div
         data-pressed={!!touch}
+        data-part="knob"
         className={cn("pointer-events-none absolute size-14 -translate-1/2 rounded-full", faceSurface)}
         style={knob}
       />
@@ -278,7 +294,9 @@ function Side({ className, children }: { className?: string; children: ReactNode
 }
 
 // A side's 9rem plus a gap, past the same edge padding as the controls.
-export const clearOfTouchControls = "landscape:px-[11rem]";
+export function clearOfTouchControls(side: "left" | "right" | "both") {
+  return { left: "landscape:pl-[11rem]", right: "landscape:pr-[11rem]", both: "landscape:px-[11rem]" }[side];
+}
 
 export function useTouchControlsShown(input: Input) {
   const { preferences } = usePreferences();
@@ -289,7 +307,7 @@ export function useTouchControlsShown(input: Input) {
 const shoulder = "h-11 w-21 rounded-lg";
 const small = "h-11 w-14 rounded-full text-sm landscape:h-9";
 const controlsBody =
-  "flex touch-none items-end justify-between bg-pad px-6 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] select-none landscape:pointer-events-none landscape:absolute landscape:inset-0 landscape:items-center landscape:bg-transparent landscape:opacity-70";
+  "flex touch-none items-end justify-between px-6 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] select-none landscape:pointer-events-none landscape:absolute landscape:inset-0 landscape:items-center landscape:opacity-70";
 
 function PauseMenuButton({ input }: { input: Input }) {
   return (
@@ -328,24 +346,24 @@ function N64Controls({ input, fastForward }: { input: Input; fastForward: FastFo
   return (
     <div className={cn(controlsBody, "relative")} onContextMenu={(event) => event.preventDefault()}>
       <Side className="landscape:gap-2">
-        <GameButton label="L" button={buttons.l} press={press} hold={hold} className={n64Shoulder} />
+        <GameButton label="L" button={buttons.l} press={press} hold={hold} part="shoulder" className={n64Shoulder} />
         <Stick input={input} />
         <Dpad press={press} hold={hold} className="size-24" />
         <PauseMenuButton input={input} />
       </Side>
       <div className="pointer-events-auto absolute bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2">
-        <GameButton label="Start" button={buttons.start} press={press} hold={hold} className={small} />
+        <GameButton label="Start" button={buttons.start} press={press} hold={hold} part="pill" className={small} />
       </div>
       <Side className="landscape:gap-2">
-        <GameButton label="R" button={buttons.r} press={press} hold={hold} className={n64Shoulder} />
+        <GameButton label="R" button={buttons.r} press={press} hold={hold} part="shoulder" className={n64Shoulder} />
         <div className="relative h-28 w-36 landscape:h-24">
-          <GameButton label="Z" button={n64Buttons.z} press={press} hold={hold} face className={cn(face, "top-0 right-1.5 size-11 text-base landscape:size-10")} />
-          <GameButton label="B" button={n64Buttons.b} press={press} hold={hold} face className={cn(face, "top-6 left-2 size-14")} />
-          <GameButton label="A" button={n64Buttons.a} press={press} hold={hold} face className={cn(face, "right-0 bottom-0 size-14")} />
+          <GameButton label="Z" button={n64Buttons.z} press={press} hold={hold} part="face" tint="z" className={cn(face, "top-0 right-1.5 size-11 text-base landscape:size-10")} />
+          <GameButton label="B" button={n64Buttons.b} press={press} hold={hold} part="face" tint="b" className={cn(face, "top-6 left-2 size-14")} />
+          <GameButton label="A" button={n64Buttons.a} press={press} hold={hold} part="face" tint="a" className={cn(face, "right-0 bottom-0 size-14")} />
         </div>
         <div className="relative size-28 landscape:size-26">
           {cButtons.map(([label, button, place, arrow]) => (
-            <GameButton key={label} label={label} button={button} press={press} hold={hold} className={cn(cButton, place)}>
+            <GameButton key={label} label={label} button={button} press={press} hold={hold} part="c" className={cn(cButton, place)}>
               {arrow}
             </GameButton>
           ))}
@@ -363,36 +381,41 @@ function Controls({ input, system, fastForward }: { input: Input; system: System
   const hold = useHold(input);
   const faceShape = "size-16 rounded-full text-xl";
   const diamond = "absolute size-14 rounded-full text-xl";
-  const shoulders = system === "gba" || system === "nds";
+  const circlePad = system === "3ds";
+  const shoulders = system === "gba" || system === "nds" || circlePad;
+  const shoulderShape = cn(shoulder, circlePad && "landscape:h-9");
+  // The circle pad makes the left side the taller one, so both sides span it to keep L and R level.
+  const side = cn(circlePad && "justify-between self-stretch landscape:gap-2");
 
   return (
     <div className={controlsBody} onContextMenu={(event) => event.preventDefault()}>
-      <Side>
-        {shoulders && <GameButton label="L" button={buttons.l} press={press} hold={hold} className={shoulder} />}
-        <Dpad press={press} hold={hold} />
+      <Side className={side}>
+        {shoulders && <GameButton label="L" button={buttons.l} press={press} hold={hold} part="shoulder" className={shoulderShape} />}
+        {circlePad && <Stick input={input} />}
+        <Dpad press={press} hold={hold} className={circlePad ? "size-24" : undefined} />
         <div className="flex gap-2">
-          <GameButton label="Select" button={buttons.select} press={press} hold={hold} className={small} />
+          <GameButton label="Select" button={buttons.select} press={press} hold={hold} part="pill" className={small} />
           <PauseMenuButton input={input} />
         </div>
       </Side>
-      <Side>
-        {shoulders && <GameButton label="R" button={buttons.r} press={press} hold={hold} className={shoulder} />}
-        {system === "nds" ? (
+      <Side className={side}>
+        {shoulders && <GameButton label="R" button={buttons.r} press={press} hold={hold} part="shoulder" className={shoulderShape} />}
+        {system === "nds" || circlePad ? (
           <div className="relative size-36">
-            <GameButton label="X" button={buttons.x} press={press} hold={hold} face className={cn(diamond, "top-0 left-11")} />
-            <GameButton label="Y" button={buttons.y} press={press} hold={hold} face className={cn(diamond, "top-11 left-0")} />
-            <GameButton label="A" button={buttons.a} press={press} hold={hold} face className={cn(diamond, "top-11 right-0")} />
-            <GameButton label="B" button={buttons.b} press={press} hold={hold} face className={cn(diamond, "bottom-0 left-11")} />
+            <GameButton label="X" button={buttons.x} press={press} hold={hold} part="face" className={cn(diamond, "top-0 left-11")} />
+            <GameButton label="Y" button={buttons.y} press={press} hold={hold} part="face" className={cn(diamond, "top-11 left-0")} />
+            <GameButton label="A" button={buttons.a} press={press} hold={hold} part="face" className={cn(diamond, "top-11 right-0")} />
+            <GameButton label="B" button={buttons.b} press={press} hold={hold} part="face" className={cn(diamond, "bottom-0 left-11")} />
           </div>
         ) : (
           <div className="flex h-36 items-center gap-3">
-            <GameButton label="B" button={buttons.b} press={press} hold={hold} face className={cn(faceShape, "mt-12")} />
-            <GameButton label="A" button={buttons.a} press={press} hold={hold} face className={cn(faceShape, "mb-12")} />
+            <GameButton label="B" button={buttons.b} press={press} hold={hold} part="face" printed className={cn(faceShape, "mt-12")} />
+            <GameButton label="A" button={buttons.a} press={press} hold={hold} part="face" printed className={cn(faceShape, "mb-12")} />
           </div>
         )}
         <div className="flex gap-2">
           <ModeButtons hold={hold} fastForward={fastForward} />
-          <GameButton label="Start" button={buttons.start} press={press} hold={hold} className={small} />
+          <GameButton label="Start" button={buttons.start} press={press} hold={hold} part="pill" className={small} />
         </div>
       </Side>
     </div>
@@ -402,4 +425,17 @@ function Controls({ input, system, fastForward }: { input: Input; system: System
 export function TouchControls(props: { input: Input; system: System; fastForward: FastForward }) {
   if (!useTouchControlsShown(props.input)) return null;
   return props.system === "n64" ? <N64Controls {...props} /> : <Controls {...props} />;
+}
+
+const stillFastForward: FastForward = { on: false, speed: 1, toggle() {} };
+const noGamepads = () => [];
+
+export function StillTouchControls({ system }: { system: System }) {
+  const [input] = useState(() => createInput(noGamepads, undefined, system));
+  const props = { input, system, fastForward: stillFastForward };
+  return (
+    <div inert className="contents">
+      {system === "n64" ? <N64Controls {...props} /> : <Controls {...props} />}
+    </div>
+  );
 }

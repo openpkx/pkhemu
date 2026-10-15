@@ -2,7 +2,7 @@ import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import type { ImportHost } from "./importFiles";
 
-export const tauriImportHost: ImportHost = {
+export const tauriImportHost: Omit<ImportHost, "emulatorHint"> = {
   pick: () => invoke("import_pick"),
   opened: () => invoke("import_opened"),
   onOpened: (listener) => {
@@ -10,6 +10,7 @@ export const tauriImportHost: ImportHost = {
     return () => void unlisten.then((stop) => stop());
   },
   sha1s: (folder, paths) => invoke("import_sha1s", { folder, paths }),
+  titleIds: (folder, paths) => invoke("import_title_ids", { folder, paths }),
   copyRom: (folder, file, path) => invoke("import_rom", { folder, file, path }),
   copyDemo: (folder) => invoke("import_demo", { folder }),
   existingSave: (folder, rom, { file, name }) => invoke("import_existing_save", { folder, rom, file, name }),

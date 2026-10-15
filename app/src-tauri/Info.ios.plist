@@ -21,7 +21,7 @@
 				<string>public.content</string>
 			</array>
 			<key>UTTypeDescription</key>
-			<string>Delta Game</string>
+			<string>Game</string>
 		</dict>
 		<dict>
 			<key>UTTypeIdentifier</key>
@@ -72,6 +72,24 @@
 				<key>public.filename-extension</key>
 				<array>
 					<string>nds</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.rileytestut.delta.game.n64</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>com.rileytestut.delta.game</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>N64 Game</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>n64</string>
+					<string>z64</string>
 				</array>
 			</dict>
 		</dict>
@@ -155,6 +173,24 @@
 		</dict>
 		<dict>
 			<key>UTTypeIdentifier</key>
+			<string>com.provenance.rom.n64</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>com.provenance.rom</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Nintendo 64 ROM</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>n64</string>
+					<string>z64</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
 			<string>public.aoshuang.game.gb</string>
 			<key>UTTypeConformsTo</key>
 			<array>
@@ -224,6 +260,25 @@
 		</dict>
 		<dict>
 			<key>UTTypeIdentifier</key>
+			<string>public.aoshuang.game.n64</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>N64 Game</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>n64</string>
+					<string>z64</string>
+					<string>v64</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
 			<string>public.aoshuang.gamesave</string>
 			<key>UTTypeConformsTo</key>
 			<array>
@@ -231,7 +286,7 @@
 				<string>public.content</string>
 			</array>
 			<key>UTTypeDescription</key>
-			<string>Manic EMU Game Save</string>
+			<string>Game Save</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -239,6 +294,28 @@
 					<string>sav</string>
 					<string>dsv</string>
 					<string>srm</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>org.7-zip.7-zip-archive</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+				<string>public.archive</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>7z archive</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>7z</string>
+				</array>
+				<key>public.mime-type</key>
+				<array>
+					<string>application/x-7z-compressed</string>
 				</array>
 			</dict>
 		</dict>

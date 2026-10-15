@@ -5,8 +5,10 @@ import { noGameSurfaceHost } from "@/game-surface/gameSurface";
 import { desktopGamesFolderHost } from "@/games-folder/desktopHost";
 import { desktopGravityHost } from "@/gravity/desktopHost";
 import { desktopHapticsHost } from "@/haptics/desktopHost";
+import { desktopImportHost } from "@/import/desktopHost";
 import { desktopLibraryHost } from "@/library/desktopHost";
 import { desktopPatchRomHost } from "@/patch-rom/desktopHost";
+import { desktopShadersHost } from "@/shaders/desktopHost";
 import { desktopSystemBarsHost } from "@/system-bars/desktopHost";
 import { systems } from "@/systems";
 import { sharedHosts, sharedPreferences, type Hosts } from "./hosts";
@@ -14,8 +16,9 @@ import { sharedHosts, sharedPreferences, type Hosts } from "./hosts";
 export const desktopHosts: Hosts = {
   ...sharedHosts,
   systems,
-  defaultPreferences: { ...sharedPreferences, touchControls: false },
+  defaultPreferences: { ...sharedPreferences, touchControls: false, asyncShaders: true },
   gamesFolder: desktopGamesFolderHost,
+  import: desktopImportHost,
   back: desktopBackHost,
   export: desktopExportHost,
   pokemonFile: desktopPokemonFileHost,
@@ -26,4 +29,5 @@ export const desktopHosts: Hosts = {
   systemBars: desktopSystemBarsHost,
   gameSurface: noGameSurfaceHost,
   audioSession: noAudioSessionHost,
+  shaders: desktopShadersHost,
 };

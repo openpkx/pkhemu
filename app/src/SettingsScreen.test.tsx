@@ -5,24 +5,28 @@ import { afterEach, expect, it, vi } from "vitest";
 import { fakeAppUpdate } from "./app-update/fakeAppUpdate";
 import { AppUpdateProvider } from "./app-update/appUpdate";
 import { AudioSessionProvider, type AudioSessionHost } from "./audio-session/audioSession";
+import { BackProvider } from "./back/back";
 import { fakeGameArt } from "./game-art/fakeGameArt";
 import { GameArtProvider } from "./game-art/gameArt";
 import { GameSurfaceProvider, noGameSurfaceHost, type GameSurfaceHost } from "./game-surface/gameSurface";
 import { GamesFolderProvider, type GamesFolderHost } from "./games-folder/gamesFolder";
+import { GravityProvider } from "./gravity/gravity";
 import { ExperimentsProvider } from "./lab/lab";
 import { fakePlus } from "./plus/fakePlus";
 import { PlusProvider } from "./plus/plus";
 import { PreferencesProvider, type Preferences, type PreferencesHost } from "./preferences/preferences";
 import { SettingsScreen } from "./SettingsScreen";
+import { ShadersProvider, type ShadersHost } from "./shaders/shaders";
 import { fakeSync } from "./sync/fakeSync";
 import { SyncProvider } from "./sync/sync";
 import type { System } from "./systems";
+import { defaultSkins } from "./skins";
 
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn(async () => ({ name: "mGBA", version: "0.10.5" })) }));
 
 afterEach(cleanup);
 
-const defaults: Preferences = { touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic" };
+const defaults: Preferences = { touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic", skins: defaultSkins, skinHintSeen: false, screenDepth: true, screenGlass: true, asyncShaders: false };
 
 const idleEngine: EngineHost = {
   ready: () => new Promise(() => {}),
@@ -37,9 +41,12 @@ function openSettings({
   sync = fakeSync({ available: false }),
   plus = undefined as ReturnType<typeof fakePlus> | undefined,
   system = undefined as System | undefined,
+  systems = undefined as readonly System[] | undefined,
   audioSession = undefined as AudioSessionHost | undefined,
   gameSurface = noGameSurfaceHost as GameSurfaceHost,
   update = fakeAppUpdate(),
+  tilts = true,
+  shaders = { offered: async () => true, onLine: "New scenes load without freezing." } as ShadersHost,
 } = {}) {
   const openFolder = vi.fn(async () => {});
   const onLicences = vi.fn();
@@ -65,11 +72,15 @@ function openSettings({
   };
   const gameArt = fakeGameArt();
   const settings = (
-    <GameSurfaceProvider host={gameSurface}>
-      <AppUpdateProvider host={update.host}>
-        <SettingsScreen system={system} onBack={() => {}} onLicences={onLicences} />
-      </AppUpdateProvider>
-    </GameSurfaceProvider>
+    <GravityProvider host={{ tilts, start() {}, stop() {}, read: () => undefined }}>
+      <GameSurfaceProvider host={gameSurface}>
+        <ShadersProvider host={shaders}>
+          <AppUpdateProvider host={update.host}>
+            <SettingsScreen system={system} systems={systems} onBack={() => {}} onLicences={onLicences} />
+          </AppUpdateProvider>
+        </ShadersProvider>
+      </GameSurfaceProvider>
+    </GravityProvider>
   );
   const synced = (
     <SyncProvider host={sync.host}>
@@ -87,7 +98,7 @@ function openSettings({
     <EngineProvider engine={createEngine({ host: idleEngine })}>
       <GamesFolderProvider host={gamesFolderHost}>
         <PreferencesProvider host={preferencesHost} defaults={defaults}>
-          {plus ? <PlusProvider host={plus.host}>{synced}</PlusProvider> : synced}
+          <BackProvider>{plus ? <PlusProvider host={plus.host}>{synced}</PlusProvider> : synced}</BackProvider>
         </PreferencesProvider>
       </GamesFolderProvider>
     </EngineProvider>,
@@ -399,15 +410,31 @@ it("has no mobile data switches on desktop", async () => {
   expect(screen.queryByRole("switch", { name: "Include ROMs" })).toBeNull();
 });
 
-it("turns touch controls on", async () => {
-  const { saved } = openSettings();
+it("keeps the touch controls out of Playing", async () => {
+  openSettings();
+  const playing = await screen.findByRole("region", { name: "Playing" });
+  await within(playing).findByRole("switch", { name: "Show FPS" });
+
+  expect(within(playing).queryByRole("switch", { name: "Touch controls" })).toBeNull();
+  expect(within(playing).queryByRole("radiogroup", { name: "Stick sensitivity" })).toBeNull();
+  expect(within(screen.getByRole("region", { name: "Controls" })).getByRole("switch", { name: "Touch controls" })).toBeTruthy();
+});
+
+it("offers Skins only while the touch controls are on, listing the platform's systems", async () => {
+  openSettings({ systems: ["gb", "gba"] });
   const toggle = await screen.findByRole("switch", { name: "Touch controls" });
-  expect(toggle.getAttribute("aria-checked")).toBe("false");
+  expect(screen.queryByRole("button", { name: "Skins" })).toBeNull();
 
   await act(async () => fireEvent.click(toggle));
+  expect(within(screen.getByRole("region", { name: "Playing" })).queryByRole("button", { name: "Skins" })).toBeNull();
+  fireEvent.click(within(screen.getByRole("region", { name: "Appearance" })).getByRole("button", { name: "Skins" }));
+  await act(async () => {});
 
-  expect(toggle.getAttribute("aria-checked")).toBe("true");
-  expect(saved().touchControls).toBe(true);
+  const list = screen.getByRole("list", { name: "Systems" });
+  expect(within(list).getAllByRole("button").map((row) => row.textContent)).toEqual([
+    "Game Boypkhemu · Moulded",
+    "Game Boy Advancepkhemu · Moulded",
+  ]);
 });
 
 it("plays sound in silent mode once it's turned on", async () => {
@@ -425,7 +452,7 @@ it("plays sound in silent mode once it's turned on", async () => {
 
 it("has no silent mode switch where the device has no silent mode", async () => {
   openSettings();
-  await screen.findByRole("switch", { name: "Touch controls" });
+  await screen.findByRole("switch", { name: "Show FPS" });
 
   expect(screen.queryByRole("switch", { name: "Play sound in silent mode" })).toBeNull();
 });
@@ -439,17 +466,6 @@ it("switches fast-forward to 4×", async () => {
 
   expect(fast.getAttribute("aria-checked")).toBe("true");
   expect(saved().fastForwardSpeed).toBe(4);
-});
-
-it("raises the stick sensitivity", async () => {
-  const { saved } = openSettings();
-  const sensitivities = await screen.findByRole("radiogroup", { name: "Stick sensitivity" });
-  const high = within(sensitivities).getByRole("radio", { name: "High" });
-
-  await act(async () => fireEvent.click(high));
-
-  expect(high.getAttribute("aria-checked")).toBe("true");
-  expect(saved().stickSensitivity).toBe(1.5);
 });
 
 it("turns the FPS counter on", async () => {
@@ -552,6 +568,50 @@ it("switches the theme to dark", async () => {
 
   expect(dark.getAttribute("aria-checked")).toBe("true");
   expect(saved().theme).toBe("dark");
+});
+
+it.each([
+  ["Screen depth", "screenDepth"],
+  ["Screen glass", "screenGlass"],
+] as const)("turns %s off in Appearance", async (name, key) => {
+  const { saved } = openSettings();
+  const appearance = await screen.findByRole("region", { name: "Appearance" });
+  const toggle = within(appearance).getByRole("switch", { name });
+  expect(toggle.getAttribute("aria-checked")).toBe("true");
+
+  await act(async () => fireEvent.click(toggle));
+
+  expect(toggle.getAttribute("aria-checked")).toBe("false");
+  expect(saved()[key]).toBe(false);
+});
+
+it("hides Screen depth where the device can't read tilt and still shows Screen glass", async () => {
+  openSettings({ tilts: false });
+  await screen.findByRole("switch", { name: "Screen glass" });
+
+  expect(screen.queryByRole("switch", { name: "Screen depth" })).toBeNull();
+});
+
+it("turns Fewer 3DS freezes on in Playing and says what it does", async () => {
+  const { saved } = openSettings();
+  const playing = await screen.findByRole("region", { name: "Playing" });
+  const toggle = await within(playing).findByRole("switch", { name: "Fewer 3DS freezes" });
+  expect(toggle.getAttribute("aria-checked")).toBe("false");
+  expect(within(playing).getByText("3DS games can freeze for a moment the first time they show something new.")).toBeTruthy();
+
+  await act(async () => fireEvent.click(toggle));
+
+  expect(toggle.getAttribute("aria-checked")).toBe("true");
+  expect(saved().asyncShaders).toBe(true);
+  expect(within(playing).getByText("New scenes load without freezing.")).toBeTruthy();
+});
+
+it("hides Fewer 3DS freezes where the core can't draw while shaders compile", async () => {
+  openSettings({ shaders: { offered: async () => false, onLine: "" } });
+  await screen.findByRole("switch", { name: "Show FPS" });
+  await act(async () => {});
+
+  expect(screen.queryByRole("switch", { name: "Fewer 3DS freezes" })).toBeNull();
 });
 
 it("opens the backups on desktop", async () => {
@@ -661,21 +721,21 @@ it("leaves About as it is without an update", async () => {
   expect(within(section).getAllByRole("button").map((button) => button.textContent)).toEqual(["View licences"]);
 });
 
-it("credits PKHeX, melonDS and mGBA with links to their sponsor pages in the system browser", async () => {
+it("has no links in About", async () => {
   openSettings();
   const section = await screen.findByRole("region", { name: "About" });
 
-  const links = Object.fromEntries(
-    within(section)
-      .getAllByRole("link")
-      .map((link) => [link.textContent, link]),
-  );
+  expect(within(section).queryAllByRole("link")).toEqual([]);
+});
 
-  expect(Object.keys(links)).toEqual(["PKHeX", "melonDS", "mGBA"]);
-  expect(links.PKHeX.getAttribute("href")).toBe("https://github.com/sponsors/kwsch");
-  expect(links.melonDS.getAttribute("href")).toBe("https://melonds.kuribo64.net/donate.php");
-  expect(links.mGBA.getAttribute("href")).toBe("https://mgba.io/donate.html");
-  for (const link of Object.values(links)) expect(link.getAttribute("target")).toBe("_blank");
+it("ends with About, with no pkhemu card or core version", async () => {
+  openSettings();
+  await screen.findByRole("region", { name: "About" });
+  await act(async () => {});
+
+  expect(screen.queryByRole("region", { name: "pkhemu" })).toBeNull();
+  expect(screen.queryByRole("heading", { name: "pkhemu" })).toBeNull();
+  expect(screen.queryByText(/Emulator core/)).toBeNull();
 });
 
 it("re-extracts the game art of every game", async () => {

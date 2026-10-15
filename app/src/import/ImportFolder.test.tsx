@@ -19,6 +19,7 @@ import { fakeImport } from "./fakeImport";
 import type { FolderScan } from "./folder";
 import { ImportProvider, type ExistingSave, type PickedFolder } from "./importFiles";
 import type { ImportFile } from "./match";
+import { defaultSkins } from "@/skins";
 
 vi.mock("@/splash", () => ({ hideSplash: vi.fn() }));
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn(async () => null) }));
@@ -56,16 +57,20 @@ function launch({
   folders,
   scans,
   sha1s,
+  titleIds,
   saves,
   onCopy,
   device = "phone",
+  emulatorHint,
 }: {
   device?: GamesFolderHost["device"];
+  emulatorHint?: string;
   games?: string[];
   onboarding?: boolean;
   folders: (PickedFolder | null)[];
   scans: Record<string, FolderScan>;
   sha1s?: Record<string, string>;
+  titleIds?: Record<string, string>;
   saves?: Record<string, ExistingSave>;
   onCopy?(path: string): void | Promise<void>;
 }) {
@@ -92,9 +97,11 @@ function launch({
     playHistory: async () => ({ lastPlayed: null, playTime: 0 }),
   };
   const host = fakeImport({
+    emulatorHint,
     folders,
     scans,
     sha1s,
+    titleIds,
     saves,
     onCopy: async (path) => {
       await onCopy?.(path);
@@ -116,7 +123,7 @@ function launch({
     <EngineProvider engine={engine}>
       <PreferencesProvider
         host={{ load: async () => ({}), save: async () => {} }}
-        defaults={{ touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic" }}
+        defaults={{ touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic", skins: defaultSkins, skinHintSeen: false, screenDepth: true, screenGlass: true, asyncShaders: false }}
       >
         <GamesFolderProvider host={gamesFolderHost}>
           <SyncProvider host={fakeSync({ available: false }).host}>
@@ -205,6 +212,43 @@ it("copies a Delta library under the games' own names, each save with its clock"
   expect(host.copySave).toHaveBeenCalledWith("/games", { file: games(`${sha1}.sav`), game: "gbc/Crystal.gbc", clock: games(`${sha1}.rtc`) });
 });
 
+it("copies a Manic EMU 3DS save onto the game with its title ID", async () => {
+  const manic: PickedFolder = { folder: "/Manic", name: "Manic" };
+  const x = "0004000000055d00";
+  const main = { file: "/Manic/3DS/sdmc/title/00040000/00055d00/data/00000001/main", name: "main", modified: 0, titleId: x };
+  const { host } = launch({
+    games: ["3ds/Pokemon X.3ds"],
+    folders: [manic],
+    scans: { [manic.folder]: { files: [file("Datas/Emerald.gba"), main], other: 0, app: "Manic EMU" } },
+    titleIds: { "3ds/Pokemon X.3ds": x },
+  });
+
+  await importFolderFromLibrary();
+  fireEvent.click(await screen.findByRole("button", { name: "Copy 1 game" }));
+
+  expect((await toast()).textContent).toBe("Copied 1 game and 1 save");
+  expect(host.titleIds).toHaveBeenCalledWith("/games", ["3ds/Pokemon X.3ds"]);
+  expect(host.copySave).toHaveBeenCalledWith("/games", { file: main, game: "3ds/Pokemon X.3ds" });
+});
+
+it.each(["Delta", "Provenance", "RetroArch", "Manic EMU"])("names %s's folder in the summary", async (app) => {
+  const picked: PickedFolder = { folder: `/${app}`, name: app };
+  launch({ games: ["gb/Red.gb"], folders: [picked], scans: { [picked.folder]: { files: [file("Emerald.gba")], other: 0, app } } });
+
+  await importFolderFromLibrary();
+
+  expect(await screen.findByText(`Found a ${app} folder`)).toBeTruthy();
+});
+
+it("names no emulator for a plain folder", async () => {
+  launch({ games: ["gb/Red.gb"], folders: [retroArch], scans: { [retroArch.folder]: { files: [file("Emerald.gba")], other: 0, app: null } } });
+
+  await importFolderFromLibrary();
+
+  expect(await screen.findByRole("heading", { name: "Found 1 game" })).toBeTruthy();
+  expect(screen.queryByText(/^Found a .* folder$/)).toBeNull();
+});
+
 it("opens the picker straight from the library and copies what it found", async () => {
   const { host } = launch({
     games: ["gb/Red.gb"],
@@ -268,7 +312,7 @@ it("stays on the library when the picker is cancelled", async () => {
   expect(screen.getByRole("button", { name: /Red/ })).toBeTruthy();
 });
 
-it("imports Delta's folder from the welcome screen on an iPhone", async () => {
+it("imports another emulator's folder from the welcome screen on an iPhone", async () => {
   const delta: PickedFolder = { folder: "/Delta", name: "Delta" };
   const { host } = launch({
     device: "iPhone",
@@ -276,21 +320,50 @@ it("imports Delta's folder from the welcome screen on an iPhone", async () => {
     scans: { [delta.folder]: { files: [{ ...file("Games/Crystal.gbc"), file: "/Delta/Database/Games/Crystal.gbc" }], other: 0 } },
   });
 
-  fireEvent.click(await screen.findByRole("button", { name: /I'm coming from Delta/ }));
+  fireEvent.click(await screen.findByRole("button", { name: /I'm coming from another emulator/ }));
   fireEvent.click(await screen.findByRole("button", { name: "Choose folder" }));
 
   expect(await screen.findByRole("heading", { name: "Found 1 game" })).toBeTruthy();
   expect(host.scan).toHaveBeenCalledWith(delta.folder, false);
 });
 
-it("goes back from Delta's folder to the welcome screen", async () => {
+it("asks for another emulator's folder in the platform's words", async () => {
+  launch({ emulatorHint: "Pick your emulator's folder, like Pizza Boy's.", folders: [], scans: {} });
+
+  fireEvent.click(await screen.findByRole("button", { name: /I'm coming from another emulator/ }));
+
+  expect(await screen.findByText(/^Pick your emulator's folder, like Pizza Boy's\./)).toBeTruthy();
+});
+
+it("says to bring the ROMs when saves match no game", async () => {
+  launch({
+    games: ["gb/Red.gb"],
+    folders: [retroArch],
+    scans: { [retroArch.folder]: { files: [file("Emerald.gba"), file("Tetris.srm"), file("Pinball.srm")], other: 0 } },
+  });
+
+  await importFolderFromLibrary();
+
+  expect(await screen.findByText(/2 saves match no game\..*import the folder again/)).toBeTruthy();
+});
+
+it("says nothing about ROMs when every save has its game", async () => {
+  launch({ games: ["gb/Red.gb"], folders: [retroArch], scans: { [retroArch.folder]: { files: [file("Emerald.gba"), file("Emerald.srm")], other: 0 } } });
+
+  await importFolderFromLibrary();
+
+  expect(await screen.findByRole("heading", { name: "Found 1 game" })).toBeTruthy();
+  expect(screen.queryByText(/import the folder again/)).toBeNull();
+});
+
+it("goes back from another emulator's folder to the welcome screen", async () => {
   const { back } = launch({ device: "iPhone", folders: [], scans: {} });
 
-  fireEvent.click(await screen.findByRole("button", { name: /I'm coming from Delta/ }));
+  fireEvent.click(await screen.findByRole("button", { name: /I'm coming from another emulator/ }));
   await screen.findByRole("button", { name: "Choose folder" });
   back();
 
-  expect(await screen.findByRole("button", { name: /I'm coming from Delta/ })).toBeTruthy();
+  expect(await screen.findByRole("button", { name: /I'm coming from another emulator/ })).toBeTruthy();
 });
 
 it("goes back from where the games are to the welcome screen", async () => {

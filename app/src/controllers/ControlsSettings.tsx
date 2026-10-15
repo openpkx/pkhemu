@@ -1,11 +1,14 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { TitledCard } from "@/components/TitledCard";
 import { Toast, useToast } from "@/components/Toast";
 import { Button } from "@/components/ui/button";
+import { Switch } from "@/components/ui/switch";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { withPad, type Calibrations, type KeyboardCalibration } from "@/input/calibration";
 import { useCalibrations } from "@/input/calibrations";
 import { connectedGamepads } from "@/input/input";
 import { navigate } from "@/motion/motion";
+import { isStickSensitivity, stickSensitivities, usePreferences } from "@/preferences/preferences";
 import { ControllerSetup } from "./ControllerSetup";
 import { keyboardDriver, padDriver, type SetupPad } from "./setupDrivers";
 
@@ -58,12 +61,63 @@ function Device({ name, status, onConfigure, onReset }: { name: string; status: 
   );
 }
 
-export function ControllersSettings() {
+const stickSensitivityLabels = { 0.75: "Low", 1: "Medium", 1.5: "High" };
+const stickSensitivityLines = {
+  0.75: "The touch stick tilts all the way after a long slide.",
+  1: "The touch stick tilts all the way after a medium slide.",
+  1.5: "The touch stick tilts all the way after a short slide.",
+};
+
+function TouchControlsSettings() {
+  const { preferences, change } = usePreferences();
+  const touchId = useId();
+  const stickId = useId();
+
+  return (
+    <>
+      <div className="flex items-center justify-between gap-3">
+        <label htmlFor={touchId}>Touch controls</label>
+        <Switch
+          id={touchId}
+          checked={preferences.touchControls}
+          onCheckedChange={(touchControls) => void change({ touchControls })}
+        />
+      </div>
+      {preferences.touchControls && (
+        <div className="grid gap-1">
+          <div className="flex items-center justify-between gap-3">
+            <span id={stickId}>Stick sensitivity</span>
+            <ToggleGroup
+              type="single"
+              variant="outline"
+              aria-labelledby={stickId}
+              value={String(preferences.stickSensitivity)}
+              onValueChange={(value) => {
+                const stickSensitivity = Number(value);
+                if (isStickSensitivity(stickSensitivity)) void change({ stickSensitivity });
+              }}
+            >
+              {stickSensitivities.map((sensitivity) => (
+                <ToggleGroupItem key={sensitivity} value={String(sensitivity)}>
+                  {stickSensitivityLabels[sensitivity]}
+                </ToggleGroupItem>
+              ))}
+            </ToggleGroup>
+          </div>
+          <p className="text-muted-foreground">{stickSensitivityLines[preferences.stickSensitivity]}</p>
+        </div>
+      )}
+    </>
+  );
+}
+
+export function ControlsSettings() {
   const pads = useConnectedPads();
   const { calibrations, current, save } = useCalibrations();
   const [configuring, setConfiguring] = useState<SetupPad | "keyboard">();
   const [toast, setToast] = useToast();
   const [error, setError] = useState<string>();
+  const preferencesError = usePreferences().error;
 
   const store = async (change: (calibrations: Calibrations) => Calibrations) => {
     try {
@@ -85,7 +139,8 @@ export function ControllersSettings() {
     calibrations.pads[pad.id] ? "Set up" : pad.standard ? "Standard layout" : "Not set up";
 
   return (
-    <TitledCard title="Controllers" className="max-w-sm">
+    <TitledCard title="Controls" className="max-w-sm">
+      <TouchControlsSettings />
       <Device
         name="Keyboard"
         status={calibrations.keyboard ? "Set up" : "Default keys"}
@@ -102,7 +157,7 @@ export function ControllersSettings() {
           onReset={calibrations.pads[pad.id] && (() => void store((all) => withPad(all, pad.id)))}
         />
       ))}
-      {error && <p className="text-destructive">{error}</p>}
+      {(error ?? preferencesError) && <p className="text-destructive">{error ?? preferencesError}</p>}
       {configuring === "keyboard" && (
         <ControllerSetup
           driver={keyboardDriver}

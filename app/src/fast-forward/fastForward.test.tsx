@@ -3,10 +3,11 @@ import { act, cleanup, fireEvent, renderHook, waitFor } from "@testing-library/r
 import { afterEach, expect, it } from "vitest";
 import { PreferencesProvider, type Preferences } from "@/preferences/preferences";
 import { useFastForward } from "./fastForward";
+import { defaultSkins } from "@/skins";
 
 afterEach(cleanup);
 
-const defaults: Preferences = { touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic" };
+const defaults: Preferences = { touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic", skins: defaultSkins, skinHintSeen: false, screenDepth: true, screenGlass: true, asyncShaders: false };
 
 async function launch(stored: Partial<Preferences> = {}, listening = true) {
   const host = { load: async () => stored, save: async () => {} };

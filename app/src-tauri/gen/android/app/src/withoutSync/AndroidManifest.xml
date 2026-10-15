@@ -7,5 +7,6 @@
 
     <application>
         <service android:name=".SyncService" tools:node="remove" />
+        <receiver android:name=".SyncStopReceiver" tools:node="remove" />
     </application>
 </manifest>

@@ -159,6 +159,17 @@ impl<'a, R: Runtime> GamesFolder<'a, R> {
         }
     }
 
+    pub async fn open_for_core(&self, path: &str) -> Result<rom::RomFile, String> {
+        match &self.place {
+            Place::Path(root) => {
+                let full = root.join(path);
+                let file = File::open(&full).map_err(error)?;
+                Ok(rom::RomFile::new(file, full.to_string_lossy().into_owned()))
+            }
+            Place::Tree(tree) => tree.open_for_core(path).await,
+        }
+    }
+
     pub async fn open_rom(&self, path: &str) -> Result<File, String> {
         let file = self.open_file(path).await?;
         if !rom::is_archive(path) {
@@ -757,6 +768,17 @@ mod tests {
         block_on(folder.open_rom("nds/game.nds")).unwrap().read_to_end(&mut rom).unwrap();
 
         assert_eq!(rom, b"rom");
+    }
+
+    #[test]
+    fn gives_a_core_the_games_own_path() {
+        let folder = temp_folder("for-core");
+        block_on(folder.write("3ds/PKSM.3dsx", b"3dsx")).unwrap();
+
+        let file = block_on(folder.open_for_core("3ds/PKSM.3dsx")).unwrap();
+
+        assert_eq!(std::fs::read(&file.path).unwrap(), b"3dsx");
+        assert!(block_on(folder.open_for_core("3ds/missing.3dsx")).is_err());
     }
 
     #[test]

@@ -3,11 +3,12 @@ import QuartzCore
 import UIKit
 import WebKit
 
-public typealias ScreenShown = @convention(c) (UnsafeMutableRawPointer, Int32, Int32) -> Void
+public typealias ScreenShown = @convention(c) (UnsafeMutableRawPointer, UnsafeMutableRawPointer, Int32, Int32) -> Void
 public typealias ScreenGone = @convention(c) () -> Void
 
 private var onShown: ScreenShown?
 private var onGone: ScreenGone?
+private weak var metalScreen: UIView?
 
 @_cdecl("pkhemu_ios_watch_game_screen")
 public func watchGameScreen(_ shown: ScreenShown, _ gone: ScreenGone) {
@@ -17,12 +18,25 @@ public func watchGameScreen(_ shown: ScreenShown, _ gone: ScreenGone) {
   }
 }
 
-// Rust draws the game on this view's layer, under the WebView and at its size, so page pixels are layer pixels. Rust
-// holds the layer between shown and gone, and lets go of it before gone returns. iOS kills an app that draws with
-// OpenGL in the background, so the layer goes before that.
+// Rust shows the Metal layer while it draws a core's Vulkan frames there, and hides it for OpenGL frames.
+@_cdecl("pkhemu_ios_show_metal_screen")
+public func showMetalScreen(_ show: Bool) {
+  DispatchQueue.main.async {
+    metalScreen?.isHidden = !show
+  }
+}
+
+class MetalScreenView: UIView {
+  override class var layerClass: AnyClass { CAMetalLayer.self }
+}
+
+// Rust draws the game on this view's layer, or with Vulkan on its Metal subview, under the WebView and at its size, so
+// page pixels are layer pixels. Rust holds the layers between shown and gone, and lets go of them before gone returns.
+// iOS kills an app that draws with OpenGL in the background, so the layers go before that.
 class GameScreenView: UIView {
   override class var layerClass: AnyClass { CAEAGLLayer.self }
 
+  private let metal = MetalScreenView()
   private var playing = false
   private var foreground = true
   private var shown: (Int32, Int32)?
@@ -37,6 +51,13 @@ class GameScreenView: UIView {
       kEAGLDrawablePropertyRetainedBacking: false,
       kEAGLDrawablePropertyColorFormat: kEAGLColorFormatRGBA8,
     ]
+    metal.frame = bounds
+    metal.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+    metal.isHidden = true
+    metal.isUserInteractionEnabled = false
+    metal.layer.isOpaque = true
+    addSubview(metal)
+    metalScreen = metal
     let center = NotificationCenter.default
     center.addObserver(
       self, selector: #selector(background), name: UIApplication.didEnterBackgroundNotification, object: nil)
@@ -63,6 +84,7 @@ class GameScreenView: UIView {
     super.didMoveToWindow()
     if let screen = window?.windowScene?.screen {
       contentScaleFactor = screen.scale
+      metal.contentScaleFactor = screen.scale
     }
     update()
   }
@@ -94,7 +116,8 @@ class GameScreenView: UIView {
     }
     if shown.map({ $0 != (width, height) }) ?? true {
       shown = (width, height)
-      onShown?(Unmanaged.passUnretained(layer).toOpaque(), width, height)
+      let metalLayer = Unmanaged.passUnretained(metal.layer).toOpaque()
+      onShown?(Unmanaged.passUnretained(layer).toOpaque(), metalLayer, width, height)
     }
   }
 }

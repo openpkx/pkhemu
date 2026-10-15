@@ -44,6 +44,8 @@ function launch({
   fastForward = false,
   pokemonInfo = undefined as boolean | undefined,
   randomized = undefined as boolean | undefined,
+  skin = undefined as string | undefined,
+  onSwapScreens = undefined as (() => void) | undefined,
   held = [] as number[],
 } = {}) {
   const props = {
@@ -65,8 +67,11 @@ function launch({
     onLoadState: vi.fn(),
     onUndoLoad: vi.fn(),
     onCheats: vi.fn(),
+    skin,
+    onSkin: vi.fn(),
     onSettings: vi.fn(),
     onQuit: vi.fn(),
+    onSwapScreens,
   };
   render(<PauseMenu {...props} />);
   pad(...held);
@@ -91,6 +96,37 @@ it("lists the menu", () => {
     "Quit",
   ]);
   for (const button of screen.getAllByRole<HTMLButtonElement>("button")) expect(button.disabled).toBe(false);
+});
+
+it("puts Skin above Settings, with the skin and look in a line under it", () => {
+  const props = launch({ skin: "Classic grey · Moulded" });
+  const names = screen.getAllByRole("button").map((button) => button.textContent);
+
+  expect(names.slice(-3)).toEqual(["SkinClassic grey · Moulded", "Settings", "Quit"]);
+  fireEvent.click(screen.getByRole("button", { name: /^Skin/ }));
+  expect(props.onSkin).toHaveBeenCalled();
+});
+
+it("leaves Skin out without a skin line", () => {
+  launch();
+
+  expect(screen.queryByRole("button", { name: /^Skin/ })).toBeNull();
+});
+
+it("puts Swap screens below Fast-forward when the game has two screens", () => {
+  const onSwapScreens = vi.fn();
+  launch({ onSwapScreens });
+  const names = screen.getAllByRole("button").map((button) => button.textContent);
+
+  expect(names[names.indexOf("Swap screens") - 1]).toMatch(/^Fast-forward/);
+  fireEvent.click(item("Swap screens"));
+  expect(onSwapScreens).toHaveBeenCalled();
+});
+
+it("leaves Swap screens out for a game with one screen", () => {
+  launch();
+
+  expect(screen.queryByRole("button", { name: "Swap screens" })).toBeNull();
 });
 
 it("disables Undo last edit when there's no edit to undo", () => {

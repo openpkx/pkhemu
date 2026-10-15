@@ -3,14 +3,18 @@ import { useVisible } from "@/visible";
 
 export type Gravity = { x: number; y: number; z: number };
 
-export type GravityHost = { start(): void; stop(): void; read(): Gravity | undefined };
+export type GravityHost = { tilts: boolean; start(): void; stop(): void; read(): Gravity | undefined };
 
-const noHost: GravityHost = { start() {}, stop() {}, read: () => undefined };
+const noHost: GravityHost = { tilts: false, start() {}, stop() {}, read: () => undefined };
 
 const GravityContext = createContext<GravityHost>(noHost);
 
 export function GravityProvider({ host, children }: { host: GravityHost; children: ReactNode }) {
   return <GravityContext.Provider value={host}>{children}</GravityContext.Provider>;
+}
+
+export function useCanTilt() {
+  return useContext(GravityContext).tilts;
 }
 
 export function useGravity(playing: boolean): GravityHost["read"] {

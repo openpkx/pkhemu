@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { Cloud, FilePlus, FolderOpen, FolderPlus, Play, Plus, RefreshCw, Settings } from "lucide-react";
+import { Cloud, FilePlus, FolderOpen, FolderPlus, Play, Plus, Settings } from "lucide-react";
 import { cn } from "cn";
 import { UpdateToast } from "@/app-update/UpdateToast";
 import { AppIcon } from "@/components/AppIcon";
@@ -8,6 +8,7 @@ import { sectionHeading } from "@/components/sectionHeading";
 import { SyncBadge } from "@/components/SyncBadge";
 import { SystemChip, SystemChips } from "@/components/SystemChip";
 import { Toast, useToast } from "@/components/Toast";
+import { TopScreen } from "@/components/TopScreen";
 import { useCachedBoxArt } from "@/box-art/boxArt";
 import { BoxArtSheet } from "@/box-art/BoxArtSheet";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,8 @@ import { gameAt, useImportFiles, useImportHost } from "@/import/importFiles";
 import { useExperiment } from "@/lab/lab";
 import { useLongPress } from "@/lib/useLongPress";
 import { Shared, useStaggerOnce } from "@/motion/motion";
+import { useHackBoxArt } from "@/patch-rom/hackBoxArt";
+import { dualScreens } from "@/screens";
 import { useTileSync } from "@/sync/gameStatus";
 import { useSync } from "@/sync/sync";
 import { systemColors, systemNames, type System } from "@/systems";
@@ -88,6 +91,15 @@ function useLastPlay(path: string) {
   return played;
 }
 
+function LastScreen({ src, system }: { src: string; system: System }) {
+  const screens = dualScreens[system];
+  return screens ? (
+    <TopScreen src={src} screens={screens} className="absolute inset-0 size-full" />
+  ) : (
+    <img src={src} alt="" className="absolute inset-0 size-full object-cover [image-rendering:pixelated]" />
+  );
+}
+
 function ContinueCard({ game, onChangeBoxArt }: { game: Game; onChangeBoxArt(game: Game): void }) {
   const { open, play, lastPlay } = useLibrary();
   const longPress = useLongPress(game.cloudOnly ? undefined : () => onChangeBoxArt(game));
@@ -123,11 +135,7 @@ function ContinueCard({ game, onChangeBoxArt }: { game: Game; onChangeBoxArt(gam
         <Shared name={sharedArt}>
           <div className="relative isolate aspect-[3/2] w-27 shrink-0 overflow-hidden rounded-md bg-background ring-1 ring-foreground/10 sm:w-45 sm:rounded-lg">
             {screenshot ? (
-              <img
-                src={screenshot}
-                alt=""
-                className={cn("absolute inset-0 size-full object-cover [image-rendering:pixelated]", game.system === "nds" && "object-top")}
-              />
+              <LastScreen src={screenshot} system={game.system} />
             ) : (
               <>
                 <div
@@ -210,11 +218,7 @@ function GameTile({
           {boxArt && <FadedBoxArt src={boxArt} className="p-2" />}
           {screenshot && (
             <>
-              <img
-                src={screenshot}
-                alt=""
-                className={cn("absolute inset-0 size-full object-cover [image-rendering:pixelated]", game.system === "nds" && "object-top")}
-              />
+              <LastScreen src={screenshot} system={game.system} />
               <div className="absolute inset-0 bg-gradient-to-t from-overlay/80 via-overlay/20 to-transparent" />
             </>
           )}
@@ -339,14 +343,17 @@ export function LibraryScreen({
   onOpenFolder?(): Promise<void>;
   onImportFolder?(): void;
 }) {
-  const { library, recent, scanning, error, refresh, open } = useLibrary();
+  const { library, recent, error, open } = useLibrary();
   const outside = library?.outsideSystemFolders ?? 0;
   const empty = library?.sections.length === 0;
   const { ref, stagger } = useStaggerOnce("library", !!library);
   const [last, ...others] = recent;
   const [changingBoxArt, setChangingBoxArt] = useState<{ game: Game; open: boolean; opens: number }>();
   const [toast, setToast] = useToast();
-  const { importFiles, busy: importing, dialogs: importDialogs } = useImportFiles(setToast);
+  const hackBoxArt = useHackBoxArt(setToast);
+  const { importFiles, busy: importing, dialogs: importDialogs } = useImportFiles((message, created) =>
+    setToast(created ? hackBoxArt.withAddBoxArt(message, created) : message),
+  );
   const changeBoxArt = (game: Game) => setChangingBoxArt((was) => ({ game, open: true, opens: (was?.opens ?? 0) + 1 }));
   const stopChangingBoxArt = () => setChangingBoxArt((was) => was && { ...was, open: false });
 
@@ -372,9 +379,6 @@ export function LibraryScreen({
             {onImportFolder && <DropdownMenuItem onSelect={onImportFolder}>Import folder</DropdownMenuItem>}
           </DropdownMenuContent>
         </DropdownMenu>
-        <Button variant="ghost" size="icon" aria-label="Refresh" onClick={() => void refresh()}>
-          <RefreshCw className={cn(scanning && "animate-spin")} />
-        </Button>
         <Button variant="ghost" size="icon" aria-label="Settings" onClick={onSettings}>
           <Settings />
         </Button>
@@ -442,6 +446,7 @@ export function LibraryScreen({
           }}
         />
       )}
+      {hackBoxArt.sheet}
       {importDialogs}
       <Toast>{toast}</Toast>
       <UpdateToast />

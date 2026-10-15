@@ -356,6 +356,7 @@ function Tickets({
 
   return (
     <div className="grid gap-4 p-4">
+      <p className="text-sm text-muted-foreground">Gives the Mystery Gift tickets, which open the event islands.</p>
       <div role="list" aria-label="Tickets" className="rounded-lg border">
         {gen3.tickets.map((ticket, i) => (
           <div

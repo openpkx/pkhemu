@@ -10,13 +10,15 @@ use crate::pace::{self, DisplayRate, OnRefresh, Pacer, Refreshes, Ticker, MAX_OW
 use crate::resume::{self, Resume};
 use crate::retro::{self, Core};
 use crate::rom::{Rom, StateName};
-use crate::save;
+use crate::save::{self, three_ds::Main};
 use crate::screen::{self, Layout, Parallax, Screen, WindowChange};
 use crate::states::{self, Loaded, Saved};
 use crate::sync::InUse;
+use crate::three_ds;
 use crate::transfer_pak::{self, Cart};
 use crate::writer::{StateChange, Write};
 use serde::Deserialize;
+use std::collections::VecDeque;
 use std::path::{Path, PathBuf};
 use std::sync::{mpsc, Arc, Weak};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
@@ -65,6 +67,7 @@ pub enum Command {
         folder: String,
         path: String,
         rom: Rom,
+        update: Option<std::fs::File>,
         save: Option<Vec<u8>>,
         state: Option<Vec<u8>>,
         slot: Option<u8>,
@@ -96,6 +99,9 @@ pub enum Command {
     },
     PlayTimeSinceSave {
         reply: oneshot::Sender<Option<f64>>,
+    },
+    Screenshot {
+        reply: oneshot::Sender<Option<Vec<u8>>>,
     },
     ReadSave {
         reply: oneshot::Sender<Result<Vec<u8>, String>>,
@@ -145,6 +151,12 @@ pub enum Command {
     },
     #[allow(dead_code)]
     Resume,
+    #[allow(dead_code)]
+    Sleep {
+        done: oneshot::Sender<()>,
+    },
+    #[allow(dead_code)]
+    Wake,
     #[cfg_attr(not(target_os = "ios"), allow(dead_code))]
     RestartAudio,
     Stop {
@@ -164,6 +176,7 @@ impl Command {
                 | Command::Window(_)
                 | Command::Step { .. }
                 | Command::PlayTimeSinceSave { .. }
+                | Command::Screenshot { .. }
                 | Command::ReadSave { .. }
                 | Command::ReadMemory { .. }
                 | Command::CanUndoEdit { .. }
@@ -171,7 +184,23 @@ impl Command {
                 | Command::ForgetSlot { .. }
                 | Command::Suspend
                 | Command::Pause { .. }
+                | Command::Sleep { .. }
                 | Command::RestartAudio
+        )
+    }
+
+    fn waits_for_wake(&self) -> bool {
+        matches!(
+            self,
+            Command::Play { .. }
+                | Command::SetCheats { .. }
+                | Command::Step { .. }
+                | Command::ApplyEdit { .. }
+                | Command::UndoEdit { .. }
+                | Command::SaveState { .. }
+                | Command::LoadState { .. }
+                | Command::UndoLoadState { .. }
+                | Command::Window(WindowChange::Shown(_))
         )
     }
 }
@@ -266,6 +295,7 @@ struct Game {
     audio: Option<Audio>,
     on_frame: Channel<InvokeResponseBody>,
     watch: save::Watch,
+    main: Option<Main>,
     writes: tokio_mpsc::UnboundedSender<Write>,
     back_up: BackUp,
     cheats: Vec<String>,
@@ -288,16 +318,22 @@ impl Game {
     fn run_frame(&mut self) {
         self.core.run_frame();
         self.frames += 1;
-        let core = &mut self.core;
-        let changed = self.watch.after_frame(|| {
-            let [save_ram, rtc] = core.save_memory();
-            [&*save_ram, &*rtc]
-        });
+        let (core, main) = (&mut self.core, &mut self.main);
+        let changed = self.watch.after_frame(|| save_memory(core, main, false));
         if let Some(file) = changed {
             self.saved(file);
         }
         if self.watch.due() {
             self.check_cart();
+            self.settle_main();
+        }
+    }
+
+    fn settle_main(&mut self) {
+        match self.main.as_mut().map(Main::settle) {
+            Some(Ok(true)) => self.core.reset(),
+            Some(Err(e)) => eprintln!("placing the 3DS save: {e}"),
+            _ => {}
         }
     }
 
@@ -399,9 +435,16 @@ impl Game {
         self.cheats = codes;
     }
 
+    fn read_save(&mut self) -> Option<Vec<u8>> {
+        edit::read(save_memory(&mut self.core, &mut self.main, true)[0])
+    }
+
     fn apply(&mut self, edited: &[u8]) -> Result<(), String> {
-        let back_up = &mut self.back_up;
-        let (undo, file) = edit::apply(&mut self.core, &mut self.watch, edited, |save| back_up(Reason::Edit, save))?;
+        let back_up = |save: &[u8]| (self.back_up)(Reason::Edit, save);
+        let (undo, file) = match &mut self.main {
+            Some(main) => edit::apply_main(&mut self.core, main, &mut self.watch, edited, back_up)?,
+            None => edit::apply(&mut self.core, &mut self.watch, edited, back_up)?,
+        };
         self.undo = Some(undo);
         self.write(Write::Save(file));
         Ok(())
@@ -410,6 +453,9 @@ impl Game {
     fn undo(&mut self) -> Result<(), String> {
         let undo = self.undo.take().ok_or("there's no edit to undo")?;
         let file = edit::undo(&mut self.core, &mut self.watch, undo)?;
+        if let Some(main) = &mut self.main {
+            main.place(Some(&file)).map_err(|e| format!("couldn't write the save back: {e}"))?;
+        }
         self.write(Write::Save(file));
         Ok(())
     }
@@ -417,8 +463,7 @@ impl Game {
     fn moment(&mut self) -> Result<Saved, String> {
         self.check_save();
         let state = self.core.serialize().ok_or("the core couldn't save its state")?;
-        let [save_ram, rtc] = self.core.save_memory();
-        let save = [&*save_ram, &*rtc].concat();
+        let save = save_memory(&mut self.core, &mut self.main, true).concat();
         let core = self.core.info();
         let info = states::Info {
             saved_at: epoch_ms(),
@@ -448,14 +493,24 @@ impl Game {
         loaded: &Loaded,
         kept: Option<oneshot::Sender<Result<(), String>>>,
     ) -> Result<(), String> {
+        if self.main.as_ref().is_some_and(Main::is_waiting) {
+            return Err("The game has to reach its title screen once before a state loads.".into());
+        }
         let mut before = self.moment()?;
         before.info.slot = self.slot;
         let fps = self.core.av().timing.fps;
         let frames_since_save = loaded.info.play_since_save.map(|seconds| (seconds * fps).round() as u64);
         let back_up = &mut self.back_up;
-        let file = states::load(&mut self.core, &self.clock, &mut self.watch, loaded, frames_since_save, &before, |save| {
-            back_up(Reason::Load, save)
-        })?;
+        let mut file =
+            states::load(&mut self.core, &self.clock, &mut self.watch, loaded, frames_since_save, &before, |save| {
+                back_up(Reason::Load, save)
+            })?;
+        if let Some(main) = &mut self.main {
+            if !loaded.save.is_empty() {
+                main.place(Some(&loaded.save)).map_err(|e| format!("couldn't write the state's save: {e}"))?;
+            }
+            file = self.watch.load([main.bytes(), &[]], frames_since_save);
+        }
         self.undo = None;
         self.slot = slot;
         self.write(Write::Save(file));
@@ -478,8 +533,8 @@ impl Game {
     }
 
     fn check_save(&mut self) {
-        let [save_ram, rtc] = self.core.save_memory();
-        if let Some(file) = self.watch.check([save_ram, rtc]) {
+        let memory = save_memory(&mut self.core, &mut self.main, true);
+        if let Some(file) = self.watch.check(memory) {
             self.saved(file);
         }
     }
@@ -509,6 +564,19 @@ impl Game {
     fn suspend(&mut self) {
         self.check_save();
         self.check_cart();
+        // A game that never ran a frame, such as one whose screen never came up, would replace the state it was
+        // resumed from.
+        if self.frames > 0 {
+            self.write_resume();
+        }
+        if let Some(session) = &self.session {
+            if let Err(e) = session.record(self.frames, index::now()) {
+                eprintln!("recording play time: {e}");
+            }
+        }
+    }
+
+    fn write_resume(&mut self) {
         match self.core.serialize() {
             Some(state) => {
                 let screenshot = self.screenshot();
@@ -522,11 +590,6 @@ impl Game {
                 self.write(Write::Resume(Resume { state, screenshot, info }));
             }
             None => eprintln!("the core couldn't save its state to resume from"),
-        }
-        if let Some(session) = &self.session {
-            if let Err(e) = session.record(self.frames, index::now()) {
-                eprintln!("recording play time: {e}");
-            }
         }
     }
 
@@ -555,10 +618,28 @@ impl Game {
     // Dropping the game drops its sender, which lets the writer finish.
     fn quit(mut self) -> JoinHandle<()> {
         self.suspend();
-        let (removed, _) = oneshot::channel();
-        self.write(Write::State(StateChange::Remove { name: StateName::BeforeLoad, removed }));
+        self.forget_before_load();
         self.writer
     }
+
+    // The game was suspended as the app went to sleep, and unloading the core calls OpenGL, so it waits for the app to
+    // wake.
+    fn quit_asleep(self) -> (JoinHandle<()>, Unloading) {
+        self.forget_before_load();
+        let Game { writer, core, transfer_pak, .. } = self;
+        (writer, Unloading { _core: core, _transfer_pak: transfer_pak })
+    }
+
+    fn forget_before_load(&self) {
+        let (removed, _) = oneshot::channel();
+        self.write(Write::State(StateChange::Remove { name: StateName::BeforeLoad, removed }));
+    }
+}
+
+// Fields drop in order, and the core goes before the Transfer Pak session, as it does with the game.
+struct Unloading {
+    _core: Core,
+    _transfer_pak: Option<transfer_pak::Session>,
 }
 
 fn run(
@@ -580,8 +661,15 @@ fn run(
     let mut ticker: Option<Ticker> = None;
     let refreshes = Arc::new(Refreshes::default());
     let mut screen = screen();
+    let mut asleep = false;
+    let mut held = VecDeque::new();
+    let mut unloading: Option<Unloading> = None;
 
-    while let Ok(command) = rx.recv() {
+    while let Some(command) = next(&rx, &mut held, asleep) {
+        if asleep && command.waits_for_wake() {
+            held.push_back(command);
+            continue;
+        }
         if command.takes_back() {
             if let Some(game) = &mut game {
                 game.take_back(&in_use);
@@ -592,6 +680,7 @@ fn run(
                 folder,
                 path,
                 rom,
+                update,
                 save,
                 state,
                 slot,
@@ -607,17 +696,23 @@ fn run(
                 on_native_failed,
                 reply,
             } => {
-                quit_running(&mut game, &mut last_quit, &mut screen);
+                quit_running(&mut game, &mut last_quit, &mut screen, false);
                 retro::release_input();
                 let platform = Platform::of_rom(&rom);
                 let cart_path = cart.as_ref().map(|cart| cart.path.clone());
                 let loaded =
                     cart.map(|cart| transfer_pak::Session::start(cart, &rom)).transpose().and_then(|session| {
                         let files = session.as_ref().map(transfer_pak::Session::files);
-                        load(rom, save, state, &clock, &system_dir, files).map(|(core, watch)| (core, watch, session))
+                        let azahar_dir = retro::azahar_dir(&system_dir);
+                        three_ds::update::placed(&rom, update, &azahar_dir)?;
+                        let main = save::three_ds::placed(&rom, save.as_deref(), &azahar_dir)?;
+                        // A state would skip the boot in which the game formats the save data its save waits for.
+                        let state = state.filter(|_| !main.as_ref().is_some_and(Main::is_waiting));
+                        load(rom, save, state, &clock, &system_dir, files)
+                            .map(|(core, watch)| (core, watch, main, session))
                     });
                 on_game(loaded.as_ref().ok().map(|_| path.as_str()), cart_path.as_deref());
-                let _ = reply.send(loaded.map(|(mut core, watch, transfer_pak)| {
+                let _ = reply.send(loaded.map(|(mut core, watch, main, transfer_pak)| {
                     let cheats = cheats::on_codes(platform, &cheats);
                     if !cheats.is_empty() {
                         core.set_cheats(&cheats);
@@ -642,6 +737,7 @@ fn run(
                         audio,
                         on_frame,
                         watch,
+                        main,
                         writes,
                         back_up,
                         cheats,
@@ -690,29 +786,36 @@ fn run(
                 if let Some(native) = &mut screen {
                     native.lay_out(layout);
                 }
-                redraw_held(&mut screen, &mut game, &pacing);
+                redraw_held(&mut screen, &mut game, &pacing, asleep);
             }
             Command::Parallax(parallax) => {
                 if let Some(native) = &mut screen {
                     native.lean(parallax);
                 }
-                redraw_held(&mut screen, &mut game, &pacing);
+                redraw_held(&mut screen, &mut game, &pacing, asleep);
             }
             Command::Window(change) => {
+                // A window shown while the app slept is held, so this one is going, and the held one went with it.
+                if asleep {
+                    held.retain(|command| !matches!(command, Command::Window(WindowChange::Shown(_))));
+                }
                 if let Some(native) = &mut screen {
                     let changed = native.window(change);
                     fall_back_on(changed, &mut screen, game.as_mut());
                 }
-                redraw_held(&mut screen, &mut game, &pacing);
+                redraw_held(&mut screen, &mut game, &pacing, asleep);
             }
             Command::PlayTimeSinceSave { reply } => {
                 let _ = reply.send(
                     game.as_ref().map(Game::play_time_since_save),
                 );
             }
+            Command::Screenshot { reply } => {
+                let _ = reply.send(game.as_ref().and_then(Game::screenshot));
+            }
             Command::ReadSave { reply } => {
-                let _ = reply.send(running(&mut game)
-                    .and_then(|game| edit::read(&mut game.core).ok_or_else(|| NO_SAVE_YET.into())));
+                let _ =
+                    reply.send(running(&mut game).and_then(|game| game.read_save().ok_or_else(|| NO_SAVE_YET.into())));
             }
             Command::ReadMemory { ranges, reply } => {
                 let _ = reply.send(running(&mut game).and_then(|game| game.core.read_memory(&ranges)));
@@ -756,6 +859,20 @@ fn run(
                 let _ = reply.send(game.as_mut().filter(|game| !game.paused).map(|game| game.pause(&in_use)));
             }
             Command::Resume => {}
+            Command::Sleep { done } => {
+                if let Some(game) = game.as_mut().filter(|game| !game.paused) {
+                    game.pause(&in_use);
+                }
+                retro::sleep();
+                asleep = true;
+                let _ = done.send(());
+            }
+            Command::Wake => {
+                retro::wake();
+                asleep = false;
+                drop(unloading.take());
+                redraw_held(&mut screen, &mut game, &pacing, asleep);
+            }
             Command::RestartAudio => {
                 if let Some(game) = &mut game {
                     game.audio = None;
@@ -764,7 +881,9 @@ fn run(
             }
             Command::Stop { done } => {
                 let stopped = game.as_ref().map(Game::playing);
-                quit_running(&mut game, &mut last_quit, &mut screen);
+                if let Some(core) = quit_running(&mut game, &mut last_quit, &mut screen, asleep) {
+                    unloading = Some(core);
+                }
                 on_game(None, None);
                 let _ = done.send((last_quit.clone(), stopped));
             }
@@ -785,9 +904,16 @@ fn runs(pacing: &Pacing, game: &Option<Game>) -> bool {
     !pacing.paused && game.as_ref().is_some_and(|game| !game.paused)
 }
 
-// A running game draws again on its next frame anyway.
-fn redraw_held(screen: &mut Option<Box<dyn Screen>>, game: &mut Option<Game>, pacing: &Pacing) {
-    if runs(pacing, game) {
+fn next(rx: &mpsc::Receiver<Command>, held: &mut VecDeque<Command>, asleep: bool) -> Option<Command> {
+    match held.front() {
+        Some(_) if !asleep => held.pop_front(),
+        _ => rx.recv().ok(),
+    }
+}
+
+// A running game draws again on its next frame anyway, and a sleeping app draws once it wakes.
+fn redraw_held(screen: &mut Option<Box<dyn Screen>>, game: &mut Option<Game>, pacing: &Pacing, asleep: bool) {
+    if asleep || runs(pacing, game) {
         return;
     }
     if let (Some(native), Some(game)) = (screen.as_mut(), game.as_mut()) {
@@ -847,18 +973,39 @@ fn load(
     Ok((core, save::Watch::new()))
 }
 
+// A 3DS Pokémon game's save is a file on the virtual SD card, which stands in for the save memory the core lacks.
+fn save_memory<'a>(core: &'a mut Core, main: &'a mut Option<Main>, now: bool) -> [&'a [u8]; 2] {
+    match main {
+        Some(main) => [if now { main.read() } else { main.refresh() }, &[]],
+        None => {
+            let [save_ram, rtc] = core.save_memory();
+            [save_ram, rtc]
+        }
+    }
+}
+
 fn open_audio(core: &Core) -> Option<Audio> {
     Audio::open(core.av().timing.sample_rate).inspect_err(|e| eprintln!("audio: {e}")).ok()
 }
 
 // The screen lets go of the last frame first, since it can be a texture of the core's.
-fn quit_running(game: &mut Option<Game>, last_quit: &mut ResumeWrites, screen: &mut Option<Box<dyn Screen>>) {
+fn quit_running(
+    game: &mut Option<Game>,
+    last_quit: &mut ResumeWrites,
+    screen: &mut Option<Box<dyn Screen>>,
+    asleep: bool,
+) -> Option<Unloading> {
     if let Some(native) = screen {
         native.clear();
     }
-    if let Some(game) = game.take() {
-        *last_quit = ResumeWrites::after(game.quit());
+    let game = game.take()?;
+    if asleep {
+        let (writer, unloading) = game.quit_asleep();
+        *last_quit = ResumeWrites::after(writer);
+        return Some(unloading);
     }
+    *last_quit = ResumeWrites::after(game.quit());
+    None
 }
 
 fn running(game: &mut Option<Game>) -> Result<&mut Game, String> {
@@ -887,6 +1034,9 @@ fn frame_packet(played: u32, counts: pace::Counts, (width, height): (u32, u32), 
 }
 
 #[cfg(test)]
+mod shader_harness;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use crate::games_folder::GamesFolder;
@@ -894,8 +1044,8 @@ mod tests {
     use crate::clock;
     use crate::screen::Picture;
     use crate::test_games::{
-        boot_counting_rom, clock_rom, clock_save, counting_rom, days_on_the_clock, heartgold, lock_core, pattern,
-        stadium,
+        boot_counting_rom, clock_rom, clock_save, counting_rom, days_on_the_clock, heartgold, lock_core, node, pattern,
+        pokemon_x, pokemon_x_save, stadium,
     };
     use crate::writer;
     use std::time::Duration;
@@ -929,6 +1079,7 @@ mod tests {
             audio: None,
             on_frame: Channel::new(|_| Ok(())),
             watch,
+            main: None,
             clock: real_time(),
             writes,
             back_up: Box::new(|_, _| Ok(())),
@@ -969,7 +1120,7 @@ mod tests {
         (Game { writes, writer, ..game(core, watch) }, root.join("gb/Game/states"))
     }
 
-    fn quit(game: Game) {
+    pub(super) fn quit(game: Game) {
         tauri::async_runtime::block_on(game.quit()).unwrap();
     }
 
@@ -1025,23 +1176,33 @@ mod tests {
         }
 
         pub(crate) fn play_into(&self, root: &Path) {
+            self.play_rom_into(root, "gb/Game.gb", boot_counting_rom());
+        }
+
+        fn play_rom_into(&self, root: &Path, path: &'static str, rom: Rom) {
             let (writes, queued) = tokio_mpsc::unbounded_channel();
             let folder = GamesFolder::<tauri::Wry>::at(root.to_path_buf());
             let writer = tauri::async_runtime::spawn(async move {
-                let (slot, _) = save::open(&folder, "gb/Game.gb").await.unwrap();
-                writer::write_all(&folder, "gb/Game.gb", &slot, queued).await
+                let (slot, _) = save::open(&folder, path).await.unwrap();
+                writer::write_all(&folder, path, &slot, queued).await
             });
             let on_frame = Channel::new(|_| Ok(()));
             self.play_with(
                 root.display().to_string(),
-                "gb/Game.gb",
-                boot_counting_rom(),
+                path,
+                rom,
                 writes,
                 writer,
                 on_frame,
                 false,
                 Channel::new(|_| Ok(())),
             );
+        }
+
+        fn sleep(&self) {
+            let (done, slept) = oneshot::channel();
+            self.send(Command::Sleep { done });
+            block_on(slept).unwrap();
         }
 
         fn play_with(
@@ -1060,6 +1221,7 @@ mod tests {
                 folder,
                 path: path.into(),
                 rom,
+                update: None,
                 save: None,
                 state: None,
                 slot: None,
@@ -1096,6 +1258,12 @@ mod tests {
             let (done, finished) = oneshot::channel();
             self.send(Command::Step { frames, done });
             finished
+        }
+
+        fn screenshot(&self) -> Option<Vec<u8>> {
+            let (reply, result) = oneshot::channel();
+            self.send(Command::Screenshot { reply });
+            block_on(result).unwrap()
         }
 
         pub(crate) fn read_memory(&self, address: u32, length: u32) -> Result<Vec<u8>, String> {
@@ -1179,7 +1347,7 @@ mod tests {
         let Some(rom) = crate::test_games::stadium() else { return };
         let root = std::env::temp_dir().join(format!("pkh-emu-emu-stadium-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
-        let again = Rom { name: rom.name.clone(), bytes: rom.bytes.clone() };
+        let again = Rom { name: rom.name.clone(), bytes: rom.bytes.clone(), file: None };
         play_stadium_until_it_saves(&root, rom);
 
         assert_eq!(files_beside_the_rom(&root), [("Stadium.fla".to_string(), 0x20000)]);
@@ -1226,7 +1394,7 @@ mod tests {
     fn a_game_after_the_transfer_pak_gets_its_controller_pak_back() {
         let _lock = lock_core();
         let (Some(stadium), Some(red)) = (crate::test_games::stadium(), crate::test_games::red()) else { return };
-        let again = Rom { name: stadium.name.clone(), bytes: stadium.bytes.clone() };
+        let again = Rom { name: stadium.name.clone(), bytes: stadium.bytes.clone(), file: None };
         let mut game = stadium_with_a_cart("pak-after", stadium, red);
         game.play(60);
         quit(game);
@@ -1319,6 +1487,95 @@ mod tests {
         assert!(stopped.recv_timeout(Duration::from_millis(100)).is_err());
         drop(syncing);
         stopped.recv().unwrap();
+    }
+
+    #[test]
+    fn going_to_sleep_writes_the_save_and_resume_state_and_lends_the_game_to_sync() {
+        let _lock = lock_core();
+        let (index, _) = temp_index("emu-sleep");
+        let in_use = Arc::new(InUse::default());
+        let emu = lending(index, &in_use);
+        let root = std::env::temp_dir().join(format!("pkh-emu-emu-sleep-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        emu.play_into(&root);
+        emu.run_frames(30);
+
+        emu.sleep();
+
+        assert!(root.join("gb/Game.sav").exists());
+        assert!(root.join("gb/Game/states/resume.state").exists());
+        assert!(in_use.start_syncing("gb/Game.gb").is_some());
+        emu.send(Command::Wake);
+        emu.stop();
+    }
+
+    #[test]
+    fn holds_frames_while_asleep_and_runs_them_on_waking() {
+        let _lock = lock_core();
+        let (index, _) = temp_index("emu-sleep-step");
+        let emu = Emu::start(std::env::temp_dir(), index, Arc::default(), Box::new(|_, _| {}), Box::new(|_| {}));
+        emu.play("gb/Red.gb");
+        emu.run_frames(20);
+        emu.sleep();
+        let memory = emu.read_memory(0xC000, 1).unwrap();
+
+        let mut ran = emu.running_frames(10);
+
+        assert!(!finishes_soon(&mut ran));
+        assert_eq!(emu.read_memory(0xC000, 1).unwrap(), memory);
+        emu.send(Command::Wake);
+        block_on(ran).unwrap();
+        assert_ne!(emu.read_memory(0xC000, 1).unwrap(), memory);
+        emu.stop();
+    }
+
+    #[test]
+    fn quitting_asleep_leaves_the_resume_state_to_the_one_written_on_sleep() {
+        let _lock = lock_core();
+        let (index, _) = temp_index("emu-sleep-quit");
+        let emu = Emu::start(std::env::temp_dir(), index, Arc::default(), Box::new(|_, _| {}), Box::new(|_| {}));
+        let root = std::env::temp_dir().join(format!("pkh-emu-emu-sleep-quit-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        emu.play_into(&root);
+        emu.run_frames(30);
+        emu.sleep();
+        let states = root.join("gb/Game/states");
+        assert!(states.join("resume.state").exists());
+        std::fs::remove_dir_all(&states).unwrap();
+
+        emu.stop();
+
+        assert!(!states.join("resume.state").exists());
+        emu.send(Command::Wake);
+    }
+
+    // A debug build fails when the core's context is made current asleep, so this checks iOS's rule on the Mac.
+    #[test]
+    #[cfg(target_arch = "aarch64")]
+    fn an_n64_game_sleeps_wakes_and_quits_asleep_without_its_gl_context() {
+        let _lock = lock_core();
+        let Some(rom) = stadium() else { return };
+        let (index, _) = temp_index("emu-sleep-n64");
+        let emu = Emu::start(std::env::temp_dir(), index, Arc::default(), Box::new(|_, _| {}), Box::new(|_| {}));
+        let root = std::env::temp_dir().join(format!("pkh-emu-emu-sleep-n64-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        emu.play_rom_into(&root, STADIUM, rom);
+        emu.run_frames(60);
+
+        for _ in 0..10 {
+            emu.sleep();
+            emu.send(Command::Wake);
+            emu.run_frames(5);
+        }
+        emu.sleep();
+        emu.stop();
+
+        let states = root.join("n64/Stadium/states");
+        assert!(states.join("resume.state").exists());
+        assert!(states.join("resume.png").exists());
+        emu.send(Command::Wake);
+        emu.play("gb/Red.gb");
+        emu.stop();
     }
 
     #[test]
@@ -1427,6 +1684,22 @@ mod tests {
         emu.run_frames(1);
         assert_ne!(emu.read_memory(0xC000, 1).unwrap(), first);
         emu.stop();
+    }
+
+    #[test]
+    fn shows_the_running_game_s_last_frame_as_a_png() {
+        let _lock = lock_core();
+        let (index, _) = temp_index("emu-screenshot");
+        let emu = Emu::start(std::env::temp_dir(), index, Arc::default(), Box::new(|_, _| {}), Box::new(|_| {}));
+        assert_eq!(emu.screenshot(), None);
+        emu.play("gb/Red.gb");
+        emu.run_frames(1);
+
+        let png = emu.screenshot().unwrap();
+
+        assert_eq!(&png[1..4], b"PNG");
+        emu.stop();
+        assert_eq!(emu.screenshot(), None);
     }
 
     #[test]
@@ -1563,6 +1836,21 @@ mod tests {
     }
 
     #[test]
+    fn quitting_before_a_frame_runs_keeps_the_resume_files() {
+        let _lock = lock_core();
+        let (game, states) = writing_to("quit-unplayed", start_rom(counting_rom(), &pattern(0x8030, 1)), save::Watch::new());
+        std::fs::create_dir_all(&states).unwrap();
+        std::fs::write(states.join("resume.state"), b"resumed from").unwrap();
+        std::fs::write(states.join("resume.json"), b"{}").unwrap();
+
+        quit(game);
+
+        assert_eq!(std::fs::read(states.join("resume.state")).unwrap(), b"resumed from");
+        assert_eq!(std::fs::read(states.join("resume.json")).unwrap(), b"{}");
+        assert!(!states.join("resume.png").exists());
+    }
+
+    #[test]
     fn counts_play_since_save_from_the_last_save_write() {
         let _lock = lock_core();
         let (mut game, states) = writing_to("since-save", start_rom(counting_rom(), &pattern(0x8030, 1)), save::Watch::new());
@@ -1579,7 +1867,8 @@ mod tests {
     #[test]
     fn writes_the_core_that_made_the_resume_state() {
         let _lock = lock_core();
-        let (game, states) = writing_to("resume-core", start_rom(counting_rom(), &pattern(0x8030, 1)), save::Watch::new());
+        let (mut game, states) = writing_to("resume-core", start_rom(counting_rom(), &pattern(0x8030, 1)), save::Watch::new());
+        game.play(1);
 
         quit(game);
 
@@ -1870,6 +2159,7 @@ mod tests {
     fn forgets_the_slot_it_was_playing_from_once_deleted() {
         let _lock = lock_core();
         let (mut game, states) = writing_to("forget-slot", start_rom(counting_rom(), &pattern(0x8030, 1)), save::Watch::new());
+        game.play(1);
         save_to(&mut game, 4);
 
         game.forget_slot(2);
@@ -1883,7 +2173,8 @@ mod tests {
     #[test]
     fn writes_no_slot_into_the_resume_info_of_a_started_game() {
         let _lock = lock_core();
-        let (game, states) = writing_to("no-slot", start_rom(counting_rom(), &pattern(0x8030, 1)), save::Watch::new());
+        let (mut game, states) = writing_to("no-slot", start_rom(counting_rom(), &pattern(0x8030, 1)), save::Watch::new());
+        game.play(1);
 
         quit(game);
 
@@ -2010,6 +2301,178 @@ mod tests {
         assert!(save_memory(&mut game.core) == loaded.save, "the cart's save isn't the slot's copy");
     }
 
+    #[test]
+    fn a_3ds_save_the_game_writes_reaches_the_games_folder_within_a_second() {
+        use save::three_ds::tests::{format, main_path, X, X_SIZE};
+        let _lock = lock_core();
+        let root = std::env::temp_dir().join(format!("pkh-emu-emu-3ds-watch-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let azahar = root.join("Azahar");
+        format(&azahar, X, X_SIZE);
+        let mut main = Main::of(X, &azahar).unwrap();
+        main.place(Some(&pattern(X_SIZE, 1))).unwrap();
+        let (mut game, _) = writing_into(root.join("games"), start_rom(counting_rom(), &[]), save::Watch::new());
+        game.main = Some(main);
+        game.play(45);
+        assert_eq!(std::fs::read(root.join("games/gb/Game.sav")).ok(), None);
+
+        let mut file = std::fs::File::create(main_path(&azahar, X)).unwrap();
+        std::io::Write::write_all(&mut file, &pattern(X_SIZE, 2)).unwrap();
+        file.set_modified(SystemTime::now() + Duration::from_secs(5)).unwrap();
+        drop(file);
+        game.play(60);
+
+        assert_eq!(flushed(&game, &root.join("games/gb/Game.sav")), pattern(X_SIZE, 2));
+        quit(game);
+    }
+
+    #[test]
+    fn a_3ds_state_waits_until_the_game_has_formatted_its_save_data() {
+        use save::three_ds::tests::{X, X_SIZE};
+        let _lock = lock_core();
+        let azahar = std::env::temp_dir().join(format!("pkh-emu-emu-3ds-waiting-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&azahar);
+        let mut main = Main::of(X, &azahar).unwrap();
+        main.place(Some(&pattern(X_SIZE, 1))).unwrap();
+        let mut game = Game { main: Some(main), ..game(start_rom(counting_rom(), &[]), save::Watch::new()) };
+        let loaded = Loaded { state: game.core.serialize().unwrap(), save: pattern(X_SIZE, 2), ..rejected() };
+
+        assert!(game.load_slot(1, &loaded).is_err());
+        assert_eq!(game.main.as_ref().unwrap().bytes(), pattern(X_SIZE, 1));
+    }
+
+    // Pokémon X keeps its party at 0x14200 in main, 0x104 bytes a Pokémon, and its RAM holds the same bytes.
+    const X_PARTY: std::ops::Range<usize> = 0x14200..0x14304;
+
+    pub(super) fn playing_pokemon_x(root: &Path, rom: Rom, save: &[u8]) -> Game {
+        let azahar = retro::azahar_dir(&std::env::temp_dir());
+        let _ = std::fs::remove_dir_all(azahar.join("sdmc/Nintendo 3DS"));
+        let folder = GamesFolder::<tauri::Wry>::at(root.to_path_buf());
+        block_on(folder.write("3ds/X.sav", save)).unwrap();
+        let (slot, read) = block_on(save::open(&folder, "3ds/X.3ds")).unwrap();
+        let main = save::three_ds::placed(&rom, read.as_deref(), &azahar).unwrap();
+        let clock = Clock::new(&rom, 0);
+        let (core, watch) = load(rom, read, None, &clock, &std::env::temp_dir(), None).unwrap();
+        let (writes, queued) = tokio_mpsc::unbounded_channel();
+        let writer =
+            tauri::async_runtime::spawn(async move { writer::write_all(&folder, "3ds/X.3ds", &slot, queued).await });
+        Game { path: "3ds/X.3ds".into(), platform: Platform::ThreeDs, clock, main, writes, writer, ..game(core, watch) }
+    }
+
+    fn continue_pokemon_x(game: &mut Game) {
+        for frame in 0..1800 {
+            retro::set_input(if frame >= 300 && frame % 60 < 6 { 1 << 8 } else { 0 });
+            game.run_frame();
+        }
+        retro::set_input(0);
+    }
+
+    fn flushed(game: &Game, save: &Path) -> Vec<u8> {
+        let (done, flushed) = oneshot::channel();
+        game.write(Write::Flush(done));
+        block_on(flushed).unwrap();
+        std::fs::read(save).unwrap()
+    }
+
+    fn azahar_ram(state: &[u8]) -> Vec<u8> {
+        use std::io::Read;
+        let magic = [0x28, 0xB5, 0x2F, 0xFD];
+        let start = state.windows(4).position(|window| window == magic).expect("the state has no zstd frame");
+        let mut ram = Vec::new();
+        let mut frames = &state[start..];
+        while frames.starts_with(&magic) {
+            let mut decoder = ruzstd::decoding::StreamingDecoder::new(&mut frames).unwrap();
+            decoder.read_to_end(&mut ram).unwrap();
+        }
+        ram
+    }
+
+    fn contains(haystack: &[u8], needle: &[u8]) -> bool {
+        haystack.windows(needle.len()).any(|window| window == needle)
+    }
+
+    #[test]
+    #[cfg(target_arch = "aarch64")]
+    #[ignore = "needs Node and the app's npm packages"]
+    fn pokemon_x_plays_from_the_placed_save_and_restarts_on_an_edit() {
+        let _lock = lock_core();
+        let (Some(rom), Some(save)) = (pokemon_x(), pokemon_x_save()) else { return };
+        let root = std::env::temp_dir().join(format!("pkh-emu-emu-pokemon-x-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let mut game = playing_pokemon_x(&root, rom, &save);
+        continue_pokemon_x(&mut game);
+        assert_eq!(flushed(&game, &root.join("3ds/X.sav")), save, "the game replaced its save");
+
+        let dir = root.join("engine");
+        std::fs::create_dir_all(&dir).unwrap();
+        let (before, edited) = (dir.join("before.sav"), dir.join("edited.sav"));
+        std::fs::write(&before, game.read_save().unwrap()).unwrap();
+        let level = node("engine.mjs", &[before.as_ref()]).parse::<u8>().unwrap();
+        node("engine.mjs", &[before.as_ref(), (level + 1).to_string().as_ref(), edited.as_ref()]);
+        let edited = std::fs::read(&edited).unwrap();
+        game.apply(&edited).unwrap();
+        assert_eq!(flushed(&game, &root.join("3ds/X.sav")), edited);
+        continue_pokemon_x(&mut game);
+
+        let ram = azahar_ram(&game.core.serialize().unwrap());
+        assert!(contains(&ram, &edited[X_PARTY]), "the game didn't load the edited Pokémon");
+        assert!(!contains(&ram, &save[X_PARTY]), "the game still holds the Pokémon from before the edit");
+        assert_eq!(flushed(&game, &root.join("3ds/X.sav")), edited);
+        quit(game);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    // Pokémon X ends main with a checksum for each block, and its RAM holds the checksums too.
+    const X_CHECKSUMS: std::ops::Range<usize> = 0x65400..0x65600;
+
+    fn save_pokemon_x(game: &mut Game) {
+        let [a, down, x] = [1 << 8, 1 << 5, 1 << 9];
+        for (button, wait) in [(x, 60), (down, 20), (down, 20), (a, 90), (a, 90), (a, 400)] {
+            retro::set_input(button);
+            game.play(6);
+            retro::set_input(0);
+            game.play(wait);
+        }
+    }
+
+    #[test]
+    #[cfg(target_arch = "aarch64")]
+    fn a_pokemon_x_state_brings_back_the_game_and_the_save_from_before_an_in_game_save() {
+        use save::three_ds::tests::{main_path, X};
+        let _lock = lock_core();
+        let (Some(rom), Some(save)) = (pokemon_x(), pokemon_x_save()) else { return };
+        let root = std::env::temp_dir().join(format!("pkh-emu-emu-pokemon-x-state-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let mut game = playing_pokemon_x(&root, rom, &save);
+        continue_pokemon_x(&mut game);
+        let (written, state_saved) = oneshot::channel();
+        game.save_state(1, written);
+        block_on(state_saved).unwrap().unwrap();
+
+        save_pokemon_x(&mut game);
+        let newer = flushed(&game, &root.join("3ds/X.sav"));
+        assert_ne!(newer, save, "the game didn't save");
+        let folder = GamesFolder::<tauri::Wry>::at(root.clone());
+        let loaded = block_on(states::read(&folder, "3ds/X.3ds", 1, &game.core.info())).unwrap();
+        game.load_slot(1, &loaded).unwrap();
+
+        let ram = azahar_ram(&game.core.serialize().unwrap());
+        let rows = X_CHECKSUMS.step_by(16).map(|start| start..start + 16);
+        let changed: Vec<_> = rows.filter(|row| save[row.clone()] != newer[row.clone()]).collect();
+        assert!(!changed.is_empty());
+        assert!(changed.iter().all(|row| contains(&ram, &save[row.clone()])), "the game isn't the one from the state");
+        assert!(
+            changed.iter().all(|row| !contains(&ram, &newer[row.clone()])),
+            "the game still holds its in-game save"
+        );
+        let azahar = retro::azahar_dir(&std::env::temp_dir());
+        assert_eq!(std::fs::read(main_path(&azahar, X)).unwrap(), save);
+        game.play(120);
+        assert_eq!(flushed(&game, &root.join("3ds/X.sav")), save);
+        quit(game);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
     const WRITE_AB_TO_C100: &str = "01AB00C1";
 
     fn code(text: &str, on: bool) -> Code {
@@ -2065,6 +2528,7 @@ mod tests {
             folder: String::new(),
             path: "gb/Red.gb".into(),
             rom: counting_rom(),
+            update: None,
             save: None,
             state: None,
             slot: None,

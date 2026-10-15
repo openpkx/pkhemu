@@ -3,6 +3,8 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 export type PlusStatus =
   { state: "unlocked" } | { state: "owned" } | { state: "notOwned"; price: string } | { state: "unavailable" };
 
+export type PlusState = PlusStatus["state"];
+
 export type Bought = "purchased" | "pending" | "cancelled";
 
 export type PlusHost = {

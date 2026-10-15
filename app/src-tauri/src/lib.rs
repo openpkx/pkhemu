@@ -32,12 +32,15 @@ mod retro;
 mod rom;
 mod save;
 mod screen;
+mod skins;
 mod states;
 mod sync;
 mod system_bars;
 #[cfg(test)]
 mod test_games;
+mod three_ds;
 mod transfer_pak;
+mod vulkan;
 mod writer;
 
 use backups::Reason;
@@ -49,14 +52,15 @@ use memory::Range;
 use rom::StateName;
 use game_art::GameArt;
 use serde::{Deserialize, Serialize};
+use std::io::Seek;
 use std::sync::Arc;
 use tauri::ipc::{Channel, InvokeBody, InvokeResponseBody, Request, Response};
 use tauri::{AppHandle, Emitter, Manager, Runtime, State};
 use tokio::sync::{mpsc, oneshot};
 
 #[tauri::command]
-fn core_info() -> retro::CoreInfo {
-    retro::core_info()
+async fn three_ds_renderer() -> &'static str {
+    retro::three_ds_renderer()
 }
 
 #[tauri::command]
@@ -68,12 +72,14 @@ async fn play<R: Runtime>(
     path: String,
     resume: bool,
     clock_offset: i64,
+    async_shaders: bool,
     on_frame: Channel<InvokeResponseBody>,
     on_step: Channel<String>,
     native: bool,
     on_native_failed: Channel<()>,
 ) -> Result<f64, String> {
     stop_game(&emu).await?;
+    retro::set_async_shaders(async_shaders);
     let in_use = app.state::<sync::Syncer>().in_use.clone();
     let cart = transfer_pak::cart(&GamesFolder::open(&app, &folder), &path)
         .await
@@ -118,7 +124,20 @@ async fn start_game<R: Runtime>(
 ) -> Result<f64, String> {
     let games = GamesFolder::open(&app, &folder);
     let _ = on_step.send("rom".into());
-    let rom = rom::unpack(&path, games.read(&path).await?)?;
+    let rom = match retro::needs_path(cheats::Platform::of_path(&path)?.into())? {
+        true => rom::Rom::at(&path, games.open_for_core(&path).await?),
+        false => rom::unpack(&path, games.read(&path).await?)?,
+    };
+    let mut update = None;
+    if let Some(file) = rom.file.as_ref().filter(|_| rom::is_3ds(&path)) {
+        let mut open = &file.open;
+        three_ds::title_id(&mut open).map_err(|refused| refused.message(&rom::game_name(&path)))?;
+        open.rewind().map_err(|e| format!("{path}: {e}"))?;
+        let update_path = three_ds::update::path(&path);
+        if games.has_file(&update_path).await {
+            update = Some(games.open_file(&update_path).await?);
+        }
+    }
     let clock = Clock::new(&rom, clock_offset);
     let cheats = cheats::read(&games, &path).await.unwrap_or_else(|e| {
         eprintln!("{e}");
@@ -166,6 +185,7 @@ async fn start_game<R: Runtime>(
         folder,
         path,
         rom,
+        update,
         save,
         state,
         slot: state_slot,
@@ -294,6 +314,12 @@ async fn resume_screenshot<R: Runtime>(
     Ok(resume::screenshot_file(&GamesFolder::open(&app, &folder), &path).await)
 }
 
+// Unlike resume_screenshot, leaves a running game alone, so a game still writing its resume state shows the one before.
+#[tauri::command]
+async fn last_screenshot<R: Runtime>(app: AppHandle<R>, folder: String, path: String) -> Option<Vec<u8>> {
+    resume::screenshot_file(&GamesFolder::open(&app, &folder), &path).await
+}
+
 #[tauri::command]
 async fn resume_info<R: Runtime>(
     app: AppHandle<R>,
@@ -336,6 +362,13 @@ async fn stop(emu: State<'_, Emu>) -> Result<(), String> {
 async fn play_time_since_save(emu: State<'_, Emu>) -> Result<Option<f64>, String> {
     let (reply, result) = oneshot::channel();
     emu.send(Command::PlayTimeSinceSave { reply });
+    result.await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+async fn paused_screenshot(emu: State<'_, Emu>) -> Result<Option<Vec<u8>>, String> {
+    let (reply, result) = oneshot::channel();
+    emu.send(Command::Screenshot { reply });
     result.await.map_err(|e| e.to_string())
 }
 
@@ -607,7 +640,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            core_info,
+            three_ds_renderer,
             play,
             has_resume_state,
             resume_preview,
@@ -623,6 +656,8 @@ pub fn run() {
             set_input,
             stop,
             play_time_since_save,
+            paused_screenshot,
+            last_screenshot,
             read_save,
             read_memory,
             apply_edit,
@@ -653,6 +688,8 @@ pub fn run() {
             index::keep_save_summary,
             kept_copies::kept_copies,
             kept_copies::keep_copies,
+            skins::skins,
+            skins::choose_skin,
             index::save_had_cheats,
             games_folder::platform::games_folder_pick,
             games_folder::platform::games_folder_make,
@@ -667,13 +704,16 @@ pub fn run() {
             import::import_pick_folder,
             import::import_scan,
             import::import_sha1s,
+            import::import_title_ids,
             import::import_rom,
+            import::three_ds_update,
             import::import_demo,
             import::import_existing_save,
             import::import_save,
             pokemon_file::platform::pokemon_file_pick,
             patching::patch_pick,
             patching::patch_dropped,
+            patching::patch_bases,
             patching::patch_base_build,
             patching::rom_game_name,
             patching::patch_check_name,

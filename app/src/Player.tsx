@@ -1,19 +1,22 @@
-import { useEffect, useRef, useState, type PointerEvent } from "react";
+import { useEffect, useRef, useState, type PointerEvent, type ReactNode } from "react";
 import { Channel, invoke } from "@tauri-apps/api/core";
 import { cn } from "cn";
 import { Progress } from "@/components/ui/progress";
 import type { Speed } from "./fast-forward/fastForward";
-import { origin, type Point, type Shell, type Size } from "./fit";
+import { origin, type Point, type Size } from "./fit";
 import { createFpsCounter, type Rates } from "./fps-counter/fpsCounter";
 import { useGameSurface, type Renderer } from "./game-surface/gameSurface";
-import { useGravity } from "./gravity/gravity";
+import { useCanTilt, useGravity } from "./gravity/gravity";
 import type { Input } from "./input/input";
 import { useExperiment } from "./lab/lab";
 import { useReducedMotion } from "./motion/motion";
-import { TILT, tilt, type Tilt } from "./motion/tilt";
+import { tilt, type Tilt } from "./motion/tilt";
+import { usePreferences } from "./preferences/preferences";
+import { parallax, rgb, shellIn, shellLook } from "./recess";
 import { createScreen, type Frame, type Look, type Parallax, type Rgb } from "./screen";
-import { dualScreen, pointerAt, singleScreen, type Layout, type Rect } from "./screens";
-import type { HandheldDisplay, HandheldWindow } from "./systems";
+import { dualScreen, pointerAt, singleScreen, type Layout, type Rect, type Screens } from "./screens";
+import { useAsyncShaders } from "./shaders/shaders";
+import type { HandheldDisplay } from "./systems";
 import { useVisible } from "./visible";
 
 const HEADER_BYTES = 16;
@@ -27,35 +30,21 @@ const STEPS: Record<Step, { text: string; value: number }> = {
   core: { text: "Starting the game…", value: 100 },
 };
 
-const PLATE_SHADE = 0.3;
-
 type SentInput = { input: number; analog: number[]; pointer: [number, number] | null };
 const released: SentInput = { input: 0, analog: [0, 0, 0, 0], pointer: null };
 
-// Whole pixels, because a shift by part of one would resample the game's pixels unevenly as it moves.
-function inPixels(dp: Point, mostDp: number): Point {
-  const most = Math.round(mostDp * devicePixelRatio);
-  const pixels = (value: number) => Math.max(-most, Math.min(most, Math.round(value * devicePixelRatio)));
-  return { x: pixels(dp.x), y: pixels(dp.y) };
-}
-
-function parallax(windows: HandheldWindow[], dp: Point): Parallax[] {
-  return windows.map(({ depth }) => {
-    const deep = { x: dp.x * depth, y: dp.y * depth };
-    return {
-      shift: inPixels(deep, TILT.maxDp * depth),
-      exact: { x: deep.x * devicePixelRatio, y: deep.y * devicePixelRatio },
-      lean: { x: deep.x / TILT.maxDp, y: deep.y / TILT.maxDp },
-    };
-  });
-}
-
-function rgb(hex: string): Rgb {
-  const value = parseInt(hex.trim().slice(1), 16);
-  return [(value >> 16) / 255, ((value >> 8) & 0xff) / 255, (value & 0xff) / 255];
-}
-
 const black: Rgb = [0, 0, 0];
+
+function openings(layout: Layout, canvas: Element): Rect[] {
+  const box = canvas.getBoundingClientRect();
+  const edge = layout.border;
+  return layout.views.map(({ target }) => ({
+    x: box.x + (target.x - edge) / devicePixelRatio,
+    y: box.y + (target.y - edge) / devicePixelRatio,
+    width: (target.width + 2 * edge) / devicePixelRatio,
+    height: (target.height + 2 * edge) / devicePixelRatio,
+  }));
+}
 
 function inDevicePixels(element: Element): Rect {
   const { x, y, width, height } = element.getBoundingClientRect();
@@ -76,17 +65,6 @@ function onSurface(layout: Layout, look: Look | undefined, canvas: Element, area
   };
 }
 
-function shellLook(element: Element, display: HandheldDisplay, glass: boolean): Look {
-  const style = getComputedStyle(element);
-  return {
-    shell: rgb(style.getPropertyValue("--pad")),
-    plate: rgb(style.getPropertyValue("--pad-border")).map((channel) => channel * PLATE_SHADE) as Rgb,
-    dp: devicePixelRatio,
-    radius: display.radiusDp * devicePixelRatio,
-    glass,
-  };
-}
-
 // A late stop would end the next game, and a play racing a stop could read a half-written save.
 let lifecycle: Promise<unknown> = Promise.resolve();
 function inOrder<T>(run: () => Promise<T>): Promise<T> {
@@ -102,12 +80,14 @@ export function Player({
   speed,
   input,
   paused,
-  dual,
+  screens,
   display,
+  wall,
   swapped,
   clockOffset,
   renderer,
   onStacked,
+  onWindows,
   onStarted,
   onFps,
   onNativeFailed,
@@ -115,6 +95,8 @@ export function Player({
   cover,
   holdMessage,
   className,
+  clearance,
+  children,
 }: {
   folder: string;
   path: string;
@@ -122,12 +104,16 @@ export function Player({
   input: Input;
   speed: Speed;
   paused: boolean;
-  dual: boolean;
+  screens?: Screens;
   display?: HandheldDisplay;
+  /** The colour of the shell's walls around the opening, given only while the game sits in the shell. */
+  wall?: string;
   swapped: boolean;
   clockOffset: number;
   renderer: Renderer;
   onStacked?(stacked: boolean): void;
+  /** Where the page has to leave the native surface showing, in CSS pixels on the page. */
+  onWindows?(windows: Rect[] | undefined): void;
   onStarted?(): Promise<void>;
   onFps?(rates: Rates): void;
   onNativeFailed?(): void;
@@ -135,24 +121,41 @@ export function Player({
   cover?: string;
   holdMessage?: string;
   className?: string;
+  /** Padding that keeps the screens clear of controls at the sides. Two screens side by side only need it on one side. */
+  clearance?: string;
+  /** Drawn under the screen, such as the skin's printing. */
+  children?: ReactNode;
 }) {
   const container = useRef<HTMLDivElement>(null);
+  const screenBox = useRef<HTMLDivElement>(null);
   const canvas = useRef<HTMLCanvasElement>(null);
   const steady = useExperiment("steadyFastForward") === "on";
   const blend = useExperiment("motionBlur") === "on";
+  const asyncShaders = useAsyncShaders();
+  const currentAsyncShaders = useRef(asyncShaders);
+  currentAsyncShaders.current = asyncShaders;
   const visible = useVisible();
-  const tiltOn = useExperiment("tiltScreen") === "on";
-  const tilting = tiltOn && !useReducedMotion(tiltOn);
+  const { screenDepth, screenGlass } = usePreferences().preferences;
+  const canTilt = useCanTilt();
+  const tiltOn = screenDepth && canTilt;
+  const reduced = useReducedMotion(tiltOn);
+  const tilting = tiltOn && !reduced;
   const currentlyTilting = useRef(tilting);
   currentlyTilting.current = tilting;
-  const currentGlass = useRef(false);
-  currentGlass.current = useExperiment("displayGlass") === "on";
+  const currentWall = useRef(wall);
+  currentWall.current = wall;
+  const currentGlass = useRef(screenGlass);
+  currentGlass.current = screenGlass;
   const currentlyPaused = useRef(paused);
   currentlyPaused.current = paused;
   const currentlySwapped = useRef(swapped);
   currentlySwapped.current = swapped;
+  const currentClearance = useRef(clearance);
+  currentClearance.current = clearance;
   const currentOnStacked = useRef(onStacked);
   currentOnStacked.current = onStacked;
+  const currentOnWindows = useRef(onWindows);
+  currentOnWindows.current = onWindows;
   const currentOnStarted = useRef(onStarted);
   currentOnStarted.current = onStarted;
   const currentOnFps = useRef(onFps);
@@ -201,7 +204,9 @@ export function Player({
     let stopped = false;
     let wasPaused = false;
     let shownSwapped = currentlySwapped.current;
+    let shownClearance = currentClearance.current;
     let shownGlass = currentGlass.current;
+    let shownWall = currentWall.current;
     let shownTilt: Point | undefined;
     let windows: Parallax[] = [];
     let drawn = false;
@@ -219,15 +224,24 @@ export function Player({
     };
 
     const layOut = () => {
-      if (latest && (resized || shownSwapped !== currentlySwapped.current || shownGlass !== currentGlass.current)) {
+      const changed =
+        shownSwapped !== currentlySwapped.current ||
+        shownClearance !== currentClearance.current ||
+        shownGlass !== currentGlass.current ||
+        shownWall !== currentWall.current;
+      if (latest && (resized || changed)) {
         shownSwapped = currentlySwapped.current;
+        shownClearance = currentClearance.current;
         shownGlass = currentGlass.current;
-        const shell: Shell | undefined =
-          display && matchMedia("(orientation: portrait)").matches
-            ? { border: Math.round(display.marginDp * devicePixelRatio), gap: Math.round(display.gapDp * devicePixelRatio) }
-            : undefined;
-        layout.current = dual ? dualScreen(latest, space, shownSwapped, shell) : singleScreen(latest, space, shell);
-        look = display && shell ? shellLook(container.current!, display, shownGlass) : undefined;
+        shownWall = currentWall.current;
+        const shell = display && shownWall ? shellIn(display) : undefined;
+        // The clearance pads the screens' box, not the measured space, so whether they stack doesn't feed back into the space.
+        const padding = getComputedStyle(screenBox.current!);
+        const clear = (Math.max(parseFloat(padding.paddingLeft), parseFloat(padding.paddingRight)) || 0) * devicePixelRatio;
+        layout.current = screens
+          ? dualScreen(latest, screens, space, shownSwapped, shell, clear)
+          : singleScreen(latest, space, shell);
+        look = display && shownWall ? shellLook(display, rgb(shownWall), shownGlass) : undefined;
         lean(tiltState?.shift ?? origin);
         setRecessed(!!look);
         const size = layout.current.canvas;
@@ -241,6 +255,7 @@ export function Player({
           const surface = onSurface(layout.current, look, canvas.current!, container.current!);
           invoke("set_screen", { layout: surface }).catch((error) => console.error(error));
         }
+        currentOnWindows.current?.(drawnNatively && look ? openings(layout.current, canvas.current!) : undefined);
       }
     };
 
@@ -290,6 +305,7 @@ export function Player({
         path,
         resume,
         clockOffset: currentClockOffset.current,
+        asyncShaders: await currentAsyncShaders.current,
         onFrame: frames,
         onStep: steps,
         native: nativeAsked,
@@ -345,6 +361,7 @@ export function Player({
     return () => {
       stopped = true;
       setNative(false);
+      currentOnWindows.current?.(undefined);
       cancelAnimationFrame(raf);
       observer.disconnect();
       themeObserver.disconnect();
@@ -353,7 +370,7 @@ export function Player({
       nativeFailed.onmessage = () => {};
       inOrder(() => invoke("stop")).catch((error) => console.error(error));
     };
-  }, [folder, path, resume, input, dual, display, held, nativeAsked]);
+  }, [folder, path, resume, input, screens, display, held, nativeAsked]);
 
   const pointedAt = (event: PointerEvent<HTMLCanvasElement>) => {
     const box = event.currentTarget.getBoundingClientRect();
@@ -371,26 +388,29 @@ export function Player({
       ref={container}
       className={cn(
         "relative flex min-h-0 flex-1 items-center justify-center overflow-hidden",
-        !nativeShown && (recessed ? "bg-pad" : "bg-black"),
+        !nativeShown && !recessed && "bg-black",
         className,
       )}
     >
-      <canvas
-        ref={canvas}
-        className="touch-none select-none [image-rendering:pixelated]"
-        onPointerDown={(event) => {
-          const at = event.button === 0 ? pointedAt(event) : undefined;
-          if (!at) return;
-          event.currentTarget.setPointerCapture(event.pointerId);
-          touching.current = event.pointerId;
-          input.touchScreen(at);
-        }}
-        onPointerMove={(event) => event.pointerId === touching.current && input.touchScreen(pointedAt(event))}
-        onPointerUp={release}
-        onPointerCancel={release}
-        onLostPointerCapture={release}
-        onContextMenu={(event) => event.preventDefault()}
-      />
+      <div ref={screenBox} data-screen className={cn("relative flex", clearance)}>
+        <canvas
+          ref={canvas}
+          className="touch-none select-none [image-rendering:pixelated]"
+          onPointerDown={(event) => {
+            const at = event.button === 0 ? pointedAt(event) : undefined;
+            if (!at) return;
+            event.currentTarget.setPointerCapture(event.pointerId);
+            touching.current = event.pointerId;
+            input.touchScreen(at);
+          }}
+          onPointerMove={(event) => event.pointerId === touching.current && input.touchScreen(pointedAt(event))}
+          onPointerUp={release}
+          onPointerCancel={release}
+          onLostPointerCapture={release}
+          onContextMenu={(event) => event.preventDefault()}
+        />
+        {children}
+      </div>
       {!started && (
         <>
           {cover && (

@@ -6,7 +6,9 @@ import { CalibrationsProvider, type CalibrationsHost } from "@/input/calibration
 import { fakePads } from "@/input/fakePads";
 import { buttons, createInput } from "@/input/input";
 import { PadNavigation } from "@/pad-navigation/PadNavigation";
-import { ControllersSettings } from "./ControllersSettings";
+import { PreferencesProvider, type Preferences, type PreferencesHost } from "@/preferences/preferences";
+import { defaultSkins } from "@/skins";
+import { ControlsSettings } from "./ControlsSettings";
 
 const HAT_NEUTRAL = 1.285714;
 const HAT_UP = -1;
@@ -15,6 +17,8 @@ const HAT_DOWN = 0.142857;
 const HAT_LEFT = 0.714286;
 const STEPS = 19;
 const LEFT_STICK = 15;
+
+const defaults: Preferences = { touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic", skins: defaultSkins, skinHintSeen: false, screenDepth: true, screenGlass: true, asyncShaders: false };
 
 let pads: ReturnType<typeof fakePads>;
 
@@ -32,7 +36,7 @@ afterEach(() => {
 const connectOddPad = () => pads.connect({ id: "Odd Pad", mapping: "", axes: [0, 0, HAT_NEUTRAL, -1, -1] });
 type Pad = ReturnType<typeof connectOddPad>;
 
-async function openSettings(stored?: Calibrations, { withNavigation = false } = {}) {
+async function openSettings(stored?: Calibrations, { withNavigation = false, touchControls = false } = {}) {
   let saved: unknown = stored;
   const host: CalibrationsHost = {
     load: async () => saved,
@@ -40,16 +44,25 @@ async function openSettings(stored?: Calibrations, { withNavigation = false } = 
       saved = calibrations;
     }),
   };
+  let preferences: Partial<Preferences> = { touchControls };
+  const preferencesHost: PreferencesHost = {
+    load: async () => preferences,
+    save: async (next) => {
+      preferences = next;
+    },
+  };
   render(
     <BackProvider>
-      <CalibrationsProvider host={host}>
-        {withNavigation && <PadNavigation input={createInput(pads.gamepads)} />}
-        <ControllersSettings />
-      </CalibrationsProvider>
+      <PreferencesProvider host={preferencesHost} defaults={defaults}>
+        <CalibrationsProvider host={host}>
+          {withNavigation && <PadNavigation input={createInput(pads.gamepads)} />}
+          <ControlsSettings />
+        </CalibrationsProvider>
+      </PreferencesProvider>
     </BackProvider>,
   );
   await act(async () => {});
-  return { saved: () => parseCalibrations(saved), save: host.save };
+  return { saved: () => parseCalibrations(saved), save: host.save, preferences: () => preferences };
 }
 
 function configure(id: string) {
@@ -72,6 +85,36 @@ async function skipRightStick() {
   for (let i = 0; i < 2; i++) fireEvent.click(screen.getByRole("button", { name: "Skip" }));
   await act(async () => {});
 }
+
+it("turns touch controls on", async () => {
+  const { preferences } = await openSettings();
+  const toggle = screen.getByRole("switch", { name: "Touch controls" });
+  expect(toggle.getAttribute("aria-checked")).toBe("false");
+
+  await act(async () => fireEvent.click(toggle));
+
+  expect(toggle.getAttribute("aria-checked")).toBe("true");
+  expect(preferences().touchControls).toBe(true);
+});
+
+it("shows Stick sensitivity only while touch controls are on", async () => {
+  await openSettings();
+  expect(screen.queryByRole("radiogroup", { name: "Stick sensitivity" })).toBeNull();
+
+  await act(async () => fireEvent.click(screen.getByRole("switch", { name: "Touch controls" })));
+
+  expect(screen.getByRole("radiogroup", { name: "Stick sensitivity" })).toBeTruthy();
+});
+
+it("raises the stick sensitivity", async () => {
+  const { preferences } = await openSettings(undefined, { touchControls: true });
+  const high = within(screen.getByRole("radiogroup", { name: "Stick sensitivity" })).getByRole("radio", { name: "High" });
+
+  await act(async () => fireEvent.click(high));
+
+  expect(high.getAttribute("aria-checked")).toBe("true");
+  expect(preferences().stickSensitivity).toBe(1.5);
+});
 
 it("lists connected controllers", async () => {
   connectOddPad();

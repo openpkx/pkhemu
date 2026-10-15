@@ -4,6 +4,7 @@
 pub mod platform;
 
 use crate::gl::{self, GLenum, GLint, GLsizei, GLuint, ScreenContext, Window};
+use crate::vulkan;
 use serde::Deserialize;
 use std::ffi::{c_char, c_void, CString};
 use std::sync::{mpsc, Mutex};
@@ -170,6 +171,7 @@ pub struct Parallax {
 pub enum Picture<'a> {
     Pixels { width: u32, height: u32, pixels: &'a [u16] },
     Texture(Texture),
+    Image(vulkan::Frame),
 }
 
 impl Picture<'_> {
@@ -177,6 +179,7 @@ impl Picture<'_> {
         match self {
             Picture::Pixels { width, height, .. } => (*width, *height),
             Picture::Texture(texture) => (texture.width, texture.height),
+            Picture::Image(frame) => (frame.width, frame.height),
         }
     }
 }
@@ -249,7 +252,7 @@ pub trait Screen {
 
 pub fn start() -> Option<Box<dyn Screen>> {
     match gl::screen_context()?.and_then(Native::new) {
-        Ok(native) => Some(Box::new(native)),
+        Ok(native) => Some(platform::screen(native)),
         Err(e) => {
             eprintln!("the native screen: {e}");
             None
@@ -268,7 +271,8 @@ void main() { at = window * vec2((p.x + 1.0) / 2.0, (1.0 - p.y) / 2.0); gl_Posit
 // The window is the opening in the shell, and the game sits on a plate below it, seen from q at q - shift. A ray that
 // leaves the window first shows the wall it hits. The lip's shadow stays on the plate and leans away from a light fixed
 // in the room. The texel maps the frame's fractions onto the texture, which can hold it upside down in a corner.
-const FRAGMENT: &str = "#version 300 es
+const FRAGMENT: &str = concat!(
+    "#version 300 es
 precision highp float;
 in vec2 at;
 out vec4 color;
@@ -287,48 +291,9 @@ uniform float dp;
 uniform float radius;
 uniform float recess;
 uniform float glass;
-void main() {
-  vec2 q = at;
-  float t = 2.0;
-  float side = 0.0;
-  if (shift.x > 0.0) { float u = q.x / shift.x; if (u < t) { t = u; side = 1.0; } }
-  if (shift.x < 0.0) { float u = (window.x - q.x) / -shift.x; if (u < t) { t = u; side = 2.0; } }
-  if (shift.y > 0.0) { float u = q.y / shift.y; if (u < t) { t = u; side = 3.0; } }
-  if (shift.y < 0.0) { float u = (window.y - q.y) / -shift.y; if (u < t) { t = u; side = 4.0; } }
-  vec3 c;
-  float onGame = 0.0;
-  if (t < 1.0) {
-    float lit = side == 3.0 ? 0.45 : side == 4.0 ? 1.0 : 0.72;
-    c = shell * mix(1.0, lit * (1.0 - 0.3 * t), 0.500);
-  } else {
-    vec2 p = q - shift;
-    vec2 g = p - margin;
-    if (g.x >= 0.0 && g.y >= 0.0 && g.x < image.x && g.y < image.y) {
-      vec2 uv = source.xy + source.zw * g / image;
-      c = texture(frame, vec2(uv.x * texel.x, uv.y * texel.y + texel.z)).rgb;
-      onGame = 1.0;
-    } else {
-      c = plate;
-    }
-    float w = max(13.000 * dp, 1.0);
-    vec2 l = clamp(lean * -1.000 * 1.5, -0.85, 0.85);
-    float top = 1.0 - smoothstep(0.0, w * (1.0 + l.y), p.y);
-    float sides = (1.0 + l.x) * (1.0 - smoothstep(0.0, w * 0.5 * (1.0 + l.x), p.x))
-      + (1.0 - l.x) * (1.0 - smoothstep(0.0, w * 0.5 * (1.0 - l.x), window.x - p.x));
-    float bottom = 1.0 - smoothstep(0.0, w * 0.3 * (1.0 - l.y), window.y - p.y);
-    c *= 1.0 - recess * clamp(top + 0.45 * sides + 0.25 * bottom, 0.0, 1.0) * 0.800
-      * mix(1.0, 0.600, onGame) * 0.85;
-  }
-  float u = (q.x * 0.55 + q.y) - (window.x * 0.55 + window.y) * 0.35 + (exact.x * 0.55 + exact.y) * 30.0;
-  vec2 bands = vec2(u / (window.y * 0.16), (u - window.y * 0.45) / (window.y * 0.05));
-  float band = exp(-bands.x * bands.x) + 0.35 * exp(-bands.y * bands.y);
-  c += vec3(glass * band * mix(0.500 * 0.22, 0.030, onGame));
-  float edge = min(min(q.x, window.x - q.x), window.y - q.y);
-  float rimLine = (1.0 - smoothstep(0.0, dp * 1.5, q.y)) + 0.35 * (1.0 - smoothstep(0.0, dp, edge));
-  c += vec3(glass * rimLine * 0.700 * 0.35);
-  float outside = length(max(abs(q - window / 2.0) - window / 2.0 + radius, 0.0)) - radius;
-  color = vec4(mix(c, shell, recess * clamp(outside + 0.5, 0.0, 1.0)), 1.0);
-}";
+",
+    include_str!("screen/frame.glsl")
+);
 
 // A rectangle from the top left, in the GL's terms from the bottom left.
 fn from_bottom(rect: Rect, surface_height: i32) -> [i32; 4] {
@@ -613,6 +578,7 @@ impl Screen for Native {
                 glDeleteSync(drawn);
                 self.last = Some(Source::Core(texture));
             },
+            Picture::Image(_) => return Err("OpenGL can't draw a Vulkan image".into()),
         }
         self.draw()
     }

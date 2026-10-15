@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { readFileSync } from "node:fs";
 import { expect, it } from "vitest";
+import { skins } from "@/skins";
 import { systemColors, systems } from "@/systems";
 
 const css = readFileSync(new URL("../index.css", import.meta.url), "utf8");
@@ -16,6 +17,15 @@ function luminance(hex: string) {
     .map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
     .map((c) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4));
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+}
+
+function composite(hex: string, ground: string) {
+  const alpha = hex.length === 9 ? parseInt(hex.slice(7), 16) / 255 : 1;
+  const channel = (i: number) => {
+    const mixed = parseInt(hex.slice(i, i + 2), 16) * alpha + parseInt(ground.slice(i, i + 2), 16) * (1 - alpha);
+    return Math.round(mixed).toString(16).padStart(2, "0");
+  };
+  return `#${channel(1)}${channel(3)}${channel(5)}`;
 }
 
 function contrast(a: string, b: string) {
@@ -68,6 +78,14 @@ for (const system of systems) {
   for (const text of ["hero-text", "hero-version"]) {
     it(`reads --${text} at 4.5:1 on the ${system} hero ground`, () => {
       expect(contrast(themes.light[text], systemColors[system].hero)).toBeGreaterThanOrEqual(4.5);
+    });
+  }
+}
+
+for (const system of systems) {
+  for (const { name, base, moulded } of skins[system]) {
+    it(`reads the ${system} ${name} skin's print at 3:1 on its plastic`, () => {
+      expect(contrast(composite(moulded.print, base), base)).toBeGreaterThanOrEqual(3);
     });
   }
 }

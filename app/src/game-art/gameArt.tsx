@@ -24,6 +24,15 @@ export type GameArtHost = {
 
 export const isUnavailable = (status?: GameArtStatus | null) => status === "unsupported" || status === "failed";
 
+type Borrowing = "none" | "all" | "gaps";
+
+// A 3DS game lacks sprites for most species, so it fills each gap from the lenders.
+function borrowing(path: string, status: GameArtStatus | null): Borrowing {
+  if (isUnavailable(status)) return "all";
+  const decoded = status === "done" || status === "partial";
+  return decoded && path.split("/")[0] === "3ds" ? "gaps" : "none";
+}
+
 export type ArtPokemon = {
   speciesId: number | null;
   speciesIndex?: number;
@@ -111,7 +120,7 @@ type Store = ReturnType<typeof createStore>;
 
 const HostContext = createContext<GameArtHost | null>(null);
 const StoreContext = createContext<Store | null>(null);
-const GameContext = createContext<{ sha1: string | null | undefined; borrows: boolean } | null>(null);
+const GameContext = createContext<{ sha1: string | null | undefined; borrows: Borrowing } | null>(null);
 
 export function GameArtProvider({ host, children }: { host: GameArtHost; children: ReactNode }) {
   const [store] = useState(() => createStore(host));
@@ -160,15 +169,15 @@ function useStore() {
 
 export function GameArtFor({ path, children }: { path: string; children: ReactNode }) {
   const store = useStore();
-  const [found, setFound] = useState<{ path: string; sha1: string | null; borrows: boolean }>();
+  const [found, setFound] = useState<{ path: string; sha1: string | null; borrows: Borrowing }>();
   const [attempt, setAttempt] = useState(0);
   const sha1 = found?.path === path ? found.sha1 : undefined;
-  const borrows = found?.path === path && found.borrows;
+  const borrows = found?.path === path ? found.borrows : "none";
 
   useEffect(() => {
     let current = true;
     void Promise.all([store.sha1(path), store.status(path)]).then(
-      ([sha1, status]) => current && setFound({ path, sha1, borrows: isUnavailable(status) }),
+      ([sha1, status]) => current && setFound({ path, sha1, borrows: borrowing(path, status) }),
     );
     return () => {
       current = false;
@@ -212,6 +221,8 @@ function useGameKeys() {
   const keys = sha1 === null ? noKeys : sha1 && found?.sha1 === sha1 ? found.keys : undefined;
   return { sha1, keys, version, borrows };
 }
+
+type GameKeys = ReturnType<typeof useGameKeys>;
 
 type LentArt = Lender & { keys: Set<string> };
 
@@ -410,6 +421,16 @@ function lentArt(pokemon: ArtPokemon, size: number, animated: boolean, lent: Len
   return { sha1: best?.sha1, key: best?.key };
 }
 
+function filledArt(pokemon: ArtPokemon, size: number, animated: boolean, own: GameKeys, lent: LentArt[] | undefined) {
+  if (!own.keys) return undefined;
+  const fits = (key: string | undefined) => !!key && key.startsWith("icon-") === size <= ICON_MAX_SIZE;
+  const mine = { sha1: own.sha1, key: ownKey(pokemon, size, animated, own.keys) };
+  if (fits(mine.key)) return mine;
+  if (!lent) return undefined;
+  const borrowed = lentArt(pokemon, size, animated, lent);
+  return fits(borrowed.key) || !mine.key ? borrowed : mine;
+}
+
 export function PokemonArt({
   pokemon,
   integerScale,
@@ -417,13 +438,16 @@ export function PokemonArt({
   ...shown
 }: Shown & { pokemon: ArtPokemon; integerScale?: boolean; animate?: boolean }) {
   const own = useGameKeys();
-  const { lent, version } = useLentArt(own.borrows);
+  const { lent, version } = useLentArt(own.borrows !== "none");
   const animates = !!animate && shown.size > ICON_MAX_SIZE;
   const reducedMotion = useReducedMotion(animates);
   const animated = animates && !reducedMotion;
-  const art = own.borrows
-    ? lent && lentArt(pokemon, shown.size, animated, lent)
-    : own.keys && { sha1: own.sha1, key: ownKey(pokemon, shown.size, animated, own.keys) };
+  const art =
+    own.borrows === "all"
+      ? lent && lentArt(pokemon, shown.size, animated, lent)
+      : own.borrows === "gaps"
+        ? filledArt(pokemon, shown.size, animated, own, lent)
+        : own.keys && { sha1: own.sha1, key: ownKey(pokemon, shown.size, animated, own.keys) };
   const image = useImage(art?.sha1, art?.key, own.version + version);
   const name = pokemon.species;
 

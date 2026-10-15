@@ -7,8 +7,10 @@ import {
   type EncounterRow,
   type EngineHost,
   type ErrorCode,
+  type EventRow,
   type FormatEntry,
   type GameProgress,
+  type GiftEvent,
   type ItemChoice,
   type ItemHandle,
   type OfferedPokemon,
@@ -31,6 +33,8 @@ import {
   type TransferSave,
   type TrainerCard,
   type TrainerGender,
+  type WonderCardEntry,
+  type WonderCardPreview,
 } from "@pkhex-everywhere/engine";
 import { gen3Nickname } from "@/game-memory/snapshots/snapshotMemory";
 
@@ -162,7 +166,24 @@ const sameSlot = (a: PokemonHandle, b: PokemonHandle) =>
 
 export type FakeEncounter = Omit<EncounterRow, "index" | "version">;
 
+export type FakeEventEncounter = Omit<EventRow, "index">;
+
 export type FakeTeam = { name: string | null; cup: string | null; members: PokemonSummary[] };
+
+export type FakeGiftEvent = Omit<GiftEvent, "received"> & { level?: number };
+
+export type FakeMysteryGift = {
+  /** Null for a Gen 5 save, where `setUnlocked` fails with `not-supported`. */
+  unlocked: boolean | null;
+  slots: number;
+  cards?: WonderCardEntry[];
+  events?: FakeGiftEvent[];
+  received?: number[];
+  /** Inserts fail with `no-slot`, as when eight Gen 4 gifts wait for the delivery person. */
+  queueFull?: boolean;
+};
+
+export const fakeCardFile = (text: string) => new TextEncoder().encode(text);
 
 export type FakeEngineSave = {
   party?: PokemonSummary[];
@@ -181,6 +202,7 @@ export type FakeEngineSave = {
   capabilities?: SaveCapability[];
   species?: SpeciesEntry[];
   encounters?: FakeEncounter[];
+  eventEncounters?: FakeEventEncounter[];
   refuseAdd?: ErrorCode;
   /** Species whose files no game can move into this save. `box.addFromFile` refuses them without `allowUnofficial`. */
   unofficialFiles?: number[];
@@ -192,6 +214,9 @@ export type FakeEngineSave = {
   candidates?: FormatEntry[];
   /** The format `game.load` recognises the save as outright. */
   detected?: string;
+  version?: string;
+  /** A Wonder Card album. A fake card file is an event's id, or `unknown:<title>` for a card no event matches, as `fakeCardFile` makes. */
+  mysteryGift?: FakeMysteryGift;
 };
 
 // Mirrors the engine's notifications: loading changes "*", exporting touches "party" and "box", draft commands touch "draft",
@@ -212,12 +237,15 @@ export function fakeEngine({
   capabilities = [],
   species = [],
   encounters = [],
+  eventEncounters = [],
   refuseAdd,
   unofficialFiles = [],
   inMemory = {},
   memoryFormat,
   candidates = [],
   detected,
+  version = "Emerald",
+  mysteryGift,
 }: FakeEngineSave = {}) {
   const box = [...initialBox];
   const teams = initialTeams.map((team) => ({ ...team, members: [...team.members] }));
@@ -264,6 +292,64 @@ export function fakeEngine({
     if (formatId === "pkhex") throw { code: "not-supported", message: "pkhex isn't a ROM hack." };
     if (formatId && formatId !== memoryFormat?.id) throw { code: "not-found", message: `No format ${formatId}.` };
     return formatId ? memoryFormat : undefined;
+  };
+  const album = mysteryGift && {
+    unlocked: mysteryGift.unlocked,
+    cards: [...(mysteryGift.cards ?? [])],
+    received: new Set(mysteryGift.received),
+  };
+  const giftEvents = mysteryGift?.events ?? [];
+  const giftAlbum = () => {
+    if (!album) throw { code: "not-supported", message: "This save has no Wonder Card album." };
+    return album;
+  };
+  const giftSlot = (slot: number) => {
+    if (!Number.isInteger(slot) || slot < 0 || slot >= mysteryGift!.slots) throw { code: "out-of-range", message: `No slot ${slot}.` };
+  };
+  const giftEvent = (id: string) => {
+    const event = giftEvents.find((event) => event.id === id);
+    if (!event) throw { code: "not-found", message: `No event ${id}.` };
+    return event;
+  };
+  const giftPreview = ({ title, kind, species, item, language, cardId, level = 1 }: FakeGiftEvent, known = true): WonderCardPreview => ({
+    title,
+    kind,
+    pokemon: species && {
+      speciesId: species.id,
+      speciesIndex: species.id,
+      species: species.name,
+      isUnknown: false,
+      editable: true,
+      form: { id: 0, name: "" },
+      nickname: species.name.toUpperCase(),
+      level,
+      isShiny: false,
+      gender: "genderless",
+      isEgg: false,
+      types: [],
+    },
+    item,
+    language,
+    cardId,
+    known,
+  });
+  const cardFile = (data: string): { event: FakeGiftEvent; known: boolean } => {
+    const text = new TextDecoder().decode(fromBase64(data));
+    const event = giftEvents.find((event) => event.id === text);
+    if (event) return { event, known: true };
+    if (!text.startsWith("unknown:")) throw { code: "unparseable", message: "The file isn't a Wonder Card." };
+    const title = text.slice("unknown:".length);
+    return { event: { id: text, title, kind: "other", species: null, item: null, language: null, cardId: 0 }, known: false };
+  };
+  const insertCard = ({ title, kind, species, item, language, cardId }: FakeGiftEvent, known: boolean, slot: number) => {
+    const { cards, received } = giftAlbum();
+    giftSlot(slot);
+    if (mysteryGift!.queueFull) throw { code: "no-slot", message: "Eight gifts are already waiting for the delivery person." };
+    const at = Math.min(slot, cards.length);
+    cards[at] = { title, kind, species, item, language, cardId, known };
+    if (cardId > 0) received.add(cardId);
+    notify(["mysteryGift"]);
+    return at;
   };
   const pouches = structuredClone(inventory);
   const card = structuredClone(trainer);
@@ -366,7 +452,7 @@ export function fakeEngine({
           const from = direction === "send" ? find(at) : theirs.find((pokemon) => sameSlot(pokemon.at, at))!;
           return {
             direction,
-            route: routes[direction] ?? "link",
+            route: routes[direction] ?? ["link"],
             from,
             arrives: { ...from, at: { source: "box", box: 0, slot } },
             changes: [],
@@ -393,9 +479,10 @@ export function fakeEngine({
       save = undefined;
       notify(["*"]);
     },
-    "game.get": () => save && { fileName: "save.sav", version: "Emerald", generation, hasEvents: !!events, capabilities },
+    "game.get": () =>
+      save && { fileName: "save.sav", version, generation, hasEvents: !!events, hasMysteryGift: !!mysteryGift, capabilities },
     "game.version": () =>
-      save && { version: "Emerald", versionId: 3, generation: `Gen${generation}`, generationId: generation, formatId: format },
+      save && { version, versionId: 3, generation: `Gen${generation}`, generationId: generation, formatId: format },
     "game.export": () => {
       notify(["party", "box"]);
       return { bytes: toBase64(save!), fileName: "save.sav" };
@@ -475,6 +562,12 @@ export function fakeEngine({
         .map((encounter, index) => ({ ...encounter, index, version: "Emerald" }));
       return lastSearch;
     },
+    "encounters.events": (speciesId?: number | null) => {
+      lastSearch = eventEncounters
+        .filter((row) => speciesId == null || row.speciesId === speciesId)
+        .map((row, index) => ({ ...row, index }));
+      return lastSearch;
+    },
     "inventory.get": () => pouches,
     "inventory.setItem": ({ pouch: name, itemId }: ItemHandle, count: number) => {
       const pouch = pouches.find((pouch) => pouch.name === name)!;
@@ -529,6 +622,46 @@ export function fakeEngine({
         throw { code: "out-of-range", message: `Work value ${value} is out of range.` };
       work[index] = value;
       notify(["events"]);
+    },
+    "mysteryGift.status": () => {
+      const { unlocked, cards } = giftAlbum();
+      return { unlocked, slots: Array.from({ length: mysteryGift!.slots }, (_, index) => ({ index, card: cards[index] ?? null })) };
+    },
+    "mysteryGift.events": () => {
+      const { received } = giftAlbum();
+      return giftEvents.map(({ level: _, ...event }) => ({ ...event, received: received.has(event.cardId) }));
+    },
+    "mysteryGift.previewEvent": (id: string) => {
+      giftAlbum();
+      return giftPreview(giftEvent(id));
+    },
+    "mysteryGift.previewFile": (data: string) => {
+      giftAlbum();
+      const { event, known } = cardFile(data);
+      return giftPreview(event, known);
+    },
+    "mysteryGift.insertEvent": (id: string, slot: number) => insertCard(giftEvent(id), true, slot),
+    "mysteryGift.insertFile": (data: string, slot: number) => {
+      const { event, known } = cardFile(data);
+      return insertCard(event, known, slot);
+    },
+    "mysteryGift.remove": (slot: number) => {
+      const { cards } = giftAlbum();
+      giftSlot(slot);
+      cards.splice(slot, 1);
+      notify(["mysteryGift"]);
+    },
+    "mysteryGift.setUnlocked": (value: boolean) => {
+      const gift = giftAlbum();
+      if (gift.unlocked === null) throw { code: "not-supported", message: "Generation 5 games show Mystery Gift once the player has the Pokédex." };
+      gift.unlocked = value;
+      notify(["mysteryGift"]);
+    },
+    "mysteryGift.setReceived": (cardId: number, value: boolean) => {
+      const { received } = giftAlbum();
+      if (value) received.add(cardId);
+      else received.delete(cardId);
+      notify(["mysteryGift"]);
     },
     "trainer.get": () => card,
     "trainer.setName": (name: string) => {

@@ -168,6 +168,100 @@ fn check_instructions(header: &WindowHeader, inst: &[u8], addr: &[u8]) -> Result
     Ok(())
 }
 
+struct Sections {
+    data: Vec<u8>,
+    inst: Vec<u8>,
+    addr: Vec<u8>,
+}
+
+fn read_sections(patch: &mut impl Read, header: &WindowHeader, secondary: Option<u8>) -> Result<Sections, PatchError> {
+    if header.del_ind != 0 && secondary.is_none() {
+        return Err(PatchError::Malformed);
+    }
+    let data = decompress(section(patch, header.data_len)?, header, VCD_DATACOMP)?;
+    let inst = decompress(section(patch, header.inst_len)?, header, VCD_INSTCOMP)?;
+    let addr = decompress(section(patch, header.addr_len)?, header, VCD_ADDRCOMP)?;
+    check_instructions(header, &inst, &addr)?;
+    Ok(Sections { data, inst, addr })
+}
+
+fn decode(
+    header: &WindowHeader,
+    sections: &Sections,
+    base: &mut Base<impl Read + Seek>,
+    copies: &mut Vec<u8>,
+    window: &mut Vec<u8>,
+) -> Result<(), PatchError> {
+    window.clear();
+    let sections = WindowSections { data: &sections.data, inst: &sections.inst, addr: &sections.addr };
+    decode_window_into(header, sections, base, true, copies, window).map_err(|error| match error {
+        DecodeError::ChecksumMismatch { .. } => PatchError::WrongBase { expected_crc32: None },
+        DecodeError::Io(error) => error.into(),
+        _ => PatchError::Malformed,
+    })
+}
+
+fn copies_past(header: &WindowHeader, base_len: u64) -> bool {
+    header.copy_window_offset.checked_add(header.copy_window_len).is_none_or(|end| end > base_len)
+}
+
+pub struct FirstWindow {
+    header: WindowHeader,
+    sections: Sections,
+}
+
+impl std::fmt::Debug for FirstWindow {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FirstWindow").field("header", &self.header).finish_non_exhaustive()
+    }
+}
+
+impl FirstWindow {
+    pub fn fits(&self, mut base: impl Read + Seek) -> Result<bool, PatchError> {
+        let base_len = base.seek(SeekFrom::End(0))?;
+        if copies_past(&self.header, base_len) {
+            return Ok(false);
+        }
+        base.rewind()?;
+        let mut base = Base { rom: BufReader::new(base), at: 0 };
+        match decode(&self.header, &self.sections, &mut base, &mut Vec::new(), &mut Vec::new()) {
+            Ok(()) => Ok(true),
+            Err(PatchError::Io(error)) => Err(PatchError::Io(error)),
+            Err(_) => Ok(false),
+        }
+    }
+}
+
+// A window that copies nothing from the base decodes the same from any ROM, so the first one that does is the test.
+pub fn first_window(patch: impl Read) -> Result<Option<FirstWindow>, PatchError> {
+    let mut patch = BufReader::new(patch);
+    let secondary = read_file_header(&mut patch)?;
+    while let Some(header) = read_window_header(&mut patch)? {
+        if header.adler32.is_none() {
+            return Ok(None);
+        }
+        let sections = read_sections(&mut patch, &header, secondary)?;
+        if copies_from_base(&header, &sections) {
+            return Ok(Some(FirstWindow { header, sections }));
+        }
+    }
+    Ok(None)
+}
+
+fn copies_from_base(header: &WindowHeader, sections: &Sections) -> bool {
+    header.win_ind & VCD_SOURCE != 0
+        && InstructionIterator::new(&sections.inst, &sections.addr, header.copy_window_len)
+            .any(|instruction| matches!(instruction, Ok(Instruction::Copy { addr, .. }) if addr < header.copy_window_len))
+}
+
+// xdelta3 adds checksums to every window or to none, so the first one speaks for the patch.
+pub fn checksummed(patch: impl Read) -> bool {
+    let mut patch = BufReader::new(patch);
+    read_file_header(&mut patch)
+        .and_then(|_| read_window_header(&mut patch))
+        .is_ok_and(|header| header.is_some_and(|header| header.adler32.is_some()))
+}
+
 pub fn apply(
     patch: impl Read,
     mut base: impl Read + Seek,
@@ -183,29 +277,16 @@ pub fn apply(
     let mut written = 0u64;
     let mut checked = true;
     while let Some(header) = read_window_header(&mut patch)? {
-        let copy_end = header.copy_window_offset.checked_add(header.copy_window_len);
-        if copy_end.is_none_or(|end| end > base_len) {
+        if copies_past(&header, base_len) {
             return Err(PatchError::WrongBase { expected_crc32: None });
         }
         written += header.target_window_len;
         if written > cap {
             return Err(PatchError::TooBig);
         }
-        if header.del_ind != 0 && secondary.is_none() {
-            return Err(PatchError::Malformed);
-        }
-        let data = decompress(section(&mut patch, header.data_len)?, &header, VCD_DATACOMP)?;
-        let inst = decompress(section(&mut patch, header.inst_len)?, &header, VCD_INSTCOMP)?;
-        let addr = decompress(section(&mut patch, header.addr_len)?, &header, VCD_ADDRCOMP)?;
+        let sections = read_sections(&mut patch, &header, secondary)?;
         checked &= header.adler32.is_some();
-        check_instructions(&header, &inst, &addr)?;
-        window.clear();
-        let sections = WindowSections { data: &data, inst: &inst, addr: &addr };
-        decode_window_into(&header, sections, &mut base, true, &mut copies, &mut window).map_err(|error| match error {
-            DecodeError::ChecksumMismatch { .. } => PatchError::WrongBase { expected_crc32: None },
-            DecodeError::Io(error) => error.into(),
-            _ => PatchError::Malformed,
-        })?;
+        decode(&header, &sections, &mut base, &mut copies, &mut window)?;
         output.write_all(&window)?;
     }
     Ok(checked)

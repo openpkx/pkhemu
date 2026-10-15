@@ -17,6 +17,7 @@ import {
 import { useBoxArt } from "@/box-art/boxArt";
 import { sectionHeading } from "@/components/sectionHeading";
 import { SystemChip } from "@/components/SystemChip";
+import { TopScreen } from "@/components/TopScreen";
 import { Button } from "@/components/ui/button";
 import { EditorScreen } from "@/editor/EditorScreen";
 import { useMinute } from "@/game-clock/GameClockSetting";
@@ -28,6 +29,7 @@ import { storedFormatId } from "@/preferences/gameSettings";
 import { pngDataUrl } from "@/lib/utils";
 import { Crossfade, navigate, Screen, Shared } from "@/motion/motion";
 import { usePreferences } from "@/preferences/preferences";
+import { dualScreens } from "@/screens";
 import { SlotGrid, type SavedState, type SlotsHost } from "@/save-states/StatesScreen";
 import { gameSyncLine } from "@/sync/gameStatus";
 import { useSync } from "@/sync/sync";
@@ -57,9 +59,10 @@ export type GamePageHost = SaveSummaryHost &
     applyEdit(folder: string, path: string, edited: Uint8Array): Promise<void>;
     deleteGame(folder: string, path: string): Promise<void>;
     readSaveFiles(folder: string, path: string): Promise<{ extension: string; bytes: number[] }[]>;
+    threeDsUpdate(folder: string, path: string): Promise<number | null>;
   };
 
-export type Gone = "removed" | "deleted";
+export type Gone = "removed";
 
 const noBackups: Backup[] = [];
 const noGames: Game[] = [];
@@ -79,6 +82,24 @@ function useRomName(host: RomNameHost, folder: string, path: string) {
   }, [host, folder, path]);
 
   return named?.path === path ? named.name : null;
+}
+
+function useUpdateVersion(host: GamePageHost, folder: string, game: Game, reload: number) {
+  const [update, setUpdate] = useState<{ path: string; version: number | null }>();
+
+  useEffect(() => {
+    if (game.system !== "3ds" || game.cloudOnly) return;
+    let current = true;
+    host.threeDsUpdate(folder, game.path).then(
+      (version) => current && setUpdate({ path: game.path, version }),
+      () => {},
+    );
+    return () => {
+      current = false;
+    };
+  }, [host, folder, game.path, game.system, game.cloudOnly, reload]);
+
+  return update?.path === game.path && update.version !== null ? `Update v${update.version}` : undefined;
 }
 
 export type Details = { resume: boolean; screenshot?: string; played?: string; slot?: number; states: SavedState[] };
@@ -126,6 +147,7 @@ export function Hero({
   played,
   syncLine,
   version,
+  update,
   updating,
   menu,
   onBack,
@@ -136,6 +158,7 @@ export function Hero({
   played?: string;
   syncLine?: string;
   version?: string | null;
+  update?: string;
   updating: boolean;
   menu: ReactNode;
   onBack(): void;
@@ -144,15 +167,14 @@ export function Hero({
   const titleId = useId();
   const boxArt = useBoxArt(game);
   const backdrop = boxArt.url ?? screenshot;
+  const screens = dualScreens[game.system];
   const heroArt = boxArt.url ? (
     <img src={boxArt.url} alt="Box art" className="mx-auto max-h-72 max-w-full rounded-md object-contain shadow-2xl" />
-  ) : game.system === "nds" ? (
+  ) : screens ? (
     screenshot && (
-      <div className="mx-auto aspect-[4/3] w-full max-w-md overflow-hidden rounded-md shadow-2xl">
-        <Crossfade value={screenshot}>
-          <img src={screenshot} alt="Where you left off" className="size-full object-cover object-top [image-rendering:pixelated]" />
-        </Crossfade>
-      </div>
+      <Crossfade value={screenshot}>
+        <TopScreen src={screenshot} screens={screens} alt="Where you left off" className="mx-auto w-full max-w-md rounded-md shadow-2xl" />
+      </Crossfade>
     )
   ) : (
     screenshot && (
@@ -200,6 +222,7 @@ export function Hero({
               <p className="text-sm font-medium text-(--hero-version)">{version}</p>
             </Crossfade>
           )}
+          {update && <p className="text-sm text-(--hero-text)">{update}</p>}
           {played && (
             <Crossfade value={played}>
               <p className="text-sm text-(--hero-text)">{played}</p>
@@ -323,6 +346,7 @@ export function GamePage({
   onPlay,
   onPatched,
   onGone,
+  onDelete,
   onBack,
 }: {
   host: GamePageHost;
@@ -335,6 +359,7 @@ export function GamePage({
   onPlay(start: Start, game?: Game, cover?: string): void;
   onPatched?(game: Game): void;
   onGone?(game: Game, how: Gone): void;
+  onDelete(game: Game): void;
   onBack(): void;
 }) {
   const sync = useSync();
@@ -356,8 +381,9 @@ export function GamePage({
   const [transferring, setTransferring] = useState<Partner[]>();
   const transferButton = useRef<HTMLButtonElement>(null);
   const focusTransferButton = useRef(false);
-  const partners = useTransferPartners(host, folder, game, games, reload, !!transferring);
+  const partners = useTransferPartners(host, folder, game, card?.state === "read", games, reload, !!transferring);
   const romName = useRomName(host, folder, game.path);
+  const update = useUpdateVersion(host, folder, game, reload);
   const transferPak = useTransferPak(host, folder, game.path);
   const [showingStates, setShowingStates] = useState(false);
   const loadStateButton = useRef<HTMLButtonElement>(null);
@@ -582,6 +608,7 @@ export function GamePage({
               played={details?.played}
               syncLine={syncLine}
               version={card?.state === "read" ? (romName ?? card.summary.version) : undefined}
+              update={update}
               updating={updating}
               menu={
                 <GameMenu
@@ -590,6 +617,7 @@ export function GamePage({
                   deletesEverywhere={!!sync.account}
                   onChangeFormat={card?.state === "read" && card.format?.chosen ? () => void chooseFormat(null) : undefined}
                   onPatched={onPatched}
+                  onUpdated={() => setReload((reload) => reload + 1)}
                   onRemove={
                     sync.account && sync.syncGames.on
                       ? async () => {
@@ -598,10 +626,7 @@ export function GamePage({
                         }
                       : undefined
                   }
-                  onDelete={async () => {
-                    await host.deleteGame(folder, game.path);
-                    onGone?.(game, "deleted");
-                  }}
+                  onDelete={async () => onDelete(game)}
                 />
               }
               onBack={onBack}

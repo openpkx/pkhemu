@@ -27,9 +27,10 @@ export type LastPlay = Pick<PlayHistory, "lastPlayed"> & { resume: boolean };
 export type LibraryState = {
   library?: Library;
   recent: Game[];
-  scanning: boolean;
   error?: string;
   refresh(): Promise<void>;
+  hide(path: string): void;
+  unhide(path: string): void;
   open(game: Game, from?: OpenedFrom): void;
   play(game: Game, start: Start, from: OpenedFrom): void;
   resumeScreenshot(path: string): Promise<string | undefined>;
@@ -55,9 +56,19 @@ export function LibraryProvider({
 }) {
   const [scanned, setScanned] = useState<Library>();
   const { cloudGames } = useSync();
-  const library = useMemo(() => scanned && withCloudGames(scanned, cloudGames), [scanned, cloudGames]);
+  const [hidden, setHidden] = useState<ReadonlySet<string>>(() => new Set());
+  const library = useMemo(() => {
+    if (!scanned) return;
+    const all = withCloudGames(scanned, cloudGames);
+    if (!hidden.size) return all;
+    return {
+      ...all,
+      sections: all.sections
+        .map((section) => ({ ...section, games: section.games.filter((game) => !hidden.has(game.path)) }))
+        .filter((section) => section.games.length),
+    };
+  }, [scanned, cloudGames, hidden]);
   const [recentPaths, setRecentPaths] = useState<string[]>([]);
-  const [scanning, setScanning] = useState(false);
   const [error, setError] = useState<string>();
   const latestScan = useRef(0);
   const [screenshots, setScreenshots] = useState(() => new Map<string, Promise<string | undefined>>());
@@ -66,7 +77,6 @@ export function LibraryProvider({
 
   const refresh = useCallback(async () => {
     const scan = ++latestScan.current;
-    setScanning(true);
     setScreenshots(new Map());
     try {
       const scanned = await scanLibrary((path) => host.listDir(folder, path));
@@ -77,8 +87,6 @@ export function LibraryProvider({
       setError(undefined);
     } catch (reason) {
       if (scan === latestScan.current) setError(String(reason));
-    } finally {
-      if (scan === latestScan.current) setScanning(false);
     }
   }, [host, folder]);
 
@@ -167,6 +175,17 @@ export function LibraryProvider({
     [host, folder, knownPlays],
   );
 
+  const hide = useCallback((path: string) => setHidden((hidden) => new Set(hidden).add(path)), []);
+  const unhide = useCallback(
+    (path: string) =>
+      setHidden((hidden) => {
+        const shown = new Set(hidden);
+        shown.delete(path);
+        return shown;
+      }),
+    [],
+  );
+
   const knownLastPlay = useCallback((path: string) => knownPlays.get(path), [knownPlays]);
 
   const recent = useMemo(() => {
@@ -176,7 +195,20 @@ export function LibraryProvider({
 
   return (
     <LibraryContext.Provider
-      value={{ library, recent, scanning, error, refresh, open, play, resumeScreenshot, knownScreenshot, lastPlay, knownLastPlay }}
+      value={{
+        library,
+        recent,
+        error,
+        refresh,
+        hide,
+        unhide,
+        open,
+        play,
+        resumeScreenshot,
+        knownScreenshot,
+        lastPlay,
+        knownLastPlay,
+      }}
     >
       {children}
     </LibraryContext.Provider>

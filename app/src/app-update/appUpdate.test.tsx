@@ -22,6 +22,7 @@ import { fakeSync } from "@/sync/fakeSync";
 import { SyncProvider } from "@/sync/sync";
 import { AppUpdateProvider, type UpdateCheck } from "./appUpdate";
 import { fakeAppUpdate } from "./fakeAppUpdate";
+import { defaultSkins } from "@/skins";
 
 vi.mock("@/splash", () => ({ hideSplash: vi.fn() }));
 
@@ -57,7 +58,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const defaults: Preferences = { touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic" };
+const defaults: Preferences = { touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic", skins: defaultSkins, skinHintSeen: false, screenDepth: true, screenGlass: true, asyncShaders: false };
 
 const available = (versionCode: number): UpdateCheck => ({ available: true, versionCode, downloaded: false });
 const downloaded: UpdateCheck = { available: true, versionCode: 7, downloaded: true };
@@ -99,6 +100,7 @@ function device() {
       readSave: async () => null,
       readSaveFiles: async () => [],
       romGameName: async () => null,
+      threeDsUpdate: async () => null,
       saveSummary: async () => null,
       keepSaveSummary: async () => {},
       saveFormat: async () => null,
@@ -116,9 +118,10 @@ function device() {
     const patchRomHost: PatchRomHost = {
       baseBuild: async () => null,
       pick: async () => null,
+      bases: async () => ({ checked: true, games: [] }),
       dropped: async () => Promise.reject(new Error("No patch")),
       checkName: async () => {},
-      create: async () => ({ path: "", sha256: "" }),
+      create: async () => ({ path: "", sha256: "", baseChecked: false }),
       patchedFrom: async () => null,
       keepPatchedFrom: async () => {},
     };

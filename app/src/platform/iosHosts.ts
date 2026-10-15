@@ -5,16 +5,20 @@ import { iosGameSurfaceHost } from "@/game-surface/iosHost";
 import { iosGamesFolderHost } from "@/games-folder/iosHost";
 import { desktopGravityHost } from "@/gravity/desktopHost";
 import { iosHapticsHost } from "@/haptics/iosHost";
+import { iosImportHost } from "@/import/iosHost";
 import { desktopLibraryHost } from "@/library/desktopHost";
 import { desktopPatchRomHost } from "@/patch-rom/desktopHost";
+import { iosShadersHost } from "@/shaders/iosHost";
 import { iosSystemBarsHost } from "@/system-bars/iosHost";
+import { systems } from "@/systems";
 import { sharedHosts, sharedPreferences, type Hosts } from "./hosts";
 
 export const iosHosts: Hosts = {
   ...sharedHosts,
-  systems: ["gb", "gbc", "gba", "nds"],
-  defaultPreferences: { ...sharedPreferences, touchControls: true },
+  systems,
+  defaultPreferences: { ...sharedPreferences, touchControls: true, asyncShaders: false },
   gamesFolder: iosGamesFolderHost,
+  import: iosImportHost,
   back: iosBackHost,
   export: iosExportHost,
   pokemonFile: iosPokemonFileHost,
@@ -25,4 +29,5 @@ export const iosHosts: Hosts = {
   systemBars: iosSystemBarsHost,
   gameSurface: iosGameSurfaceHost,
   audioSession: iosAudioSessionHost,
+  shaders: iosShadersHost,
 };

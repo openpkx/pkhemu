@@ -30,6 +30,22 @@ fn a_save_written_on_one_device_appears_on_the_other() {
 }
 
 #[test]
+fn a_3ds_games_main_and_its_backups_appear_on_the_other_device() {
+    let (a, b, cloud) = devices("3ds");
+    for device in [&a, &b] {
+        device.write("3ds/X.3ds", b"x rom");
+    }
+    a.write("3ds/X.sav", b"main from A");
+    a.write("3ds/X/backups/2026-10-05_1412_edit.sav", b"main before the edit");
+
+    a.sync_ok(&cloud);
+    b.sync_ok(&cloud);
+
+    assert_eq!(b.read("3ds/X.sav").unwrap(), b"main from A");
+    assert_eq!(b.read("3ds/X/backups/2026-10-05_1412_edit.sav").unwrap(), b"main before the edit");
+}
+
+#[test]
 fn slots_the_resume_state_and_backups_sync_but_the_state_from_before_a_load_stays() {
     let (a, b, cloud) = devices("states");
     let synced = [
@@ -989,6 +1005,81 @@ fn a_copy_replaced_after_a_sync_reaches_the_other_device() {
     a.sync_ok(&cloud);
 
     assert_eq!(a.kept_copies(&[KADABRA]), [kept(KADABRA, 5, "Black")]);
+}
+
+fn cloud_skins(cloud: &TestCloud) -> Option<crate::skins::Skins> {
+    let record = block_on(cloud.provider().read_record("skins")).unwrap()?;
+    Some(serde_json::from_slice(&record.json).unwrap())
+}
+
+#[test]
+fn a_skin_chosen_on_one_device_goes_up_to_the_cloud() {
+    let (a, _, cloud) = devices("skin-up");
+    a.choose_skin("gba", "glacier", 5);
+
+    a.sync_ok(&cloud);
+
+    assert_eq!(cloud_skins(&cloud), Some(crate::skins::Skins::from([("gba".into(), skin("glacier", 5))])));
+}
+
+#[test]
+fn a_skin_chosen_on_one_device_comes_down_to_the_other() {
+    let (a, b, cloud) = devices("skin-down");
+    b.choose_skin("gb", "classic-grey", 3);
+    a.choose_skin("gba", "glacier", 5);
+
+    a.sync_ok(&cloud);
+    b.sync_ok(&cloud);
+
+    let both = crate::skins::Skins::from([("gb".into(), skin("classic-grey", 3)), ("gba".into(), skin("glacier", 5))]);
+    assert_eq!(b.skins(), both);
+    assert_eq!(cloud_skins(&cloud), Some(both));
+}
+
+#[test]
+fn the_newer_skin_choice_wins_on_both_devices() {
+    for (first, second) in [(0, 1), (1, 0)] {
+        let (a, b, cloud) = devices(&format!("skin-newer-{first}"));
+        a.choose_skin("gba", "glacier", 5);
+        a.choose_skin("nds", "crimson", 9);
+        b.choose_skin("gba", "black", 7);
+        b.choose_skin("nds", "polar-white", 8);
+        let both = [&a, &b];
+
+        both[first].sync_ok(&cloud);
+        both[second].sync_ok(&cloud);
+        both[first].sync_ok(&cloud);
+
+        let newest = crate::skins::Skins::from([("gba".into(), skin("black", 7)), ("nds".into(), skin("crimson", 9))]);
+        for device in both {
+            assert_eq!(device.skins(), newest, "{}", device.name);
+        }
+    }
+}
+
+#[test]
+fn no_skins_record_goes_up_until_a_skin_is_chosen() {
+    let (a, b, cloud) = devices("skin-missing");
+
+    a.sync_ok(&cloud);
+    b.sync_ok(&cloud);
+
+    assert_eq!(cloud_skins(&cloud), None);
+    assert_eq!(b.skins(), crate::skins::Skins::new());
+}
+
+#[test]
+fn a_skin_chosen_after_the_other_device_synced_reaches_it() {
+    let (a, b, cloud) = devices("skin-later");
+    a.choose_skin("gba", "glacier", 5);
+    a.sync_ok(&cloud);
+    b.sync_ok(&cloud);
+
+    b.choose_skin("gba", "black", 6);
+    b.sync_ok(&cloud);
+    a.sync_ok(&cloud);
+
+    assert_eq!(a.skins()["gba"], skin("black", 6));
 }
 
 const RED_KEY: &str = "GB-00001-524544-ABCD";

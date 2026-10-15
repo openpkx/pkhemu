@@ -1,3 +1,3 @@
 import type { GravityHost } from "./gravity";
 
-export const desktopGravityHost: GravityHost = { start() {}, stop() {}, read: () => undefined };
+export const desktopGravityHost: GravityHost = { tilts: false, start() {}, stop() {}, read: () => undefined };

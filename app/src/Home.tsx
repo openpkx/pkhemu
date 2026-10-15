@@ -13,10 +13,11 @@ import { useImportHost, type PickedFolder } from "./import/importFiles";
 import { ImportFolder } from "./import/ImportFolder";
 import { useCalibrations } from "./input/calibrations";
 import { connectedGamepads, createInput } from "./input/input";
-import { LibraryProvider, useLibrary, type LibraryHost, type OpenedFrom } from "./library/library";
+import { LibraryProvider, useLibrary, type LibraryHost, type LibraryState, type OpenedFrom } from "./library/library";
 import { LibraryScreen, tileName } from "./library/LibraryScreen";
 import type { Game } from "./library/scan";
 import { LicencesScreen } from "./licences/LicencesScreen";
+import { useHackBoxArt } from "./patch-rom/hackBoxArt";
 import { navigate, Screen as MotionScreen } from "./motion/motion";
 import { Welcome } from "./onboarding/Welcome";
 import { PadNavigation, reveal } from "./pad-navigation/PadNavigation";
@@ -45,9 +46,17 @@ function LibraryGamePage({
   onCreated,
   onDownloaded,
   onGone,
+  onDelete,
   ...props
-}: ComponentProps<typeof GamePage> & { onCreated(game: Game): void; onDownloaded(game: Game): void; onGone(game: Game, how: Gone): void }) {
-  const { refresh, open } = useLibrary();
+}: Omit<ComponentProps<typeof GamePage>, "onDelete"> & {
+  onCreated(game: Game): void;
+  onDownloaded(game: Game): void;
+  onGone(game: Game, how: Gone): void;
+  onDelete(game: Game, library: LibraryState): void;
+}) {
+  const library = useLibrary();
+  const { refresh, open } = library;
+  const deleteGame = (game: Game) => onDelete(game, library);
   const games = useLibraryGames();
   const openPatched = async (game: Game) => {
     onCreated(game);
@@ -61,16 +70,23 @@ function LibraryGamePage({
   if (props.game.cloudOnly)
     return (
       <CloudGamePage
-        host={props.host}
         folder={props.folder}
         game={props.game}
         sharedArt={props.sharedArt}
         onDownloaded={(game) => void refresh().then(() => onDownloaded(game))}
-        onGone={(game, how) => void gone(game, how)}
+        onDelete={deleteGame}
         onBack={props.onBack}
       />
     );
-  return <GamePage {...props} games={games} onPatched={(game) => void openPatched(game)} onGone={(game, how) => void gone(game, how)} />;
+  return (
+    <GamePage
+      {...props}
+      games={games}
+      onPatched={(game) => void openPatched(game)}
+      onGone={(game, how) => void gone(game, how)}
+      onDelete={deleteGame}
+    />
+  );
 }
 
 // Opening a game moves it from Recently played to the Continue card, so the game page shrinks back into the card.
@@ -117,9 +133,10 @@ export function Home({
     if (unsupported.has(system)) return "device";
   };
   const [toast, setToast] = useToast();
+  const hackBoxArt = useHackBoxArt(setToast);
   const importHost = useImportHost();
   const systemBars = useSystemBars();
-  const [folderImport, setFolderImport] = useState<{ from: "welcome" | "delta" } | { from: "library"; source: PickedFolder }>();
+  const [folderImport, setFolderImport] = useState<{ from: "welcome" | "emulator" } | { from: "library"; source: PickedFolder }>();
   const returnTo = useRef<{ scroll: number; focus: [attribute: string, value: string] }>(undefined);
   const openGame = useCallback((game: Game, from?: OpenedFrom) => {
     returnTo.current = from && { scroll: window.scrollY, focus: ["data-tile", backTile(game, from.tile)] };
@@ -192,7 +209,7 @@ export function Home({
         <ImportFolder
           libraryHost={libraryHost}
           source={folderImport.from === "library" ? folderImport.source : undefined}
-          delta={folderImport.from === "delta"}
+          emulator={folderImport.from === "emulator"}
           onClose={(message) =>
             navigate("back", () => {
               setFolderImport(undefined);
@@ -219,6 +236,18 @@ export function Home({
         />
       </>
     );
+  const deleteGame = async (game: Game, { hide, unhide, refresh }: LibraryState) => {
+    hide(game.path);
+    backToLibrary();
+    try {
+      await syncedGamePageHost.deleteGame(gamesFolder.folder, game.path);
+      await refresh();
+      setToast(`Deleted ${game.name}`);
+    } catch (reason) {
+      setToast(`Couldn't delete ${game.name}. ${reason}`);
+    }
+    unhide(game.path);
+  };
   const padNavigation = !playing && (
     <>
       <PadNavigation input={input} />
@@ -243,7 +272,7 @@ export function Home({
       )}
       {screen.name === "settings" && (
         <MotionScreen>
-          <SettingsScreen onBack={backToLibrary} onLicences={showLicences} />
+          <SettingsScreen systems={systems} onBack={backToLibrary} onLicences={showLicences} />
         </MotionScreen>
       )}
       {screen.name === "licences" && (
@@ -258,6 +287,7 @@ export function Home({
               <LibraryGameScreen
                 folder={gamesFolder.folder}
                 game={screen.game}
+                systems={systems}
                 resume={screen.start === "resume" || (typeof screen.start === "object" && screen.start.resume)}
                 slot={typeof screen.start === "object" ? screen.start.slot : undefined}
                 cover={screen.cover}
@@ -285,19 +315,20 @@ export function Home({
                 cover={screen.cover}
                 unsupported={unsupportedBy(screen.game.system)}
                 onPlay={(start, game = screen.game, cover) => play(game, start, cover)}
-                onCreated={(game) => setToast(`Created ${game.name}`)}
+                onCreated={(game) => setToast(hackBoxArt.withAddBoxArt(`Created ${game.name}`, game))}
                 onDownloaded={(game) => setScreen({ ...screen, game })}
-                onGone={(game, how) => {
-                  setToast(how === "removed" ? `Removed ${game.name} from this device` : `Deleted ${game.name}`);
-                  if (how === "removed") closeGame();
-                  else backToLibrary();
+                onGone={(game) => {
+                  setToast(`Removed ${game.name} from this device`);
+                  closeGame();
                 }}
+                onDelete={(game, library) => void deleteGame(game, library)}
                 onBack={closeGame}
               />
             </MotionScreen>
           )}
         </GameArtFor>
       )}
+      {hackBoxArt.sheet}
       <Toast>{toast}</Toast>
     </LibraryProvider>
   );

@@ -7,9 +7,15 @@ import android.os.Build
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import app.tauri.annotation.Command
+import app.tauri.annotation.InvokeArg
 import app.tauri.annotation.TauriPlugin
 import app.tauri.plugin.Invoke
 import app.tauri.plugin.Plugin
+
+@InvokeArg
+class ProgressArgs {
+  var percent: Int? = null
+}
 
 @TauriPlugin
 class KeepAlivePlugin(private val activity: Activity) : Plugin(activity) {
@@ -28,6 +34,13 @@ class KeepAlivePlugin(private val activity: Activity) : Plugin(activity) {
   fun end(invoke: Invoke) {
     busy = false
     SyncService.stop()
+    invoke.resolve()
+  }
+
+  @Command
+  fun progress(invoke: Invoke) {
+    val args = invoke.parseArgs(ProgressArgs::class.java)
+    SyncService.progress(activity.applicationContext, args.percent)
     invoke.resolve()
   }
 

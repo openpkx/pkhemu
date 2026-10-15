@@ -2,13 +2,13 @@ import { byName, gameName } from "@/library/scan";
 import type { System } from "@/systems";
 import { isClock, isSave, type ImportFile, type ImportPlan } from "./match";
 
-export type FolderScan = { files: ImportFile[]; other: number };
+export type FolderScan = { files: ImportFile[]; other: number; app?: string | null };
 export type FolderGame = { path: string; name: string; system: System; save: boolean };
-export type FolderSummary = { games: FolderGame[]; withSave: number; size: number; leftOut: number; known: number };
+export type FolderSummary = { games: FolderGame[]; withSave: number; size: number; leftOut: number; known: number; unmatched: number; app: string | null };
 
 export function addSaves(found: FolderScan, saves: FolderScan): FolderScan {
   const taken = saves.files.filter((file) => isSave(file.name) || isClock(file.name));
-  return { files: [...found.files, ...taken], other: found.other + saves.other + saves.files.length - taken.length };
+  return { files: [...found.files, ...taken], other: found.other + saves.other + saves.files.length - taken.length, app: found.app ?? saves.app };
 }
 
 export function summarize(plan: ImportPlan, found: FolderScan): FolderSummary {
@@ -21,8 +21,10 @@ export function summarize(plan: ImportPlan, found: FolderScan): FolderSummary {
     games,
     withSave: games.filter((game) => game.save).length,
     size: copied.reduce((size, file) => size + (file.size ?? 0), 0),
-    leftOut: found.other + found.files.length - copied.length - plan.known,
+    leftOut: found.other + found.files.length - copied.length - plan.known - plan.unmatched.length,
     known: plan.known,
+    unmatched: plan.unmatched.length,
+    app: found.app ?? null,
   };
 }
 

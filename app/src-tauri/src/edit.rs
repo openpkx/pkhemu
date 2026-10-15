@@ -1,7 +1,7 @@
 use crate::backups::{self, Reason};
 use crate::games_folder::GamesFolder;
 use crate::retro::Core;
-use crate::save::{self, Slot, Watch};
+use crate::save::{self, three_ds::Main, Slot, Watch};
 use crate::resume;
 use tauri::Runtime;
 
@@ -31,8 +31,7 @@ impl Cart for Core {
     }
 }
 
-pub fn read(cart: &mut impl Cart) -> Option<Vec<u8>> {
-    let [save_ram, _] = cart.save_memory();
+pub fn read(save_ram: &[u8]) -> Option<Vec<u8>> {
     let save = &save_ram[save::editable(save_ram)];
     (!save.iter().all(|&byte| byte == 0xFF)).then(|| save.to_vec())
 }
@@ -58,6 +57,27 @@ pub fn apply(
     let [save_ram, rtc] = cart.save_memory();
     save_ram[at].copy_from_slice(edited);
     let flushed = watch.flush([save_ram, rtc]);
+    Ok((Undo { state, save, watch: before }, flushed))
+}
+
+// A 3DS game reads its save from the virtual SD card as it starts, so the edit goes there before the reset.
+pub fn apply_main(
+    cart: &mut impl Cart,
+    main: &mut Main,
+    watch: &mut Watch,
+    edited: &[u8],
+    back_up: impl FnOnce(&[u8]) -> Result<(), String>,
+) -> Result<(Undo, Vec<u8>), String> {
+    let save = main.read().to_vec();
+    if edited.len() != save.len() {
+        return Err(format!("the edited save is {} bytes, but the game's is {}", edited.len(), save.len()));
+    }
+    let state = cart.serialize().ok_or("the core couldn't save its state")?;
+    back_up(&save).map_err(|e| format!("couldn't back up the save: {e}"))?;
+    let before = watch.clone();
+    main.place(Some(edited)).map_err(|e| format!("couldn't write the save: {e}"))?;
+    cart.reset();
+    let flushed = watch.flush([main.bytes(), &[]]);
     Ok((Undo { state, save, watch: before }, flushed))
 }
 
@@ -140,7 +160,7 @@ pub fn undo(core: &mut Core, watch: &mut Watch, before: Undo) -> Result<Vec<u8>,
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_games::{boot_counting_rom, counting_rom, lock_core, pattern};
+    use crate::test_games::{boot_counting_rom, counting_rom, lock_core, node, pattern};
     use std::sync::MutexGuard;
     use tauri::async_runtime::block_on;
 
@@ -192,14 +212,14 @@ mod tests {
         let file = pattern(0x8030, 1);
         let mut game = Game::start(counting_rom(), Some(&file));
 
-        assert_eq!(read(&mut game.core).as_deref(), Some(&file[..0x8000]));
+        assert_eq!(read(game.core.save_ram()).as_deref(), Some(&file[..0x8000]));
     }
 
     #[test]
     fn reads_no_save_yet_when_the_game_has_never_saved() {
         let mut game = Game::start(counting_rom(), None);
 
-        assert_eq!(read(&mut game.core), None);
+        assert_eq!(read(game.core.save_ram()), None);
     }
 
     #[test]
@@ -313,7 +333,7 @@ mod tests {
         let mut cart = n64_memory(&memory);
         let edited = pattern(0x20000, 7);
 
-        assert_eq!(read(&mut cart), Some(memory[0x28800..].to_vec()));
+        assert_eq!(read(&cart.save_ram), Some(memory[0x28800..].to_vec()));
         let (_, flushed) = apply(&mut cart, &mut Watch::new(), &edited, no_backup).unwrap();
 
         memory[0x28800..].copy_from_slice(&edited);
@@ -329,7 +349,7 @@ mod tests {
         let mut cart = n64_memory(&memory);
         let edited = pattern(0x8000, 7);
 
-        assert_eq!(read(&mut cart), Some(pattern(0x8000, 1)));
+        assert_eq!(read(&cart.save_ram), Some(pattern(0x8000, 1)));
         apply(&mut cart, &mut Watch::new(), &edited, no_backup).unwrap();
 
         memory[0x20800..0x28800].copy_from_slice(&edited);
@@ -341,7 +361,7 @@ mod tests {
         let mut memory = crate::save::n64::tests::fresh_memory(9);
         memory[..0x800].copy_from_slice(&pattern(0x800, 3));
 
-        assert_eq!(read(&mut n64_memory(&memory)), None);
+        assert_eq!(read(&n64_memory(&memory).save_ram), None);
     }
 
     #[test]
@@ -352,6 +372,69 @@ mod tests {
         assert!(apply(&mut cart, &mut Watch::new(), &pattern(memory.len(), 7), no_backup).is_err());
         assert_eq!(cart.save_ram, memory);
         assert_eq!(cart.resets, 0);
+    }
+
+    struct ThreeDs {
+        main: std::path::PathBuf,
+        at_reset: Option<Vec<u8>>,
+    }
+
+    impl Cart for ThreeDs {
+        fn save_memory(&mut self) -> [&mut [u8]; 2] {
+            [&mut [], &mut []]
+        }
+
+        fn serialize(&mut self) -> Option<Vec<u8>> {
+            Some(b"state".to_vec())
+        }
+
+        fn reset(&mut self) {
+            self.at_reset = std::fs::read(&self.main).ok();
+        }
+    }
+
+    fn three_ds(name: &str) -> (ThreeDs, Main) {
+        use crate::save::three_ds::tests::{format, main_path, X, X_SIZE};
+        let dir = std::env::temp_dir().join(format!("pkh-emu-edit-3ds-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        format(&dir, X, X_SIZE);
+        let mut main = Main::of(X, &dir).unwrap();
+        main.place(Some(&pattern(X_SIZE, 1))).unwrap();
+        (ThreeDs { main: main_path(&dir, X), at_reset: None }, main)
+    }
+
+    #[test]
+    fn writes_a_3ds_edit_to_main_before_restarting_the_game() {
+        let (mut cart, mut main) = three_ds("apply");
+        let mut watch = Watch::new();
+        watch.after_frame(|| [main.refresh(), &[]]);
+        let edited = pattern(main.bytes().len(), 7);
+        let mut backup = None;
+
+        let (undo, flushed) = apply_main(&mut cart, &mut main, &mut watch, &edited, |save| {
+            backup = Some(save.to_vec());
+            Ok(())
+        })
+        .unwrap();
+
+        assert_eq!(cart.at_reset.as_deref(), Some(edited.as_slice()));
+        assert_eq!(flushed, edited);
+        assert_eq!(backup, Some(pattern(edited.len(), 1)));
+        assert_eq!((undo.state, undo.save), (b"state".to_vec(), pattern(edited.len(), 1)));
+        assert_eq!(watch.check([main.refresh(), &[]]), None);
+    }
+
+    #[test]
+    fn leaves_main_alone_when_a_3ds_edit_is_the_wrong_size_or_the_backup_fails() {
+        let (mut cart, mut main) = three_ds("refused");
+        let size = main.bytes().len();
+
+        assert!(apply_main(&mut cart, &mut main, &mut Watch::new(), &pattern(size + 1, 7), no_backup).is_err());
+        assert!(apply_main(&mut cart, &mut main, &mut Watch::new(), &pattern(size, 7), |_| Err("disk full".into()))
+            .is_err());
+
+        assert_eq!(std::fs::read(&cart.main).unwrap(), pattern(size, 1));
+        assert_eq!(cart.at_reset, None);
     }
 
     fn temp_folder(name: &str) -> GamesFolder<'static, tauri::Wry> {
@@ -598,16 +681,6 @@ mod tests {
         assert!(!block_on(folder.has_file("nds/Platinum.sav")));
     }
 
-    fn node(script: &str, args: &[&std::ffi::OsStr]) -> String {
-        let output = std::process::Command::new("node")
-            .arg(format!("{}/tests/{script}", env!("CARGO_MANIFEST_DIR")))
-            .args(args)
-            .output()
-            .unwrap();
-        assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
-        String::from_utf8(output.stdout).unwrap().trim().to_string()
-    }
-
     fn first_level(save: &std::path::Path) -> String {
         node("engine.mjs", &[save.as_ref()])
     }
@@ -627,14 +700,14 @@ mod tests {
         let (before, edited, after) = (dir.join("before.sav"), dir.join("edited.sav"), dir.join("after.sav"));
         let mut game = Game::start(rom, Some(file));
         game.play(600);
-        let save = read(&mut game.core).unwrap();
+        let save = read(game.core.save_ram()).unwrap();
 
         std::fs::write(&before, &save).unwrap();
         assert_ne!(first_level(&before), "42");
         set_first_level(&before, 42, &edited);
         let (previous, _) = apply(&mut game.core, &mut game.watch, &std::fs::read(&edited).unwrap(), no_backup).unwrap();
         game.play(600);
-        std::fs::write(&after, read(&mut game.core).unwrap()).unwrap();
+        std::fs::write(&after, read(game.core.save_ram()).unwrap()).unwrap();
 
         assert_eq!(first_level(&after), "42");
         (game, save, previous)
@@ -653,7 +726,7 @@ mod tests {
     fn cart_save(game: &mut Game) -> Vec<u8> {
         let state = game.core.serialize().unwrap();
         assert!(game.core.unserialize(&state));
-        read(&mut game.core).unwrap()
+        read(game.core.save_ram()).unwrap()
     }
 
     #[test]
@@ -678,7 +751,7 @@ mod tests {
         let Some((rom, fla)) = crate::test_games::stadium_with_save() else { return };
         let mut game = Game::start(rom, Some(&save::n64::join([("fla", fla.as_slice())])));
         game.play(120);
-        let read = read(&mut game.core).unwrap();
+        let read = read(game.core.save_ram()).unwrap();
         let path = engine_dir().join("stadium.fla");
         std::fs::write(&path, &read).unwrap();
 

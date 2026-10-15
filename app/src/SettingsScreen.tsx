@@ -1,8 +1,7 @@
 import { useId, useState, type ReactNode } from "react";
-import { FolderOpen, RefreshCw, Scale } from "lucide-react";
+import { ChevronRight, FolderOpen, RefreshCw, Scale } from "lucide-react";
 import { useAppUpdate } from "@/app-update/appUpdate";
 import { useAudioSession } from "@/audio-session/audioSession";
-import { ExternalLink } from "@/components/ExternalLink";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { NumberInput } from "@/components/NumberInput";
 import { TitledCard } from "@/components/TitledCard";
@@ -12,32 +11,34 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Spinner } from "@/components/ui/spinner";
 import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { ControllersSettings } from "./controllers/ControllersSettings";
+import { ControlsSettings } from "./controllers/ControlsSettings";
 import { useGameArt, useGameArtProgress } from "./game-art/gameArt";
 import { useRenderer, type Renderer } from "./game-surface/gameSurface";
 import { GameClockSetting, useMinute } from "./game-clock/GameClockSetting";
 import { ago } from "./game-page/details";
 import { useGamesFolder } from "./games-folder/gamesFolder";
+import { useCanTilt } from "./gravity/gravity";
 import { useOpenFolder } from "./games-folder/useOpenFolder";
 import { LabSettings } from "./lab/LabSettings";
+import { navigate, Screen } from "./motion/motion";
 import {
   fastForwardSpeeds,
   isFastForwardSpeed,
   isRendererChoice,
-  isStickSensitivity,
   isTheme,
   maxRestoreBackupsKept,
   minRestoreBackupsKept,
   rendererChoices,
-  stickSensitivities,
   themes,
   usePreferences,
 } from "./preferences/preferences";
 import { usePlus, type PlusStatus } from "./plus/plus";
-import { Status } from "./Status";
+import { useAsyncShadersOffered } from "./shaders/shaders";
+import { SkinsScreen } from "./skin-picker/SkinsScreen";
+import { tauriPreviewFrameHost } from "./skin-picker/tauriHost";
 import { runGames, runProgress } from "./sync/gameStatus";
 import { useSync, type Cloud, type MobileData } from "./sync/sync";
-import type { System } from "./systems";
+import { systems as allSystems, type System } from "./systems";
 
 const CLOUD_NAMES: Record<Cloud, string> = { google: "Google Drive", dropbox: "Dropbox" };
 
@@ -246,37 +247,22 @@ function SyncSettings() {
   );
 }
 
-const stickSensitivityLabels = { 0.75: "Low", 1: "Medium", 1.5: "High" };
-const stickSensitivityLines = {
-  0.75: "The N64 touch stick tilts all the way after a long slide.",
-  1: "The N64 touch stick tilts all the way after a medium slide.",
-  1.5: "The N64 touch stick tilts all the way after a short slide.",
-};
-
 const rendererNames: Record<Renderer, string> = { native: "Native (OpenGL ES)", compatible: "Compatible (WebGL)" };
 
 function PlayingSettings({ system }: { system?: System }) {
   const { preferences, error, change } = usePreferences();
   const { silentSwitch } = useAudioSession();
   const { renderers, automatic } = useRenderer();
+  const shaders = useAsyncShadersOffered();
   const rendererLabels = { automatic: `Automatic: ${rendererNames[automatic]}`, ...rendererNames };
-  const touchId = useId();
   const silentId = useId();
   const speedId = useId();
-  const stickId = useId();
   const fpsId = useId();
   const rendererId = useId();
+  const shadersId = useId();
 
   return (
     <SettingsCard title="Playing">
-      <div className="flex items-center justify-between gap-3">
-        <label htmlFor={touchId}>Touch controls</label>
-        <Switch
-          id={touchId}
-          checked={preferences.touchControls}
-          onCheckedChange={(touchControls) => void change({ touchControls })}
-        />
-      </div>
       {silentSwitch && (
         <div className="flex items-center justify-between gap-3">
           <label htmlFor={silentId}>Play sound in silent mode</label>
@@ -306,28 +292,6 @@ function PlayingSettings({ system }: { system?: System }) {
           ))}
         </ToggleGroup>
       </div>
-      <div className="grid gap-1">
-        <div className="flex items-center justify-between gap-3">
-          <span id={stickId}>Stick sensitivity</span>
-          <ToggleGroup
-            type="single"
-            variant="outline"
-            aria-labelledby={stickId}
-            value={String(preferences.stickSensitivity)}
-            onValueChange={(value) => {
-              const stickSensitivity = Number(value);
-              if (isStickSensitivity(stickSensitivity)) void change({ stickSensitivity });
-            }}
-          >
-            {stickSensitivities.map((sensitivity) => (
-              <ToggleGroupItem key={sensitivity} value={String(sensitivity)}>
-                {stickSensitivityLabels[sensitivity]}
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
-        </div>
-        <p className="text-muted-foreground">{stickSensitivityLines[preferences.stickSensitivity]}</p>
-      </div>
       <div className="flex items-center justify-between gap-3">
         <label htmlFor={fpsId}>Show FPS</label>
         <Switch id={fpsId} checked={preferences.showFps} onCheckedChange={(showFps) => void change({ showFps })} />
@@ -354,6 +318,24 @@ function PlayingSettings({ system }: { system?: System }) {
           </Select>
         </div>
       )}
+      {shaders.offered && (
+        <div className="grid gap-1">
+          <div className="flex items-center justify-between gap-3">
+            <label htmlFor={shadersId}>Fewer 3DS freezes</label>
+            <Switch
+              id={shadersId}
+              checked={preferences.asyncShaders}
+              onCheckedChange={(asyncShaders) => void change({ asyncShaders })}
+            />
+          </div>
+          <p className="text-muted-foreground">
+            {preferences.asyncShaders
+              ? shaders.onLine
+              : "3DS games can freeze for a moment the first time they show something new."}
+          </p>
+          <p className="text-xs text-muted-foreground">Applies the next time a game starts.</p>
+        </div>
+      )}
       {system !== "n64" && <GameClockSetting />}
       {error && <p className="text-destructive">{error}</p>}
     </SettingsCard>
@@ -362,9 +344,12 @@ function PlayingSettings({ system }: { system?: System }) {
 
 const themeLabels = { system: "System", light: "Light", dark: "Dark" };
 
-function AppearanceSettings() {
+function AppearanceSettings({ onSkins }: { onSkins(): void }) {
   const { preferences, error, change } = usePreferences();
+  const canTilt = useCanTilt();
   const themeId = useId();
+  const depthId = useId();
+  const glassId = useId();
 
   return (
     <SettingsCard title="Appearance">
@@ -385,6 +370,36 @@ function AppearanceSettings() {
             </ToggleGroupItem>
           ))}
         </ToggleGroup>
+      </div>
+      {preferences.touchControls && (
+        <Button
+          variant="ghost"
+          className="-mx-3 h-11 justify-between rounded-lg px-3 font-normal pointer-coarse:text-base"
+          onClick={onSkins}
+        >
+          Skins
+          <ChevronRight className="text-muted-foreground" />
+        </Button>
+      )}
+      {canTilt && (
+        <div className="grid gap-1">
+          <div className="flex items-center justify-between gap-3">
+            <label htmlFor={depthId}>Screen depth</label>
+            <Switch id={depthId} checked={preferences.screenDepth} onCheckedChange={(screenDepth) => void change({ screenDepth })} />
+          </div>
+          <p className="text-muted-foreground">
+            In portrait, the game screen sits below the shell. Tilt the phone and the edge of the opening passes over it.
+          </p>
+        </div>
+      )}
+      <div className="grid gap-1">
+        <div className="flex items-center justify-between gap-3">
+          <label htmlFor={glassId}>Screen glass</label>
+          <Switch id={glassId} checked={preferences.screenGlass} onCheckedChange={(screenGlass) => void change({ screenGlass })} />
+        </div>
+        <p className="text-muted-foreground">
+          In portrait, glass covers the game screen, with a lit top edge and a sheen that moves as you tilt the phone.
+        </p>
       </div>
       {error && <p className="text-destructive">{error}</p>}
     </SettingsCard>
@@ -469,12 +484,7 @@ function AboutSettings({ onLicences }: { onLicences(): void }) {
   return (
     <SettingsCard title="About">
       <p className="text-muted-foreground">
-        The emulator, the editor and every Pokémon feature are free.{mentionsPlus && " Plus adds sync and the Lab."}
-      </p>
-      <p>
-        Built on <ExternalLink href="https://github.com/sponsors/kwsch">PKHeX</ExternalLink>,{" "}
-        <ExternalLink href="https://melonds.kuribo64.net/donate.php">melonDS</ExternalLink> and{" "}
-        <ExternalLink href="https://mgba.io/donate.html">mGBA</ExternalLink>.
+        The emulator, the editor and every Pokémon feature are free.{mentionsPlus && " Plus adds sync, the Lab and more skins."}
       </p>
       <Button variant="outline" className="justify-self-start" onClick={onLicences}>
         <Scale />
@@ -492,7 +502,20 @@ function AboutSettings({ onLicences }: { onLicences(): void }) {
   );
 }
 
-export function SettingsScreen({ system, onBack, onLicences }: { system?: System; onBack(): void; onLicences(): void }) {
+export function SettingsScreen({
+  system,
+  systems = allSystems,
+  onBack,
+  onLicences,
+}: {
+  system?: System;
+  /** The platform's systems, for Skins. */
+  systems?: readonly System[];
+  onBack(): void;
+  onLicences(): void;
+}) {
+  const [skins, setSkins] = useState(false);
+
   return (
     <div className="min-h-screen pb-safe">
       <ScreenHeader title="Settings" onBack={onBack} />
@@ -500,14 +523,18 @@ export function SettingsScreen({ system, onBack, onLicences }: { system?: System
         <GamesFolderSettings />
         <SyncSettings />
         <PlayingSettings system={system} />
-        <ControllersSettings />
-        <AppearanceSettings />
+        <ControlsSettings />
+        <AppearanceSettings onSkins={() => navigate("forward", () => setSkins(true))} />
         <BackupsSettings />
         <GameArtSettings />
         <LabSettings />
         <AboutSettings onLicences={onLicences} />
-        <Status />
       </main>
+      {skins && (
+        <Screen>
+          <SkinsScreen systems={systems} host={tauriPreviewFrameHost} onBack={() => navigate("back", () => setSkins(false))} />
+        </Screen>
+      )}
     </div>
   );
 }

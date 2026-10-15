@@ -1,6 +1,6 @@
 import { cleanup, renderHook } from "@testing-library/react";
 import { afterEach, expect, it } from "vitest";
-import { SystemBarsProvider, useHiddenSystemBars } from "./systemBars";
+import { SystemBarsProvider, useBarsTone, useHiddenSystemBars, useSystemBars } from "./systemBars";
 
 afterEach(cleanup);
 
@@ -21,4 +21,26 @@ it("does nothing without a host", () => {
   const { unmount } = renderHook(useHiddenSystemBars);
 
   unmount();
+});
+
+it("gives the bars a tone while one is asked for, and the app's back after", () => {
+  const calls: boolean[] = [];
+  const host = { setHidden: () => {}, setLight: (light: boolean) => void calls.push(light), splashHidden: () => {} };
+  const { result, rerender, unmount } = renderHook(
+    ({ light }: { light?: boolean }) => {
+      useBarsTone(light);
+      return useSystemBars();
+    },
+    { initialProps: { light: true } as { light?: boolean }, wrapper: ({ children }) => <SystemBarsProvider host={host}>{children}</SystemBarsProvider> },
+  );
+
+  result.current.setLight(false);
+  expect(calls).toEqual([true, true]);
+
+  rerender({ light: undefined });
+  expect(calls.at(-1)).toBe(false);
+
+  rerender({ light: true });
+  unmount();
+  expect(calls.slice(-2)).toEqual([true, false]);
 });

@@ -9,7 +9,10 @@ name = "pkh_emu_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]
+cc = "1.2"
 cmake = "0.1.58"
+# naga 30 builds its GLSL front end only alongside the WGSL or SPIR-V one.
+naga = { version = "30", features = ["glsl-in", "wgsl-in", "spv-out"] }
 tauri-build = { version = "2.7.2", features = [] }
 
 [dependencies]
@@ -34,6 +37,7 @@ sha2 = "0.10"
 percent-encoding = "2"
 rusqlite = "0.40.2"
 libloading = "0.9.0"
+ash = { version = "0.38", default-features = false, features = ["std"] }
 tauri-plugin-clipboard-manager = "2.4.2"
 rom-art = { path = "../../crates/rom-art" }
 sha1 = "0.10"
@@ -73,4 +77,9 @@ objc2 = "0.6"
 keyring = { version = "3.6", features = ["apple-native", "windows-native", "linux-native"] }
 
 [dev-dependencies]
+ruzstd = "0.9.1"
+tauri = { version = "2.12.3", features = ["test"] }
 sevenz-rust2 = { version = "0.23.0", default-features = false, features = ["compress"] }
+
+[target.'cfg(target_os = "ios")'.dev-dependencies]
+objc2-core-foundation = { version = "0.3.2", default-features = false, features = ["std", "CFCGTypes"] }

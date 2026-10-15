@@ -22,8 +22,8 @@ export type MobileData = { on: boolean; roms: boolean };
 export type SyncGames = { on: boolean; mobileData?: MobileData };
 export type Download = { path: string; done: number; total: number };
 
-export type SyncStage = "uploadingSaves" | "downloadingSaves" | "uploadingRom";
-export type WaitReason = "offline" | "mobileData" | "playing";
+export type SyncStage = "uploadingSaves" | "downloadingSaves" | "uploadingRom" | "uploadingUpdate" | "downloadingUpdate";
+export type WaitReason = "offline" | "mobileData" | "playing" | "stopped";
 export type GameSync =
   | { state: "queued" }
   | { state: "transferring"; done: number; total: number; stage: SyncStage }

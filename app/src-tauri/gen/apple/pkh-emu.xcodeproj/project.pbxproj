@@ -716,7 +716,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = fyi.openpkx.pkhemu;
 				PRODUCT_NAME = pkhemu;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 				VALID_ARCHS = arm64;
 			};
 			name = release;
@@ -866,7 +866,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = fyi.openpkx.pkhemu;
 				PRODUCT_NAME = pkhemu;
 				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = 1;
+				TARGETED_DEVICE_FAMILY = "1,2";
 				VALID_ARCHS = arm64;
 			};
 			name = debug;

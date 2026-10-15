@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
-import { useEffect } from "react";
+import { useEffect, type ReactNode } from "react";
 import { EngineProvider } from "@pkhex-everywhere/react";
+import { invoke } from "@tauri-apps/api/core";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { BackProvider } from "./back/back";
 import { desktopBackHost } from "./back/desktopHost";
@@ -11,15 +12,16 @@ import emeraldOverworld from "./game-memory/snapshots/emerald-overworld.json";
 import emeraldWild from "./game-memory/snapshots/emerald-wild.json";
 import { snapshotMemory } from "./game-memory/snapshots/snapshotMemory";
 import { answerEverySetupStep, fakePads } from "./input/fakePads";
-import type { Input } from "./input/input";
+import { buttons, type Input } from "./input/input";
 import { tauriCheatsHost } from "./cheats/tauriHost";
 import type { Game } from "./library/scan";
 import { tauriTransferPakHost } from "./transfer-pak/tauriHost";
 import type { Rates } from "./fps-counter/fpsCounter";
 import { GameScreen } from "./GameScreen";
+import { dualScreens } from "./screens";
 import type { GameSettings } from "./preferences/gameSettings";
 import { GameSurfaceProvider, noGameSurfaceHost, type GameSurfaceHost } from "./game-surface/gameSurface";
-import { PreferencesProvider, type RendererChoice } from "./preferences/preferences";
+import { PreferencesProvider, type PreferencesHost, type RendererChoice } from "./preferences/preferences";
 import { FakeGameArt } from "./game-art/fakeGameArt";
 import { GamesFolderProvider, type GamesFolderHost } from "./games-folder/gamesFolder";
 import { ExperimentsProvider } from "./lab/lab";
@@ -27,6 +29,10 @@ import { fakePlus } from "./plus/fakePlus";
 import { PlusProvider, type PlusStatus } from "./plus/plus";
 import { fakeSync } from "./sync/fakeSync";
 import { OPEN_WAIT_MS, SyncProvider } from "./sync/sync";
+import { lookVariables } from "./skin-look/skinLook";
+import { defaultSkins, skins } from "./skins";
+import type { System } from "./systems";
+import { SystemBarsProvider, type SystemBarsHost } from "./system-bars/systemBars";
 
 const game = vi.hoisted(() => ({
   readMemory: async (_: Range[]): Promise<Uint8Array> => Uint8Array.from([0, 0, 0, 0, 0]),
@@ -38,6 +44,10 @@ const game = vi.hoisted(() => ({
   pauseRequested: undefined as (() => void) | undefined,
   renderer: undefined as string | undefined,
   onNativeFailed: undefined as (() => void) | undefined,
+  screens: undefined as unknown,
+  swapped: undefined as boolean | undefined,
+  clearance: undefined as string | undefined,
+  onStacked: undefined as ((stacked: boolean) => void) | undefined,
 }));
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -55,6 +65,8 @@ vi.mock("@tauri-apps/api/core", () => ({
 vi.mock("./cheats/tauriHost", async () => ({
   tauriCheatsHost: (await import("./cheats/fakeCheats")).fakeCheats([{ name: "Infinite money", code: "82025838 FFFF", on: false }]),
 }));
+
+vi.mock("./screen", () => ({ createScreen: () => () => {} }));
 
 vi.mock("./core-message/tauriHost", () => ({ tauriCoreMessages: () => () => {} }));
 
@@ -91,6 +103,11 @@ vi.mock("./Player", () => ({
     onError,
     renderer,
     onNativeFailed,
+    screens,
+    swapped,
+    clearance,
+    onStacked,
+    children,
   }: {
     input: Input;
     resume: boolean;
@@ -101,7 +118,16 @@ vi.mock("./Player", () => ({
     onError(message: string): void;
     renderer: string;
     onNativeFailed?(): void;
+    screens?: unknown;
+    swapped?: boolean;
+    clearance?: string;
+    onStacked?(stacked: boolean): void;
+    children?: ReactNode;
   }) {
+    game.screens = screens;
+    game.swapped = swapped;
+    game.clearance = clearance;
+    game.onStacked = onStacked;
     game.onFps = onFps;
     game.onError = onError;
     game.renderer = renderer;
@@ -118,13 +144,18 @@ vi.mock("./Player", () => ({
       raf = requestAnimationFrame(tick);
       return () => cancelAnimationFrame(raf);
     }, [input, paused]);
-    return <p data-testid="player" data-paused={paused || undefined} data-holding={holdMessage} />;
+    return (
+      <div data-testid="player" data-paused={paused || undefined} data-holding={holdMessage}>
+        {children}
+      </div>
+    );
   },
 }));
 
 let pads: ReturnType<typeof fakePads>;
 
 let wide = false;
+let portrait = false;
 
 beforeEach(() => {
   game.readMemory = async () => Uint8Array.from([0, 0, 0, 0, 0]);
@@ -133,7 +164,12 @@ beforeEach(() => {
   game.transferPak = null;
   vi.mocked(tauriTransferPakHost.chooseTransferPak).mockClear();
   wide = false;
-  window.matchMedia = (() => ({ matches: wide, addEventListener() {}, removeEventListener() {} })) as never;
+  portrait = false;
+  window.matchMedia = ((query: string) => ({
+    matches: query.includes("portrait") ? portrait : wide,
+    addEventListener() {},
+    removeEventListener() {},
+  })) as never;
   vi.useFakeTimers({ toFake: ["requestAnimationFrame", "cancelAnimationFrame"] });
   pads = fakePads();
   Object.defineProperty(navigator, "getGamepads", { configurable: true, value: pads.gamepads });
@@ -184,31 +220,38 @@ async function play(
     back = desktopBackHost,
     renderer = "automatic" as RendererChoice,
     gameSurface = noGameSurfaceHost,
+    skinChoices = defaultSkins,
+    touchControls = false,
+    bars = { setHidden() {}, setLight() {}, splashHidden() {} } as SystemBarsHost,
+    preferences = { load: async () => ({}), save: async () => {} } as PreferencesHost,
+    plusHost = fakePlus({ status: plus }).host,
   } = {},
 ) {
   render(
-    <EngineProvider engine={using}>
-      <GameSurfaceProvider host={gameSurface}>
-        <PreferencesProvider
-          host={{ load: async () => ({}), save: async () => {} }}
-          defaults={{ touchControls: false, fastForwardSpeed: 2, showFps, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer }}
-        >
-          <GamesFolderProvider host={gamesFolder}>
-            <SyncProvider host={sync.host}>
-              <FakeGameArt>
-                <BackProvider host={back}>
-                  <PlusProvider host={fakePlus({ status: plus }).host}>
-                    <ExperimentsProvider host={{ load: async () => ({}), save: async () => {} }} registry={[]}>
-                      <GameScreen folder="/games" game={played} games={games} resume={resume} dismissedPads={new Set()} onQuit={onQuit} onUnsupported={onUnsupported} />
-                    </ExperimentsProvider>
-                  </PlusProvider>
-                </BackProvider>
-              </FakeGameArt>
-            </SyncProvider>
-          </GamesFolderProvider>
-        </PreferencesProvider>
-      </GameSurfaceProvider>
-    </EngineProvider>,
+    <SystemBarsProvider host={bars}>
+      <EngineProvider engine={using}>
+        <GameSurfaceProvider host={gameSurface}>
+          <PreferencesProvider
+            host={preferences}
+            defaults={{ touchControls, fastForwardSpeed: 2, showFps, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer, skins: skinChoices, skinHintSeen: false, screenDepth: true, screenGlass: true, asyncShaders: false }}
+          >
+            <GamesFolderProvider host={gamesFolder}>
+              <SyncProvider host={sync.host}>
+                <FakeGameArt>
+                  <BackProvider host={back}>
+                    <PlusProvider host={plusHost}>
+                      <ExperimentsProvider host={{ load: async () => ({}), save: async () => {} }} registry={[]}>
+                        <GameScreen folder="/games" game={played} games={games} resume={resume} dismissedPads={new Set()} onQuit={onQuit} onUnsupported={onUnsupported} />
+                      </ExperimentsProvider>
+                    </PlusProvider>
+                  </BackProvider>
+                </FakeGameArt>
+              </SyncProvider>
+            </GamesFolderProvider>
+          </PreferencesProvider>
+        </GameSurfaceProvider>
+      </EngineProvider>
+    </SystemBarsProvider>,
   );
   await act(async () => {});
 }
@@ -225,7 +268,159 @@ async function pressOddPad() {
   return pad;
 }
 
+const plastic = () => document.querySelector<HTMLElement>("[style*='background-image']");
+
+it("draws the chosen skin's plastic behind the game in portrait, with the bars' icons to suit it", async () => {
+  portrait = true;
+  const light: boolean[] = [];
+  const polarWhite = skins.nds.find(({ id }) => id === "polar-white")!;
+
+  await play(undefined, undefined, undefined, {
+    played: { name: "Platinum", path: "nds/Platinum.nds", system: "nds" },
+    skinChoices: { ...defaultSkins, nds: { skin: "polar-white", look: "moulded" } },
+    bars: { setHidden() {}, setLight: (on) => void light.push(on), splashHidden() {} },
+  });
+
+  expect(plastic()?.style.backgroundImage).toContain(polarWhite.image);
+  expect(light.at(-1)).toBe(true);
+});
+
+it("replaces the shown skin when sync brings another one down during the game", async () => {
+  portrait = true;
+  let syncDown = (_: Partial<Record<System, unknown>>) => {};
+  const glacier = skins.gba.find(({ id }) => id === "glacier")!;
+  await play(undefined, undefined, undefined, {
+    plus: { state: "owned" },
+    preferences: {
+      load: async () => ({}),
+      save: async () => {},
+      onSkinsChanged: (listener) => {
+        syncDown = listener;
+        return () => {};
+      },
+    },
+  });
+  expect(plastic()?.style.backgroundImage).toContain(skins.gba[0].image);
+
+  act(() => syncDown({ gba: { skin: "glacier", look: "frosted", changedAt: 2 } }));
+
+  expect(plastic()?.style.backgroundImage).toContain(glacier.image);
+});
+
+it("shows pkhemu for a saved Plus skin until Plus comes back, keeping the choice", async () => {
+  portrait = true;
+  const glacier = skins.gba.find(({ id }) => id === "glacier")!;
+  const { host, report } = fakePlus({ status: { state: "notOwned", price: "$3.99" } });
+  const save = vi.fn(async () => {});
+  await play(undefined, undefined, undefined, {
+    plusHost: host,
+    skinChoices: { ...defaultSkins, gba: { skin: "glacier", look: "moulded" } },
+    preferences: { load: async () => ({}), save },
+  });
+  expect(plastic()?.style.backgroundImage).toContain(skins.gba[0].image);
+
+  act(() => report({ state: "owned" }));
+
+  expect(plastic()?.style.backgroundImage).toContain(glacier.image);
+  expect(save).not.toHaveBeenCalled();
+});
+
+const skinned = () => document.querySelector<HTMLElement>("[data-skin]");
+const wordmark = () => screen.getByTestId("player").textContent;
+
+it("styles the touch controls in the chosen look and prints the wordmark under the screen", async () => {
+  portrait = true;
+  const classicGrey = skins.gb.find(({ id }) => id === "classic-grey")!;
+
+  await play(undefined, undefined, undefined, {
+    played: { name: "Red", path: "gb/Red.gb", system: "gb" },
+    skinChoices: { ...defaultSkins, gb: { skin: "classic-grey", look: "frosted" } },
+  });
+
+  expect(skinned()?.style.getPropertyValue("--skin-blur")).toBe(lookVariables(classicGrey, "frosted")["--skin-blur"]);
+  expect(wordmark()).toBe("pkhemu");
+});
+
+it("leaves the wordmark off DS", async () => {
+  portrait = true;
+
+  await play(undefined, undefined, undefined, { played: { name: "Platinum", path: "nds/Platinum.nds", system: "nds" } });
+
+  expect(skinned()).not.toBeNull();
+  expect(wordmark()).toBe("");
+});
+
+it("keeps the game area black in landscape", async () => {
+  await play();
+
+  expect(plastic()).toBeNull();
+  expect(skinned()).toBeNull();
+});
+
 const holding = () => screen.getByTestId("player").getAttribute("data-holding");
+
+it.each(["nds", "3ds"] as const)("shows both screens of a %s game, with a button to swap them", async (system) => {
+  portrait = true;
+  await play(undefined, undefined, undefined, { played: { name: "Game", path: `${system}/Game`, system } });
+
+  expect(game.screens).toBe(dualScreens[system]);
+  screen.getByRole("button", { name: "Swap screens" });
+});
+
+it("drops the header in landscape while the touch controls show", async () => {
+  await play(undefined, undefined, undefined, { touchControls: true });
+
+  expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
+});
+
+it("keeps the header in portrait with the touch controls", async () => {
+  portrait = true;
+  await play(undefined, undefined, undefined, { touchControls: true });
+
+  screen.getByRole("button", { name: "Back" });
+});
+
+it("keeps the header in landscape without the touch controls", async () => {
+  await play();
+
+  screen.getByRole("button", { name: "Back" });
+});
+
+it("swaps a DS game's screens from the pause menu and closes it", async () => {
+  await play(undefined, undefined, undefined, { touchControls: true, played: { name: "Game", path: "nds/Game", system: "nds" } });
+  await openPauseMenu();
+
+  fireEvent.click(screen.getByRole("button", { name: "Swap screens" }));
+  await act(async () => {});
+
+  expect(game.swapped).toBe(true);
+  expect(pauseMenu()).toBeNull();
+});
+
+it.each(["nds", "3ds"] as const)("keeps a %s game's touch screen clear of touch controls on its side only", async (system) => {
+  await play(undefined, undefined, undefined, { touchControls: true, played: { name: "Game", path: `${system}/Game`, system } });
+
+  expect(game.clearance).toBe("landscape:pr-[11rem]");
+  await openPauseMenu();
+  fireEvent.click(screen.getByRole("button", { name: "Swap screens" }));
+  await act(async () => {});
+  expect(game.clearance).toBe("landscape:pl-[11rem]");
+});
+
+it("keeps stacked screens clear of touch controls on both sides", async () => {
+  await play(undefined, undefined, undefined, { touchControls: true, played: { name: "Game", path: "nds/Game", system: "nds" } });
+
+  act(() => game.onStacked?.(true));
+
+  expect(game.clearance).toBe("landscape:px-[11rem]");
+});
+
+it("shows one screen and no swap button for a game with one screen", async () => {
+  await play();
+
+  expect(game.screens).toBeUndefined();
+  expect(screen.queryByRole("button", { name: "Swap screens" })).toBeNull();
+});
 
 it("shows the frames drawn beside the FPS in builds that aren't store builds", async () => {
   await play(undefined, undefined, undefined, { showFps: true, plus: { state: "unlocked" } });
@@ -269,6 +464,14 @@ it("shows any other load failure in place of the game", async () => {
 
   expect(onUnsupported).not.toHaveBeenCalled();
   expect(screen.getByText("the core refused the ROM")).toBeTruthy();
+});
+
+it("brings the header back when the game fails in landscape with the touch controls", async () => {
+  await play(undefined, undefined, undefined, { touchControls: true });
+
+  act(() => game.onError!("the core refused the ROM"));
+
+  screen.getByRole("button", { name: "Back" });
 });
 
 it("fetches the game's changes before it starts", async () => {
@@ -423,7 +626,9 @@ it("pauses when the phone takes the sound away for a call or alarm", async () =>
 const settle = () => act(() => new Promise((resolve) => setTimeout(resolve, 50)));
 
 async function openPauseMenu() {
-  fireEvent.click(screen.getByRole("button", { name: "Pause menu" }));
+  const [button] = screen.getAllByRole("button", { name: "Pause menu" });
+  fireEvent.pointerDown(button, { button: 0 });
+  fireEvent.click(button);
   await act(async () => {});
 }
 
@@ -442,6 +647,79 @@ it("opens the game's cheats from the pause menu, and goes back to it", async () 
   expect(screen.queryByRole("switch", { name: "Infinite money" })).toBeNull();
   expect(screen.getByRole("button", { name: "Resume" })).toBeTruthy();
   expect(paused()).toBe(true);
+});
+
+it("leaves Skin out of the pause menu while the touch controls are off", async () => {
+  await play();
+  await openPauseMenu();
+
+  expect(screen.queryByRole("button", { name: /^Skin/ })).toBeNull();
+});
+
+it("opens the game's skin picker from the pause menu with the paused frame, and goes back to it", async () => {
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  );
+  await play(undefined, undefined, undefined, {
+    touchControls: true,
+    skinChoices: { ...defaultSkins, gba: { skin: "indigo", look: "frosted" } },
+  });
+  await openPauseMenu();
+  const entry = screen.getByRole("button", { name: /^Skin/ });
+  expect(entry.textContent).toContain("Indigo · Frosted");
+
+  fireEvent.click(entry);
+  await act(async () => {});
+
+  expect(screen.getByRole("heading", { name: "Game Boy Advance skin" })).toBeTruthy();
+  expect(invoke).toHaveBeenCalledWith("paused_screenshot");
+  expect(paused()).toBe(true);
+  fireEvent.keyDown(window, { key: "Escape" });
+  await act(async () => {});
+  expect(screen.queryByRole("heading", { name: "Game Boy Advance skin" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Resume" })).toBeTruthy();
+  vi.unstubAllGlobals();
+});
+
+it("steps back one screen at a time with B from a skin picker opened from Settings", async () => {
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      observe() {}
+      disconnect() {}
+    },
+  );
+  const pad = pads.connect();
+  await play(undefined, undefined, undefined, { touchControls: true });
+  await openPauseMenu();
+  fireEvent.click(screen.getByRole("button", { name: "Settings" }));
+  await act(async () => {});
+  fireEvent.click(screen.getByRole("button", { name: "Skins" }));
+  await act(async () => {});
+  fireEvent.click(screen.getByRole("button", { name: /^Nintendo 64/ }));
+  await act(async () => {});
+  expect(screen.getByRole("heading", { name: "Nintendo 64 skin" })).toBeTruthy();
+  act(() => void vi.advanceTimersToNextFrame());
+
+  act(() => pad.press(buttons.b));
+  await act(async () => {});
+  expect(screen.queryByRole("heading", { name: "Nintendo 64 skin" })).toBeNull();
+  expect(screen.getByRole("heading", { name: "Skins" })).toBeTruthy();
+
+  act(() => pad.press(buttons.b));
+  await act(async () => {});
+  expect(screen.queryByRole("heading", { name: "Skins" })).toBeNull();
+  expect(screen.getByRole("heading", { name: "Settings" })).toBeTruthy();
+
+  act(() => pad.press(buttons.b));
+  await act(async () => {});
+  expect(screen.queryByRole("heading", { name: "Settings" })).toBeNull();
+  expect(screen.getByRole("button", { name: "Resume" })).toBeTruthy();
+  vi.unstubAllGlobals();
 });
 
 const stadium: Game = { name: "Stadium", path: "n64/Stadium.z64", system: "n64" };

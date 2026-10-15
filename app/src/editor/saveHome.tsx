@@ -1,5 +1,5 @@
 import { Fragment, useId, useState, type ReactNode, type Ref } from "react";
-import { Backpack, Check, ChevronLeft, ChevronRight, Copy, Flag, IdCard, Users, type LucideIcon } from "lucide-react";
+import { Backpack, Check, ChevronLeft, ChevronRight, Copy, Flag, Gift, IdCard, Users, type LucideIcon } from "lucide-react";
 import { useBox, useEngine, useLoadedGame, useParty, useQuery } from "@pkhex-everywhere/react";
 import type { PokemonSummary } from "@pkhex-everywhere/engine";
 import { cn } from "cn";
@@ -11,6 +11,7 @@ import { useClipboard } from "./clipboard";
 import { ApplyBar, useEditorNav, type Page } from "./EditorScreen";
 import { bagPage } from "./bag";
 import { eventsPage } from "./events";
+import { mysteryGiftPage } from "./mysteryGift";
 import { pokemonPage } from "./pokemonEditor";
 import { teamsPage } from "./teams";
 import { trainerPage } from "./trainer";
@@ -199,7 +200,7 @@ function PageTile({ page, icon: Icon }: { page: Page; icon: LucideIcon }) {
       className="flex min-h-16 min-w-0 flex-col items-center justify-center gap-1 rounded-lg border p-3 text-sm font-medium motion-press hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
     >
       <Icon className="size-5 text-muted-foreground" />
-      <span className="w-full truncate text-center">{page.title}</span>
+      <span className="line-clamp-2 w-full text-center leading-tight break-words">{page.title}</span>
     </button>
   );
 }
@@ -207,6 +208,11 @@ function PageTile({ page, icon: Icon }: { page: Page; icon: LucideIcon }) {
 function EventsTile() {
   const { game } = useLoadedGame();
   return game?.hasEvents ? <PageTile page={eventsPage} icon={Flag} /> : null;
+}
+
+function MysteryGiftTile() {
+  const { game } = useLoadedGame();
+  return game?.hasMysteryGift ? <PageTile page={mysteryGiftPage()} icon={Gift} /> : null;
 }
 
 function CopyTeamButton({ count }: { count: number }) {
@@ -278,6 +284,7 @@ function SaveHome() {
             </>
           )}
           <EventsTile />
+          <MysteryGiftTile />
         </div>
         {!stadium && <Party />}
         <Boxes />

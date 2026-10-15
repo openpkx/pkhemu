@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { invoke } from "@tauri-apps/api/core";
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactElement } from "react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { GameSurfaceProvider, type GameSurfaceHost } from "./game-surface/gameSurface";
 import { createInput } from "./input/input";
@@ -8,7 +8,11 @@ import { GravityProvider, type Gravity, type GravityHost } from "./gravity/gravi
 import { experiments } from "./lab/experiments";
 import { ExperimentsProvider } from "./lab/lab";
 import { Player } from "./Player";
+import { PreferencesProvider, type Preferences, type PreferencesHost } from "./preferences/preferences";
 import type { Parallax } from "./screen";
+import { dualScreens } from "./screens";
+import { ShadersProvider } from "./shaders/shaders";
+import { defaultSkins } from "./skins";
 import { handheld } from "./systems";
 
 type FakeChannel<T> = { onmessage?(message: T): void };
@@ -52,6 +56,7 @@ afterEach(() => {
   played.length = 0;
   drawn.length = 0;
   gravity = undefined;
+  stored = {};
   vi.useRealTimers();
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -59,26 +64,39 @@ afterEach(() => {
 
 const input = createInput(() => []);
 let gravity: GravityHost | undefined;
-const noSensor: GravityHost = { start() {}, stop() {}, read: () => undefined };
+const noSensor: GravityHost = { tilts: true, start() {}, stop() {}, read: () => undefined };
 const onError = () => {};
+let stored: Partial<Preferences> = {};
+const preferencesHost: PreferencesHost = { load: async () => stored, save: async () => {} };
+const preferences: Preferences = { touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic", skins: defaultSkins, skinHintSeen: false, screenDepth: false, screenGlass: false, asyncShaders: false };
+
+async function rendered(ui: ReactElement) {
+  const result = render(ui);
+  await act(async () => {});
+  return result;
+}
 
 function player(props: Partial<ComponentProps<typeof Player>> = {}) {
   return (
-    <Player
-      folder="/games"
-      path="gba/Ruby.gba"
-      resume={false}
-      speed={1}
-      input={input}
-      paused={false}
-      dual={false}
-      display={handheld.gba}
-      swapped={false}
-      clockOffset={0}
-      renderer="native"
-      onError={onError}
-      {...props}
-    />
+    <GravityProvider host={gravity ?? noSensor}>
+      <PreferencesProvider host={preferencesHost} defaults={preferences}>
+        <Player
+          folder="/games"
+          path="gba/Ruby.gba"
+          resume={false}
+          speed={1}
+          input={input}
+          paused={false}
+          display={handheld.gba}
+          wall="#252437"
+          swapped={false}
+          clockOffset={0}
+          renderer="native"
+          onError={onError}
+          {...props}
+        />
+      </PreferencesProvider>
+    </GravityProvider>
   );
 }
 
@@ -135,7 +153,7 @@ function tick() {
 }
 
 it("shows Starting… until the first frame", async () => {
-  render(player());
+  await rendered(player());
   tick();
   expect(screen.getByRole("status").textContent).toBe("Starting…");
 
@@ -145,8 +163,8 @@ it("shows Starting… until the first frame", async () => {
   expect(screen.queryByRole("progressbar")).toBeNull();
 });
 
-it("starts the bar empty before any step", () => {
-  render(player());
+it("starts the bar empty before any step", async () => {
+  await rendered(player());
 
   expect(screen.getByRole("status").textContent).toBe("Starting…");
   expect(screen.getByRole("progressbar").getAttribute("aria-valuenow")).toBe("0");
@@ -176,15 +194,15 @@ it("doesn't spin while starting", () => {
   expect(container.querySelector("svg.animate-spin")).toBeNull();
 });
 
-it("says Resuming… when resuming", () => {
-  render(player({ resume: true }));
+it("says Resuming… when resuming", async () => {
+  await rendered(player({ resume: true }));
 
   expect(screen.getByRole("status").textContent).toBe("Resuming…");
 });
 
 it("shows the cover behind the status until the first frame", async () => {
   const cover = "data:image/png;base64,AAAA";
-  const { container } = render(player({ resume: true, cover }));
+  const { container } = await rendered(player({ resume: true, cover }));
   expect(container.querySelector("img")?.getAttribute("src")).toBe(cover);
 
   await sendFrame();
@@ -208,6 +226,20 @@ it("starts the game with the clock offset", async () => {
   render(player({ clockOffset: 3 * 86400 }));
 
   await vi.waitFor(() => expect(invoke).toHaveBeenCalledWith("play", expect.objectContaining({ clockOffset: 3 * 86400 })));
+});
+
+it.each([false, true])("starts the game with async shaders %s as the preference says", async (asyncShaders) => {
+  stored = { asyncShaders };
+  render(<ShadersProvider host={{ offered: async () => true, onLine: "" }}>{player()}</ShadersProvider>);
+
+  await vi.waitFor(() => expect(invoke).toHaveBeenCalledWith("play", expect.objectContaining({ asyncShaders })));
+});
+
+it("starts the game without async shaders where the core can't draw while shaders compile", async () => {
+  stored = { asyncShaders: true };
+  render(<ShadersProvider host={{ offered: async () => false, onLine: "" }}>{player()}</ShadersProvider>);
+
+  await vi.waitFor(() => expect(invoke).toHaveBeenCalledWith("play", expect.objectContaining({ asyncShaders: false })));
 });
 
 it("plays an N64 game once and stops it only when the player leaves", async () => {
@@ -234,11 +266,9 @@ it("plays an N64 game once and stops it only when the player leaves", async () =
 
 function withExperiment(id: string, value: string, props: Partial<ComponentProps<typeof Player>>) {
   return (
-    <GravityProvider host={gravity ?? noSensor}>
-      <ExperimentsProvider host={{ load: async () => ({ [id]: value }), save: async () => {} }} registry={experiments}>
-        {player(props)}
-      </ExperimentsProvider>
-    </GravityProvider>
+    <ExperimentsProvider host={{ load: async () => ({ [id]: value }), save: async () => {} }} registry={experiments}>
+      {player(props)}
+    </ExperimentsProvider>
   );
 }
 
@@ -356,10 +386,15 @@ function media({ portrait = true, reduced = false } = {}) {
   }));
 }
 
-function sensor(read: () => Gravity | undefined = () => undefined) {
+function sensor(read: () => Gravity | undefined = () => undefined, tilts = true) {
   const calls: string[] = [];
-  gravity = { start: () => void calls.push("start"), stop: () => void calls.push("stop"), read };
+  gravity = { tilts, start: () => void calls.push("start"), stop: () => void calls.push("stop"), read };
   return calls;
+}
+
+function withDepth(props: Partial<ComponentProps<typeof Player>> = {}, screenDepth = true) {
+  stored = { screenDepth };
+  return player(props);
 }
 
 const level = (shift?: Shift) => !shift || (shift.x === 0 && shift.y === 0);
@@ -367,30 +402,31 @@ const level = (shift?: Shift) => !shift || (shift.x === 0 && shift.y === 0);
 it("runs the gravity sensor while a game shows in the shell with the tilt on", async () => {
   media();
   const calls = sensor();
-  const { rerender, unmount } = render(withExperiment("tiltScreen", "on", {}));
+  const { rerender, unmount } = render(withDepth());
   await playing();
   expect(calls).toEqual([]);
 
   await sendFrame();
   expect(calls).toEqual(["start"]);
 
-  rerender(withExperiment("tiltScreen", "on", { paused: true }));
+  rerender(withDepth({ paused: true }));
   expect(calls).toEqual(["start", "stop"]);
 
-  rerender(withExperiment("tiltScreen", "on", { paused: false }));
+  rerender(withDepth({ paused: false }));
   unmount();
   expect(calls).toEqual(["start", "stop", "start", "stop"]);
 });
 
 it.each([
-  ["with the tilt off", "off", {}],
-  ["in landscape", "on", { portrait: false }],
-  ["with reduced motion", "on", { reduced: true }],
-])("keeps the screen still and the sensor off %s", async (_, value, options) => {
+  ["with Screen depth off", false, {}, {}, true],
+  ["out of the shell, as in landscape", true, {}, { wall: undefined }, true],
+  ["with reduced motion", true, { reduced: true }, {}, true],
+  ["on a device that can't read tilt", true, {}, {}, false],
+])("keeps the screen still and the sensor off %s", async (_, screenDepth, options, props, tilts) => {
   media(options);
   let reading = { x: 0, y: 6.94, z: 6.94 };
-  const calls = sensor(() => reading);
-  render(withExperiment("tiltScreen", value, {}));
+  const calls = sensor(() => reading, tilts);
+  render(withDepth(props, screenDepth));
   await sendFrame();
 
   reading = { x: 4, y: 6.3, z: 6.3 };
@@ -403,7 +439,7 @@ it.each([
 it("keeps the screen still without a gravity reading", async () => {
   media();
   sensor();
-  render(withExperiment("tiltScreen", "on", {}));
+  render(withDepth());
   await sendFrame();
 
   for (let i = 0; i < 10; i++) tick();
@@ -415,7 +451,7 @@ it("shifts the game image toward the edge the phone tilts up", async () => {
   media();
   let reading = { x: 0, y: 6.94, z: 6.94 };
   sensor(() => reading);
-  render(withExperiment("tiltScreen", "on", {}));
+  render(withDepth());
   await sendFrame();
   for (let i = 0; i < 10; i++) tick();
 
@@ -435,7 +471,7 @@ const rolledRight = { x: 6.94, y: 4.9, z: 4.9 };
 it("shifts past the margin, up to the most the tilt gives", async () => {
   let reading = { x: 0, y: 6.94, z: 6.94 };
   tilted(() => reading);
-  render(withExperiment("tiltScreen", "on", {}));
+  render(withDepth());
   await sendFrame();
   for (let i = 0; i < 10; i++) tick();
 
@@ -449,7 +485,7 @@ it("shifts past the margin, up to the most the tilt gives", async () => {
 it("draws plain black with the sensor off for a system without a handheld display", async () => {
   media();
   const calls = sensor(() => ({ x: 0, y: 6.94, z: 6.94 }));
-  const { container } = render(withExperiment("tiltScreen", "on", { display: undefined }));
+  const { container } = render(withDepth({ display: undefined }));
   await sendFrame();
   for (let i = 0; i < 10; i++) tick();
 
@@ -474,7 +510,7 @@ it("maps a touch on the tilted DS touchscreen, which moves half as far", async (
   const { marginDp, gapDp } = handheld.nds!;
   const touches = createInput(() => []);
   const touched = vi.spyOn(touches, "touchScreen");
-  const { container } = render(withExperiment("tiltScreen", "on", { dual: true, display: handheld.nds, input: touches }));
+  const { container } = render(withDepth({ screens: dualScreens.nds, display: handheld.nds, input: touches }));
   await sendFrame(256, 384);
   for (let i = 0; i < 10; i++) tick();
   reading = rolledRight;
@@ -511,6 +547,63 @@ it("leaves a frame Rust drew natively to Rust and tells it where the game shows"
   ]);
 });
 
+it("walls the opening in the colour it's given", async () => {
+  media();
+  const { rerender } = render(player({ wall: "#ff0000" }));
+  await sendFrame();
+
+  rerender(player({ wall: "#0000ff" }));
+  tick();
+
+  expect(drawn.map(({ look }) => (look as { shell: number[] } | undefined)?.shell)).toEqual([[1, 0, 0], [0, 0, 1]]);
+});
+
+it.each([
+  [true, true],
+  [false, false],
+])("draws the glass as Screen glass says: %s", async (screenGlass, glass) => {
+  media();
+  stored = { screenGlass };
+  render(player());
+  await sendFrame();
+
+  expect(drawn.at(-1)!.look).toMatchObject({ glass });
+});
+
+it("keeps the game area black without a wall colour", async () => {
+  media();
+  const { container } = render(player({ wall: undefined }));
+  await sendFrame();
+
+  expect(container.firstElementChild!.className).toContain("bg-black");
+  expect(drawn.every(({ look }) => look === undefined)).toBe(true);
+});
+
+it("leaves the page clear over each window while Rust draws natively, and whole after", async () => {
+  media();
+  const onWindows = vi.fn();
+  const { unmount } = render(player({ screens: dualScreens.nds, display: handheld.nds, onWindows }));
+
+  await sendNativeFrame(256, 384);
+  expect(onWindows).toHaveBeenLastCalledWith([
+    { x: expect.any(Number), y: expect.any(Number), width: expect.any(Number), height: expect.any(Number) },
+    { x: expect.any(Number), y: expect.any(Number), width: expect.any(Number), height: expect.any(Number) },
+  ]);
+
+  unmount();
+  expect(onWindows).toHaveBeenLastCalledWith(undefined);
+});
+
+it("leaves the page whole while WebGL draws", async () => {
+  media();
+  const onWindows = vi.fn();
+  render(player({ onWindows }));
+
+  await sendFrame();
+
+  expect(onWindows).not.toHaveBeenCalledWith(expect.any(Array));
+});
+
 it("clears the page over the game while Rust draws it natively", async () => {
   const { unmount } = render(player());
   expect(document.documentElement.hasAttribute("data-native-screen")).toBe(false);
@@ -536,7 +629,7 @@ it("sends the tilt to Rust while it draws natively", async () => {
   media();
   let reading = { x: 0, y: 6.94, z: 6.94 };
   sensor(() => reading);
-  render(withExperiment("tiltScreen", "on", {}));
+  render(withDepth());
   await sendNativeFrame();
   for (let i = 0; i < 10; i++) tick();
 

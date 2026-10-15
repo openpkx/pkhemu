@@ -6,6 +6,7 @@ import { PreferencesProvider, type Preferences, type PreferencesHost } from "@/p
 import { EditorScreen } from "./EditorScreen";
 import { fakeEngine } from "./fakeEngine";
 import { saveHome } from "./saveHome";
+import { defaultSkins } from "@/skins";
 
 // jsdom lays nothing out, so the virtualized list would think it has no room for rows.
 beforeEach(() => {
@@ -75,6 +76,11 @@ const defaults: Preferences = {
   stickSensitivity: 1,
   playInSilentMode: false,
   renderer: "automatic",
+  skins: defaultSkins,
+  skinHintSeen: false,
+  screenDepth: true,
+  screenGlass: true,
+  asyncShaders: false,
 };
 
 function memoryPreferences() {

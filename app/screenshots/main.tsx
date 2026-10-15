@@ -20,7 +20,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { EditorScreen } from "@/editor/EditorScreen";
 import { ExportProvider } from "@/editor/exportFile";
-import { fakeEngine } from "@/editor/fakeEngine";
+import { fakeEngine, type FakeEventEncounter } from "@/editor/fakeEngine";
 import { saveHome } from "@/editor/saveHome";
 import { teamsPage } from "@/editor/teams";
 import { WithUndo } from "@/editor/undo";
@@ -34,14 +34,15 @@ import { GamesFolderProvider, type GamesFolderHost } from "@/games-folder/gamesF
 import { GravityProvider, type GravityHost } from "@/gravity/gravity";
 import { GameScreen } from "@/GameScreen";
 import { Home } from "@/Home";
-import { ReplaceSaveDialog, WhichGameDialog } from "@/import/importFiles";
+import { androidImportHost } from "@/import/androidHost";
+import { desktopImportHost } from "@/import/desktopHost";
+import { ImportProvider, ReplaceSaveDialog, WhichGameDialog } from "@/import/importFiles";
+import { iosEmulatorHint, iosImportHost } from "@/import/iosHost";
 import { Copying, FolderSummaryScreen, SaveConflicts, Scanning, WhereAreYourGames } from "@/import/ImportFolder";
 import { createInput } from "@/input/input";
 import { NewFolder, PreviousFolder } from "@/onboarding/Welcome";
-import { experiments } from "@/lab/experiments";
-import { ExperimentsProvider } from "@/lab/lab";
 import { fakeFolder } from "@/library/fakeFolder";
-import type { LibraryHost } from "@/library/library";
+import { LibraryProvider, type LibraryHost } from "@/library/library";
 import type { Game } from "@/library/scan";
 import { PatchRomDialog, PatchRomProvider, type PatchRomHost } from "@/patch-rom/patchRom";
 import { OpponentPill } from "@/pokemon-info/OpponentPill";
@@ -52,8 +53,10 @@ import type { SyncBadgeState } from "@/sync/gameStatus";
 import { SyncProvider } from "@/sync/sync";
 import { systems, type System } from "@/systems";
 import { TransferScreen, type TransferHost } from "@/transfer/TransferScreen";
+import { SkinPicker } from "@/skin-picker/SkinPicker";
 import { TransferPakScreen } from "@/transfer-pak/TransferPak";
 import "@/index.css";
+import { defaultSkins } from "@/skins";
 
 const params = new URLSearchParams(location.search);
 const theme = params.get("theme") === "light" ? "light" : "dark";
@@ -68,11 +71,11 @@ if (playing && devicePixelRatio !== 1) {
     }
   };
 }
-const gravityHost: GravityHost = { start() {}, stop() {}, read: () => (forcedShift ? { x: 0, y: 0, z: 9.81 } : undefined) };
+const gravityHost: GravityHost = { tilts: true, start() {}, stop() {}, read: () => (forcedShift ? { x: 0, y: 0, z: 9.81 } : undefined) };
 
 const callbacks = new Map<number, (message: unknown) => void>();
 
-// RGB565, as the core sends it.
+// RGB565, as the core sends it. A 3DS frame's bottom half is black beside the 320-pixel bottom screen.
 function frame(width: number, height: number) {
   const buffer = new ArrayBuffer(16 + width * height * 2);
   const view = new DataView(buffer);
@@ -84,7 +87,10 @@ function frame(width: number, height: number) {
     for (let x = 0; x < width; x++) {
       const light = ((x >> 4) + (y >> 4)) % 2 === 0;
       const bottom = height > 192 && y >= height / 2;
-      pixels[y * width + x] = bottom
+      const beside = bottom && width === 400 && (x < 40 || x >= 360);
+      pixels[y * width + x] = beside
+        ? 0
+        : bottom
         ? light ? rgb565(88, 120, 200) : rgb565(58, 80, 150)
         : light ? rgb565(88, 179, 104) : rgb565(58, 138, 74);
     }
@@ -94,7 +100,7 @@ function frame(width: number, height: number) {
 
 async function playingCommand(command: string, args: Record<string, unknown>) {
   if (command === "play") {
-    const sizes: Record<string, number[]> = { "playing-gb": [160, 144], "playing-nds": [256, 384], "playing-n64": [640, 480] };
+    const sizes: Record<string, number[]> = { "playing-gb": [160, 144], "playing-gbc": [160, 144], "playing-nds": [256, 384], "playing-n64": [640, 480], "playing-3ds": [400, 480] };
     const size = sizes[params.get("screen")!] ?? [240, 160];
     callbacks.get((args.onFrame as { id: number }).id)?.({ index: 0, message: frame(size[0], size[1]) });
     return 60;
@@ -113,7 +119,6 @@ Object.assign(window, {
       return id;
     },
     invoke: async (command: string, args: Record<string, unknown>) => {
-      if (command === "core_info") return { name: "mGBA", version: "0.10.5" };
       if (playing) return playingCommand(command, args);
       throw new Error(`${command} isn't available in screenshots`);
     },
@@ -129,10 +134,11 @@ const games = [
   "gba/hacks/Radical Red.gba",
   "nds/Platinum.nds",
   "nds/HeartGold.nds",
+  "3ds/PKSM.3dsx",
 ];
 
 const preferences: Preferences = {
-  touchControls: playing,
+  touchControls: playing || params.get("screen") === "settings-skins",
   fastForwardSpeed: 2,
   showFps: false,
   theme,
@@ -143,10 +149,25 @@ const preferences: Preferences = {
   stickSensitivity: 1,
   playInSilentMode: false,
   renderer: "automatic",
+  skins:
+    params.has("skin") || params.has("look")
+      ? {
+          ...defaultSkins,
+          [params.get("screen")!.replace(/^(playing|skin-picker)-/, "")]: {
+            skin: params.get("skin") ?? "pkhemu",
+            look: params.get("look") === "frosted" ? "frosted" : "moulded",
+          },
+        }
+      : defaultSkins,
+  skinHintSeen: params.has("hinted"),
+  screenDepth: !playing || forcedShift,
+  screenGlass: playing ? params.get("glass") === "on" : params.get("glass") !== "off",
+  asyncShaders: true,
 };
 
 const welcome = params.get("screen")?.startsWith("welcome") ?? false;
-const ios = params.get("screen")?.endsWith("-ios") ?? false;
+const ipad = params.get("screen")?.endsWith("-ipad") ?? false;
+const ios = ipad || (params.get("screen")?.endsWith("-ios") ?? false);
 const gamesFolderHost: GamesFolderHost = {
   pickFolder: async () => "/games",
   makeFolder: async () => "/games",
@@ -157,7 +178,7 @@ const gamesFolderHost: GamesFolderHost = {
   loadSaved: async () => (welcome ? null : "/games"),
   save: async () => {},
   label: (folder) => folder,
-  device: ios ? "iPhone" : params.get("screen")?.endsWith("-mac") ? "Mac" : "phone",
+  device: ipad ? "iPad" : ios ? "iPhone" : params.get("screen")?.endsWith("-mac") ? "Mac" : "phone",
   openFolder: async () => {},
 };
 
@@ -223,7 +244,26 @@ const dsLastScreen = await png(256, 384, (context) => {
   context.fillRect(32, 240, 192, 96);
 });
 
-const lastScreens: Record<string, typeof lastScreen> = { "gba/Emerald.gba": lastScreen, "nds/Platinum.nds": dsLastScreen };
+const threeDsLastScreen = await png(400, 480, (context) => {
+  for (let y = 0; y < 240; y += 16) {
+    for (let x = 0; x < 400; x += 16) {
+      context.fillStyle = (x + y) % 32 ? "#3a8a6a" : "#58b890";
+      context.fillRect(x, y, 16, 16);
+    }
+  }
+  context.fillStyle = "#f8f8f8";
+  context.fillRect(0, 192, 400, 48);
+  context.fillStyle = "#000000";
+  context.fillRect(0, 240, 400, 240);
+  context.fillStyle = "#c83a3a";
+  context.fillRect(40, 240, 320, 240);
+});
+
+const lastScreens: Record<string, typeof lastScreen> = {
+  "gba/Emerald.gba": lastScreen,
+  "nds/Platinum.nds": dsLastScreen,
+  "3ds/PKSM.3dsx": threeDsLastScreen,
+};
 
 const list = fakeFolder(games);
 const emptyList = fakeFolder(systems.map((system) => `${system}/.keep`));
@@ -244,6 +284,7 @@ const pageGames: Record<System, Game> = {
   gba: emerald,
   nds: { system: "nds", name: "Platinum", path: "nds/Platinum.nds" },
   n64: { system: "n64", name: "Stadium", path: "n64/Stadium.z64" },
+  "3ds": { system: "3ds", name: "PKSM", path: "3ds/PKSM.3dsx" },
 };
 const gamePageHost = ({ withArt = false, screenshot = lastScreen } = {}): GamePageHost => ({
   hasResumeState: async () => withArt,
@@ -257,6 +298,7 @@ const gamePageHost = ({ withArt = false, screenshot = lastScreen } = {}): GamePa
   playHistory: async () => ({ lastPlayed: Date.now() - 86_400_000, playTime: 23 * 3600 }),
   readSave: async () => emeraldSave,
   readSaveFiles: async () => [{ extension: "sav", bytes: emeraldSave.bytes }],
+  threeDsUpdate: async () => null,
   romGameName: async (_folder, path) => `Pokémon ${Object.values(pageGames).find((game) => game.path === path)?.name}`,
   saveSummary: async () => null,
   keepSaveSummary: async () => {},
@@ -280,9 +322,10 @@ const gamePageHost = ({ withArt = false, screenshot = lastScreen } = {}): GamePa
 const patchRomHost: PatchRomHost = {
   baseBuild: async () => "Emerald EN 1.0",
   pick: async () => null,
-  dropped: async () => ({ file: "", name: "", format: null }),
+  bases: async () => ({ checked: true, games: [] }),
+  dropped: async () => ({ file: "", name: "", format: null, baseChecked: false }),
   checkName: async () => {},
-  create: async () => ({ path: "", sha256: "" }),
+  create: async () => ({ path: "", sha256: "", baseChecked: false }),
   patchedFrom: async () =>
     params.get("screen") === "game-page-gba-menu" ? { build: "Emerald EN 1.0", patch: "emerald_seaglass_expansion_3.1.bps", sha256: "" } : null,
   keepPatchedFrom: async () => {},
@@ -314,8 +357,8 @@ const { engine } = fakeEngine({
   },
   transfer: {
     partners: {
-      "FireRed.sav": { version: "FireRed", routes: { send: "link", receive: "link" }, room: { mine: 4, partner: 12 } },
-      "Crystal.sav": { version: "Crystal", routes: { send: "unofficial", receive: "unofficial" }, room: { mine: 4, partner: 20 } },
+      "FireRed.sav": { version: "FireRed", routes: { send: ["link"], receive: ["link"] }, room: { mine: 4, partner: 12 } },
+      "Crystal.sav": { version: "Crystal", routes: { send: ["unofficial"], receive: ["unofficial"] }, room: { mine: 4, partner: 20 } },
       "Red.sav": { version: "Red", routes: { send: null, receive: null }, room: { mine: 4, partner: 20 } },
     },
   },
@@ -335,9 +378,54 @@ const stadium = fakeEngine({
   box: [inBox(pokemon("Rattata", 0, 5, "male"), 0), inBox(pokemon("Zubat", 1, 9, "female"), 1)],
 }).engine;
 
-function StadiumEditor({ home }: { home: typeof saveHome }) {
+const platinum = fakeEngine({
+  generation: 4,
+  version: "Platinum",
+  mysteryGift: {
+    unlocked: false,
+    slots: 3,
+    cards: [
+      { title: "Shaymin", kind: "pokemon", species: { id: 492, name: "Shaymin" }, item: null, language: "ENG", cardId: 12, known: true },
+    ],
+    received: [12],
+    events: [
+      { id: "manaphy", title: "Manaphy Egg", kind: "pokemon", species: { id: 490, name: "Manaphy" }, item: null, language: "ENG", cardId: 1 },
+      { id: "member", title: "Member Card", kind: "item", species: null, item: { id: 455, name: "Member Card" }, language: null, cardId: 4 },
+      { id: "letter", title: "Oak's Letter", kind: "item", species: null, item: { id: 456, name: "Oak's Letter" }, language: null, cardId: 5 },
+      { id: "regigigas-en", title: "Regigigas", kind: "pokemon", species: { id: 486, name: "Regigigas" }, item: null, language: "ENG", cardId: 9, level: 100 },
+      { id: "regigigas-jp", title: "レジギガス", kind: "pokemon", species: { id: 486, name: "Regigigas" }, item: null, language: "JPN", cardId: 9, level: 100 },
+      { id: "shaymin", title: "Shaymin", kind: "pokemon", species: { id: 492, name: "Shaymin" }, item: null, language: "ENG", cardId: 12, level: 50 },
+      { id: "seals", title: "Seal Set", kind: "other", species: null, item: null, language: "ENG", cardId: 20 },
+    ],
+  },
+}).engine;
+
+function giftEvent(species: string, speciesId: number, levelRange: string, trainerName: string | null, language: string | null): FakeEventEncounter {
+  const form = { id: 0, name: "" };
+  return { species, speciesId, form, name: "Event Gift", isEgg: false, ball: "Poké Ball", levelRange, location: "Fateful encounter", version: "Ruby", trainerName, trainerId: null, language };
+}
+
+const firered = fakeEngine({
+  version: "FireRed",
+  capabilities: ["encounters", "legality"],
+  species: [
+    { id: 1, name: "Bulbasaur" },
+    { id: 4, name: "Charmander" },
+    { id: 7, name: "Squirtle" },
+  ],
+  eventEncounters: [
+    giftEvent("Jirachi", 385, "5", "WISHMKR", "ENG"),
+    giftEvent("Mew", 151, "10", null, null),
+    giftEvent("Celebi", 251, "10", "10ANIV", "JPN"),
+    giftEvent("Celebi", 251, "70", "10ANIV", "ENG"),
+    giftEvent("Pikachu", 25, "10", "PCNYB", "ENG"),
+    giftEvent("Latios", 381, "70", null, "JPN"),
+  ],
+}).engine;
+
+function FakeEditor({ engine, home }: { engine: typeof stadium; home: typeof saveHome }) {
   return (
-    <EngineProvider engine={stadium}>
+    <EngineProvider engine={engine}>
       <GameArtFor path={emerald.path}>
         <EditorScreen
           host={{ read: async () => new Uint8Array([1]), apply: async () => {}, playTimeSinceSave: async () => 0 }}
@@ -428,6 +516,8 @@ function FolderSummaryExample() {
         size: 412 * 1024 * 1024,
         leftOut: 12,
         known: 0,
+        unmatched: 2,
+        app: null,
       }}
       saves={4}
       onboarding={params.get("screen") === "import-folder-summary-onboarding"}
@@ -441,27 +531,32 @@ function FolderSummaryExample() {
 
 const screens: Record<string, () => ReactNode> = {
   library: () => <Home libraryHost={libraryHost()} gamePageHost={gamePageHost()} />,
+  "library-3ds": () => <Home libraryHost={libraryHost({ recent: ["3ds/PKSM.3dsx", "nds/Platinum.nds"] })} gamePageHost={gamePageHost()} />,
   "library-no-resume": () => <Home libraryHost={libraryHost({ resume: false })} gamePageHost={gamePageHost()} />,
   "library-cloud": () => <Home libraryHost={libraryHost({ recent: ["gba/Sapphire.gba", "gba/Emerald.gba"] })} gamePageHost={gamePageHost()} />,
   "library-unplayed": () => <Home libraryHost={libraryHost({ recent: [] })} gamePageHost={gamePageHost()} />,
   "library-box-art": () => <Home libraryHost={libraryHost({ recent: ["gba/FireRed.gba", "gba/Emerald.gba"] })} gamePageHost={gamePageHost()} />,
   settings: () => <SettingsScreen onBack={() => {}} onLicences={() => {}} />,
+  "settings-skins": () => <SettingsScreen onBack={() => {}} onLicences={() => {}} />,
   welcome: () => <Home libraryHost={libraryHost()} gamePageHost={gamePageHost()} />,
   "welcome-folder": () => <NewFolder onBack={() => {}} onReady={() => {}} />,
   "welcome-mac": () => <Home libraryHost={libraryHost()} gamePageHost={gamePageHost()} />,
   "welcome-folder-mac": () => <NewFolder onBack={() => {}} onReady={() => {}} />,
   "welcome-ios": () => <Home libraryHost={libraryHost()} gamePageHost={gamePageHost()} systems={["gb", "gbc", "gba", "nds"]} />,
   "welcome-folder-ios": () => <NewFolder onBack={() => {}} onReady={() => {}} />,
+  "welcome-ipad": () => <Home libraryHost={libraryHost()} gamePageHost={gamePageHost()} systems={["gb", "gbc", "gba", "nds"]} />,
   "welcome-previous": () => <PreviousFolder onBack={() => {}} />,
   "welcome-previous-warning": () => <PreviousFolder onBack={() => {}} />,
   ...Object.fromEntries(
     systems.flatMap((system) => {
       const page = (withArt: boolean) => () => (
-        <GameArtFor path={pageGames[system].path}>
-          <GamePage
-            host={gamePageHost({ withArt, screenshot: lastScreens[pageGames[system].path] ?? lastScreen })}
-            folder="/games" game={pageGames[system]} games={Object.values(pageGames)} onPlay={() => {}} onBack={() => {}} />
-        </GameArtFor>
+        <LibraryProvider host={libraryHost()} folder="/games" onOpen={() => {}} onPlay={() => {}}>
+          <GameArtFor path={pageGames[system].path}>
+            <GamePage
+              host={gamePageHost({ withArt, screenshot: lastScreens[pageGames[system].path] ?? lastScreen })}
+              folder="/games" game={pageGames[system]} games={Object.values(pageGames)} onPlay={() => {}} onDelete={() => {}} onBack={() => {}} />
+          </GameArtFor>
+        </LibraryProvider>
       );
       return [
         [`game-page-${system}`, page(false)],
@@ -471,24 +566,26 @@ const screens: Record<string, () => ReactNode> = {
     }),
   ),
   ...Object.fromEntries(
-    (["gb", "gba", "nds", "n64"] as const).map((system) => [
+    (["gb", "gbc", "gba", "nds", "n64", "3ds"] as const).map((system) => [
       `playing-${system}`,
       () => (
-        <ExperimentsProvider
-          host={{
-            load: async () => ({ tiltScreen: forcedShift ? "on" : "off", displayGlass: params.get("glass") ?? "off" }),
-            save: async () => {},
-          }}
-          registry={experiments}
-        >
-          <GravityProvider host={gravityHost}>
-            <FastForwardOn>
-              <GameScreen folder="/games" game={pageGames[system]} resume={false} dismissedPads={new Set()} onQuit={() => {}} onUnsupported={() => {}} />
-            </FastForwardOn>
-          </GravityProvider>
-        </ExperimentsProvider>
+        <FastForwardOn>
+          <GameScreen folder="/games" game={pageGames[system]} resume={false} dismissedPads={new Set()} onQuit={() => {}} onUnsupported={() => {}} />
+        </FastForwardOn>
       ),
     ]),
+  ),
+  ...Object.fromEntries(
+    (["gb", "gbc", "gba", "nds", "n64", "3ds"] as const).map((system) => {
+      const [width, height] = ({ gb: [160, 144], gbc: [160, 144], nds: [256, 384], n64: [320, 240], "3ds": [400, 480] } as Record<string, number[]>)[system] ?? [240, 160];
+      const picture = { width, height, pixels: new Uint16Array(frame(width, height), 16) };
+      return [
+        `skin-picker-${system}`,
+        () => (
+          <SkinPicker system={system} frame={params.has("empty") ? undefined : picture} game={pageGames[system].name} onClose={() => {}} />
+        ),
+      ];
+    }),
   ),
   "transfer-pak": () => (
     <TransferPakScreen games={Object.values(pageGames)} chosen={pageGames.gb.path} input={input} onRestart={() => {}} onBack={() => {}} />
@@ -530,7 +627,26 @@ const screens: Record<string, () => ReactNode> = {
     </>
   ),
   "import-folder-where": () => <WhereAreYourGames onBack={() => {}} onChoose={() => {}} />,
-  "import-folder-where-delta-ios": () => <WhereAreYourGames delta onBack={() => {}} onChoose={() => {}} />,
+  "import-folder-where-emulator": () => (
+    <ImportProvider host={androidImportHost}>
+      <WhereAreYourGames emulator onBack={() => {}} onChoose={() => {}} />
+    </ImportProvider>
+  ),
+  "import-folder-where-emulator-ios": () => (
+    <ImportProvider host={iosImportHost}>
+      <WhereAreYourGames emulator onBack={() => {}} onChoose={() => {}} />
+    </ImportProvider>
+  ),
+  "import-folder-where-emulator-ipad": () => (
+    <ImportProvider host={{ ...iosImportHost, emulatorHint: iosEmulatorHint("iPad") }}>
+      <WhereAreYourGames emulator onBack={() => {}} onChoose={() => {}} />
+    </ImportProvider>
+  ),
+  "import-folder-where-emulator-mac": () => (
+    <ImportProvider host={desktopImportHost}>
+      <WhereAreYourGames emulator onBack={() => {}} onChoose={() => {}} />
+    </ImportProvider>
+  ),
   "import-folder-scanning": () => <Scanning folder="RetroArch" saves={false} />,
   "import-folder-summary": () => <FolderSummaryExample />,
   "import-folder-summary-onboarding": () => <FolderSummaryExample />,
@@ -624,8 +740,13 @@ const screens: Record<string, () => ReactNode> = {
       />
     </GameArtFor>
   ),
-  "editor-stadium": () => <StadiumEditor home={saveHome} />,
-  "editor-teams": () => <StadiumEditor home={teamsPage} />,
+  "editor-stadium": () => <FakeEditor engine={stadium} home={saveHome} />,
+  "editor-teams": () => <FakeEditor engine={stadium} home={teamsPage} />,
+  "editor-events": () => <FakeEditor engine={firered} home={saveHome} />,
+  "editor-events-confirm": () => <FakeEditor engine={firered} home={saveHome} />,
+  "editor-mystery-gift": () => <FakeEditor engine={platinum} home={saveHome} />,
+  "editor-mystery-gift-preview": () => <FakeEditor engine={platinum} home={saveHome} />,
+  "editor-mystery-gift-review": () => <FakeEditor engine={platinum} home={saveHome} />,
 };
 
 const screen = screens[params.get("screen") ?? ""] ?? screens.library;
@@ -637,21 +758,23 @@ const sync =
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <EngineProvider engine={engine}>
-      <PreferencesProvider host={{ load: async () => ({}), save: async () => {} }} defaults={preferences}>
-        <GamesFolderProvider host={gamesFolderHost}>
-          <SyncProvider host={sync.host}>
-            <BackProvider host={{ listen: () => () => {}, exit: () => {} }}>
-              <BoxArtProvider host={boxArt.host}>
-                <GameArtProvider host={fakeGameArt().host}>
-                  <PatchRomProvider host={patchRomHost}>
-                    <ExportProvider host={{ saveFile: async () => undefined, saveFiles: async () => undefined }}>{screen()}</ExportProvider>
-                  </PatchRomProvider>
-                </GameArtProvider>
-              </BoxArtProvider>
-            </BackProvider>
-          </SyncProvider>
-        </GamesFolderProvider>
-      </PreferencesProvider>
+      <GravityProvider host={gravityHost}>
+        <PreferencesProvider host={{ load: async () => ({}), save: async () => {} }} defaults={preferences}>
+          <GamesFolderProvider host={gamesFolderHost}>
+            <SyncProvider host={sync.host}>
+              <BackProvider host={{ listen: () => () => {}, exit: () => {} }}>
+                <BoxArtProvider host={boxArt.host}>
+                  <GameArtProvider host={fakeGameArt().host}>
+                    <PatchRomProvider host={patchRomHost}>
+                      <ExportProvider host={{ saveFile: async () => undefined, saveFiles: async () => undefined }}>{screen()}</ExportProvider>
+                    </PatchRomProvider>
+                  </GameArtProvider>
+                </BoxArtProvider>
+              </BackProvider>
+            </SyncProvider>
+          </GamesFolderProvider>
+        </PreferencesProvider>
+      </GravityProvider>
     </EngineProvider>
   </StrictMode>,
 );

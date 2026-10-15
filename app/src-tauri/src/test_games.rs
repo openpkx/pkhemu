@@ -23,7 +23,7 @@ fn rom(program: &[&[u8]]) -> Rom {
     rom[0x149] = 0x03;
     let program = program.concat();
     rom[0x150..0x150 + program.len()].copy_from_slice(&program);
-    Rom { name: "test.gbc".into(), bytes: rom }
+    Rom { name: "test.gbc".into(), bytes: rom, file: None }
 }
 
 pub fn counting_rom() -> Rom {
@@ -88,7 +88,7 @@ pub fn gba_rom() -> Rom {
     let mut rom = vec![0; 0x200];
     rom[0..4].copy_from_slice(&[0xFE, 0xFF, 0xFF, 0xEA]);
     rom[0xB2] = 0x96;
-    Rom { name: "test.gba".into(), bytes: rom }
+    Rom { name: "test.gba".into(), bytes: rom, file: None }
 }
 
 // Copies the ROM byte at 0x0134 into work RAM over and over.
@@ -113,6 +113,15 @@ pub fn gba_counting_rom() -> Rom {
 
 pub fn pattern(len: usize, seed: u8) -> Vec<u8> {
     (0..len).map(|i| (i as u8).wrapping_mul(31).wrapping_add(seed)).collect()
+}
+
+pub fn zip_of(files: &[(&str, &[u8])]) -> Vec<u8> {
+    let mut zip = zip::ZipWriter::new(std::io::Cursor::new(Vec::new()));
+    for (name, bytes) in files {
+        zip.start_file(*name, zip::write::SimpleFileOptions::default()).unwrap();
+        std::io::Write::write_all(&mut zip, bytes).unwrap();
+    }
+    zip.finish().unwrap().into_inner()
 }
 
 pub fn sevenz_of(files: &[(&str, &[u8])]) -> Vec<u8> {
@@ -209,6 +218,146 @@ fn roms_where(matches: impl Fn(&str, &[u8]) -> bool) -> Vec<Rom> {
         .collect()
 }
 
+// A 3DSX's extended header points at its SMDH, whose first title starts with the short name in UTF-16.
+fn smdh_title(path: &Path) -> Option<String> {
+    let mut file = File::open(path).ok()?;
+    let mut header = [0; 0x28];
+    file.read_exact(&mut header).ok()?;
+    let at = u32::from_le_bytes(header[0x20..0x24].try_into().ok()?) as u64;
+    if &header[..4] != b"3DSX" || u16::from_le_bytes([header[4], header[5]]) < 0x2C || at == 0 {
+        return None;
+    }
+    let mut smdh = [0; 0x88];
+    std::io::Seek::seek(&mut file, std::io::SeekFrom::Start(at)).ok()?;
+    file.read_exact(&mut smdh).ok()?;
+    let units: Vec<u16> =
+        smdh[8..].chunks(2).map(|pair| u16::from_le_bytes([pair[0], pair[1]])).take_while(|&unit| unit != 0).collect();
+    (&smdh[..4] == b"SMDH").then(|| String::from_utf16_lossy(&units))
+}
+
+pub fn homebrew_3dsx(title: &str) -> Option<Rom> {
+    let found =
+        files_in(&Path::new(DATA).join("roms")).into_iter().find(|path| smdh_title(path).as_deref() == Some(title));
+    let Some(path) = found else {
+        eprintln!("skipped: needs the {title} homebrew's .3dsx in data/roms/");
+        return None;
+    };
+    let file = File::open(&path).ok()?;
+    let name = path.to_string_lossy().into_owned();
+    Some(Rom::at(&name, crate::rom::RomFile::new(file, name.clone())))
+}
+
+fn ncch_partitions(path: &Path) -> Vec<u64> {
+    let mut ncsd = [0; 0x200];
+    let read = File::open(path).and_then(|mut file| file.read_exact(&mut ncsd));
+    if read.is_err() || &ncsd[0x100..0x104] != b"NCSD" {
+        return Vec::new();
+    }
+    ncsd[0x120..0x160]
+        .chunks(8)
+        .map(|entry| u32::from_le_bytes(entry[..4].try_into().unwrap()) as u64 * 0x200)
+        .filter(|&offset| offset != 0)
+        .collect()
+}
+
+fn ncch_at(file: &mut File, offset: u64) -> Option<[u8; 0x200]> {
+    let mut ncch = [0; 0x200];
+    std::io::Seek::seek(file, std::io::SeekFrom::Start(offset)).ok()?;
+    file.read_exact(&mut ncch).ok()?;
+    (&ncch[0x100..0x104] == b"NCCH").then_some(ncch)
+}
+
+// The local dump's content is plaintext but its NoCrypto flags are clear, which Azahar reads as encrypted.
+// A clone with the flags set costs no space on APFS.
+pub fn cartridge_3ds(title: &str, program_id: u64) -> Option<Rom> {
+    let matches = |path: &PathBuf| {
+        let first = ncch_partitions(path).first().copied();
+        let ncch = first.and_then(|offset| ncch_at(&mut File::open(path).ok()?, offset));
+        ncch.is_some_and(|ncch| u64::from_le_bytes(ncch[0x118..0x120].try_into().unwrap()) == program_id)
+    };
+    let Some(path) = files_in(&Path::new(DATA).join("roms")).into_iter().find(matches) else {
+        eprintln!("skipped: needs {title} ({program_id:016X}) as a decrypted .3ds in data/roms/");
+        return None;
+    };
+    let clone = std::env::temp_dir().join(format!("{program_id:016X}.3ds"));
+    let _ = std::fs::remove_file(&clone);
+    std::fs::copy(&path, &clone).ok()?;
+    let mut file = std::fs::OpenOptions::new().read(true).write(true).open(&clone).ok()?;
+    for offset in ncch_partitions(&clone) {
+        let Some(ncch) = ncch_at(&mut file, offset) else { continue };
+        std::io::Seek::seek(&mut file, std::io::SeekFrom::Start(offset + 0x18F)).ok()?;
+        std::io::Write::write_all(&mut file, &[ncch[0x18F] | 0x04]).ok()?;
+    }
+    let name = clone.to_string_lossy().into_owned();
+    Some(Rom::at(&name, crate::rom::RomFile::new(File::open(&clone).ok()?, name.clone())))
+}
+
+pub fn save_of_size(title: &str, size: u64) -> Option<Vec<u8>> {
+    let found = files_in(&Path::new(DATA).join("saves"))
+        .into_iter()
+        .find(|path| path.metadata().is_ok_and(|m| m.len() == size));
+    if found.is_none() {
+        eprintln!("skipped: needs {title} save of {size:#x} bytes in data/saves/");
+    }
+    std::fs::read(found?).ok()
+}
+
+// The product code and remaster version sit in the NCCH header, after an NCSD header in a cartridge dump.
+fn ncch_product(path: &Path) -> Option<(String, u16)> {
+    let mut file = File::open(path).ok()?;
+    let mut header = [0; 0x200];
+    file.read_exact(&mut header).ok()?;
+    if &header[0x100..0x104] == b"NCSD" {
+        let at = u32::from_le_bytes(header[0x120..0x124].try_into().ok()?) as u64 * 0x200;
+        std::io::Seek::seek(&mut file, std::io::SeekFrom::Start(at)).ok()?;
+        file.read_exact(&mut header).ok()?;
+    }
+    let product = String::from_utf8_lossy(&header[0x150..0x160]).trim_end_matches('\0').to_owned();
+    (&header[0x100..0x104] == b"NCCH").then(|| (product, u16::from_le_bytes([header[0x112], header[0x113]])))
+}
+
+pub fn three_ds_by_header(title: &str, product: &str, version: u16) -> Option<PathBuf> {
+    let wanted = Some((product.to_owned(), version));
+    let found = files_in(&Path::new(DATA).join("roms")).into_iter().find(|path| ncch_product(path) == wanted);
+    if found.is_none() {
+        eprintln!("skipped: needs {title} ({product}, version {version}) in data/roms/");
+    }
+    found
+}
+
+// The dump's game is plain, but its header says encrypted, so it plays from a copy with the flag fixed, as an
+// import makes.
+pub fn pokemon_x() -> Option<Rom> {
+    let source = three_ds_by_header("Pokémon X", "CTR-P-EKJA", 2)?;
+    let copy = std::env::temp_dir().join("pkh-emu-pokemon-x.3ds");
+    let size = |path: &Path| std::fs::metadata(path).map(|file| file.len()).ok();
+    if size(&copy) != size(&source) {
+        let _ = std::fs::remove_file(&copy);
+        std::fs::copy(&source, &copy).unwrap();
+    }
+    let mut file = File::options().read(true).write(true).open(&copy).unwrap();
+    let mut start = [0; 0x200];
+    file.read_exact(&mut start).unwrap();
+    let game = u32::from_le_bytes(start[0x120..0x124].try_into().unwrap()) as u64 * 0x200;
+    let mut flags = [0];
+    std::io::Seek::seek(&mut file, std::io::SeekFrom::Start(game + 0x18F)).unwrap();
+    file.read_exact(&mut flags).unwrap();
+    for (at, byte) in [(0x18B, 0), (0x18F, flags[0] | 0x04)] {
+        std::io::Seek::seek(&mut file, std::io::SeekFrom::Start(game + at)).unwrap();
+        std::io::Write::write_all(&mut file, &[byte]).unwrap();
+    }
+    let name = copy.to_string_lossy().into_owned();
+    Some(Rom::at(&name, crate::rom::RomFile::new(File::open(&copy).unwrap(), name.clone())))
+}
+
+pub fn pokemon_x_save() -> Option<Vec<u8>> {
+    let save = std::fs::read(Path::new(DATA).join("saves/3ds/x-catnapfart123-main")).ok();
+    if save.is_none() {
+        eprintln!("skipped: needs a Pokémon X save at data/saves/3ds/x-catnapfart123-main");
+    }
+    save
+}
+
 pub fn rom_by_header(title: &str, code: &[u8; 4], revision: u8) -> Option<Rom> {
     let found = find_rom(&Path::new(DATA).join("roms"), code, revision)
         .and_then(|path| crate::rom::unpack(&path.to_string_lossy(), std::fs::read(&path).ok()?).ok());
@@ -254,6 +403,16 @@ pub fn stadium_with_save() -> Option<(Rom, Vec<u8>)> {
 
 pub fn stadium_2() -> Option<Rom> {
     rom_by_header("Pokémon Stadium 2", b"NP3E", 0)
+}
+
+pub fn node(script: &str, args: &[&std::ffi::OsStr]) -> String {
+    let output = std::process::Command::new("node")
+        .arg(format!("{}/tests/{script}", env!("CARGO_MANIFEST_DIR")))
+        .args(args)
+        .output()
+        .unwrap();
+    assert!(output.status.success(), "{}", String::from_utf8_lossy(&output.stderr));
+    String::from_utf8(output.stdout).unwrap().trim().to_string()
 }
 
 #[cfg(test)]

@@ -5,10 +5,12 @@ import { SystemChips } from "@/components/SystemChip";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useBack } from "@/back/back";
-import { useGamesFolder, type UnfamiliarFolder } from "@/games-folder/gamesFolder";
+import { useGamesFolder, type GamesFolderHost, type UnfamiliarFolder } from "@/games-folder/gamesFolder";
 import { useExperiment } from "@/lab/lab";
 import { navigate, Screen } from "@/motion/motion";
 import type { System } from "@/systems";
+
+const isIos = (device: GamesFolderHost["device"]) => device === "iPhone" || device === "iPad";
 
 function Choice({ icon, title, line, onClick }: { icon: ReactNode; title: string; line: string; onClick(): void }) {
   return (
@@ -33,13 +35,13 @@ function Choices({
   systems,
   onNew,
   onImport,
-  onDelta,
+  onEmulator,
   onPrevious,
 }: {
   systems: readonly System[];
   onNew(): void;
   onImport(): void;
-  onDelta(): void;
+  onEmulator(): void;
   onPrevious(): void;
 }) {
   const gamesFolder = useGamesFolder();
@@ -61,13 +63,16 @@ function Choices({
         <Choice icon={<Sparkles />} title="I'm new to emulators" line="We'll make a folder for your games." onClick={onNew} />
         <Choice
           icon={<FolderInput />}
-          title={gamesFolder.device === "iPhone" ? "I have games on this iPhone" : `I have ROMs on this ${gamesFolder.device}`}
+          title={isIos(gamesFolder.device) ? `I have games on this ${gamesFolder.device}` : `I have ROMs on this ${gamesFolder.device}`}
           line="We'll copy them in. Your files stay where they are."
           onClick={onImport}
         />
-        {gamesFolder.device === "iPhone" && (
-          <Choice icon={<ArrowRightLeft />} title="I'm coming from Delta" line="We'll copy your games and saves from Delta." onClick={onDelta} />
-        )}
+        <Choice
+          icon={<ArrowRightLeft />}
+          title="I'm coming from another emulator"
+          line="We'll copy your games and saves. Your files stay where they are."
+          onClick={onEmulator}
+        />
         {gamesFolder.pickPrevious && (
           <Choice
             icon={<History />}
@@ -111,7 +116,7 @@ export function NewFolder({
         <h1 className="font-heading text-2xl font-medium">{title}</h1>
         <p className="text-sm text-muted-foreground">
           {line ??
-            (gamesFolder.device === "iPhone"
+            (isIos(gamesFolder.device)
               ? "pkhemu keeps your games and saves here. You'll find it in the Files app."
               : `pkhemu keeps your games and saves here. They stay on the ${gamesFolder.device} even if you uninstall the app.`)}
         </p>
@@ -203,7 +208,7 @@ export function Welcome({
 }: {
   systems: readonly System[];
   onReady(): void;
-  onImport(from: "welcome" | "delta"): void;
+  onImport(from: "welcome" | "emulator"): void;
 }) {
   const [step, setStep] = useState<"choices" | "new" | "previous">("choices");
   const back = () => navigate("back", () => setStep("choices"));
@@ -213,7 +218,7 @@ export function Welcome({
         systems={systems}
         onNew={() => navigate("forward", () => setStep("new"))}
         onImport={() => onImport("welcome")}
-        onDelta={() => onImport("delta")}
+        onEmulator={() => onImport("emulator")}
         onPrevious={() => navigate("forward", () => setStep("previous"))}
       />
     </Screen>

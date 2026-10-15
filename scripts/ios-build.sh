@@ -1,6 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+store=appstore
+if [ "${1:-}" = --unlocked ]; then
+  store=
+  shift
+fi
+
 set -a
 source ~/.config/pkh-emu/ios.env
 set +a
@@ -14,8 +20,8 @@ for key in PKH_EMU_PLUS PKH_EMU_GOOGLE_CLIENT_ID PKH_EMU_GOOGLE_CLIENT_SECRET PK
   fi
 done
 
+export PKH_EMU_STORE="$store"
 source "$(dirname "$0")/env.sh"
-export PKH_EMU_STORE=appstore
 
 build_number="$(date +%s)"
 npx tauri ios build --ci --export-method app-store-connect \

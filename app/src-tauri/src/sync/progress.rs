@@ -6,6 +6,7 @@ pub trait Events: Send + Sync {
     fn game(&self, rom: &str, state: &GameState);
     fn run(&self, run: &RunProgress);
     fn box_art(&self, _rom: &str) {}
+    fn skins(&self, _skins: &crate::skins::Skins) {}
 }
 
 #[derive(Serialize, Clone, Copy, Debug, Default, PartialEq)]
@@ -15,6 +16,8 @@ pub enum Stage {
     UploadingSaves,
     DownloadingSaves,
     UploadingRom,
+    UploadingUpdate,
+    DownloadingUpdate,
 }
 
 #[derive(Serialize, Clone, Copy, Debug, PartialEq)]
@@ -23,6 +26,7 @@ pub enum Wait {
     Offline,
     MobileData,
     Playing,
+    Stopped,
 }
 
 #[derive(Serialize, Clone, Debug, PartialEq)]

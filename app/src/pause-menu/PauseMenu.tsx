@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { FastForward as FastForwardIcon, FolderOpen, Gamepad2, LogOut, Pencil, Play, RotateCcw, Save, ScanSearch, Settings, Shuffle, Undo2, WandSparkles } from "lucide-react";
+import { ArrowLeftRight, FastForward as FastForwardIcon, FolderOpen, Gamepad2, LogOut, Palette, Pencil, Play, RotateCcw, Save, ScanSearch, Settings, Shuffle, Undo2, WandSparkles } from "lucide-react";
 import { MenuDialog, MenuEntry } from "@/components/MenuDialog";
 import type { FastForward } from "@/fast-forward/fastForward";
 import type { Input } from "@/input/input";
@@ -13,6 +13,7 @@ export function PauseMenu({
   canLoadState,
   canUndoLoad,
   fastForward,
+  onSwapScreens,
   pokemonInfo,
   onTogglePokemonInfo,
   randomized,
@@ -26,6 +27,8 @@ export function PauseMenu({
   onLoadState,
   onUndoLoad,
   onCheats,
+  skin,
+  onSkin,
   onSettings,
   onQuit,
 }: {
@@ -37,6 +40,8 @@ export function PauseMenu({
   canLoadState: boolean;
   canUndoLoad: boolean;
   fastForward: FastForward;
+  /** Undefined hides the entry, for games with one screen. */
+  onSwapScreens?(): void;
   /** Undefined hides the switch, for games whose memory the app can't read. */
   pokemonInfo?: boolean;
   onTogglePokemonInfo(): void;
@@ -53,6 +58,9 @@ export function PauseMenu({
   onLoadState(): void;
   onUndoLoad(): void;
   onCheats(): void;
+  /** The skin and look, as in "Classic grey · Moulded". Undefined hides the entry, as while the touch controls are off. */
+  skin?: string;
+  onSkin(): void;
   onSettings(): void;
   onQuit(): void;
 }) {
@@ -95,6 +103,11 @@ export function PauseMenu({
           {fastForward.on ? `${fastForward.speed}×` : "Off"}
         </span>
       </MenuEntry>
+      {onSwapScreens && (
+        <MenuEntry icon={<ArrowLeftRight />} onClick={onSwapScreens}>
+          Swap screens
+        </MenuEntry>
+      )}
       {pokemonInfo !== undefined && (
         <SwitchEntry icon={<ScanSearch />} on={pokemonInfo} onClick={onTogglePokemonInfo}>
           Pokémon info
@@ -104,6 +117,14 @@ export function PauseMenu({
         <SwitchEntry icon={<Shuffle />} on={randomized} onClick={onToggleRandomized}>
           Randomized
         </SwitchEntry>
+      )}
+      {skin !== undefined && (
+        <MenuEntry icon={<Palette />} className="h-auto min-h-11 py-1.5" onClick={onSkin}>
+          <span className="grid min-w-0 text-left">
+            Skin
+            <span className="truncate text-sm font-normal text-muted-foreground">{skin}</span>
+          </span>
+        </MenuEntry>
       )}
       <MenuEntry icon={<Settings />} onClick={onSettings}>
         Settings

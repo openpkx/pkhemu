@@ -7,6 +7,7 @@ declare global {
 }
 
 export const androidGravityHost: GravityHost = {
+  tilts: true,
   start: () => window.androidGravity?.start(),
   stop: () => window.androidGravity?.stop(),
   read() {

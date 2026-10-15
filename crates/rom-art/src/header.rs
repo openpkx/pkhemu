@@ -5,6 +5,7 @@ pub enum Platform {
     Gba,
     Nds,
     N64,
+    ThreeDs,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -16,7 +17,7 @@ pub struct Game {
 }
 
 pub fn identify(rom: &[u8]) -> Option<Game> {
-    n64(rom).or_else(|| nds(rom)).or_else(|| gba(rom)).or_else(|| gb(rom))
+    three_ds(rom).or_else(|| n64(rom)).or_else(|| nds(rom)).or_else(|| gba(rom)).or_else(|| gb(rom))
 }
 
 pub fn n64_big_endian(rom: &[u8]) -> Option<Vec<u8>> {
@@ -45,6 +46,17 @@ fn nds(rom: &[u8]) -> Option<Game> {
         return None;
     }
     Some(Game { platform: Platform::Nds, title: text(&header[..0x0C]), code: text(&header[0x0C..0x10]), revision: header[0x1E] })
+}
+
+// A cartridge names its game's title ID, and a single game names its own, so either tells which game it is.
+fn three_ds(rom: &[u8]) -> Option<Game> {
+    let at = match rom.get(0x100..0x104)? {
+        b"NCSD" => 0x108,
+        b"NCCH" => 0x118,
+        _ => return None,
+    };
+    let title_id = u64::from_le_bytes(rom.get(at..at + 8)?.try_into().ok()?);
+    Some(Game { platform: Platform::ThreeDs, title: String::new(), code: format!("{title_id:016X}"), revision: 0 })
 }
 
 fn n64(rom: &[u8]) -> Option<Game> {
@@ -161,6 +173,21 @@ mod tests {
         assert_eq!(identify(&n64), identify(&z64));
         assert_eq!(n64_big_endian(&v64).as_deref(), Some(&z64[..]));
         assert_eq!(n64_big_endian(&n64).as_deref(), Some(&z64[..]));
+    }
+
+    #[test]
+    fn recognises_a_3ds_game_by_its_title_id() {
+        let mut cartridge = vec![0x5A; 0x200];
+        cartridge[0x100..0x104].copy_from_slice(b"NCSD");
+        cartridge[0x108..0x110].copy_from_slice(&0x0004000000055D00u64.to_le_bytes());
+        let mut game = vec![0; 0x200];
+        game[0x100..0x104].copy_from_slice(b"NCCH");
+        game[0x118..0x120].copy_from_slice(&0x0004000000055E00u64.to_le_bytes());
+
+        let three_ds =
+            |code: &str| Game { platform: Platform::ThreeDs, title: "".into(), code: code.into(), revision: 0 };
+        assert_eq!(identify(&cartridge), Some(three_ds("0004000000055D00")));
+        assert_eq!(identify(&game), Some(three_ds("0004000000055E00")));
     }
 
     #[test]

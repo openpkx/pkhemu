@@ -1,7 +1,7 @@
 use tauri::{AppHandle, Runtime};
 use tauri_plugin_dialog::DialogExt;
 
-use super::{error, Listed, PickedFolder};
+use super::{error, Listed, PickedFolder, Walk};
 
 pub async fn pick<R: Runtime>(app: &AppHandle<R>) -> Result<Vec<Listed>, String> {
     let (picked, chosen) = tokio::sync::oneshot::channel();
@@ -18,7 +18,8 @@ pub async fn pick<R: Runtime>(app: &AppHandle<R>) -> Result<Vec<Listed>, String>
             let meta = path.metadata().map_err(|e| format!("{}: {e}", path.display()))?;
             let modified = meta.modified().map_err(|e| format!("{}: {e}", path.display()))?;
             let name = path.file_name().map_or_else(String::new, |name| name.to_string_lossy().into_owned());
-            Ok(Listed { file: path.to_string_lossy().into_owned(), name, modified, size: meta.len() })
+            let file = path.to_string_lossy().into_owned();
+            Ok(Listed { file, name, folder: None, modified, size: meta.len(), title_id: None })
         })
         .collect()
 }
@@ -38,8 +39,8 @@ pub async fn pick_folder<R: Runtime>(app: &AppHandle<R>) -> Result<Option<Picked
     Ok(Some(PickedFolder { folder: path.to_string_lossy().into_owned(), name }))
 }
 
-pub async fn walk<R: Runtime>(_app: &AppHandle<R>, folder: &str) -> Result<Vec<Listed>, String> {
-    Ok(super::walk_folder(folder.into()).await?.listed)
+pub async fn walk<R: Runtime>(_app: &AppHandle<R>, folder: &str) -> Result<Walk, String> {
+    super::walk_folder(folder.into()).await
 }
 
 pub fn remove_copies<R: Runtime>(_app: &AppHandle<R>, _files: &[String]) {}

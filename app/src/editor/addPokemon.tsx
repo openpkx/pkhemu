@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { FileUp, Plus } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { ChevronRight, FileUp, Gift, Plus } from "lucide-react";
 import { useBox, useEngine, useLoadedGame, useQuery } from "@pkhex-everywhere/react";
-import type { AddFromFileOptions, EncounterRow, ErrorCode, FilePreview, SpeciesEntry } from "@pkhex-everywhere/engine";
+import type { AddFromFileOptions, EncounterRow, ErrorCode, EventRow, FilePreview, SpeciesEntry } from "@pkhex-everywhere/engine";
 import { cn } from "@/lib/utils";
 import {
   AlertDialog,
@@ -17,27 +17,21 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { PokemonArt, summaryArt } from "@/game-art/gameArt";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { UnofficialAlert } from "@/components/UnofficialAlert";
 import { useEditorNav, type Page } from "./EditorScreen";
+import { mysteryGiftPage } from "./mysteryGift";
 import { usePokemonFiles } from "./pokemonFile";
 import { pokemonPage } from "./pokemonEditor";
+import { useSeen } from "./useSeen";
 
 // The home page's nav: opening from it replaces every page above home, so the add pages close when the editor opens.
 type Home = { open(page: Page): void; closeAsFull(): void };
 
-const rowClass = "h-auto min-h-14 w-full justify-start gap-3 rounded-none px-3 py-2 text-left font-normal whitespace-normal";
+export const rowClass = "h-auto min-h-14 w-full justify-start gap-3 rounded-none px-3 py-2 text-left font-normal whitespace-normal";
 
 function SpeciesRow({ entry, onPick }: { entry: SpeciesEntry; onPick(): void }) {
-  const ref = useRef<HTMLButtonElement>(null);
-  const [seen, setSeen] = useState(false);
-
-  useEffect(() => {
-    const row = ref.current;
-    if (seen || !row) return;
-    const observer = new IntersectionObserver(([entry]) => entry.isIntersecting && setSeen(true));
-    observer.observe(row);
-    return () => observer.disconnect();
-  }, [seen]);
+  const { ref, seen } = useSeen<HTMLButtonElement>();
 
   return (
     <Button ref={ref} variant="ghost" className={rowClass} onClick={onPick}>
@@ -54,7 +48,7 @@ const errorCode = (reason: unknown) => (reason as { code?: ErrorCode } | null)?.
 
 const noRoom = (reason: unknown) => errorCode(reason) === "box-full" || errorCode(reason) === "no-slot";
 
-const wonderCard = /\.(pgt|pcd|wc4)$/i;
+const wonderCard = /\.(pgt|pcd|wc4|pgf)$/i;
 
 const fileFailures: Partial<Record<ErrorCode, string>> = {
   unparseable: "That file isn't a Pokémon",
@@ -71,6 +65,7 @@ function useAddFromFile(home: Home, onError: (message?: string) => void) {
   const { addFromFile } = useBox();
   const [adding, setAdding] = useState(false);
   const [unofficial, setUnofficial] = useState<UnofficialFile>();
+  const [card, setCard] = useState<Uint8Array>();
 
   const add = async (bytes: Uint8Array, options?: AddFromFileOptions) => {
     const { at } = await addFromFile(bytes, options);
@@ -89,7 +84,10 @@ function useAddFromFile(home: Home, onError: (message?: string) => void) {
     try {
       const file = await files.pick();
       if (!file) return;
-      if (wonderCard.test(file.name)) return onError("Wonder Cards aren't supported yet");
+      if (wonderCard.test(file.name)) {
+        if (game?.hasMysteryGift) return setCard(file.bytes);
+        return onError("Wonder Cards only go in Gen 4 and Gen 5 saves.");
+      }
       const preview = await engine.box.previewFile(file.bytes);
       if (preview.unofficial) return setUnofficial({ bytes: file.bytes, preview });
       await add(file.bytes);
@@ -114,19 +112,33 @@ function useAddFromFile(home: Home, onError: (message?: string) => void) {
 
   const { pokemon, legality } = unofficial?.preview ?? {};
   const dialog = (
-    <ConfirmAddDialog open={!!unofficial} adding={adding} onAdd={() => unofficial && void confirm(unofficial)} onCancel={() => setUnofficial(undefined)}>
-      {pokemon && (
-        <>
-          <div className="flex items-center gap-3 rounded-lg border p-3">
-            <PokemonArt pokemon={summaryArt(pokemon)} size={14} decorative />
-            <span className="min-w-0 flex-1 text-sm font-medium break-words">
-              {pokemon.species} · Lv. {pokemon.level}
-            </span>
-          </div>
-          <UnofficialAlert destination={game?.version ?? "this game"} legality={legality ?? null} />
-        </>
-      )}
-    </ConfirmAddDialog>
+    <>
+      <ConfirmDialog
+        title="That's a Wonder Card"
+        action="Open in Mystery Gift"
+        open={!!card}
+        onConfirm={() => {
+          if (card) home.open(mysteryGiftPage(card));
+          setCard(undefined);
+        }}
+        onCancel={() => setCard(undefined)}
+      >
+        It goes in the Mystery Gift album.
+      </ConfirmDialog>
+      <ConfirmAddDialog open={!!unofficial} adding={adding} onAdd={() => unofficial && void confirm(unofficial)} onCancel={() => setUnofficial(undefined)}>
+        {pokemon && (
+          <>
+            <div className="flex items-center gap-3 rounded-lg border p-3">
+              <PokemonArt pokemon={summaryArt(pokemon)} size={14} decorative />
+              <span className="min-w-0 flex-1 text-sm font-medium break-words">
+                {pokemon.species} · Lv. {pokemon.level}
+              </span>
+            </div>
+            <UnofficialAlert destination={game?.version ?? "this game"} legality={legality ?? null} />
+          </>
+        )}
+      </ConfirmAddDialog>
+    </>
   );
 
   return { adding, pick: () => void pick(), dialog };
@@ -134,6 +146,7 @@ function useAddFromFile(home: Home, onError: (message?: string) => void) {
 
 function SpeciesPicker({ home }: { home: Home }) {
   const { open } = useEditorNav();
+  const { game } = useLoadedGame();
   const species = useQuery("species.list");
   const [search, setSearch] = useState("");
   const [error, setError] = useState<string>();
@@ -170,6 +183,17 @@ function SpeciesPicker({ home }: { home: Home }) {
         )}
       </div>
       <div className="px-4 pb-4">
+        {!!game && game.generation <= 3 && (
+          <div className="mb-4 rounded-lg border">
+            <Button variant="ghost" className={rowClass} onClick={() => open(eventsPage(home))}>
+              <span className="flex size-10 shrink-0 items-center justify-center">
+                <Gift />
+              </span>
+              <span className="min-w-0 flex-1">Events</span>
+              <ChevronRight className="text-muted-foreground" />
+            </Button>
+          </div>
+        )}
         {!shown.length && <p className="text-sm text-muted-foreground">Nothing matches.</p>}
         <ul aria-label="Species" className={cn("rounded-lg", shown.length > 0 && "border")}>
           {shown.map((entry, index) => (
@@ -183,19 +207,25 @@ function SpeciesPicker({ home }: { home: Home }) {
   );
 }
 
-const levelRange = (row: EncounterRow) => row.levelRange.replace("-", "–");
+type Encounter = EncounterRow & Partial<Pick<EventRow, "trainerName" | "language">>;
 
-function EncounterTags({ row, className }: { row: EncounterRow; className?: string }) {
-  if (!row.isEgg && !row.ball) return null;
+const levelRange = (row: Encounter) => row.levelRange.replace("-", "–");
+
+const encounterLabel = (row: Encounter) =>
+  `${row.trainerName ? `${row.trainerName} ` : ""}${row.species} · Lv. ${levelRange(row)}`;
+
+function EncounterTags({ row, className }: { row: Encounter; className?: string }) {
+  if (!row.isEgg && !row.ball && !row.language) return null;
   return (
     <span className={cn("flex flex-wrap gap-1", className)}>
       {row.isEgg && <Badge variant="outline">Egg</Badge>}
       {row.ball && <Badge variant="outline">{row.ball}</Badge>}
+      {row.language && <Badge variant="outline">{row.language}</Badge>}
     </span>
   );
 }
 
-const formName = (row: EncounterRow) => (row.form.id !== 0 ? row.form.name : "");
+const formName = (row: Encounter) => (row.form.id !== 0 ? row.form.name : "");
 
 function EncounterButton({ row, disabled, onPick }: { row: EncounterRow; disabled: boolean; onPick(): void }) {
   const form = formName(row);
@@ -257,9 +287,9 @@ function ConfirmEncounterDialog({
   onAdd,
   onCancel,
 }: {
-  row?: EncounterRow;
+  row?: Encounter;
   adding: boolean;
-  onAdd(row: EncounterRow): void;
+  onAdd(row: Encounter): void;
   onCancel(): void;
 }) {
   const form = row && formName(row);
@@ -269,9 +299,7 @@ function ConfirmEncounterDialog({
         <div className="flex items-center gap-3 rounded-lg border p-3">
           <PokemonArt pokemon={{ speciesId: row.speciesId, species: row.species, form: row.form.id }} size={14} decorative />
           <div className="grid min-w-0 flex-1 gap-1 text-sm">
-            <span className="font-medium">
-              {row.species} · Lv. {levelRange(row)}
-            </span>
+            <span className="font-medium">{encounterLabel(row)}</span>
             <span>{row.location}</span>
             {form && <span>{form}</span>}
             <span className="text-xs text-muted-foreground">{row.name}</span>
@@ -283,29 +311,33 @@ function ConfirmEncounterDialog({
   );
 }
 
-function Encounters({ species, home }: { species: SpeciesEntry; home: Home }) {
-  const engine = useEngine();
-  const { game } = useLoadedGame();
-  const { addEncounter } = useBox();
-  const version = useQuery("encounters.versions").default;
-  const [rows, setRows] = useState<EncounterRow[]>();
-  const [adding, setAdding] = useState(false);
-  const [picked, setPicked] = useState<EncounterRow>();
+// Not useQuery: a cached result can outlive the engine's latest search, and only that search's indexes are valid.
+function useLatestSearch<T>(search: () => Promise<T[]>) {
+  const [rows, setRows] = useState<T[]>();
   const [error, setError] = useState<string>();
 
-  // Not useQuery: a cached result can outlive the engine's latest search, and only that search's indexes are valid.
   useEffect(() => {
     let current = true;
-    engine.encounters.search(version, species.id).then(
+    search().then(
       (found) => current && setRows(found),
       (reason) => current && setError(String(reason)),
     );
     return () => {
       current = false;
     };
-  }, [engine, version, species.id]);
+  }, [search]);
 
-  const add = async (row: EncounterRow) => {
+  return { rows, error };
+}
+
+function useAddEncounter(home: Home) {
+  const engine = useEngine();
+  const { addEncounter } = useBox();
+  const [adding, setAdding] = useState(false);
+  const [picked, setPicked] = useState<Encounter>();
+  const [error, setError] = useState<string>();
+
+  const add = async (row: Encounter) => {
     setAdding(true);
     setError(undefined);
     try {
@@ -318,6 +350,23 @@ function Encounters({ species, home }: { species: SpeciesEntry; home: Home }) {
       setAdding(false);
     }
   };
+
+  const dialog = (
+    <ConfirmEncounterDialog row={picked} adding={adding} onAdd={(row) => void add(row)} onCancel={() => setPicked(undefined)} />
+  );
+
+  return { adding, error, pick: setPicked, dialog };
+}
+
+function Encounters({ species, home }: { species: SpeciesEntry; home: Home }) {
+  const engine = useEngine();
+  const { game } = useLoadedGame();
+  const version = useQuery("encounters.versions").default;
+  const search = useCallback(() => engine.encounters.search(version, species.id), [engine, version, species.id]);
+  const found = useLatestSearch(search);
+  const { rows } = found;
+  const adder = useAddEncounter(home);
+  const error = adder.error ?? found.error;
 
   return (
     <div className="grid gap-4 p-4">
@@ -332,18 +381,76 @@ function Encounters({ species, home }: { species: SpeciesEntry; home: Home }) {
         <ul aria-label="Encounters" className="rounded-lg border">
           {rows.map((row, index) => (
             <li key={row.index} className={cn(index > 0 && "border-t")}>
-              <EncounterButton row={row} disabled={adding} onPick={() => setPicked(row)} />
+              <EncounterButton row={row} disabled={adder.adding} onPick={() => adder.pick(row)} />
             </li>
           ))}
         </ul>
       )}
-      <ConfirmEncounterDialog row={picked} adding={adding} onAdd={(row) => void add(row)} onCancel={() => setPicked(undefined)} />
+      {adder.dialog}
     </div>
   );
 }
 
 function encountersPage(species: SpeciesEntry, home: Home): Page {
   return { title: species.name, content: <Encounters species={species} home={home} /> };
+}
+
+function EventButton({ row, disabled, onPick }: { row: EventRow; disabled: boolean; onPick(): void }) {
+  const { ref, seen } = useSeen<HTMLButtonElement>();
+  return (
+    <Button ref={ref} variant="ghost" className={rowClass} disabled={disabled} onClick={onPick}>
+      <span className="size-10 shrink-0">
+        {seen && <PokemonArt pokemon={{ speciesId: row.speciesId, species: row.species, form: row.form.id }} size={10} decorative />}
+      </span>
+      <span className="min-w-0 flex-1">{encounterLabel(row)}</span>
+      {row.language && <Badge variant="outline">{row.language}</Badge>}
+    </Button>
+  );
+}
+
+const eventMatches = (row: EventRow, text: string) =>
+  [row.species, row.trainerName, row.language].some((field) => field?.toLowerCase().includes(text));
+
+function Events({ home }: { home: Home }) {
+  const engine = useEngine();
+  const list = useCallback(() => engine.encounters.events(), [engine]);
+  const found = useLatestSearch(list);
+  const { rows } = found;
+  const adder = useAddEncounter(home);
+  const [search, setSearch] = useState("");
+  const error = adder.error ?? found.error;
+  const shown = useMemo(() => {
+    const text = search.trim().toLowerCase();
+    return rows?.filter((row) => eventMatches(row, text)) ?? [];
+  }, [rows, search]);
+
+  return (
+    <>
+      <div className="sticky top-0 z-10 grid gap-2 bg-background p-4">
+        <Input type="search" aria-label="Search events" placeholder="Search" value={search} onChange={(event) => setSearch(event.target.value)} />
+        {error && <p className="text-sm text-destructive">{error}</p>}
+      </div>
+      <div className="px-4 pb-4">
+        {!rows ? (
+          !error && <p className="text-sm text-muted-foreground">Loading…</p>
+        ) : (
+          !shown.length && <p className="text-sm text-muted-foreground">{rows.length ? "Nothing matches." : "No events for this game."}</p>
+        )}
+        <ul aria-label="Events" className={cn("rounded-lg", shown.length > 0 && "border")}>
+          {shown.map((row, index) => (
+            <li key={row.index} className={cn(index > 0 && "border-t")}>
+              <EventButton row={row} disabled={adder.adding} onPick={() => adder.pick(row)} />
+            </li>
+          ))}
+        </ul>
+      </div>
+      {adder.dialog}
+    </>
+  );
+}
+
+function eventsPage(home: Home): Page {
+  return { title: "Events", content: <Events home={home} /> };
 }
 
 function speciesPage(home: Home): Page {

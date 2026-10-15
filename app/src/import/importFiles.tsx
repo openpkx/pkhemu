@@ -23,23 +23,28 @@ import {
 } from "@/components/ui/combobox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { gameTitle } from "@/game-page/details";
+import { PatchRomDialog, type OpenedPatch } from "@/patch-rom/patchRom";
 import { useGamesFolder } from "@/games-folder/gamesFolder";
+import { GamePicker } from "@/library/GamePicker";
 import { useLibrary } from "@/library/library";
 import { byName, gameName, type Game } from "@/library/scan";
 import { useSync } from "@/sync/sync";
 import type { System } from "@/systems";
 import { count, type FolderScan } from "./folder";
-import { newestPerGame, planImport, type ImportFile, type SaveImport } from "./match";
+import { newestPerGame, planImport, type ImportFile, type PatchImport, type SaveImport } from "./match";
 
 export type ExistingSave = { modified: number; same: boolean };
 export type PickedFolder = { folder: string; name: string };
 
 export type ImportHost = {
+  emulatorHint: string;
   pick(): Promise<ImportFile[]>;
   opened(): Promise<ImportFile[]>;
   onOpened(listener: () => void): () => void;
   sha1s(folder: string, paths: string[]): Promise<Record<string, string>>;
-  copyRom(folder: string, file: string, path: string): Promise<void>;
+  titleIds(folder: string, paths: string[]): Promise<Record<string, string>>;
+  /** Copies a ROM to `path`, or installs an update on the games it updates, which it returns. */
+  copyRom(folder: string, file: string, path: string): Promise<string[]>;
   copyDemo(folder: string): Promise<string>;
   existingSave(folder: string, rom: string, file: ImportFile): Promise<ExistingSave | null>;
   copySave(folder: string, save: SaveImport): Promise<void>;
@@ -48,10 +53,12 @@ export type ImportHost = {
 };
 
 const noHost: ImportHost = {
+  emulatorHint: "",
   pick: () => Promise.reject(new Error("Importing needs an ImportProvider")),
   opened: async () => [],
   onOpened: () => () => {},
   sha1s: () => Promise.reject(new Error("Importing needs an ImportProvider")),
+  titleIds: () => Promise.reject(new Error("Importing needs an ImportProvider")),
   copyRom: () => Promise.reject(new Error("Importing needs an ImportProvider")),
   copyDemo: () => Promise.reject(new Error("Importing needs an ImportProvider")),
   existingSave: () => Promise.reject(new Error("Importing needs an ImportProvider")),
@@ -68,11 +75,21 @@ export function ImportProvider({ host, children }: { host: ImportHost; children:
 
 export const useImportHost = () => useContext(ImportContext);
 
-export function importSummary(games: number, saves: number, found: boolean, failed: string[]) {
+export function importSummary(
+  games: number,
+  saves: number,
+  found: boolean,
+  failed: string[],
+  patched?: Game | null,
+  morePatches = false,
+  updated: string[] = [],
+) {
   const added = [games && count(games, "game"), saves && count(saves, "save")].filter(Boolean);
-  const done = added.length ? `Added ${added.join(" and ")}` : found ? "Already in pkhemu" : failed.length ? "" : "Nothing added";
+  const quiet = failed.length > 0 || patched !== undefined || updated.length > 0;
+  const done = added.length ? `Added ${added.join(" and ")}` : found ? "Already in pkhemu" : quiet ? "" : "Nothing added";
+  const update = updated.length > 1 ? `Updated ${count(updated.length, "game")}` : updated[0] && `Updated ${gameTitle(gameName(updated[0]))}`;
   const problem = failed.length > 1 ? `Couldn't import ${failed.length} files` : failed[0];
-  return [done, problem].filter(Boolean).join(". ");
+  return [done, update, patched && `Created ${patched.name}`, problem, morePatches && "Open one patch at a time"].filter(Boolean).join(". ");
 }
 
 export const gameAt = (path: string): Game => ({ system: path.split("/")[0] as System, name: gameName(path), path });
@@ -81,7 +98,9 @@ export const dateTime = new Intl.DateTimeFormat(undefined, { dateStyle: "medium"
 
 export type ImportQuestion =
   | { kind: "game"; file: ImportFile; games: Game[]; answer(game: string | null): void }
-  | { kind: "replace"; game: Game; existing: number; picked: number; answer(replace: boolean): void };
+  | { kind: "replace"; game: Game; existing: number; picked: number; answer(replace: boolean): void }
+  | { kind: "whichPatch"; archive: string; patches: PatchImport[]; answer(patch: PatchImport | null): void }
+  | { kind: "patch"; folder: string; patch: OpenedPatch; addGame(): Promise<Game[]>; answer(created: Game | null): void };
 
 export function WhichGameDialog({ question, open }: { question: Extract<ImportQuestion, { kind: "game" }>; open: boolean }) {
   const [game, setGame] = useState<Game | null>(null);
@@ -96,33 +115,7 @@ export function WhichGameDialog({ question, open }: { question: Extract<ImportQu
             {question.file.name} doesn't match a game by name.
           </DialogDescription>
         </DialogHeader>
-        <Combobox
-          items={question.games}
-          value={game}
-          onValueChange={(picked: Game | null) => setGame(picked)}
-          itemToStringLabel={(game: Game) => game.name}
-          isItemEqualToValue={(game: Game, other: Game) => game.path === other.path}
-        >
-          <ComboboxTrigger
-            aria-labelledby={labelId}
-            render={<Button variant="outline" className="w-full min-w-0 shrink justify-between rounded-lg font-normal" />}
-          >
-            <span className="truncate">
-              <ComboboxValue placeholder="Choose a game" />
-            </span>
-          </ComboboxTrigger>
-          <ComboboxContent>
-            <ComboboxInput showTrigger={false} placeholder="Search" aria-label="Search" />
-            <ComboboxEmpty>No matches</ComboboxEmpty>
-            <ComboboxList>
-              {(game: Game) => (
-                <ComboboxItem key={game.path} value={game}>
-                  {game.name}
-                </ComboboxItem>
-              )}
-            </ComboboxList>
-          </ComboboxContent>
-        </Combobox>
+        <GamePicker games={question.games} value={game} labelledBy={labelId} onPick={setGame} />
         <DialogFooter>
           <Button variant="secondary" onClick={() => question.answer(null)}>
             Skip this save
@@ -158,19 +151,91 @@ export function ReplaceSaveDialog({ question, open }: { question: Extract<Import
   );
 }
 
+export function WhichPatchDialog({ question, open }: { question: Extract<ImportQuestion, { kind: "whichPatch" }>; open: boolean }) {
+  const [patch, setPatch] = useState<PatchImport | null>(null);
+  const labelId = useId();
+  useBack(open ? () => question.answer(null) : undefined);
+  return (
+    <Dialog open={open} onOpenChange={(open) => !open && question.answer(null)}>
+      <DialogContent showCloseButton={false} onEscapeKeyDown={(event) => event.stopPropagation()}>
+        <DialogHeader>
+          <DialogTitle>Which patch?</DialogTitle>
+          <DialogDescription className="break-words">
+            {question.archive} holds {question.patches.length} patches.
+          </DialogDescription>
+        </DialogHeader>
+        <p id={labelId} className="text-muted-foreground">
+          Patch
+        </p>
+        <Combobox
+          items={question.patches}
+          value={patch}
+          onValueChange={(picked: PatchImport | null) => setPatch(picked)}
+          itemToStringLabel={(patch: PatchImport) => patch.name}
+          isItemEqualToValue={(patch: PatchImport, other: PatchImport) => patch.file === other.file}
+        >
+          <ComboboxTrigger
+            aria-labelledby={labelId}
+            render={<Button variant="outline" className="w-full min-w-0 shrink justify-between rounded-lg font-normal" />}
+          >
+            <span className="truncate">
+              <ComboboxValue placeholder="Choose a patch" />
+            </span>
+          </ComboboxTrigger>
+          <ComboboxContent>
+            <ComboboxInput showTrigger={false} placeholder="Search" aria-label="Search" />
+            <ComboboxEmpty>No matches</ComboboxEmpty>
+            <ComboboxList>
+              {(patch: PatchImport) => (
+                <ComboboxItem key={patch.file} value={patch}>
+                  {patch.name}
+                </ComboboxItem>
+              )}
+            </ComboboxList>
+          </ComboboxContent>
+        </Combobox>
+        <DialogFooter>
+          <Button variant="secondary" onClick={() => question.answer(null)}>
+            Cancel
+          </Button>
+          <Button disabled={!patch} onClick={() => patch && question.answer(patch)}>
+            Open
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 type Asked = { question: ImportQuestion; open: boolean };
 
 export function ImportDialogs({ asked }: { asked?: Asked }) {
   if (asked?.question.kind === "game") return <WhichGameDialog key={asked.question.file.file} question={asked.question} open={asked.open} />;
   if (asked?.question.kind === "replace")
     return <ReplaceSaveDialog key={asked.question.game.path} question={asked.question} open={asked.open} />;
+  if (asked?.question.kind === "whichPatch")
+    return <WhichPatchDialog key={asked.question.patches[0].file} question={asked.question} open={asked.open} />;
+  if (asked?.question.kind === "patch") {
+    const { folder, patch, addGame, answer } = asked.question;
+    return (
+      <PatchRomDialog
+        key={patch.file}
+        open={asked.open}
+        folder={folder}
+        opened={patch}
+        onAddGame={addGame}
+        onClose={() => answer(null)}
+        onCreated={answer}
+      />
+    );
+  }
   return null;
 }
 
-export function useImportFiles(onDone: (message: string) => void) {
+export function useImportFiles(onDone: (message: string, created?: Game | null) => void, { takesOpened = true } = {}) {
   const host = useContext(ImportContext);
   const gamesFolder = useGamesFolder();
-  const { library, refresh } = useLibrary();
+  const { library, error, refresh } = useLibrary();
   const latest = useRef(library);
   latest.current = library;
   const { synced } = useSync();
@@ -183,7 +248,7 @@ export function useImportFiles(onDone: (message: string) => void) {
   const mounted = useRef(false);
   const cancel = useRef<() => void>(undefined);
 
-  useEffect(() => host.onOpened(() => setOpenings((count) => count + 1)), [host]);
+  useEffect(() => (takesOpened ? host.onOpened(() => setOpenings((count) => count + 1)) : undefined), [host, takesOpened]);
 
   useEffect(() => {
     mounted.current = true;
@@ -208,8 +273,6 @@ export function useImportFiles(onDone: (message: string) => void) {
   const importPicked = async (folder: string, files: ImportFile[]) => {
     const games = latest.current?.sections.flatMap((section) => section.games) ?? [];
     const local = games.filter((game) => !game.cloudOnly);
-    const sha1s = files.some((file) => file.sha1) ? await host.sha1s(folder, local.map((game) => game.path)) : {};
-    const plan = planImport(files, { games, sha1s });
     const failed: string[] = [];
     const tried = <T,>(work: () => Promise<T>) =>
       work().then(
@@ -218,10 +281,24 @@ export function useImportFiles(onDone: (message: string) => void) {
       );
 
     const copied: string[] = [];
-    for (const rom of plan.roms) if (await tried(() => host.copyRom(folder, rom.file.file, rom.path))) copied.push(rom.path);
+    const updated: string[] = [];
+    const copyRoms = async (picked: ImportFile[]) => {
+      failed.push(...picked.filter((file) => file.error).map((file) => `Couldn't read ${file.name}`));
+      const files = picked.filter((file) => !file.error);
+      const sha1s = files.some((file) => file.sha1) ? await host.sha1s(folder, local.map((game) => game.path)) : {};
+      const plan = planImport(files, { games: [...games, ...copied.map(gameAt)], sha1s });
+      for (const rom of plan.roms) {
+        const done = await tried(() => host.copyRom(folder, rom.file.file, rom.path));
+        if (done?.value.length) updated.push(...done.value);
+        else if (done) copied.push(rom.path);
+      }
+      return plan;
+    };
+    const plan = await copyRoms(files);
     const missing = new Set(plan.roms.map((rom) => rom.path).filter((path) => !copied.includes(path)));
 
-    const choices = [...local, ...copied.map(gameAt)].sort((a, b) => byName.compare(a.name, b.name));
+    const gamesWithCopied = () => [...local, ...copied.map(gameAt)].sort((a, b) => byName.compare(a.name, b.name));
+    const choices = gamesWithCopied();
     const saves = plan.saves.filter((save) => !missing.has(save.game));
     for (const file of plan.unmatched) {
       const game = await ask<string | null>((answer) => ({ kind: "game", file, games: choices, answer }), null);
@@ -249,9 +326,22 @@ export function useImportFiles(onDone: (message: string) => void) {
       if (await tried(() => host.copySave(folder, save))) added.push(save.game);
     }
 
-    void synced(folder, [...copied, ...added]);
+    const [first, ...others] = plan.patches;
+    const archive = first?.archive;
+    const patch = archive && others.length
+      ? await ask<PatchImport | null>((answer) => ({ kind: "whichPatch", archive, patches: plan.patches, answer }), null)
+      : first;
+    const opened = patch && { file: patch.file, name: patch.name, archive: patch.archive, format: patch.patch, games: choices };
+    const addGame = async () => {
+      if ((await copyRoms(await host.pick())).known) found = true;
+      return gamesWithCopied();
+    };
+    const patched =
+      first && (opened ? await ask<Game | null>((answer) => ({ kind: "patch", folder, patch: opened, addGame, answer }), null) : null);
+
+    void synced(folder, [...copied, ...added, ...updated]);
     await refresh();
-    onDone(importSummary(copied.length, added.length, found, failed));
+    onDone(importSummary(copied.length, added.length, found, failed, patched, plan.morePatches, updated), patched);
   };
 
   const run = async (work: (folder: string) => Promise<void>) => {
@@ -285,10 +375,11 @@ export function useImportFiles(onDone: (message: string) => void) {
     });
 
   useEffect(() => {
-    if (imported.current === openings || running || gamesFolder.status !== "ready") return;
+    const scanned = library !== undefined || error !== undefined;
+    if (!takesOpened || imported.current === openings || running || gamesFolder.status !== "ready" || !scanned) return;
     imported.current = openings;
     void importOpened();
-  }, [openings, running, gamesFolder.status]);
+  }, [openings, running, gamesFolder.status, library, error]);
 
   return { importFiles, busy, dialogs: <ImportDialogs asked={asked} /> };
 }

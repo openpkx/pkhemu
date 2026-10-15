@@ -1,6 +1,6 @@
 use rom_art::{identify, AnimatedSprite, Image};
 use sha2::{Digest, Sha256};
-use std::io::Read;
+use std::io::{Read, Seek, SeekFrom};
 use std::path::{Path, PathBuf};
 
 const ROMS: [&str; 2] = [
@@ -86,6 +86,22 @@ pub fn find_game_boy_rom(title: &str, checksum: u16) -> Option<Vec<u8>> {
     })
 }
 
+// 3DS dumps run to gigabytes, so this opens the file and reads only its header.
+#[allow(dead_code)]
+pub fn find_3ds(title_id: &str) -> Option<std::fs::File> {
+    let is_3ds = |path: &Path| {
+        let name = path.to_string_lossy().to_ascii_lowercase();
+        [".3ds", ".cci", ".cxi", ".app"].iter().any(|extension| name.ends_with(extension))
+    };
+    ROMS.iter().flat_map(|dir| files_in(&Path::new(dir).join("3ds"))).filter(|path| is_3ds(path)).find_map(|path| {
+        let mut file = std::fs::File::open(path).ok()?;
+        let mut header = Vec::new();
+        file.by_ref().take(0x200).read_to_end(&mut header).ok()?;
+        identify(&header).filter(|game| game.code == title_id)?;
+        Some(file)
+    })
+}
+
 #[allow(dead_code)]
 pub fn find_hack(code: &str, hack: &str) -> Option<Vec<u8>> {
     find(code, 0, Some(hack))
@@ -96,9 +112,28 @@ pub fn find_save(name: &str) -> Option<Vec<u8>> {
     std::fs::read(Path::new(SAVES).join(name)).ok()
 }
 
+#[allow(dead_code)]
+pub struct Counted<R> {
+    pub rom: R,
+    pub read: u64,
+}
+
+impl<R: Read> Read for Counted<R> {
+    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+        let read = self.rom.read(buf)?;
+        self.read += read as u64;
+        Ok(read)
+    }
+}
+
+impl<R: Seek> Seek for Counted<R> {
+    fn seek(&mut self, pos: SeekFrom) -> std::io::Result<u64> {
+        self.rom.seek(pos)
+    }
+}
+
 pub fn rgba_hash(image: &Image) -> String {
-    let rgba: Vec<u8> = image.pixels.iter().flat_map(|&i| image.palette[i as usize]).collect();
-    Sha256::digest(&rgba).iter().map(|b| format!("{b:02x}")).collect()
+    Sha256::digest(image.rgba()).iter().map(|b| format!("{b:02x}")).collect()
 }
 
 #[allow(dead_code)]

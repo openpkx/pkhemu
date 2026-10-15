@@ -13,6 +13,7 @@ const thumbnailFolders: Record<System, string> = {
   gba: "Nintendo - Game Boy Advance",
   nds: "Nintendo - Nintendo DS",
   n64: "Nintendo - Nintendo 64",
+  "3ds": "Nintendo - Nintendo 3DS",
 };
 
 export type BoxArtKind = "Named_Boxarts" | "Named_Titles";

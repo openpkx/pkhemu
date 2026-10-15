@@ -2,7 +2,7 @@ use tauri::{AppHandle, Manager, Runtime};
 use tauri_plugin_dialog::{DialogExt, FileAccessMode};
 use tauri_plugin_pkhemu_ios::PkhemuIosExt;
 
-use super::{error, Listed, PickedFolder};
+use super::{error, Listed, PickedFolder, Walk};
 
 pub async fn pick<R: Runtime>(app: &AppHandle<R>) -> Result<Vec<Listed>, String> {
     let (picked, chosen) = tokio::sync::oneshot::channel();
@@ -28,12 +28,12 @@ pub async fn pick_folder<R: Runtime>(app: &AppHandle<R>) -> Result<Option<Picked
     Ok(picked.map(|folder| PickedFolder { folder: folder.path, name: folder.name }))
 }
 
-pub async fn walk<R: Runtime>(app: &AppHandle<R>, folder: &str) -> Result<Vec<Listed>, String> {
+pub async fn walk<R: Runtime>(app: &AppHandle<R>, folder: &str) -> Result<Walk, String> {
     let walk = super::walk_folder(folder.into()).await?;
     if let Err(e) = app.pkhemu_ios().download(&walk.offline).await {
         eprintln!("downloading from iCloud: {e}");
     }
-    Ok(walk.listed)
+    Ok(walk)
 }
 
 // Files shared from another app or over AirDrop arrive as copies in Documents/Inbox, which Files shows beside

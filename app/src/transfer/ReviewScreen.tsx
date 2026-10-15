@@ -46,6 +46,8 @@ const reasons: Record<TransferChangeReason, (names: Names) => string> = {
   timeCapsule: () => "Moved through the Time Capsule",
   palPark: () => "Moved through Pal Park",
   pokeTransfer: () => "Moved through Poké Transfer",
+  transporter: () => "Moved forward from an older game",
+  bank: () => "Moved forward to a newer game",
   received: () => "Set on receipt",
   tradeEvolution: () => "Evolved by trade",
   itemUsed: () => "Used to evolve",
@@ -119,7 +121,7 @@ function OfferCard({ offer, names, paths, notes }: { offer: OfferedPokemon; name
         </CardTitle>
       </CardHeader>
       <CardContent className="grid gap-3">
-        {offer.route === "unofficial" ? (
+        {offer.route.includes("unofficial") ? (
           <UnofficialAlert destination={names.destination} keptFrom={note?.keptFrom} ambiguous={note?.ambiguous} legality={legality} />
         ) : (
           <>

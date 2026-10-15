@@ -23,20 +23,6 @@ export const experiments: Experiment[] = [
     players: true,
   },
   {
-    id: "tiltScreen",
-    label: "Handheld display depth",
-    line: "In portrait, the game screen sits below the shell like a handheld's. Tilt the phone and the edge of the opening passes over it.",
-    values: ["off", "on"],
-    players: false,
-  },
-  {
-    id: "displayGlass",
-    label: "Handheld display glass",
-    line: "In portrait, glass covers the game screen, with a lit top edge and a sheen that moves as you tilt the phone.",
-    values: ["off", "on"],
-    players: false,
-  },
-  {
     id: "demoGame",
     label: "Demo game",
     line: "The empty library offers a free demo game to play.",

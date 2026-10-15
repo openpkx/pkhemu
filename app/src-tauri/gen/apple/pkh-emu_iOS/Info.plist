@@ -37,6 +37,18 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>UISupportedInterfaceOrientations~ipad</key>
+	<array>
+		<string>UIInterfaceOrientationPortrait</string>
+		<string>UIInterfaceOrientationPortraitUpsideDown</string>
+		<string>UIInterfaceOrientationLandscapeLeft</string>
+		<string>UIInterfaceOrientationLandscapeRight</string>
+	</array>
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+	</dict>
 	<key>UIFileSharingEnabled</key>
 	<true/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
@@ -52,7 +64,7 @@
 				<string>public.content</string>
 			</array>
 			<key>UTTypeDescription</key>
-			<string>Delta Game</string>
+			<string>Game</string>
 		</dict>
 		<dict>
 			<key>UTTypeIdentifier</key>
@@ -103,6 +115,24 @@
 				<key>public.filename-extension</key>
 				<array>
 					<string>nds</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>com.rileytestut.delta.game.n64</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>com.rileytestut.delta.game</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>N64 Game</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>n64</string>
+					<string>z64</string>
 				</array>
 			</dict>
 		</dict>
@@ -186,6 +216,24 @@
 		</dict>
 		<dict>
 			<key>UTTypeIdentifier</key>
+			<string>com.provenance.rom.n64</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>com.provenance.rom</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Nintendo 64 ROM</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>n64</string>
+					<string>z64</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
 			<string>public.aoshuang.game.gb</string>
 			<key>UTTypeConformsTo</key>
 			<array>
@@ -255,6 +303,25 @@
 		</dict>
 		<dict>
 			<key>UTTypeIdentifier</key>
+			<string>public.aoshuang.game.n64</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>N64 Game</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>n64</string>
+					<string>z64</string>
+					<string>v64</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
 			<string>public.aoshuang.gamesave</string>
 			<key>UTTypeConformsTo</key>
 			<array>
@@ -262,7 +329,7 @@
 				<string>public.content</string>
 			</array>
 			<key>UTTypeDescription</key>
-			<string>Manic EMU Game Save</string>
+			<string>Game Save</string>
 			<key>UTTypeTagSpecification</key>
 			<dict>
 				<key>public.filename-extension</key>
@@ -270,6 +337,28 @@
 					<string>sav</string>
 					<string>dsv</string>
 					<string>srm</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>org.7-zip.7-zip-archive</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+				<string>public.archive</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>7z archive</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>7z</string>
+				</array>
+				<key>public.mime-type</key>
+				<array>
+					<string>application/x-7z-compressed</string>
 				</array>
 			</dict>
 		</dict>
@@ -290,6 +379,27 @@
 				<key>public.filename-extension</key>
 				<array>
 					<string>rtc</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>fyi.openpkx.pkhemu.patch</string>
+			<key>UTTypeDescription</key>
+			<string>Patch</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>ips</string>
+					<string>ups</string>
+					<string>bps</string>
+					<string>xdelta</string>
+					<string>vcdiff</string>
 				</array>
 			</dict>
 		</dict>
@@ -356,6 +466,26 @@
 		<dict>
 			<key>CFBundleTypeExtensions</key>
 			<array>
+				<string>z64</string>
+				<string>n64</string>
+				<string>v64</string>
+			</array>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>com.rileytestut.delta.game.n64</string>
+				<string>public.aoshuang.game.n64</string>
+				<string>com.provenance.rom.n64</string>
+			</array>
+			<key>CFBundleTypeName</key>
+			<string>N64 game</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Default</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeExtensions</key>
+			<array>
 				<string>sav</string>
 				<string>srm</string>
 				<string>dsv</string>
@@ -390,6 +520,26 @@
 		<dict>
 			<key>CFBundleTypeExtensions</key>
 			<array>
+				<string>ips</string>
+				<string>ups</string>
+				<string>bps</string>
+				<string>xdelta</string>
+				<string>vcdiff</string>
+			</array>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>fyi.openpkx.pkhemu.patch</string>
+			</array>
+			<key>CFBundleTypeName</key>
+			<string>Patch</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Default</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeExtensions</key>
+			<array>
 				<string>zip</string>
 			</array>
 			<key>LSItemContentTypes</key>
@@ -398,6 +548,22 @@
 			</array>
 			<key>CFBundleTypeName</key>
 			<string>ZIP archive</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>7z</string>
+			</array>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>org.7-zip.7-zip-archive</string>
+			</array>
+			<key>CFBundleTypeName</key>
+			<string>7z archive</string>
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>
 			<key>LSHandlerRank</key>

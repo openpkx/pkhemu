@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { ArrowLeftRight, Menu } from "lucide-react";
 import { cn } from "cn";
-import { useBackGesture } from "@/back/back";
+import { useBackGesture, useGoBack } from "@/back/back";
 import { CheatsScreen } from "@/cheats/CheatsScreen";
 import { tauriCheatsHost } from "@/cheats/tauriHost";
 import { PadSetupPrompt } from "@/controllers/PadSetupPrompt";
@@ -23,6 +23,7 @@ import { useCalibrations } from "@/input/calibrations";
 import { connectedGamepads, createInput } from "@/input/input";
 import { useExperiments } from "@/lab/lab";
 import type { Game } from "@/library/scan";
+import { useMediaQuery } from "@/lib/useMediaQuery";
 import { useWideScreen } from "@/lib/useWideScreen";
 import { LicencesScreen } from "@/licences/LicencesScreen";
 import { navigate, Screen } from "@/motion/motion";
@@ -41,6 +42,13 @@ import { StateToast } from "@/save-states/StateToast";
 import { tauriStatesHost } from "@/save-states/tauriHost";
 import { tauriGamePageHost } from "@/game-page/tauriHost";
 import { ConflictSheet } from "@/sync/ConflictSheet";
+import { usePlus } from "@/plus/plus";
+import { lookVariables } from "@/skin-look/skinLook";
+import { pausedFrame } from "@/skin-picker/previewFrame";
+import { SkinPicker } from "@/skin-picker/SkinPicker";
+import { tauriPreviewFrameHost } from "@/skin-picker/tauriHost";
+import { SkinPlastic } from "@/skin-plastic/SkinPlastic";
+import { chosenSkin, skinLine, wallColour } from "@/skins";
 import { useSync, type Conflict } from "@/sync/sync";
 import { tauriTransferPakHost } from "@/transfer-pak/tauriHost";
 import { TransferPakScreen } from "@/transfer-pak/TransferPak";
@@ -48,18 +56,22 @@ import { cartName, useTransferPak } from "@/transfer-pak/setting";
 import { clearOfTouchControls, TouchControls, useTouchControlsShown } from "@/touch-controls/TouchControls";
 import { Player } from "./Player";
 import { SettingsScreen } from "./SettingsScreen";
-import { useHiddenSystemBars } from "./system-bars/systemBars";
-import { handheld } from "./systems";
+import { useBarsTone, useHiddenSystemBars } from "./system-bars/systemBars";
+import { dualScreens, type Rect } from "./screens";
+import type { Frame } from "./screen";
+import { handheld, type System } from "./systems";
 
 const TOAST_MS = 3000;
 const UNSUPPORTED_DEVICE = "unsupported-device";
 const NATIVE_FAILED = "Native renderer failed, so the game uses Compatible";
 const noGames: Game[] = [];
+const skinInk = { light: "text-[#1c1b22]", dark: "text-white" };
 
 export function GameScreen({
   folder,
   game,
   games = noGames,
+  systems,
   resume,
   slot,
   cover,
@@ -71,6 +83,8 @@ export function GameScreen({
   game: Game;
   /** The library, for the Transfer Pak. */
   games?: Game[];
+  /** The platform's systems, for Settings › Skins. */
+  systems?: readonly System[];
   resume: boolean;
   slot?: number;
   cover?: string;
@@ -88,11 +102,14 @@ export function GameScreen({
   useHiddenSystemBars();
   const [error, setError] = useState<string>();
   const onBackGesture = useBackGesture();
+  const goBack = useGoBack();
   const { overlay, show } = useOverlay(input, onBackGesture);
   const fastForward = useFastForward(!overlay);
   const [awaitingSave, setAwaitingSave] = useState(false);
-  const dual = game.system === "nds";
+  const screens = dualScreens[game.system];
+  const dual = !!screens;
   const [swapped, setSwapped] = useState(false);
+  const swapScreens = () => setSwapped((swapped) => !swapped);
   const [stacked, setStacked] = useState(false);
   const touchControls = useTouchControlsShown(input);
   useNextSave(tauriSaveHost, awaitingSave, () => show("editor"));
@@ -103,7 +120,23 @@ export function GameScreen({
   );
   const states = useStates(tauriStatesHost, folder, game.path, overlay === "menu");
   const [toast, setToast] = useState<StateMessage>();
-  const { showFps, gameClockOffset } = usePreferences().preferences;
+  const { showFps, gameClockOffset, skins, touchControls: touchControlsOn } = usePreferences().preferences;
+  const display = handheld[game.system];
+  const portrait = useMediaQuery("(orientation: portrait)");
+  const skinChoice = skins[game.system];
+  const plus = usePlus().status?.state;
+  const skin = chosenSkin(game.system, skinChoice, plus);
+  const skinned = !!display && portrait;
+  const header = portrait || !touchControls || !!error;
+  const [windows, setWindows] = useState<Rect[]>();
+  const skinVariables = useMemo(
+    () =>
+      skinned
+        ? ({ ...lookVariables(skin, skinChoice.look), "--skin-screen-radius": `${display.radiusDp}px` } as CSSProperties)
+        : undefined,
+    [skinned, skin, skinChoice.look, display],
+  );
+  useBarsTone(skinned ? skin.tone === "light" : undefined);
   const [rates, setRates] = useState<Rates>();
   const { lab } = useExperiments();
   const [settingUpPad, setSettingUpPad] = useState(false);
@@ -126,6 +159,7 @@ export function GameScreen({
   const [rendererNotice, setRendererNotice] = useToast();
   const transferPak = useTransferPak(tauriTransferPakHost, folder, game.path);
   const [run, setRun] = useState({ key: 0, resume });
+  const [pausedShot, setPausedShot] = useState<Frame>();
 
   useEffect(() => {
     let current = true;
@@ -186,24 +220,40 @@ export function GameScreen({
     show(undefined);
   };
 
+  const openSkinPicker = async () => {
+    setPausedShot(await pausedFrame(tauriPreviewFrameHost).catch(() => undefined));
+    navigate("forward", () => show((overlay) => (overlay === "menu" ? "skin" : overlay)));
+  };
+
   const saveFirst = () => {
     setAwaitingSave(true);
     show(undefined);
   };
 
   return (
-    <div className="flex h-screen flex-col">
+    <div
+      className="relative isolate flex h-screen flex-col"
+      data-skin={skinned || undefined}
+      style={skinVariables}
+    >
+      {skinned && <SkinPlastic skin={skin} radius={display.radiusDp} windows={windows} />}
       <div className="contents" data-no-back-swipe>
-        <ScreenHeader title={game.name} onBack={onQuit}>
-          {dual && (
-            <Button variant="ghost" size="icon" aria-label="Swap screens" onClick={() => setSwapped(!swapped)}>
-              <ArrowLeftRight className={cn(stacked && "rotate-90")} />
+        {header && (
+          <ScreenHeader
+            title={game.name}
+            onBack={onQuit}
+            className={cn(skinned && ["border-transparent bg-transparent backdrop-blur-none", skinInk[skin.tone]])}
+          >
+            {dual && (
+              <Button variant="ghost" size="icon" aria-label="Swap screens" onClick={swapScreens}>
+                <ArrowLeftRight className={cn(stacked && "rotate-90")} />
+              </Button>
+            )}
+            <Button variant="ghost" size="icon" aria-label="Pause menu" onClick={() => show("menu")}>
+              <Menu />
             </Button>
-          )}
-          <Button variant="ghost" size="icon" aria-label="Pause menu" onClick={() => show("menu")}>
-            <Menu />
-          </Button>
-        </ScreenHeader>
+          </ScreenHeader>
+        )}
         {error ? (
           <main className="p-4 text-sm text-destructive">{error}</main>
         ) : (
@@ -217,20 +267,37 @@ export function GameScreen({
                 speed={fastForward.speed}
                 input={input}
                 paused={!!overlay}
-                dual={dual}
-                display={handheld[game.system]}
+                screens={screens}
+                display={display}
+                wall={skinned ? wallColour(skin, skinChoice.look) : undefined}
                 swapped={swapped}
                 clockOffset={offsetSeconds(gameClockOffset)}
                 renderer={renderer.renderer}
                 onNativeFailed={() => renderer.reportNativeFailure() && setRendererNotice(NATIVE_FAILED)}
                 onStacked={setStacked}
+                onWindows={setWindows}
                 onStarted={onGameStarted}
                 onFps={showFps ? setRates : undefined}
                 onError={(message) => (message === UNSUPPORTED_DEVICE ? onUnsupported() : setError(message))}
                 cover={cover}
                 holdMessage={conflicted ? "" : checking ? "Checking your other devices…" : undefined}
-                className={cn(touchControls ? "landscape:pb-safe" : "pb-safe", dual && touchControls && clearOfTouchControls)}
-              />
+                className={cn(
+                  touchControls ? "landscape:pb-safe" : "pb-safe",
+                  skinned && ["items-start px-6 pt-6", dual ? "pb-6" : "pb-14"],
+                )}
+                clearance={
+                  dual && touchControls ? clearOfTouchControls(stacked ? "both" : swapped ? "left" : "right") : undefined
+                }
+              >
+                {skinned && !dual && (
+                  <span
+                    aria-hidden
+                    className="absolute top-full left-0.5 mt-6 font-pixel text-[17px] font-semibold tracking-[0.04em] text-(--skin-wordmark)"
+                  >
+                    pkhemu
+                  </span>
+                )}
+              </Player>
               <TouchControls input={input} system={game.system} fastForward={fastForward} />
               {rates && (
                 <p className="pointer-events-none absolute top-3 left-3 rounded-full bg-overlay/70 px-2 py-0.5 text-xs text-white tabular-nums">
@@ -272,6 +339,14 @@ export function GameScreen({
         canLoadState={states.hasStates && !error}
         canUndoLoad={states.canUndoLoad && !error}
         fastForward={fastForward}
+        onSwapScreens={
+          dual
+            ? () => {
+                swapScreens();
+                show(undefined);
+              }
+            : undefined
+        }
         pokemonInfo={pokemonInfoOn}
         onTogglePokemonInfo={() => void gameSettings.change({ pokemonInfo: !pokemonInfoOn })}
         randomized={settings?.randomized}
@@ -291,6 +366,8 @@ export function GameScreen({
           show(undefined);
         }}
         onCheats={forwardTo("cheats")}
+        skin={touchControlsOn ? skinLine(skin, skinChoice.look) : undefined}
+        onSkin={() => void openSkinPicker()}
         onSettings={forwardTo("settings")}
         onQuit={onQuit}
       />
@@ -337,10 +414,17 @@ export function GameScreen({
           />
         </Screen>
       )}
-      {overlay === "settings" && (
+      {overlay === "skin" && (
         <Screen>
           <Cover input={input} onBack={backTo("menu")}>
-            <SettingsScreen system={game.system} onBack={backTo("menu")} onLicences={forwardTo("licences")} />
+            <SkinPicker system={game.system} frame={pausedShot} game={game.name} onClose={backTo("menu")} />
+          </Cover>
+        </Screen>
+      )}
+      {overlay === "settings" && (
+        <Screen>
+          <Cover input={input} onBack={goBack}>
+            <SettingsScreen system={game.system} systems={systems} onBack={backTo("menu")} onLicences={forwardTo("licences")} />
           </Cover>
         </Screen>
       )}

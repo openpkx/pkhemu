@@ -6,23 +6,34 @@ use tauri::{Manager, Runtime};
 
 tauri::ios_plugin_binding!(init_plugin_pkhemu_ios);
 
-pub type ScreenShown = extern "C" fn(layer: *mut std::ffi::c_void, width: i32, height: i32);
+pub type ScreenShown =
+    extern "C" fn(layer: *mut std::ffi::c_void, metal: *mut std::ffi::c_void, width: i32, height: i32);
 pub type ScreenGone = extern "C" fn();
 
 extern "C" {
     fn pkhemu_ios_replay_launch_urls();
     fn pkhemu_ios_watch_game_screen(shown: ScreenShown, gone: ScreenGone);
+    fn pkhemu_ios_show_metal_screen(show: bool);
+    fn pkhemu_ios_is_ipad() -> bool;
 }
 
-/// Hands over the game screen's CAEAGLLayer and its size in pixels while a game plays, and takes it back on gone.
-/// Gone runs on the main thread, and the layer goes once it returns.
+/// Hands over the game screen's CAEAGLLayer, the CAMetalLayer above it and their size in pixels while a game plays,
+/// and takes them back on gone. Gone runs on the main thread, and the layers go once it returns.
 pub fn watch_game_screen(shown: ScreenShown, gone: ScreenGone) {
     unsafe { pkhemu_ios_watch_game_screen(shown, gone) };
 }
 
+/// Shows the CAMetalLayer over the CAEAGLLayer, or hides it again. The change happens on the main thread, later.
+pub fn show_metal_screen(show: bool) {
+    unsafe { pkhemu_ios_show_metal_screen(show) };
+}
+
 pub fn init<R: Runtime>() -> TauriPlugin<R> {
     unsafe { pkhemu_ios_replay_launch_urls() };
+    // The webview's own APIs can't tell an iPad from an iPhone.
+    let device = if unsafe { pkhemu_ios_is_ipad() } { "iPad" } else { "iPhone" };
     Builder::new("pkhemu-ios")
+        .js_init_script(format!("window.iosDevice = {device:?};"))
         .setup(|app, api| {
             app.manage(PkhemuIos(api.register_ios_plugin(init_plugin_pkhemu_ios)?));
             Ok(())

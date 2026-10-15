@@ -14,6 +14,7 @@ pub enum Platform {
     Gba,
     Ds,
     N64,
+    ThreeDs,
 }
 
 impl Platform {
@@ -23,6 +24,7 @@ impl Platform {
             System::Gba => Platform::Gba,
             System::Ds => Platform::Ds,
             System::N64 => Platform::N64,
+            System::ThreeDs => Platform::ThreeDs,
         }
     }
 
@@ -38,6 +40,7 @@ impl Platform {
             "gba" => Ok(Platform::Gba),
             "nds" => Ok(Platform::Ds),
             "n64" | "z64" | "v64" => Ok(Platform::N64),
+            system if rom::THREE_DS_EXTENSIONS.contains(&system) => Ok(Platform::ThreeDs),
             _ => Err(format!("{path} isn't a game")),
         }
     }
@@ -50,6 +53,7 @@ impl From<Platform> for System {
             Platform::Gba => System::Gba,
             Platform::Ds => System::Ds,
             Platform::N64 => System::N64,
+            Platform::ThreeDs => System::ThreeDs,
         }
     }
 }
@@ -173,6 +177,7 @@ pub fn check(platform: Platform, text: &str) -> Result<String, String> {
         Platform::Gba => gba_lines(&text),
         Platform::Ds => ds_lines(&text),
         Platform::N64 => n64_lines(&text),
+        Platform::ThreeDs => Err("3DS games don't take cheats yet.".into()),
     }?;
     if lines.is_empty() {
         return Err("Enter a code.".into());
@@ -620,6 +625,13 @@ mod tests {
         assert_eq!(Platform::of_path("n64/Stadium.z64"), Ok(Platform::N64));
         assert_eq!(Platform::of_path("n64/Stadium 2.V64"), Ok(Platform::N64));
         assert_eq!(Platform::of_path("n64/Stadium.zip"), Ok(Platform::N64));
-        assert_eq!(Platform::of_rom(&Rom { name: "Stadium.n64".into(), bytes: Vec::new() }), Platform::N64);
+        assert_eq!(Platform::of_rom(&Rom { name: "Stadium.n64".into(), bytes: Vec::new(), file: None }), Platform::N64);
+    }
+
+    #[test]
+    fn knows_a_3ds_game_from_its_file() {
+        assert_eq!(Platform::of_path("3ds/PKSM.3dsx"), Ok(Platform::ThreeDs));
+        assert_eq!(Platform::of_path("3ds/X.3DS"), Ok(Platform::ThreeDs));
+        assert_eq!(Platform::of_path("3ds/X.cxi"), Ok(Platform::ThreeDs));
     }
 }

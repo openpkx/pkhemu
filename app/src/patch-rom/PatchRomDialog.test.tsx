@@ -1,20 +1,30 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { BackProvider } from "@/back/back";
 import type { Game } from "@/library/scan";
 import type { PatchedFrom } from "@/preferences/gameSettings";
-import { PatchRomDialog, PatchRomProvider, type PatchDrops, type PatchFailure, type PatchRomHost, type PickedPatch } from "./patchRom";
+import {
+  PatchRomDialog,
+  PatchRomProvider,
+  type OpenedPatch,
+  type PatchBases,
+  type PatchDrops,
+  type PatchFailure,
+  type PatchRomHost,
+  type PickedPatch,
+} from "./patchRom";
 
 afterEach(cleanup);
 
 const fireRed: Game = { system: "gba", name: "Pokemon - FireRed Version (USA)", path: "gba/FireRed.gba" };
-const radicalRed: PickedPatch = { file: "/patches/radical_red.ups", name: "radical_red.ups", format: "ups" };
+const radicalRed: PickedPatch = { file: "/patches/radical_red.ups", name: "radical_red.ups", format: "ups", baseChecked: true };
 
 function fakeHost({
   picked = radicalRed as PickedPatch | null,
   taken = [] as string[],
   failure = undefined as PatchFailure | undefined,
   build = "FireRed EN 1.0" as string | null,
+  bases = { checked: true, games: [] } as PatchBases,
 } = {}) {
   const origins = new Map<string, PatchedFrom>();
   let finish = () => {};
@@ -26,7 +36,8 @@ function fakeHost({
     host: {
       baseBuild: vi.fn(async () => build),
       pick: vi.fn(async () => picked),
-      dropped: vi.fn(async (file: string) => ({ file, name: file.slice(file.lastIndexOf("/") + 1), format: "ups" as const })),
+      bases: vi.fn(async () => bases),
+      dropped: vi.fn(async (file: string) => ({ file, name: file.slice(file.lastIndexOf("/") + 1), format: "ups" as const, baseChecked: true })),
       watchDrops: vi.fn((listener: PatchDrops) => {
         drops.add(listener);
         return () => void drops.delete(listener);
@@ -36,8 +47,8 @@ function fakeHost({
       }),
       create: vi.fn(
         (_folder: string, _path: string, system: string, name: string) =>
-          new Promise<{ path: string; sha256: string }>((resolve, reject) => {
-            finish = () => (failure ? reject(failure) : resolve({ path: `${system}/${name}.${system}`, sha256: "c0ffee" }));
+          new Promise<{ path: string; sha256: string; baseChecked: boolean }>((resolve, reject) => {
+            finish = () => (failure ? reject(failure) : resolve({ path: `${system}/${name}.${system}`, sha256: "c0ffee", baseChecked: true }));
           }),
       ),
       patchedFrom: vi.fn(async (path: string) => origins.get(path) ?? null),
@@ -58,6 +69,30 @@ async function launch(fake = fakeHost(), game = fireRed) {
   const { rerender } = render(dialog(true));
   await act(async () => {});
   return { ...fake, ...props, close: () => rerender(dialog(false)) };
+}
+
+const emerald: Game = { system: "gba", name: "Emerald", path: "gba/Emerald.gba" };
+const red: Game = { system: "gb", name: "Red", path: "gb/Red.gb" };
+const unbound: OpenedPatch = { file: "/Inbox/Unbound.bps", name: "Unbound.bps", format: "bps", games: [emerald, fireRed, red] };
+
+async function launchOpened(fake = fakeHost(), patch = unbound, onAddGame?: () => Promise<Game[]>) {
+  const props = { onClose: vi.fn(), onCreated: vi.fn() };
+  render(
+    <BackProvider>
+      <PatchRomProvider host={fake.host}>
+        <PatchRomDialog open folder="/games" opened={patch} onAddGame={onAddGame} {...props} />
+      </PatchRomProvider>
+    </BackProvider>,
+  );
+  await act(async () => {});
+  return { ...fake, ...props };
+}
+
+const base = () => screen.getByRole("combobox", { name: "Base ROM" });
+
+async function baseOptions() {
+  fireEvent.click(base());
+  return within(await screen.findByRole("listbox")).getAllByRole("option");
 }
 
 async function drop(drops: Set<PatchDrops>, ...paths: string[]) {
@@ -144,16 +179,32 @@ it("keeps Create disabled while the name is taken", async () => {
 });
 
 it("lets an IPS patch through and says it can't be checked", async () => {
-  await launch(fakeHost({ picked: { file: "/patches/hack.ips", name: "hack.ips", format: "ips" } }));
+  await launch(fakeHost({ picked: { file: "/patches/hack.ips", name: "hack.ips", format: "ips", baseChecked: false } }));
 
   await choosePatch();
 
-  expect(screen.getByText(/IPS/)).toBeTruthy();
+  expect(screen.getByText(/can't be checked/)).toBeTruthy();
   await waitFor(() => expect(create().disabled).toBe(false));
 });
 
+it("says an xdelta patch without checksums can't be checked", async () => {
+  await launch(fakeHost({ picked: { file: "/patches/hack.xdelta", name: "hack.xdelta", format: "xdelta", baseChecked: false } }));
+
+  await choosePatch();
+
+  expect(screen.getByText(/can't be checked/)).toBeTruthy();
+});
+
+it("says nothing about checking an xdelta patch with checksums", async () => {
+  await launch(fakeHost({ picked: { file: "/patches/hack.xdelta", name: "hack.xdelta", format: "xdelta", baseChecked: true } }));
+
+  await choosePatch();
+
+  expect(screen.queryByText(/can't be checked/)).toBeNull();
+});
+
 it("refuses a file that isn't a patch", async () => {
-  await launch(fakeHost({ picked: { file: "/notes.txt", name: "notes.txt", format: null } }));
+  await launch(fakeHost({ picked: { file: "/notes.txt", name: "notes.txt", format: null, baseChecked: false } }));
 
   await choosePatch();
 
@@ -263,4 +314,124 @@ it("ignores drops while it patches, even before the window stops listening", asy
   expect(host.dropped).not.toHaveBeenCalled();
   expect(dropping()).toBeNull();
   await act(async () => finish());
+});
+
+it("preselects the only game an opened patch fits and creates the hack from it", async () => {
+  const { host, finish, onCreated } = await launchOpened(fakeHost({ bases: { checked: true, games: ["gba/FireRed.gba"] } }));
+
+  expect(host.bases).toHaveBeenCalledWith("/games", "/Inbox/Unbound.bps", ["gba/Emerald.gba", "gba/FireRed.gba", "gb/Red.gb"]);
+  expect(base().textContent).toBe(fireRed.name);
+  expect(screen.queryByText(/can't be checked/)).toBeNull();
+  expect(nameField().value).toBe("Unbound");
+  await waitFor(() => expect(create().disabled).toBe(false));
+  await createGame(finish);
+
+  expect(host.create).toHaveBeenCalledWith("/games", "gba/FireRed.gba", "gba", "Unbound", "/Inbox/Unbound.bps");
+  expect(onCreated).toHaveBeenCalledWith({ system: "gba", name: "Unbound", path: "gba/Unbound.gba" });
+});
+
+it("lists only the games an opened patch fits and waits for the player to pick one", async () => {
+  const { host, finish } = await launchOpened(fakeHost({ bases: { checked: true, games: ["gba/Emerald.gba", "gba/FireRed.gba"] } }));
+  expect(create().disabled).toBe(true);
+
+  const options = await baseOptions();
+  expect(options.map((option) => option.textContent)).toEqual(["Emerald", fireRed.name]);
+  fireEvent.click(options[0]);
+  await waitFor(() => expect(create().disabled).toBe(false));
+  await createGame(finish);
+
+  expect(host.create).toHaveBeenCalledWith("/games", "gba/Emerald.gba", "gba", "Unbound", "/Inbox/Unbound.bps");
+});
+
+it("lists every game under the can't-be-checked note when an opened patch can't check its base", async () => {
+  const brown: OpenedPatch = { file: "/Inbox/Brown.ips", name: "Brown.ips", format: "ips", games: [emerald, fireRed, red] };
+  const { host } = await launchOpened(fakeHost({ bases: { checked: false, games: [emerald.path, fireRed.path, red.path] } }), brown);
+
+  expect(screen.getByText(/can't be checked/)).toBeTruthy();
+  expect(create().disabled).toBe(true);
+  const options = await baseOptions();
+  expect(options).toHaveLength(3);
+  fireEvent.click(options[2]);
+
+  await waitFor(() => expect(create().disabled).toBe(false));
+  expect(host.checkName).toHaveBeenLastCalledWith("/games", "gb", "Brown");
+});
+
+it("checks the name again in the system of the base picked", async () => {
+  const { host } = await launchOpened(fakeHost({ bases: { checked: false, games: [emerald.path, red.path] } }));
+
+  fireEvent.click((await baseOptions())[0]);
+  await waitFor(() => expect(host.checkName).toHaveBeenLastCalledWith("/games", "gba", "Unbound"));
+  fireEvent.click((await baseOptions())[1]);
+
+  await waitFor(() => expect(host.checkName).toHaveBeenLastCalledWith("/games", "gb", "Unbound"));
+});
+
+it("offers no base when no game fits an opened patch", async () => {
+  await launchOpened(fakeHost({ bases: { checked: true, games: [] } }));
+
+  expect(screen.queryByRole("combobox", { name: "Base ROM" })).toBeNull();
+  expect(create().disabled).toBe(true);
+});
+
+it("names the build an opened patch needs when no game fits", async () => {
+  await launchOpened(fakeHost({ bases: { checked: true, games: [], needs: { crc32: 0xdd88761c, build: "FireRed EN 1.0" } } }));
+
+  expect(screen.getByText(/FireRed EN 1\.0/)).toBeTruthy();
+  expect(screen.queryByText(/DD88761C/)).toBeNull();
+});
+
+it("shows the CRC32 an opened patch needs when the build is unknown", async () => {
+  await launchOpened(fakeHost({ bases: { checked: true, games: [], needs: { crc32: 0x1a2b3c, build: null } } }));
+
+  expect(screen.getByText(/001A2B3C/)).toBeTruthy();
+});
+
+it("adds a game and continues with it as the base when it fits the opened patch", async () => {
+  const leafGreen: Game = { system: "gba", name: "LeafGreen", path: "gba/LeafGreen.gba" };
+  const onAddGame = vi.fn(async () => [emerald, fireRed, leafGreen, red]);
+  const { host } = await launchOpened(fakeHost({ bases: { checked: true, games: [], needs: { crc32: 0xd69c96cc, build: "LeafGreen EN 1.0" } } }), unbound, onAddGame);
+  host.bases.mockResolvedValueOnce({ checked: true, games: [leafGreen.path] });
+
+  fireEvent.click(screen.getByRole("button", { name: "Add game" }));
+
+  await waitFor(() => expect(base().textContent).toBe("LeafGreen"));
+  expect(host.bases).toHaveBeenLastCalledWith("/games", "/Inbox/Unbound.bps", [emerald.path, fireRed.path, leafGreen.path, red.path]);
+  expect(nameField().value).toBe("Unbound");
+  await waitFor(() => expect(create().disabled).toBe(false));
+});
+
+it("can't be closed while a game is being added", async () => {
+  let finish = (_games: Game[]) => {};
+  const onAddGame = () => new Promise<Game[]>((resolve) => (finish = resolve));
+  const { onClose } = await launchOpened(fakeHost({ bases: { checked: true, games: [] } }), unbound, onAddGame);
+
+  fireEvent.click(screen.getByRole("button", { name: "Add game" }));
+  await act(async () => {});
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  fireEvent.keyDown(document.activeElement ?? document.body, { key: "Escape" });
+
+  expect(onClose).not.toHaveBeenCalled();
+  await act(async () => finish([emerald, fireRed, red]));
+  fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+  expect(onClose).toHaveBeenCalled();
+});
+
+it("keeps waiting when the game added doesn't fit the opened patch", async () => {
+  const onAddGame = vi.fn(async () => [emerald, fireRed, red]);
+  await launchOpened(fakeHost({ bases: { checked: true, games: [], needs: { crc32: 0xd69c96cc, build: "LeafGreen EN 1.0" } } }), unbound, onAddGame);
+
+  fireEvent.click(screen.getByRole("button", { name: "Add game" }));
+  await act(async () => {});
+
+  expect(screen.getByText(/LeafGreen EN 1\.0/)).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Add game" })).toBeTruthy();
+});
+
+it("doesn't swap an opened patch for one dropped on the window", async () => {
+  const { host, drops } = await launchOpened();
+
+  await drop(drops, "/downloads/radical_red.ups");
+
+  expect(host.dropped).not.toHaveBeenCalled();
 });

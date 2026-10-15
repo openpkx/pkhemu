@@ -96,7 +96,7 @@ fn with_crcs(mut patch: Vec<u8>, base_crc: u32, target_crc: u32) -> Vec<u8> {
     patch
 }
 
-fn ups(base: &[u8], target: &[u8]) -> Vec<u8> {
+pub(crate) fn ups(base: &[u8], target: &[u8]) -> Vec<u8> {
     let mut patch = b"UPS1".to_vec();
     number(base.len() as u64, &mut patch);
     number(target.len() as u64, &mut patch);
@@ -119,7 +119,7 @@ fn ups(base: &[u8], target: &[u8]) -> Vec<u8> {
     with_crcs(patch, crc32fast::hash(base), crc32fast::hash(target))
 }
 
-fn xdelta_with(base: &[u8], target: &[u8], options: CompressOptions) -> Vec<u8> {
+pub(crate) fn xdelta_with(base: &[u8], target: &[u8], options: CompressOptions) -> Vec<u8> {
     encode_all(Vec::new(), base, target, options).unwrap()
 }
 
@@ -180,6 +180,19 @@ fn xdelta_without_checksums_leaves_the_base_unchecked() {
     let options = CompressOptions { checksum: false, ..CompressOptions::default() };
     let (_, result) = patched(&xdelta_with(&base, &edited(&base), options), &base, System::Ds).unwrap();
     assert!(!result.base_checked);
+}
+
+#[test]
+fn inspecting_a_patch_tells_whether_it_checks_the_base() {
+    let base = pattern(1024, 2);
+    let target = edited(&base);
+    for (format, patch) in all_formats(&base, &target) {
+        assert_eq!(inspect(&patch[..]).unwrap(), Some(Patched { format, base_checked: format != Format::Ips }), "{format:?}");
+    }
+    let options = CompressOptions { checksum: false, ..CompressOptions::default() };
+    let unchecked = xdelta_with(&base, &target, options);
+    assert_eq!(inspect(&unchecked[..]).unwrap(), Some(Patched { format: Format::Xdelta, base_checked: false }));
+    assert_eq!(inspect(&b"not a patch"[..]).unwrap(), None);
 }
 
 fn vcdiff_number(value: u64, out: &mut Vec<u8>) {
@@ -522,4 +535,133 @@ fn applies_renegade_platinum() {
 fn applies_brown() {
     let bases = game_boy_roms("POKEMON RED", 0x91E6);
     check_real_patch("Brown", Format::Ips, "Red US", bases, System::GameBoy, "ef085e982546f51d8353cefc3d55f3a014fd30b04185d25adaaed09ae9e63bed");
+}
+
+fn fits(patch: &[u8], base: &[u8], system: System) -> bool {
+    fit(patch).unwrap().fits(Cursor::new(base), system).unwrap()
+}
+
+#[test]
+fn ups_and_bps_fit_only_the_base_with_their_crc32_and_size() {
+    let base = pattern(1024, 2);
+    let target = edited(&base);
+    for patch in [ups(&base, &target), bps(&base, &target)] {
+        let crc32 = crc32fast::hash(&base);
+        assert!(matches!(fit(&patch[..]), Ok(Fit::Crc32 { size: 1024, crc32: fit }) if fit == crc32));
+        assert!(fits(&patch, &base, System::GameBoy));
+        assert!(!fits(&patch, &pattern(1024, 3), System::GameBoy));
+        assert!(!fits(&patch, &base[..1000], System::GameBoy));
+    }
+}
+
+#[test]
+fn xdelta_with_checksums_fits_only_a_base_its_first_window_decodes_from() {
+    let base = Random(7).bytes(8192);
+    let patch = xdelta(&base, &edited(&base));
+    let mut wrong = base.clone();
+    wrong[200] ^= 1;
+
+    assert!(fit(&patch[..]).unwrap().checked());
+    assert!(fits(&patch, &base, System::Ds));
+    assert!(!fits(&patch, &wrong, System::Ds));
+    assert!(!fits(&patch, &base[..4000], System::Ds));
+}
+
+#[test]
+fn ips_and_xdelta_without_checksums_cant_tell_which_base_fits() {
+    let base = pattern(1024, 2);
+    let target = edited(&base);
+    let options = CompressOptions { checksum: false, ..CompressOptions::default() };
+    for patch in [ips(&base, &target), xdelta_with(&base, &target, options)] {
+        let fit = fit(&patch[..]).unwrap();
+        assert!(!fit.checked());
+        assert!(fit.fits(Cursor::new(pattern(64, 9)), System::GameBoy).unwrap());
+    }
+}
+
+#[test]
+fn an_n64_base_fits_in_any_byte_order() {
+    let base = z64(1024);
+    let target = edited(&base);
+    for patch in [bps(&base, &target), xdelta(&base, &target)] {
+        for rom in [base.clone(), swapped(&base, 2), swapped(&base, 4)] {
+            assert!(fits(&patch, &rom, System::N64));
+        }
+    }
+}
+
+#[test]
+fn hashes_a_base_in_the_order_patches_expect() {
+    let base = z64(1024);
+    let identity = (1024, crc32fast::hash(&base));
+    assert_eq!(base_crc32(Cursor::new(swapped(&base, 2)), System::N64).unwrap(), identity);
+    assert_eq!(base_crc32(Cursor::new(&base), System::GameBoy).unwrap(), identity);
+}
+
+#[test]
+fn a_damaged_ups_or_bps_patch_fits_nothing() {
+    let base = pattern(1024, 2);
+    let mut patch = bps(&base, &edited(&base));
+    let last = patch.len() - 1;
+    patch[last] ^= 1;
+    assert!(matches!(fit(&patch[..]), Err(PatchError::Malformed)));
+}
+
+fn check_real_fit(
+    hack: &str,
+    format: Format,
+    base: &str,
+    bases: Vec<Rom>,
+    others: Vec<Rom>,
+    system: System,
+    checked: bool,
+) {
+    let Some(patch) = find_patch(hack, format) else { return };
+    let Some(right) = bases.iter().find(|rom| patched(&patch, &rom.bytes, system).is_ok()) else {
+        eprintln!("skipped: needs {base} in data/roms/ or data/test-folder/ for {hack}");
+        return;
+    };
+    let fit = fit(&patch[..]).unwrap();
+    assert_eq!(fit.checked(), checked, "{hack}");
+    assert!(fit.fits(Cursor::new(&right.bytes), system).unwrap(), "{hack}");
+    for other in others.iter().filter(|other| other.bytes != right.bytes) {
+        assert_eq!(fit.fits(Cursor::new(&other.bytes), system).unwrap(), !checked, "{hack}");
+    }
+}
+
+#[test]
+fn finds_the_base_for_real_patches() {
+    let others = || {
+        [roms_by_code(b"BPRE", 0), roms_by_code(b"BPRE", 1), roms_by_code(b"BPEE", 0), roms_by_code(b"CPUE", 0)]
+            .into_iter()
+            .flatten()
+            .collect::<Vec<_>>()
+    };
+    let gba = System::GameBoyAdvance;
+    check_real_fit("Radical Red", Format::Ups, "FireRed US 1.0", roms_by_code(b"BPRE", 0), others(), gba, true);
+    check_real_fit("Unbound", Format::Ups, "FireRed US 1.0", roms_by_code(b"BPRE", 0), others(), gba, true);
+    check_real_fit("Modern Emerald", Format::Bps, "Emerald US", roms_by_code(b"BPEE", 0), others(), gba, true);
+    let platinum = roms_by_code(b"CPUE", 1);
+    check_real_fit(
+        "Renegade Platinum 4997",
+        Format::Xdelta,
+        "Platinum US revision 1",
+        platinum,
+        others(),
+        System::Ds,
+        true,
+    );
+    let red = game_boy_roms("POKEMON RED", 0x91E6);
+    check_real_fit("Brown", Format::Ips, "Red US", red, others(), System::GameBoy, false);
+}
+
+#[test]
+fn xdelta_finds_its_base_past_windows_that_dont_copy_from_it() {
+    let base = Random(7).bytes(8192);
+    let target = [Random(8).bytes(4096), edited(&base)].concat();
+    let options = CompressOptions { window_size: 4096, ..CompressOptions::default() };
+    let patch = xdelta_with(&base, &target, options);
+
+    assert!(fits(&patch, &base, System::Ds));
+    assert!(!fits(&patch, &Random(9).bytes(8192), System::Ds));
 }

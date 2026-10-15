@@ -28,7 +28,8 @@ const RECESS = {
 
 const float = (value: number) => value.toFixed(3);
 
-// The native twin of this shader is in app/src-tauri/src/screen.rs. A change to one belongs in both.
+// The native twin of this shader is in app/src-tauri/src/screen.rs. A change to one belongs in both, except that this one
+// leaves the shell outside the window clear for the page's plastic. The page covers the native one's with the plastic.
 // The window is the opening in the shell, and the game sits on a plate below it, seen from q at q - shift. A ray that leaves
 // the window first shows the wall it hits. The lip's shadow stays on the plate and leans away from a light fixed in the room.
 const fragment = `${precision}
@@ -86,7 +87,8 @@ void main() {
   float rimLine = (1.0 - smoothstep(0.0, dp * 1.5, q.y)) + 0.35 * (1.0 - smoothstep(0.0, dp, edge));
   c += vec3(glass * rimLine * ${float(RECESS.rim)} * 0.35);
   float outside = length(max(abs(q - window / 2.0) - window / 2.0 + radius, 0.0)) - radius;
-  gl_FragColor = vec4(mix(c, shell, recess * clamp(outside + 0.5, 0.0, 1.0)), 1.0);
+  float a = 1.0 - recess * clamp(outside + 0.5, 0.0, 1.0);
+  gl_FragColor = vec4(clamp(c, 0.0, 1.0) * a, a);
 }`;
 
 export type Rgb = [number, number, number];
@@ -101,7 +103,7 @@ const still: Parallax = { shift: origin, exact: origin, lean: origin };
 export type Frame = { width: number; height: number; pixels: Uint16Array };
 
 export function createScreen(canvas: HTMLCanvasElement) {
-  const gl = canvas.getContext("webgl", { antialias: false, alpha: false, desynchronized: true });
+  const gl = canvas.getContext("webgl", { antialias: false, alpha: true, desynchronized: true });
   if (!gl) throw new Error("WebGL is unavailable");
   const compile = (type: number, source: string) => {
     const shader = gl.createShader(type)!;
@@ -162,10 +164,10 @@ export function createScreen(canvas: HTMLCanvasElement) {
       gl.uniform3fv(plate, look.plate);
       gl.uniform1f(dpUniform, look.dp);
       gl.uniform1f(radius, look.radius);
-      gl.viewport(0, 0, canvas.width, canvas.height);
-      gl.clearColor(...look.shell, 1);
-      gl.clear(gl.COLOR_BUFFER_BIT);
     }
+    gl.viewport(0, 0, canvas.width, canvas.height);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
     for (const view of layout.views) {
       const { x, y, width, height } = view.target;
       const windowWidth = width + 2 * edge;

@@ -38,26 +38,25 @@ function Actions({ children }: { children: ReactNode }) {
 }
 
 export function WhereAreYourGames({
-  delta = false,
+  emulator = false,
   error,
   onBack,
   onChoose,
 }: {
-  delta?: boolean;
+  emulator?: boolean;
   error?: string;
   onBack(): void;
   onChoose(): void;
 }) {
+  const { emulatorHint } = useImportHost();
   return (
     <Page>
       <Heading icon={<FolderSearch />} title="Where are your games?">
         <p className="text-sm text-muted-foreground">
-          {delta
-            ? "Pick On My iPhone › Delta. pkhemu copies your games and saves. Delta's files stay where they are."
-            : "Pick the folder with your ROMs. pkhemu looks in every folder inside it, saves included."}
+          {emulator ? `${emulatorHint} pkhemu copies your games and saves.` : "Pick the folder with your ROMs. pkhemu looks in every folder inside it, saves included."}
         </p>
       </Heading>
-      {!delta && <p className="rounded-lg border bg-card px-3 py-2.5 text-sm text-muted-foreground">Another emulator's folder works too, like RetroArch's.</p>}
+      {!emulator && <p className="rounded-lg border bg-card px-3 py-2.5 text-sm text-muted-foreground">Another emulator's folder works too, like RetroArch's.</p>}
       {error && <p className="text-sm text-destructive">{error}</p>}
       <Actions>
         <Button variant="outline" size="lg" onClick={onBack}>
@@ -133,7 +132,7 @@ export function FolderSummaryScreen({
         </Actions>
       </Page>
     );
-  const { games, withSave, size, leftOut, known } = summary;
+  const { games, withSave, size, leftOut, known, unmatched, app } = summary;
   const noSave = games.length - withSave;
   const nothing = games.length === 0 && saves === 0;
   const copy = games.length > 0 || saves === 0 ? `Copy ${count(games.length, "game")}` : `Copy ${count(saves, "save")}`;
@@ -145,6 +144,7 @@ export function FolderSummaryScreen({
     <Page>
       <Heading title={`Found ${count(games.length, "game")}`}>
         <p className="text-sm break-words text-muted-foreground">In {folder}</p>
+        {app && <p className="text-sm text-muted-foreground">Found a {app} folder</p>}
       </Heading>
       <div className="grid grid-cols-3 gap-3">
         <Stat value={String(games.length)} label="Games" />
@@ -175,6 +175,11 @@ export function FolderSummaryScreen({
         </ul>
       )}
       {notes.length > 0 && <p className="text-sm text-muted-foreground">{notes.join(" ")}</p>}
+      {unmatched > 0 && (
+        <p className="text-sm text-muted-foreground">
+          {`${unmatched === 1 ? "1 save matches" : `${unmatched} saves match`} no game. Import the ROMs too, then import the folder again.`}
+        </p>
+      )}
       {error && <p className="text-sm text-destructive">{error}</p>}
       <Actions>
         <Button variant="outline" size="lg" onClick={onBack}>
@@ -281,13 +286,13 @@ type CopyStep = { name: string; rom?: RomImport; save?: SaveImport };
 export function ImportFolder({
   libraryHost,
   source,
-  delta = false,
+  emulator = false,
   onClose,
   onDone,
 }: {
   libraryHost: LibraryHost;
   source?: PickedFolder;
-  delta?: boolean;
+  emulator?: boolean;
   onClose(message?: string): void;
   onDone(message: string): void;
 }) {
@@ -311,7 +316,12 @@ export function ImportFolder({
     const scanned = withCloudGames(await scanLibrary((path) => libraryHost.listDir(folder, path)), cloudGames);
     const games = scanned.sections.flatMap((section) => section.games);
     const local = games.filter((game) => !game.cloudOnly).map((game) => game.path);
-    return { games, sha1s: local.length ? await host.sha1s(folder, local) : {} };
+    const threeDs = local.filter((path) => path.startsWith("3ds/"));
+    const [sha1s, titleIds] = await Promise.all([
+      local.length ? host.sha1s(folder, local) : {},
+      threeDs.length ? host.titleIds(folder, threeDs) : {},
+    ]);
+    return { games, sha1s, titleIds };
   };
 
   const scan = async (folder: PickedFolder, saves: boolean) => {
@@ -409,8 +419,8 @@ export function ImportFolder({
       setStep({ name: "copying", done, total: steps.length, game: name });
       try {
         if (rom) {
-          await host.copyRom(folder, rom.file.file, rom.path);
-          copied.roms.push(rom.path);
+          const updated = await host.copyRom(folder, rom.file.file, rom.path);
+          copied.roms.push(...(updated.length ? updated : [rom.path]));
         }
         if (save) {
           await host.copySave(folder, save);
@@ -462,7 +472,7 @@ export function ImportFolder({
     <>
       {step.name === "where" && (
         <Screen key="where">
-          <WhereAreYourGames delta={delta} error={error} onBack={back} onChoose={() => void choose(false)} />
+          <WhereAreYourGames emulator={emulator} error={error} onBack={back} onChoose={() => void choose(false)} />
         </Screen>
       )}
       {step.name === "scanning" && (

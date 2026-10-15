@@ -5,16 +5,19 @@ mod gen2;
 mod gen3;
 mod gen4;
 mod gen5;
+mod gen6;
+mod gen7;
 mod header;
 mod key;
 mod lz77;
 mod nds;
+mod three_ds;
 
 pub use header::{identify, n64_big_endian, Game, Platform};
 pub use key::Key;
-use std::io::{Cursor, Read, Seek, SeekFrom};
+use std::io::{Cursor, Read, Seek, SeekFrom, Write};
 
-pub const DECODER_VERSION: u32 = 14;
+pub const DECODER_VERSION: u32 = 19;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Status {
@@ -38,8 +41,18 @@ pub struct Image {
     pub key: Key,
     pub width: u32,
     pub height: u32,
+    /// Indices into the palette, or RGBA, four bytes a pixel, when the palette is empty.
     pub pixels: Vec<u8>,
     pub palette: Vec<[u8; 4]>,
+}
+
+impl Image {
+    pub fn rgba(&self) -> Vec<u8> {
+        if self.palette.is_empty() {
+            return self.pixels.clone();
+        }
+        self.pixels.iter().flat_map(|&index| self.palette[index as usize]).collect()
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -110,6 +123,13 @@ pub fn extract_each_from(
                 _ => (Vec::new(), Status::Unsupported),
             }
         }
+        Some(game) if game.platform == Platform::ThreeDs => {
+            match (gen6::Build::of(&game.code), gen7::Build::of(&game.code)) {
+                (Some(build), _) => gen6::extract(&mut rom, build),
+                (_, Some(build)) => gen7::extract(&mut rom, build),
+                _ => (Vec::new(), Status::Unsupported),
+            }
+        }
         Some(game) if matches!(game.platform, Platform::Gb | Platform::Gbc) => {
             handed_over(gb::extract(&read_up_to(&mut rom, WHOLE_READ_LIMIT)?, &game.title), &mut animated)
         }
@@ -119,6 +139,20 @@ pub fn extract_each_from(
         Some(e) => Err(e),
         None => Ok(Extracted { game, images, animations: Vec::new(), status }),
     }
+}
+
+// A 3DS dump runs to gigabytes, so it is told apart by the parts the decoder reads. Other ROMs are told apart by all
+// their bytes, and for those this writes nothing and returns false.
+pub fn fingerprint(rom: impl Read + Seek, out: &mut dyn Write) -> std::io::Result<bool> {
+    let mut rom = Watched { rom, error: None };
+    let start = read_up_to(&mut rom, HEADER)?;
+    if !identify(&start).is_some_and(|game| game.platform == Platform::ThreeDs) {
+        return Ok(false);
+    }
+    if three_ds::Title::open(&mut rom).and_then(|mut title| title.fingerprint(out)).is_none() {
+        out.write_all(&start)?;
+    }
+    rom.error.map_or(Ok(true), Err)
 }
 
 fn read_up_to<R: Read + Seek>(rom: &mut R, len: u64) -> std::io::Result<Vec<u8>> {
@@ -203,6 +237,41 @@ mod tests {
 
         assert_eq!(read.map_err(|e| e.to_string()), Err("disk gone".into()));
         assert_eq!(extract(&rom).status, Status::Unsupported);
+    }
+
+    fn fingerprint_of(rom: &[u8]) -> (bool, Vec<u8>) {
+        let mut out = Vec::new();
+        (fingerprint(Cursor::new(rom), &mut out).unwrap(), out)
+    }
+
+    #[test]
+    fn fingerprints_only_3ds_games() {
+        let rom = nds::build::cartridge(&nds::build::narc(&[]), b"");
+
+        assert_eq!(fingerprint_of(&rom), (false, Vec::new()));
+        assert_eq!(fingerprint_of(&[0; 0x200]), (false, Vec::new()));
+    }
+
+    #[test]
+    fn fingerprints_a_3ds_game_it_cannot_open_by_its_header() {
+        let game = |title_id| {
+            let mut rom = three_ds::build::ncch(title_id, false, b"code", b"", &[0; 0x200]);
+            rom[0x600..0x608].copy_from_slice(&[0x8F, 0x13, 0xC2, 0x07, 0x99, 0x41, 0xE0, 0x3B]);
+            rom
+        };
+        let (x, y) = (game(0x0004000000055D00), game(0x0004000000055E00));
+
+        assert_eq!(fingerprint_of(&x), (true, x[..0x200].to_vec()));
+        assert_ne!(fingerprint_of(&x), fingerprint_of(&y));
+    }
+
+    #[test]
+    fn fails_to_fingerprint_a_3ds_game_it_cannot_read() {
+        let rom = three_ds::build::ncch(0x0004000000055D00, false, b"code", b"", &[0; 0x200]);
+
+        let read = fingerprint(FailingPast { rom: Cursor::new(&rom), at: 0x400 }, &mut Vec::new());
+
+        assert_eq!(read.map_err(|e| e.to_string()), Err("disk gone".into()));
     }
 
     #[test]

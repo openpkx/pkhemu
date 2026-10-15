@@ -4,7 +4,7 @@ import type { EditablePokemon, ErrorCode, SaveCapability } from "@pkhex-everywhe
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { EditorScreen } from "./EditorScreen";
 import { ExportProvider } from "./exportFile";
-import { fakeEngine, type FakeEncounter } from "./fakeEngine";
+import { fakeCardFile, fakeEngine, type FakeEncounter, type FakeEventEncounter, type FakeMysteryGift } from "./fakeEngine";
 import { PokemonFileProvider, type PickedFile } from "./pokemonFile";
 import { saveHome } from "./saveHome";
 import { FakeGameArt } from "@/game-art/fakeGameArt";
@@ -53,20 +53,26 @@ const pokemonFile = (speciesId: number, name = "pokemon.pk3"): PickedFile => ({
 
 function launch({
   capabilities = ["encounters", "legality"],
+  generation,
   encounters = [],
+  eventEncounters,
   details = {},
   refuseAdd,
   unofficialFiles,
+  mysteryGift,
   picked = [],
 }: {
   capabilities?: SaveCapability[];
+  generation?: number;
   encounters?: FakeEncounter[];
+  eventEncounters?: FakeEventEncounter[];
   details?: Record<string, Partial<EditablePokemon>>;
   refuseAdd?: ErrorCode;
   unofficialFiles?: number[];
+  mysteryGift?: FakeMysteryGift;
   picked?: (PickedFile | null)[];
 } = {}) {
-  const fake = fakeEngine({ capabilities, species, encounters, details, refuseAdd, unofficialFiles });
+  const fake = fakeEngine({ capabilities, generation, species, encounters, eventEncounters, details, refuseAdd, unofficialFiles, mysteryGift });
   const host = { read: async () => new Uint8Array([1]), apply: async () => {}, playTimeSinceSave: async () => 0 };
   const files = { pick: vi.fn(async () => picked.shift() ?? null) };
   render(
@@ -272,6 +278,87 @@ it("closes the dialog and shows the reason on the encounters page when the add f
   expect(screen.getByRole("list", { name: /encounters/i })).toBeTruthy();
 });
 
+const eventEncounter = (overrides: Partial<FakeEventEncounter> = {}): FakeEventEncounter => ({
+  speciesId: 385,
+  species: "Jirachi",
+  form: { id: 0, name: "" },
+  name: "Event Gift",
+  isEgg: false,
+  ball: "Poké Ball",
+  levelRange: "5",
+  location: "Fateful encounter",
+  version: "Ruby",
+  trainerName: "WISHMKR",
+  trainerId: 20043,
+  language: "ENG",
+  ...overrides,
+});
+
+const giftEvents = [
+  eventEncounter(),
+  eventEncounter({ speciesId: 151, species: "Mew", levelRange: "10", trainerName: null, trainerId: null, language: null }),
+  eventEncounter({ speciesId: 251, species: "Celebi", levelRange: "10", trainerName: "10ANIV", language: "JPN" }),
+];
+
+async function openEvents() {
+  fireEvent.click(await addButton());
+  fireEvent.click(await screen.findByRole("button", { name: /^Events/ }));
+  return within(await screen.findByRole("list", { name: "Events" }));
+}
+
+it("lists the events a Gen 3 save can hold from an entry above the species", async () => {
+  launch({ eventEncounters: giftEvents });
+
+  const events = await openEvents();
+
+  expect(events.getAllByRole("button")).toHaveLength(3);
+});
+
+it("has no Events entry on a DS save", async () => {
+  launch({ generation: 4, eventEncounters: giftEvents });
+  fireEvent.click(await addButton());
+
+  await screen.findByRole("list", { name: /species/i });
+  expect(screen.queryByRole("button", { name: /^Events/ })).toBeNull();
+});
+
+it("labels each event with its trainer, species, level and language", async () => {
+  launch({ eventEncounters: giftEvents });
+
+  const rows = (await openEvents()).getAllByRole("button").map((row) => row.textContent);
+
+  expect(rows[0]).toMatch(/WISHMKR Jirachi · Lv\. 5/);
+  expect(rows[0]).toMatch(/ENG/);
+  expect(rows[1]).toMatch(/\dMew · Lv\. 10$/);
+});
+
+it.each([
+  ["species", "mew", "Mew"],
+  ["trainer name", "wishmkr", "Jirachi"],
+  ["language", "jpn", "Celebi"],
+])("narrows the events by %s", async (_, search, species) => {
+  launch({ eventEncounters: giftEvents });
+  const events = await openEvents();
+
+  fireEvent.change(screen.getByRole("searchbox", { name: /events/i }), { target: { value: search } });
+
+  expect(events.getAllByRole("button").map((row) => row.textContent)).toEqual([expect.stringContaining(species)]);
+});
+
+it("asks before adding the tapped event, then adds it and opens it in the editor", async () => {
+  const fake = launch({ eventEncounters: giftEvents });
+  const events = await openEvents();
+
+  fireEvent.click(events.getAllByRole("button")[2]);
+  expect((await screen.findByRole("alertdialog")).textContent).toMatch(/10ANIV Celebi/);
+  expect(fake.addedEncounters()).toEqual([]);
+  await confirmAdd();
+
+  await waitFor(() => expect(fake.addedEncounters()).toEqual([2]));
+  expect(await screen.findByRole("heading", { name: "CELEBI" })).toBeTruthy();
+  expect(screen.queryByRole("list", { name: /events|species/i })).toBeNull();
+});
+
 const fromFileButton = () => screen.findByRole("button", { name: /file/i });
 const status = () => screen.findByRole("status");
 
@@ -376,12 +463,59 @@ it("says why the engine couldn't add a file, a different reason for each failure
   expect(messages.size).toBe(3);
 });
 
-it.each(["card.pgt", "card.PCD", "card.wc4"])("turns away the Wonder Card %s without calling the engine", async (name) => {
-  const fake = launch({ picked: [pokemonFile(255, name)] });
+const album: FakeMysteryGift = {
+  unlocked: true,
+  slots: 3,
+  events: [{ id: "pcd-3", title: "Member Card", kind: "item", species: null, item: { id: 467, name: "Member Card" }, language: null, cardId: 3 }],
+};
+const cardFile = (name: string): PickedFile => ({ name, bytes: fakeCardFile("pcd-3") });
+
+async function openInMysteryGift() {
+  fireEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: /mystery gift/i }));
+  return within(await screen.findByRole("alertdialog", { name: "Member Card" }));
+}
+
+it.each(["card.pgt", "card.PCD", "card.wc4", "card.pgf"])("opens the Wonder Card %s in Mystery Gift", async (name) => {
+  const fake = launch({ mysteryGift: album, picked: [cardFile(name)] });
+
+  await addFromFile();
+  const preview = await openInMysteryGift();
+  fireEvent.click(preview.getByRole("button", { name: "Review" }));
+
+  await screen.findByRole("article");
+  fireEvent.click(screen.getByRole("button", { name: "Add card" }));
+
+  expect(await screen.findByRole("list", { name: "Events" })).toBeTruthy();
+  expect(screen.queryByRole("alertdialog")).toBeNull();
+  expect(fake.filesAdded()).toEqual([]);
+});
+
+it("offers Mystery Gift for a Wonder Card when the save can't look up encounters", async () => {
+  launch({ capabilities: ["legality"], mysteryGift: album, picked: [cardFile("card.pcd")] });
+
+  fireEvent.click(await addButton());
+
+  expect(await openInMysteryGift()).toBeTruthy();
+});
+
+it("stays put when the Wonder Card offer is cancelled", async () => {
+  const fake = launch({ mysteryGift: album, picked: [cardFile("card.pcd")] });
+
+  await addFromFile();
+  fireEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: /cancel/i }));
+
+  await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+  expect(screen.getByRole("list", { name: /species/i })).toBeTruthy();
+  expect(fake.filesAdded()).toEqual([]);
+});
+
+it("says where Wonder Cards go when the save has no card album", async () => {
+  const fake = launch({ picked: [cardFile("card.pcd")] });
 
   await addFromFile();
 
   expect((await status()).textContent).not.toBe("");
+  expect(screen.queryByRole("alertdialog")).toBeNull();
   expect(fake.filesAdded()).toEqual([]);
 });
 

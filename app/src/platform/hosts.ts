@@ -17,7 +17,6 @@ import type { GamesFolderHost } from "@/games-folder/gamesFolder";
 import type { GravityHost } from "@/gravity/gravity";
 import type { HapticsHost } from "@/haptics/haptics";
 import type { ImportHost } from "@/import/importFiles";
-import { tauriImportHost } from "@/import/tauriHost";
 import type { CalibrationsHost } from "@/input/calibrations";
 import { tauriCalibrationsHost } from "@/input/tauriHost";
 import type { ExperimentsHost } from "@/lab/lab";
@@ -28,8 +27,10 @@ import type { PlusHost } from "@/plus/plus";
 import { tauriPlusHost } from "@/plus/tauriHost";
 import type { Preferences, PreferencesHost } from "@/preferences/preferences";
 import { tauriPreferencesHost } from "@/preferences/tauriHost";
+import type { ShadersHost } from "@/shaders/shaders";
 import type { SyncHost } from "@/sync/sync";
 import type { SystemBarsHost } from "@/system-bars/systemBars";
+import { defaultSkins } from "@/skins";
 import { tauriSyncHost } from "@/sync/tauriHost";
 import type { System } from "@/systems";
 
@@ -58,9 +59,10 @@ export type Hosts = {
   systemBars: SystemBarsHost;
   audioSession: AudioSessionHost;
   gameSurface: GameSurfaceHost;
+  shaders: ShadersHost;
 };
 
-export const sharedPreferences: Omit<Preferences, "touchControls"> = {
+export const sharedPreferences: Omit<Preferences, "touchControls" | "asyncShaders"> = {
   fastForwardSpeed: 2,
   showFps: false,
   theme: "system",
@@ -71,6 +73,10 @@ export const sharedPreferences: Omit<Preferences, "touchControls"> = {
   stickSensitivity: 1,
   playInSilentMode: false,
   renderer: "automatic",
+  skins: defaultSkins,
+  skinHintSeen: false,
+  screenDepth: true,
+  screenGlass: true,
 };
 
 export const sharedHosts = {
@@ -83,6 +89,5 @@ export const sharedHosts = {
   clipboard: tauriClipboardHost,
   calibrations: tauriCalibrationsHost,
   gameArt: tauriGameArtHost,
-  import: tauriImportHost,
   gamePage: tauriGamePageHost,
 } satisfies Partial<Hosts>;

@@ -1,11 +1,23 @@
 import type { ReactNode } from "react";
 import { act, cleanup, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, expect, it } from "vitest";
+import { defaultSkins, type SkinChoice } from "@/skins";
+import type { System } from "@/systems";
 import { PreferencesProvider, usePreferences, type Preferences, type PreferencesHost } from "./preferences";
 
 afterEach(cleanup);
 
-const defaults: Preferences = { touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic" };
+const defaults: Preferences = { touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic", skins: defaultSkins, skinHintSeen: false, screenDepth: true, screenGlass: true, asyncShaders: false };
+
+function launchWith(host: PreferencesHost, launchDefaults = defaults) {
+  return renderHook(usePreferences, {
+    wrapper: ({ children }: { children: ReactNode }) => (
+      <PreferencesProvider host={host} defaults={launchDefaults}>
+        {children}
+      </PreferencesProvider>
+    ),
+  });
+}
 
 function fakeStore(stored: Partial<Preferences> = {}) {
   let saved = stored;
@@ -18,21 +30,45 @@ function fakeStore(stored: Partial<Preferences> = {}) {
   return {
     host,
     saved: () => saved,
-    launch: (launchDefaults = defaults) =>
-      renderHook(usePreferences, {
-        wrapper: ({ children }: { children: ReactNode }) => (
-          <PreferencesProvider host={host} defaults={launchDefaults}>
-            {children}
-          </PreferencesProvider>
-        ),
-      }),
+    launch: (launchDefaults = defaults) => launchWith(host, launchDefaults),
+  };
+}
+
+function syncedSkins(stored: Record<string, unknown> = {}, loaded: Promise<void> = Promise.resolve()) {
+  let skins = stored;
+  const chosen: [System, SkinChoice][] = [];
+  const listeners = new Set<(won: Partial<Record<System, unknown>>) => void>();
+  const host: PreferencesHost = {
+    load: async () => {
+      const read = skins;
+      await loaded;
+      return { skins: read as Preferences["skins"] };
+    },
+    save: async () => {},
+    chooseSkin: async (system, choice) => {
+      chosen.push([system, choice]);
+      skins = { ...skins, [system]: { ...choice, changedAt: chosen.length } };
+    },
+    onSkinsChanged: (listener) => {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+  };
+  return {
+    host,
+    chosen,
+    stored: () => skins,
+    syncDown: (won: Partial<Record<System, unknown>>) => {
+      skins = { ...skins, ...won };
+      for (const listener of listeners) listener(won);
+    },
   };
 }
 
 it("starts with the platform defaults", async () => {
   const { launch } = fakeStore();
 
-  const { result } = launch({ touchControls: true, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic" });
+  const { result } = launch({ touchControls: true, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic", skins: defaultSkins, skinHintSeen: false, screenDepth: true, screenGlass: true, asyncShaders: false });
 
   await waitFor(() =>
     expect(result.current.preferences).toEqual({
@@ -47,6 +83,11 @@ it("starts with the platform defaults", async () => {
       stickSensitivity: 1,
       playInSilentMode: false,
       renderer: "automatic",
+      skins: defaultSkins,
+      skinHintSeen: false,
+      screenDepth: true,
+      screenGlass: true,
+      asyncShaders: false,
     }),
   );
 });
@@ -67,6 +108,11 @@ it("keeps changes across restarts", async () => {
   await act(() => first.result.current.change({ stickSensitivity: 1.5 }));
   await act(() => first.result.current.change({ playInSilentMode: true }));
   await act(() => first.result.current.change({ renderer: "native" }));
+  await act(() => first.result.current.change({ skins: { ...defaultSkins, gba: { skin: "glacier", look: "frosted" } } }));
+  await act(() => first.result.current.change({ skinHintSeen: true }));
+  await act(() => first.result.current.change({ screenDepth: false }));
+  await act(() => first.result.current.change({ screenGlass: false }));
+  await act(() => first.result.current.change({ asyncShaders: true }));
   first.unmount();
   const { result } = launch();
 
@@ -83,6 +129,11 @@ it("keeps changes across restarts", async () => {
       stickSensitivity: 1.5,
       playInSilentMode: true,
       renderer: "native",
+      skins: { ...defaultSkins, gba: { skin: "glacier", look: "frosted" } },
+      skinHintSeen: true,
+      screenDepth: false,
+      screenGlass: false,
+      asyncShaders: true,
     }),
   );
 });
@@ -90,7 +141,7 @@ it("keeps changes across restarts", async () => {
 it("fills in preferences that were never stored", async () => {
   const { launch } = fakeStore({ fastForwardSpeed: 4 });
 
-  const { result } = launch({ touchControls: true, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic" });
+  const { result } = launch({ touchControls: true, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic", skins: defaultSkins, skinHintSeen: false, screenDepth: true, screenGlass: true, asyncShaders: false });
 
   await waitFor(() =>
     expect(result.current.preferences).toEqual({
@@ -105,6 +156,11 @@ it("fills in preferences that were never stored", async () => {
       stickSensitivity: 1,
       playInSilentMode: false,
       renderer: "automatic",
+      skins: defaultSkins,
+      skinHintSeen: false,
+      screenDepth: true,
+      screenGlass: true,
+      asyncShaders: false,
     }),
   );
 });
@@ -133,6 +189,22 @@ it("ignores a stored silent mode setting that isn't a switch", async () => {
   await waitFor(() => expect(result.current.preferences.playInSilentMode).toBe(false));
 });
 
+it.each(["screenDepth", "screenGlass"] as const)("ignores a stored %s setting that isn't a switch", async (key) => {
+  const { launch } = fakeStore({ [key]: "off" as unknown as boolean });
+
+  const { result } = launch();
+
+  await waitFor(() => expect(result.current.preferences[key]).toBe(true));
+});
+
+it("ignores a stored async shaders setting that isn't a switch", async () => {
+  const { launch } = fakeStore({ asyncShaders: "on" as unknown as boolean });
+
+  const { result } = launch();
+
+  await waitFor(() => expect(result.current.preferences.asyncShaders).toBe(false));
+});
+
 it("ignores a stored theme it doesn't know", async () => {
   const { launch } = fakeStore({ theme: "sepia" as Preferences["theme"] });
 
@@ -147,6 +219,116 @@ it("ignores a stored renderer it doesn't know", async () => {
   const { result } = launch();
 
   await waitFor(() => expect(result.current.preferences.renderer).toBe("automatic"));
+});
+
+it("starts every system on pkhemu, Moulded", () => {
+  expect(Object.values(defaultSkins)).toEqual(Array(6).fill({ skin: "pkhemu", look: "moulded" }));
+});
+
+it.each([
+  ["a skin the system doesn't have", { skin: "glacier", look: "moulded" }],
+  ["a look it doesn't know", { skin: "pkhemu", look: "glossy" }],
+  ["text", "glacier"],
+  ["nothing", null],
+])("ignores a stored skin choice of %s and keeps the other systems'", async (_, gb) => {
+  const { launch } = fakeStore({
+    skins: { gb, n64: { skin: "gold", look: "frosted" } } as unknown as Preferences["skins"],
+  });
+
+  const { result } = launch();
+
+  await waitFor(() =>
+    expect(result.current.preferences.skins).toEqual({
+      ...defaultSkins,
+      n64: { skin: "gold", look: "frosted" },
+    }),
+  );
+});
+
+it("lets 3DS use the DS skins", async () => {
+  const { launch } = fakeStore({
+    skins: { "3ds": { skin: "enamel-navy", look: "moulded" } } as Preferences["skins"],
+  });
+
+  const { result } = launch();
+
+  await waitFor(() => expect(result.current.preferences.skins["3ds"]).toEqual({ skin: "enamel-navy", look: "moulded" }));
+});
+
+it("shows a skin chosen on another device once sync brings it down", async () => {
+  const { host, syncDown } = syncedSkins({
+    gb: { skin: "classic-grey", look: "moulded", changedAt: 1 },
+    gba: { skin: "indigo", look: "moulded", changedAt: 1 },
+  });
+  const { result } = launchWith(host);
+  await waitFor(() => expect(result.current.preferences.skins.gba).toEqual({ skin: "indigo", look: "moulded" }));
+
+  act(() => syncDown({ gba: { skin: "glacier", look: "frosted", changedAt: 2 } }));
+
+  expect(result.current.preferences.skins).toEqual({
+    ...defaultSkins,
+    gb: { skin: "classic-grey", look: "moulded" },
+    gba: { skin: "glacier", look: "frosted" },
+  });
+});
+
+it("shows a skin that came down while the preferences were loading", async () => {
+  let finishLoading = () => {};
+  const { host, syncDown } = syncedSkins({}, new Promise((resolve) => (finishLoading = resolve)));
+  const { result } = launchWith(host);
+
+  act(() => syncDown({ gba: { skin: "glacier", look: "frosted", changedAt: 2 } }));
+  finishLoading();
+
+  await waitFor(() => expect(result.current.preferences.skins.gba).toEqual({ skin: "glacier", look: "frosted" }));
+});
+
+it("saves pkhemu when the player chooses it over a synced skin this build doesn't have", async () => {
+  const { host, chosen, stored } = syncedSkins({ gba: { skin: "a-later-skin", look: "moulded", changedAt: 2 } });
+  const { result } = launchWith(host);
+  await waitFor(() => expect(result.current.preferences.skins).toEqual(defaultSkins));
+
+  await act(() => result.current.chooseSkin("gba", { skin: "pkhemu", look: "moulded" }));
+
+  expect(chosen).toEqual([["gba", { skin: "pkhemu", look: "moulded" }]]);
+  expect(stored().gba).toMatchObject({ skin: "pkhemu", look: "moulded" });
+});
+
+it("keeps a chosen skin across restarts on a host that doesn't sync skins", async () => {
+  const { launch } = fakeStore();
+  const first = launch();
+  await waitFor(() => expect(first.result.current.preferences.skins).toEqual(defaultSkins));
+
+  await act(() => first.result.current.chooseSkin("n64", { skin: "gold", look: "frosted" }));
+  first.unmount();
+  const { result } = launch();
+
+  await waitFor(() => expect(result.current.preferences.skins.n64).toEqual({ skin: "gold", look: "frosted" }));
+});
+
+it("saves only the system whose skin the player changed", async () => {
+  const { host, chosen } = syncedSkins();
+  const { result } = launchWith(host);
+  await waitFor(() => expect(result.current.preferences.skins).toEqual(defaultSkins));
+
+  await act(() => result.current.change({ skins: { ...result.current.preferences.skins, gb: { skin: "classic-grey", look: "frosted" } } }));
+  await act(() => result.current.change({ showFps: true }));
+
+  expect(chosen).toEqual([["gb", { skin: "classic-grey", look: "frosted" }]]);
+});
+
+it("shows pkhemu for a synced skin this build doesn't have and keeps the choice for later", async () => {
+  const later = { skin: "a-later-skin", look: "moulded", changedAt: 2 };
+  const { host, chosen, stored, syncDown } = syncedSkins();
+  const { result } = launchWith(host);
+  await waitFor(() => expect(result.current.preferences.skins).toEqual(defaultSkins));
+
+  act(() => syncDown({ gba: later }));
+  await act(() => result.current.change({ skins: { ...result.current.preferences.skins, gb: { skin: "classic-grey", look: "moulded" } } }));
+
+  expect(result.current.preferences.skins.gba).toEqual({ skin: "pkhemu", look: "moulded" });
+  expect(chosen.map(([system]) => system)).toEqual(["gb"]);
+  expect(stored().gba).toEqual(later);
 });
 
 it("ignores a stored events notice dismissal that isn't a switch", async () => {

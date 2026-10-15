@@ -4,6 +4,7 @@ import { afterEach, beforeEach, expect, it } from "vitest";
 import { PreferencesProvider, usePreferences, type Preferences, type Theme } from "@/preferences/preferences";
 import { SystemBarsProvider, type SystemBarsHost } from "@/system-bars/systemBars";
 import { useAppliedTheme } from "./theme";
+import { defaultSkins } from "@/skins";
 
 let deviceDark: boolean;
 let listeners: Set<() => void>;
@@ -37,7 +38,7 @@ function changeDevice(dark: boolean) {
 }
 
 function applyTheme(theme: Theme) {
-  const defaults: Preferences = { touchControls: false, fastForwardSpeed: 2, showFps: false, theme, eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic" };
+  const defaults: Preferences = { touchControls: false, fastForwardSpeed: 2, showFps: false, theme, eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic", skins: defaultSkins, skinHintSeen: false, screenDepth: true, screenGlass: true, asyncShaders: false };
   return renderHook(
     () => {
       useAppliedTheme();

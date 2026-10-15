@@ -17,7 +17,7 @@ NODE_ENV= npm run screenshots:store          # render the app's screens to data/
 
 `games.sh` downloads 10 games. Tobu Tobu Girl, Tobu Tobu Girl Deluxe and Feline come from itch.io, so the script names the file to save by hand.
 
-`screenshots:store` runs `capture.mjs` then `compose.mjs`. Each step takes names to redo only some of it: `frames.py ucity`, `node screenshots/store/capture.mjs editor`, `node screenshots/store/compose.mjs 3-editor`. The last two also take device names: `compose.mjs iphone-6.9 3-editor`.
+`screenshots:store` runs `capture.mjs` then `compose.mjs`. Each step takes names to redo only some of it: `frames.py ucity`, `node screenshots/store/capture.mjs editor`, `node screenshots/store/compose.mjs 4-editor`. The last two also take device names: `compose.mjs iphone-6.9 4-editor`.
 
 Upload each folder of `data/store/out/` in name order:
 
@@ -30,7 +30,7 @@ Upload each folder of `data/store/out/` in name order:
 ## How it works
 
 - `frames.py` loads the app's cores through libretro and plays each game from power-on with scripted presses. `GAMES_STEPS` holds the presses. The `HANDHELD` and `DS` scripts press Start and A in a loop and save a frame each round, as `<game>-01.png` to `-16.png`. Look through the frames and pick by number. The runs are deterministic, except DS games, which read the clock.
-- `store.tsx` mounts the real screens with the test fakes, as `../main.tsx` does. Picked frames become box art (`covers`), last screens on the library (`lastScreens`), and the running game (`playingGame`). `capture.mjs` shoots each screen at each device's size from `devices.mjs`, at 3×, and opens the pause menu for `playing-pause`. The systems, default preferences and device name come from the Android hosts for Play and the iOS hosts for the iPhone, so the iPhone library has no N64 games.
+- `store.tsx` mounts the real screens with the test fakes, as `../main.tsx` does. Picked frames become box art (`covers`), last screens on the library (`lastScreens`), and the running game (`playingGame`), which also names its skin and look. `capture.mjs` shoots each screen at each device's size from `devices.mjs`, at 3×, and opens the pause menu for `playing-pause`. The systems, default preferences and device name come from the Android hosts for Play and the iOS hosts for the iPhone.
 - `compose.mjs` places each shot on the background with the caption from `shots.json`. A shot's `ios` entry overrides its fields on the iPhone.
 
 ## What's in the shots
@@ -38,11 +38,12 @@ Upload each folder of `data/store/out/` in name order:
 | Shot | Screen |
 |---|---|
 | 1-library | Library with Resume and recently played |
-| 2-play | Tobu Tobu Girl Deluxe with touch controls |
-| 3-editor | Editor with a party and a box |
-| 4-pause | Pause menu over Tobu Tobu Girl |
-| 5-ds | JamClown on both DS screens |
-| 6-library | Library scrolled to GBA, DS and, on Play, N64 |
+| 2-play | Rhythm Land on the Classic grey skin, Moulded |
+| 3-skins | Collie Defense on the Indigo skin, Moulded |
+| 4-editor | Editor with a party and a box |
+| 5-pause | Pause menu over Tobu Tobu Girl |
+| 6-ds | JamClown on both DS screens, pkhemu skin, Frosted |
+| 7-library | Library scrolled to GBA, DS and N64 |
 
 The editor's creatures are made up. `store.tsx` draws their sprites and names them, because a real save would show Pokémon.
 

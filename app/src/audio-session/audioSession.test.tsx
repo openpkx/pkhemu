@@ -2,10 +2,11 @@ import { act, cleanup, render, waitFor } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { PreferencesProvider, usePreferences, type Preferences, type PreferencesState } from "@/preferences/preferences";
 import { AudioSessionProvider } from "./audioSession";
+import { defaultSkins } from "@/skins";
 
 afterEach(cleanup);
 
-const defaults: Preferences = { touchControls: true, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic" };
+const defaults: Preferences = { touchControls: true, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic", skins: defaultSkins, skinHintSeen: false, screenDepth: true, screenGlass: true, asyncShaders: false };
 
 it("sets the audio session from the stored setting at launch and on every change", async () => {
   const host = { silentSwitch: true, playInSilentMode: vi.fn(async () => {}) };

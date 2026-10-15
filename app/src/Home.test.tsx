@@ -23,11 +23,13 @@ import type { LibraryHost } from "./library/library";
 import type { Game } from "./library/scan";
 import type { GamePageHost } from "./game-page/GamePage";
 import { PatchRomProvider, type PatchRomHost } from "./patch-rom/patchRom";
+import type { PatchedFrom } from "./preferences/gameSettings";
 import { PreferencesProvider } from "./preferences/preferences";
 import { hideSplash } from "./splash";
 import { fakeSync } from "./sync/fakeSync";
 import { SyncProvider } from "./sync/sync";
 import type { System } from "./systems";
+import { defaultSkins } from "./skins";
 
 vi.mock("./splash", () => ({ hideSplash: vi.fn() }));
 
@@ -139,6 +141,7 @@ function launch({
     readSave: async () => null,
     readSaveFiles: async () => [],
     romGameName: async () => null,
+    threeDsUpdate: async () => null,
     saveSummary: async () => null,
     keepSaveSummary: async () => {},
     saveFormat: async () => null,
@@ -153,17 +156,19 @@ function launch({
     transferPak: async () => null,
     chooseTransferPak: async () => {},
   };
+  const patchedFrom = new Map<string, PatchedFrom>();
   const patchRomHost: PatchRomHost = {
     baseBuild: async () => "Ruby EN 1.1",
-    pick: async () => ({ file: "/patches/Ruby Plus.ips", name: "Ruby Plus.ips", format: "ips" }),
-    dropped: async () => ({ file: "/patches/Ruby Plus.ips", name: "Ruby Plus.ips", format: "ips" }),
+    pick: async () => ({ file: "/patches/Ruby Plus.ips", name: "Ruby Plus.ips", format: "ips", baseChecked: false }),
+    bases: async () => ({ checked: true, games: [] }),
+    dropped: async () => ({ file: "/patches/Ruby Plus.ips", name: "Ruby Plus.ips", format: "ips", baseChecked: false }),
     checkName: async () => {},
     create: async (_folder, _path, system, name) => {
       paths.push(`${system}/${name}.${system}`);
-      return { path: `${system}/${name}.${system}`, sha256: "c0ffee" };
+      return { path: `${system}/${name}.${system}`, sha256: "c0ffee", baseChecked: false };
     },
-    patchedFrom: async () => null,
-    keepPatchedFrom: async () => {},
+    patchedFrom: async (path) => patchedFrom.get(path) ?? null,
+    keepPatchedFrom: async (path, from) => void patchedFrom.set(path, from),
   };
   let pressBack = () => {};
   const backHost: BackHost = {
@@ -185,7 +190,7 @@ function launch({
     <EngineProvider engine={idleEngine}>
       <PreferencesProvider
         host={{ load: async () => ({}), save: async () => {} }}
-        defaults={{ touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic" }}
+        defaults={{ touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic", skins: defaultSkins, skinHintSeen: false, screenDepth: true, screenGlass: true, asyncShaders: false }}
       >
         <GamesFolderProvider host={gamesFolderHost}>
           <SyncProvider host={sync.host}>
@@ -246,30 +251,37 @@ it("hides the splash once the welcome screen shows", async () => {
   expect(hideSplash).toHaveBeenCalled();
 });
 
-it("welcomes a player with no games folder with three ways in", async () => {
+it("welcomes a player with no games folder with four ways in", async () => {
   launch();
 
   expect(await screen.findByRole("button", { name: /I'm new to emulators/ })).toBeTruthy();
   expect(screen.getByRole("button", { name: /I have ROMs on this phone/ })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /I'm coming from another emulator/ })).toBeTruthy();
   expect(screen.getByRole("button", { name: /I've used pkhemu before/ })).toBeTruthy();
-  expect(screen.queryByRole("button", { name: /Delta/ })).toBeNull();
 });
 
-it("welcomes a player on a Mac with the Mac's three ways in", async () => {
+it("welcomes a player on a Mac with the Mac's four ways in", async () => {
   launch({ device: "Mac" });
 
   expect(await screen.findByRole("button", { name: /I'm new to emulators/ })).toBeTruthy();
   expect(screen.getByRole("button", { name: /I have ROMs on this Mac/ })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /I'm coming from another emulator/ })).toBeTruthy();
   expect(screen.getByRole("button", { name: /I've used pkhemu before/ })).toBeTruthy();
-  expect(screen.queryByRole("button", { name: /Delta/ })).toBeNull();
 });
 
-it("welcomes a player on an iPhone with games on the iPhone and Delta, not a previous folder", async () => {
+it("welcomes a player on an iPhone with games on the iPhone and another emulator, not a previous folder", async () => {
   launch({ device: "iPhone", canFindFolder: false });
 
   expect(await screen.findByRole("button", { name: /I'm new to emulators/ })).toBeTruthy();
   expect(screen.getByRole("button", { name: /I have games on this iPhone/ })).toBeTruthy();
-  expect(screen.getByRole("button", { name: /I'm coming from Delta/ })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /I'm coming from another emulator/ })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: /I've used pkhemu before/ })).toBeNull();
+});
+
+it("welcomes a player on an iPad with games on the iPad", async () => {
+  launch({ device: "iPad", canFindFolder: false });
+
+  expect(await screen.findByRole("button", { name: /I have games on this iPad/ })).toBeTruthy();
   expect(screen.queryByRole("button", { name: /I've used pkhemu before/ })).toBeNull();
 });
 
@@ -397,7 +409,7 @@ it("goes from first launch to the library once a ROM is added", async () => {
 
   await chooseFolder();
   paths.push("gba/Emerald.gba");
-  fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  fireEvent.focus(window);
 
   expect(await screen.findByRole("button", { name: /Emerald/ })).toBeTruthy();
   expect(screen.queryByTestId("empty-library")).toBeNull();
@@ -484,7 +496,7 @@ it("offers no demo once the library has a game", async () => {
 
   await chooseFolder();
   paths.push("gba/Emerald.gba");
-  fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  fireEvent.focus(window);
 
   expect(await screen.findByRole("button", { name: /Emerald/ })).toBeTruthy();
   expect(screen.queryByRole("button", { name: "Play a demo" })).toBeNull();
@@ -497,6 +509,17 @@ it("shows the empty library without the demo when the Demo game experiment is of
 
   expect(within(ready).getByRole("button", { name: "Import files" })).toBeTruthy();
   expect(within(ready).queryByRole("button", { name: "Play a demo" })).toBeNull();
+});
+
+it("lists 3DS games", async () => {
+  const { paths } = launch();
+
+  await chooseFolder();
+  paths.push("gba/Emerald.gba", "3ds/PKSM.3dsx");
+  fireEvent.focus(window);
+
+  expect(await screen.findByRole("button", { name: /Emerald/ })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /PKSM/ })).toBeTruthy();
 });
 
 it("exits on back from the library", async () => {
@@ -540,7 +563,7 @@ it("goes back from settings to the library with B on a gamepad", async () => {
 async function openGame(paths: string[], name: string) {
   await chooseFolder();
   paths.push("gba/Emerald.gba", "gba/Ruby.gba");
-  fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  fireEvent.focus(window);
   fireEvent.click(await screen.findByRole("button", { name: new RegExp(name) }));
   await screen.findByRole("heading", { name });
 }
@@ -602,11 +625,38 @@ it("opens the patched game's page once it's created", async () => {
   expect(screen.queryByRole("dialog")).toBeNull();
 });
 
+it("offers box art for the created ROM hack, starting on its base game's art", async () => {
+  const boxArt = fakeBoxArt({ "Nintendo - Game Boy Advance/Named_Boxarts/Pokemon - Ruby Version (USA).png": boxArtPng });
+  const { paths } = launch({ boxArt });
+  await openGame(paths, "Ruby");
+
+  fireEvent.keyDown(screen.getByRole("button", { name: "More" }), { key: "Enter" });
+  fireEvent.click(await screen.findByRole("menuitem", { name: "Patch ROM…" }));
+  fireEvent.click(await screen.findByRole("button", { name: "Choose patch file" }));
+  const create = await screen.findByRole<HTMLButtonElement>("button", { name: "Create" });
+  await waitFor(() => expect(create.disabled).toBe(false));
+  fireEvent.click(create);
+
+  expect(await screen.findByRole("heading", { name: "Ruby Plus" })).toBeTruthy();
+  expect(await boxArt.host.chosen("/games", "gba/Ruby Plus.gba")).toBeUndefined();
+  fireEvent.click(within(screen.getByRole("status")).getByRole("button", { name: "Add box art" }));
+
+  const sheet = await screen.findByRole("dialog", { name: "Box art" });
+  expect(within(sheet).getByRole<HTMLInputElement>("searchbox").value).toBe("Ruby");
+  const selected = await within(sheet).findByRole("button", { current: true });
+  expect(selected.getAttribute("aria-label")).toBe("Pokemon - Ruby Version (USA)");
+
+  fireEvent.click(selected);
+
+  await waitFor(() => expect(screen.queryByRole("dialog", { name: "Box art" })).toBeNull());
+  expect(await boxArt.host.chosen("/games", "gba/Ruby Plus.gba")).toEqual({ kind: "image", url: boxArtUrl });
+});
+
 it("shows on the game page that N64 games don't run on this device once one fails to load", async () => {
   const { paths } = launch({ resume: false });
   await chooseFolder();
   paths.push("n64/Stadium.z64", "n64/Stadium 2.z64");
-  fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  fireEvent.focus(window);
   fireEvent.click(await screen.findByRole("button", { name: /Stadium 2/ }));
   fireEvent.click(await screen.findByRole("button", { name: "Start" }));
 
@@ -621,7 +671,7 @@ it("shows that a game whose system this platform doesn't offer isn't supported, 
   const { paths } = launch({ resume: false, systems: ["gb", "gbc", "gba", "nds"] });
   await chooseFolder();
   paths.push("n64/Stadium.z64");
-  fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  fireEvent.focus(window);
   fireEvent.click(await screen.findByRole("button", { name: /Stadium/ }));
 
   expect(await screen.findByRole("heading", { name: "Stadium" })).toBeTruthy();
@@ -633,7 +683,7 @@ it("opens the page of a game whose system this platform doesn't offer when it's 
   const { paths, back } = launch({ systems: ["gb", "gbc", "gba", "nds"] });
   await chooseFolder();
   paths.push("n64/Stadium.z64");
-  fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  fireEvent.focus(window);
   fireEvent.click(await screen.findByRole("button", { name: /Stadium/ }));
   await screen.findByText(/Not supported on this device yet/);
   back();
@@ -783,7 +833,7 @@ it("finds box art for a game a scan adds and shows it on the game's tile", async
   const { paths } = launch({ boxArt });
   await chooseFolder();
   paths.push("gba/Pokemon Emerald.gba");
-  fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  fireEvent.focus(window);
 
   const tile = await screen.findByRole("button", { name: /Emerald/ });
 
@@ -922,11 +972,38 @@ it("offers Remove from this device only while Sync games is on", async () => {
 it("deletes a game after asking and goes back to the library", async () => {
   const { paths, gamePageHost } = launch({ sync: fakeSync({ account: "player@example.com" }) });
   await openGame(paths, "Ruby");
+  let finish = () => {};
+  vi.mocked(gamePageHost.deleteGame).mockImplementationOnce(
+    (_folder, path) =>
+      new Promise((resolve) => {
+        finish = () => {
+          paths.splice(paths.indexOf(path), 1);
+          resolve();
+        };
+      }),
+  );
 
   await openMenuItem("Delete…");
   fireEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Delete" }));
 
   await screen.findByRole("heading", { name: "pkhemu" });
+  expect(screen.queryByRole("button", { name: /Ruby/ })).toBeNull();
+  await act(async () => finish());
   expect(gamePageHost.deleteGame).toHaveBeenCalledWith("/games", "gba/Ruby.gba");
-  await waitFor(() => expect(screen.queryByRole("button", { name: /Ruby/ })).toBeNull());
+  await waitFor(() => expect(screen.getByRole("status").textContent).toContain("Ruby"));
+  expect(screen.queryByRole("button", { name: /Ruby/ })).toBeNull();
 });
+
+it("brings a game back and says why when deleting it fails", async () => {
+  const { paths, gamePageHost } = launch({ sync: fakeSync({ account: "player@example.com" }) });
+  await openGame(paths, "Ruby");
+  vi.mocked(gamePageHost.deleteGame).mockRejectedValueOnce(new Error("The cloud is down"));
+
+  await openMenuItem("Delete…");
+  fireEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Delete" }));
+
+  await screen.findByRole("heading", { name: "pkhemu" });
+  expect((await screen.findAllByRole("button", { name: /Ruby/ })).length).toBeGreaterThan(0);
+  expect(screen.getByRole("status").textContent).toContain("The cloud is down");
+});
+

@@ -38,14 +38,14 @@ const gamesFolder: GamesFolderHost = {
 
 const emerald: Game = { system: "gba", name: "Pokemon Emerald", path: "gba/Pokemon Emerald.gba" };
 
-function renderSheet(boxArt = fakeBoxArt()) {
+function renderSheet(boxArt = fakeBoxArt(), { game = emerald, base }: { game?: Game; base?: string } = {}) {
   const onChanged = vi.fn();
   const onClose = vi.fn();
   render(
     <GamesFolderProvider host={gamesFolder}>
       <BoxArtProvider host={boxArt.host}>
         <BackProvider>
-          <BoxArtSheet open game={emerald} onClose={onClose} onChanged={onChanged} />
+          <BoxArtSheet open game={game} base={base} onClose={onClose} onChanged={onChanged} />
         </BackProvider>
       </BoxArtProvider>
     </GamesFolderProvider>,
@@ -99,6 +99,28 @@ it("ranks the system's box art by the game's name", async () => {
   expect(screen.getAllByRole("button", { name: /^Pokemon - / }).map((button) => button.getAttribute("aria-label"))).toEqual([
     "Pokemon - Ruby Version (USA)",
   ]);
+});
+
+it("selects the base game's box art and searches for it when given a ROM hack's base", async () => {
+  const png = new Uint8Array([137, 80, 78, 71]);
+  const boxArt = fakeBoxArt({
+    "Nintendo - Game Boy Advance/Named_Boxarts/Pokemon - FireRed Version (USA, Europe).png": png,
+    "Nintendo - Game Boy Advance/Named_Boxarts/Pokemon - FireRed Version (France).png": png,
+    "Nintendo - Game Boy Advance/Named_Boxarts/Pokemon - Unbound Adventures (USA).png": png,
+  });
+  const choose = vi.spyOn(boxArt.host, "choose");
+  const unbound: Game = { system: "gba", name: "Unbound", path: "gba/Unbound.gba" };
+  const { onChanged } = renderSheet(boxArt, { game: unbound, base: "FireRed" });
+
+  const selected = await screen.findByRole("button", { current: true });
+  expect(selected.getAttribute("aria-label")).toBe("Pokemon - FireRed Version (USA, Europe)");
+  expect(screen.getAllByRole("button", { name: /^Pokemon - / })[0]).toBe(selected);
+  expect(screen.getByRole<HTMLInputElement>("searchbox").value).toBe("FireRed");
+
+  fireEvent.click(selected);
+
+  await waitFor(() => expect(onChanged).toHaveBeenCalled());
+  expect(choose).toHaveBeenCalledWith("/games", unbound.path, png);
 });
 
 it("keeps the sheet open with the reason when a link can't be used", async () => {

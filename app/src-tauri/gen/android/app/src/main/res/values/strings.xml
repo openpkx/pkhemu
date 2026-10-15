@@ -3,4 +3,6 @@
     <string name="main_activity_title">"pkhemu"</string>
     <string name="sync_channel">"Sync"</string>
     <string name="sync_notification">"Syncing your games"</string>
+    <string name="sync_stop">"Stop"</string>
+    <string name="sync_stopping">"Stopping…"</string>
 </resources>

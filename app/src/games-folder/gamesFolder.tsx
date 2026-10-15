@@ -11,7 +11,7 @@ export type GamesFolderHost = {
   loadSaved(): Promise<string | null>;
   save(folder: string): Promise<void>;
   label(folder: string): string;
-  device: "phone" | "Mac" | "iPhone";
+  device: "phone" | "Mac" | "iPhone" | "iPad";
   openFolder?(): Promise<void>;
 };
 

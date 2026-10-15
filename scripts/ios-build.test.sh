@@ -15,7 +15,7 @@ checkout() {
   printf 'APPLE_API_KEY=ABC123\n' >"$HOME/.config/pkh-emu/ios.env"
   mkdir -p "$dir/scripts" "$dir/app/src-tauri"
   cp "$script" "$dir/scripts/"
-  printf 'echo building; exit 0\n' >"$dir/scripts/env.sh"
+  printf 'echo building; echo "store=[$PKH_EMU_STORE]"; exit 0\n' >"$dir/scripts/env.sh"
   printf '%s\n' '# PKH_EMU_PLUS=' 'PKH_EMU_STORE=play' '# PKH_EMU_DROPBOX_APP_KEY=abc' 'PKH_EMU_GOOGLE_CLIENT_ID=' >"$dir/app/src-tauri/sync.env"
   echo "$dir"
 }
@@ -23,7 +23,13 @@ checkout() {
 expect() {
   local want="$1" name="$2" dir="$3" mention="${4:-}" got=refused
   shift 4
-  env "$@" bash "$dir/scripts/ios-build.sh" >"$work/$name.out" 2>&1 && grep -q '^building$' "$work/$name.out" && got=built
+  local vars=()
+  while [ $# -gt 0 ] && [ "$1" != -- ]; do
+    vars+=("$1")
+    shift
+  done
+  [ $# -gt 0 ] && shift
+  env ${vars[@]+"${vars[@]}"} bash "$dir/scripts/ios-build.sh" "$@" >"$work/$name.out" 2>&1 && grep -q '^building$' "$work/$name.out" && got=built
   if [ "$got" != "$want" ]; then
     echo "FAIL $name: wanted $want, got $got"
     cat "$work/$name.out"
@@ -37,7 +43,8 @@ expect() {
   fi
 }
 
-expect built clean "$(checkout clean)" ""
+expect built clean "$(checkout clean)" "store=[appstore]"
+expect built unlocked "$(checkout unlocked)" "store=[]" -- --unlocked
 expect built no-sync-env "$(checkout no-sync-env; rm "$work/no-sync-env/app/src-tauri/sync.env")" ""
 
 for key in "${keys[@]}"; do

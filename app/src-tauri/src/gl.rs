@@ -37,6 +37,8 @@ const GL_DEPTH_COMPONENT24: GLenum = 0x81A6;
 const GL_DEPTH24_STENCIL8: GLenum = 0x88F0;
 const GL_SYNC_GPU_COMMANDS_COMPLETE: GLenum = 0x9117;
 const GL_TIMEOUT_IGNORED: u64 = u64::MAX;
+const GL_MAJOR_VERSION: GLenum = 0x821B;
+const GL_MINOR_VERSION: GLenum = 0x821C;
 
 extern "C" {
     fn glGetIntegerv(name: GLenum, data: *mut GLint);
@@ -69,6 +71,7 @@ extern "C" {
     fn glPixelStorei(name: GLenum, value: GLint);
     fn glReadPixels(x: GLint, y: GLint, w: GLsizei, h: GLsizei, format: GLenum, kind: GLenum, data: *mut c_void);
     fn glFlush();
+    fn glFinish();
     fn glFenceSync(condition: GLenum, flags: u32) -> *mut c_void;
     fn glWaitSync(sync: *mut c_void, flags: u32, timeout: u64);
     fn glDeleteSync(sync: *mut c_void);
@@ -76,6 +79,20 @@ extern "C" {
 
 thread_local! {
     static SAMPLED: Cell<*mut c_void> = const { Cell::new(std::ptr::null_mut()) };
+    static ASLEEP: Cell<bool> = const { Cell::new(false) };
+}
+
+pub fn sleep() {
+    ASLEEP.set(true);
+}
+
+pub fn wake() {
+    ASLEEP.set(false);
+}
+
+// iOS kills an app that calls OpenGL in the background. The simulator doesn't, so a debug build fails here instead.
+fn check_awake() {
+    debug_assert!(!ASLEEP.get(), "the core's OpenGL context was made current while the app is in the background");
 }
 
 // The screen samples the core's texture from its own context, so the core waits for that before drawing over it.
@@ -149,6 +166,7 @@ impl Drop for Bindings {
 
 impl Renderer {
     pub fn new(depth: bool, stencil: bool) -> Result<Renderer, String> {
+        check_awake();
         let context = platform::Context::new()?;
         unsafe {
             let _bindings = Bindings::save();
@@ -180,6 +198,10 @@ impl Renderer {
         self.framebuffer
     }
 
+    pub fn version(&self) -> (u32, u32) {
+        unsafe { (integer(GL_MAJOR_VERSION) as u32, integer(GL_MINOR_VERSION) as u32) }
+    }
+
     pub fn size(&self) -> (u32, u32) {
         (self.width, self.height)
     }
@@ -189,6 +211,7 @@ impl Renderer {
     }
 
     pub fn make_current(&self) {
+        check_awake();
         self.context.make_current();
         let sampled = SAMPLED.replace(std::ptr::null_mut());
         if !sampled.is_null() {
@@ -197,6 +220,11 @@ impl Renderer {
                 glDeleteSync(sampled);
             }
         }
+    }
+
+    pub fn finish(&self) {
+        self.make_current();
+        unsafe { glFinish() };
     }
 
     // Keeps the framebuffer's name, since the core only asks for it once.
@@ -257,6 +285,6 @@ impl Drop for Renderer {
     }
 }
 
-fn rgb565(r: u8, g: u8, b: u8) -> u16 {
+pub fn rgb565(r: u8, g: u8, b: u8) -> u16 {
     ((r as u16 >> 3) << 11) | ((g as u16 >> 2) << 5) | (b as u16 >> 3)
 }

@@ -35,6 +35,7 @@ export const tauriGamePageHost: GamePageHost = {
   keepCopies: (copies) => invoke("keep_copies", { copies: copies.map((copy) => ({ ...copy, bytes: Array.from(copy.bytes) })) }),
   readSave: (folder, path) => invoke("read_save_file", { folder, path }),
   readSaveFiles: (folder, path) => invoke("read_save_files", { folder, path }),
+  threeDsUpdate: (folder, path) => invoke("three_ds_update", { folder, path }),
   romGameName,
   saveSummary: (sha256) => invoke("save_summary", { sha256 }),
   keepSaveSummary: (sha256, summary) => invoke("keep_save_summary", { sha256, summary }),

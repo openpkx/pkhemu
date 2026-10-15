@@ -493,3 +493,42 @@ it("never borrows for a game whose ROM gives its own art", async () => {
   await waitFor(async () => expect((await image()).getAttribute("src")).toBe(dataUrl(3)));
   expect(screen.getByRole("img", { name: "Bulbasaur" }).tagName).not.toBe("IMG");
 });
+
+function showX(art: ReturnType<typeof fakeGameArt>, children: ReactNode) {
+  return render(
+    <GameArtProvider host={art.host}>
+      <GameArtFor path="3ds/X.cxi">{children}</GameArtFor>
+    </GameArtProvider>,
+  );
+}
+
+const x = "6".repeat(40);
+const froakie: ArtPokemon = { speciesId: 650, species: "Froakie" };
+
+const withX = () =>
+  library(
+    [
+      { sha1: x, generation: 6, art: { "icon-25-0": png(6), "icon-650-0": png(7) } },
+      { sha1: black, generation: 5, art: { "sprite-25-0": png(5), "icon-25-0": png(4) } },
+    ],
+    { games: { "3ds/X.cxi": x }, statuses: { "3ds/X.cxi": "done" } },
+  );
+
+it("borrows a sprite for each Pokémon a 3DS game has none for above icon size", async () => {
+  showX(
+    withX(),
+    <>
+      <PokemonArt pokemon={pikachu} size={40} />
+      <PokemonArt pokemon={froakie} size={40} />
+    </>,
+  );
+
+  await waitFor(async () => expect((await image()).getAttribute("src")).toBe(dataUrl(5)));
+  await waitFor(() => expect(screen.getByRole("img", { name: "Froakie" }).getAttribute("src")).toBe(dataUrl(7)));
+});
+
+it("shows a 3DS game's own icon over a lent one at icon size", async () => {
+  showX(withX(), <PokemonArt pokemon={pikachu} size={8} />);
+
+  await waitFor(async () => expect((await image()).getAttribute("src")).toBe(dataUrl(6)));
+});

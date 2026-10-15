@@ -4,16 +4,21 @@
 #[cfg_attr(target_os = "ios", path = "retro/ios.rs")]
 #[cfg_attr(desktop, path = "retro/desktop.rs")]
 mod platform;
+mod vfs;
 
 use crate::gl;
 use crate::memory::{self, Range, Region};
 use crate::rom::{Rom, System};
 use crate::screen::{Picture, Texture};
 use crate::transfer_pak;
-use platform::{core_path, supports, MELONDS_JIT, N64_CPU};
+use crate::vulkan;
+use platform::{
+    azahar_renderer, core_path, supports, vulkan_library, JIT, N64_CPU, SCREEN_DRAWS_VULKAN, UBERSHADER_FALLBACK,
+    VULKAN_SETTINGS,
+};
 use std::cell::{Cell, RefCell};
 use std::ffi::{c_char, c_uint, c_void, CStr, CString};
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, AtomicU16, AtomicU32, AtomicU64, Ordering};
 use std::sync::{Mutex, OnceLock};
 
@@ -29,6 +34,7 @@ const ENV_GET_VARIABLE: c_uint = 15;
 const ENV_SET_VARIABLES: c_uint = 16;
 const ENV_GET_VARIABLE_UPDATE: c_uint = 17;
 const ENV_GET_LOG_INTERFACE: c_uint = 27;
+const ENV_GET_SAVE_DIRECTORY: c_uint = 31;
 const ENV_SET_SYSTEM_AV_INFO: c_uint = 32;
 const ENV_SET_MEMORY_MAPS: c_uint = 36 | 0x10000;
 const ENV_SET_GEOMETRY: c_uint = 37;
@@ -41,11 +47,16 @@ const ENV_SET_CORE_OPTIONS_V2: c_uint = 67;
 const ENV_GET_MESSAGE_INTERFACE_VERSION: c_uint = 59;
 const ENV_SET_MESSAGE_EXT: c_uint = 60;
 const ENV_SET_CORE_OPTIONS_V2_INTL: c_uint = 68;
+const ENV_GET_VFS_INTERFACE: c_uint = 45 | 0x10000;
+const ENV_GET_HW_RENDER_INTERFACE: c_uint = 41 | 0x10000;
+const ENV_SET_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE: c_uint = 43 | 0x10000;
+const ENV_GET_JIT_CAPABLE: c_uint = 74;
 const LOG_ERROR: c_uint = 3;
 const MESSAGE_TARGET_LOG: c_uint = 2;
 const MESSAGE_TYPE_NOTIFICATION_ALT: c_uint = 1;
 const HW_CONTEXT_OPENGL_CORE: c_uint = 3;
 const HW_CONTEXT_OPENGLES3: c_uint = 4;
+const HW_CONTEXT_VULKAN: c_uint = 6;
 const HW_FRAME_BUFFER_VALID: *const c_void = usize::MAX as *const c_void;
 const PIXEL_FORMAT_RGB565: c_uint = 2;
 const PIXEL_FORMAT_XRGB8888: c_uint = 1;
@@ -116,8 +127,49 @@ struct HwRenderCallback {
     debug_context: bool,
 }
 
+enum Renderer {
+    Gl(gl::Renderer),
+    Vulkan(vulkan::Renderer),
+}
+
+impl Renderer {
+    fn resize(&mut self, width: u32, height: u32) -> Result<(), String> {
+        match self {
+            Renderer::Gl(renderer) => renderer.resize(width, height),
+            // The core sizes its own images, and only needs the device by now.
+            Renderer::Vulkan(renderer) => renderer.interface().map(|_| ()),
+        }
+    }
+
+    fn read(&mut self, width: u32, height: u32, bottom_left: bool, out: &mut Vec<u16>) -> Result<(u32, u32), String> {
+        match self {
+            Renderer::Gl(renderer) => Ok(renderer.read(width, height, bottom_left, out)),
+            Renderer::Vulkan(renderer) => renderer.read(width, height, out),
+        }
+    }
+
+    fn sleep(&self) {
+        match self {
+            Renderer::Gl(renderer) => renderer.finish(),
+            Renderer::Vulkan(renderer) => renderer.sleep(),
+        }
+    }
+
+    fn wake(&self) {
+        if let Renderer::Vulkan(renderer) = self {
+            renderer.wake();
+        }
+    }
+
+    fn make_current(&self) {
+        if let Renderer::Gl(renderer) = self {
+            renderer.make_current();
+        }
+    }
+}
+
 struct HwRender {
-    renderer: gl::Renderer,
+    renderer: Renderer,
     reset: Option<unsafe extern "C" fn()>,
     destroy: Option<unsafe extern "C" fn()>,
     bottom_left: bool,
@@ -158,13 +210,15 @@ struct Variable {
     value: *const c_char,
 }
 
+const JIT_OPTION: &CStr = if JIT { c"enabled" } else { c"disabled" };
+
 // Keys carry the core's prefix, so one table serves every core.
-const OPTIONS: [(&CStr, &CStr); 16] = [
+const OPTIONS: [(&CStr, &CStr); 30] = [
     (c"mgba_sgb_borders", c"OFF"),
     (c"melonds_console_mode", c"ds"),
     (c"melonds_sysfile_mode", c"builtin"),
     (c"melonds_render_mode", c"software"),
-    (c"melonds_jit_enable", MELONDS_JIT),
+    (c"melonds_jit_enable", JIT_OPTION),
     (c"melonds_number_of_screen_layouts", c"1"),
     (c"melonds_screen_layout1", c"top-bottom"),
     (c"melonds_screen_gap", c"0"),
@@ -178,6 +232,22 @@ const OPTIONS: [(&CStr, &CStr); 16] = [
     (c"mupen64plus-43screensize", c"640x480"),
     // The app applies its own dead zones, which differ between the touch stick and a pad's.
     (c"mupen64plus-astick-deadzone", c"0"),
+    (c"citra_is_new_3ds", c"Old 3DS"),
+    (c"citra_use_cpu_jit", JIT_OPTION),
+    (c"citra_use_shader_jit", JIT_OPTION),
+    (c"citra_use_fastinterp", c"enabled"),
+    (c"citra_cpu_clock_percentage", c"100"),
+    (c"citra_resolution_factor", c"1"),
+    (c"citra_texture_filter", c"none"),
+    (c"citra_use_hw_shader", c"enabled"),
+    (c"citra_use_disk_shader_cache", c"enabled"),
+    (c"citra_audio_emulation", c"hle"),
+    (c"citra_layout_option", c"default"),
+    (c"citra_use_virtual_sd", c"enabled"),
+    // Puts the core's Azahar folder in the save directory, which is the app's own.
+    (c"citra_use_libretro_save_path", c"LibRetro Default"),
+    // Old 3DS has no C-stick, and the right stick would otherwise move a touch cursor.
+    (c"citra_analog_function", c"c_stick"),
 ];
 
 #[repr(C)]
@@ -286,9 +356,9 @@ libretro_api! {
 type Library = OnceLock<Result<(libloading::Library, Api), String>>;
 
 // The library stays loaded once opened, since unloading a C++ core with threads of its own isn't safe.
-fn open_core(library: &'static Library, name: &str, built: Option<&str>, games: &str) -> Result<Api, String> {
+fn open_core(library: &'static Library, name: &str, games: &str) -> Result<Api, String> {
     let loaded = library.get_or_init(|| unsafe {
-        let path = core_path(name, built).ok_or_else(|| format!("{games} games can't be played on this device yet"))?;
+        let path = core_path(name).ok_or_else(|| format!("{games} games can't be played on this device yet"))?;
         let library = libloading::Library::new(path).map_err(|e| e.to_string())?;
         let api = Api::open(&library).map_err(|e| e.to_string())?;
         Ok((library, api))
@@ -298,12 +368,17 @@ fn open_core(library: &'static Library, name: &str, built: Option<&str>, games: 
 
 fn melonds_ds() -> Result<Api, String> {
     static LIBRARY: Library = OnceLock::new();
-    open_core(&LIBRARY, "melondsds_libretro", option_env!("PKH_EMU_MELONDS_DS"), "DS")
+    open_core(&LIBRARY, "melondsds_libretro", "DS")
 }
 
 fn mupen64plus_next() -> Result<Api, String> {
     static LIBRARY: Library = OnceLock::new();
-    open_core(&LIBRARY, "mupen64plus_next_libretro", option_env!("PKH_EMU_MUPEN64PLUS_NEXT"), "N64")
+    open_core(&LIBRARY, "mupen64plus_next_libretro", "N64")
+}
+
+fn azahar() -> Result<Api, String> {
+    static LIBRARY: Library = OnceLock::new();
+    open_core(&LIBRARY, "azahar_libretro", "3DS")
 }
 
 fn api(system: System) -> Result<Api, String> {
@@ -311,6 +386,7 @@ fn api(system: System) -> Result<Api, String> {
         System::Gb | System::Gba => Ok(Api::MGBA),
         System::Ds => melonds_ds(),
         System::N64 => mupen64plus_next(),
+        System::ThreeDs => azahar(),
     }
 }
 
@@ -320,7 +396,7 @@ pub struct Frame {
     pub height: u32,
     pub pixels: Vec<u16>,
     pub fresh: bool,
-    // A GL frame left in the core's texture, so the pixels are an older frame's until read back.
+    // A frame left in the core's texture or image, so the pixels are an older frame's until read back.
     pub in_texture: bool,
 }
 
@@ -391,6 +467,8 @@ thread_local! {
     static HW: RefCell<Option<HwRender>> = const { RefCell::new(None) };
     static HW_REFUSED: Cell<bool> = const { Cell::new(false) };
     static TRANSFER_PAK: Cell<bool> = const { Cell::new(false) };
+    // Only Azahar gets a save directory and the app's file access, so the other cores keep working as they did.
+    static AZAHAR: Cell<bool> = const { Cell::new(false) };
     static CORE_FLOAT_MODE: Cell<Option<u64>> = const { Cell::new(None) };
 }
 
@@ -406,11 +484,20 @@ static UNSEEN_PRESSES: AtomicU16 = AtomicU16::new(0);
 static UNSEEN_TOUCH: AtomicU64 = AtomicU64::new(0);
 static PIXEL_FORMAT: AtomicU32 = AtomicU32::new(PIXEL_FORMAT_RGB565);
 static LOADED: AtomicBool = AtomicBool::new(false);
+static ASYNC_SHADERS: AtomicBool = AtomicBool::new(false);
 static SYSTEM_DIR: OnceLock<CString> = OnceLock::new();
 static MESSAGES: Mutex<Vec<Message>> = Mutex::new(Vec::new());
 
 pub fn take_messages() -> Vec<Message> {
     std::mem::take(&mut *MESSAGES.lock().unwrap_or_else(|e| e.into_inner()))
+}
+
+pub fn three_ds_renderer() -> &'static str {
+    azahar_renderer().to_str().unwrap()
+}
+
+pub fn set_async_shaders(on: bool) {
+    ASYNC_SHADERS.store(on, Ordering::Relaxed);
 }
 
 pub fn set_ds_clock_offset(seconds: i64) {
@@ -423,6 +510,14 @@ unsafe extern "C" fn current_framebuffer() -> usize {
 }
 
 fn start_hw_render(hw: &mut HwRenderCallback) -> Result<(), String> {
+    let (reset, destroy) = (hw.context_reset, hw.context_destroy);
+    if hw.context_type == HW_CONTEXT_VULKAN {
+        let library = vulkan_library().ok_or("the core asked for Vulkan, which this device can't give it")?;
+        HW.take();
+        let renderer = Renderer::Vulkan(vulkan::Renderer::new(&library, VULKAN_SETTINGS)?);
+        HW.set(Some(HwRender { renderer, reset, destroy, bottom_left: false }));
+        return Ok(());
+    }
     if !supports(hw) {
         let (kind, major, minor) = (hw.context_type, hw.version_major, hw.version_minor);
         return Err(format!("the core asked for GL context type {kind}, version {major}.{minor}"));
@@ -430,11 +525,17 @@ fn start_hw_render(hw: &mut HwRenderCallback) -> Result<(), String> {
     // Dropping a context clears the current one, so the old one has to go before the new one is made.
     HW.take();
     let renderer = gl::Renderer::new(hw.depth, hw.stencil)?;
+    // A device's context can be older than the core needs, as GLES 3.1 is for Azahar.
+    let (major, minor) = renderer.version();
+    if (major, minor) < (hw.version_major, hw.version_minor) {
+        let (wanted_major, wanted_minor) = (hw.version_major, hw.version_minor);
+        return Err(format!("the core asked for GL {wanted_major}.{wanted_minor}, but the device has {major}.{minor}"));
+    }
     HW_FRAMEBUFFER.store(renderer.framebuffer(), Ordering::Relaxed);
     hw.get_current_framebuffer = Some(current_framebuffer);
     hw.get_proc_address = Some(gl::proc_address);
-    let (reset, destroy, bottom_left) = (hw.context_reset, hw.context_destroy, hw.bottom_left_origin);
-    HW.set(Some(HwRender { renderer, reset, destroy, bottom_left }));
+    let bottom_left = hw.bottom_left_origin;
+    HW.set(Some(HwRender { renderer: Renderer::Gl(renderer), reset, destroy, bottom_left }));
     Ok(())
 }
 
@@ -449,6 +550,26 @@ fn resize_hw_render(geometry: GameGeometry) -> bool {
 
 fn hw_callback(pick: impl FnOnce(&HwRender) -> Option<unsafe extern "C" fn()>) -> Option<unsafe extern "C" fn()> {
     HW.with_borrow(|hw| hw.as_ref().and_then(pick))
+}
+
+pub fn sleep() {
+    HW.with_borrow(|hw| {
+        if let Some(hw) = hw {
+            hw.renderer.sleep();
+        }
+    });
+    gl::sleep();
+    vulkan::sleep();
+}
+
+pub fn wake() {
+    gl::wake();
+    vulkan::wake();
+    HW.with_borrow(|hw| {
+        if let Some(hw) = hw {
+            hw.renderer.wake();
+        }
+    });
 }
 
 fn stop_hw_render() {
@@ -565,6 +686,17 @@ unsafe extern "C" fn environment(cmd: c_uint, data: *mut c_void) -> bool {
                 }),
             }
             .or_else(|| (key == c"mupen64plus-pak1" && TRANSFER_PAK.get()).then_some(c"transfer".as_ptr()))
+            .or_else(|| (key == c"citra_graphics_api").then(|| azahar_renderer().as_ptr()))
+            .or_else(|| {
+                (key == c"citra_async_shader_compilation")
+                    .then(|| if ASYNC_SHADERS.load(Ordering::Relaxed) { c"enabled" } else { c"disabled" }.as_ptr())
+            })
+            .or_else(|| {
+                (key == c"citra_ubershader_fallback").then(|| {
+                    if UBERSHADER_FALLBACK && ASYNC_SHADERS.load(Ordering::Relaxed) { c"enabled" } else { c"disabled" }
+                        .as_ptr()
+                })
+            })
             .or_else(|| {
                 OPTION_DEFAULTS.with_borrow(|defaults| {
                     defaults.iter().find(|(k, _)| k.as_c_str() == key).map(|(_, value)| value.as_ptr())
@@ -586,6 +718,25 @@ unsafe extern "C" fn environment(cmd: c_uint, data: *mut c_void) -> bool {
                 false
             }
         },
+        ENV_SET_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE => HW.with_borrow_mut(|hw| match hw {
+            Some(HwRender { renderer: Renderer::Vulkan(renderer), .. }) => {
+                renderer.negotiate(data as *const vulkan::Negotiation)
+            }
+            _ => false,
+        }),
+        ENV_GET_HW_RENDER_INTERFACE => HW.with_borrow_mut(|hw| match hw {
+            Some(HwRender { renderer: Renderer::Vulkan(renderer), .. }) => match renderer.interface() {
+                Ok(interface) => {
+                    *(data as *mut *const vulkan::Interface) = interface;
+                    true
+                }
+                Err(e) => {
+                    eprintln!("hardware rendering: {e}");
+                    false
+                }
+            },
+            _ => false,
+        }),
         ENV_SET_GEOMETRY => {
             let geometry = *(data as *const GameGeometry);
             AV.set(AvInfo { geometry, ..AV.get() });
@@ -635,7 +786,13 @@ unsafe extern "C" fn environment(cmd: c_uint, data: *mut c_void) -> bool {
             }
             true
         }
-        ENV_GET_SYSTEM_DIRECTORY => match SYSTEM_DIR.get() {
+        ENV_GET_JIT_CAPABLE => {
+            *(data as *mut bool) = JIT;
+            true
+        }
+        ENV_GET_SAVE_DIRECTORY if !AZAHAR.get() => false,
+        ENV_GET_VFS_INTERFACE => AZAHAR.get() && vfs::answer(data as *mut vfs::InterfaceInfo),
+        ENV_GET_SYSTEM_DIRECTORY | ENV_GET_SAVE_DIRECTORY => match SYSTEM_DIR.get() {
             Some(dir) => {
                 *(data as *mut *const c_char) = dir.as_ptr();
                 true
@@ -698,20 +855,37 @@ unsafe fn copy_frame(frame: &mut Frame, data: *const c_void, width: c_uint, heig
 fn read_hw_frame(frame: &mut Frame, width: c_uint, height: c_uint) -> bool {
     HW.with_borrow_mut(|hw| {
         let Some(hw) = hw else { return false };
-        (frame.width, frame.height) = hw.renderer.read(width, height, hw.bottom_left, &mut frame.pixels);
+        match hw.renderer.read(width, height, hw.bottom_left, &mut frame.pixels) {
+            Ok(size) => (frame.width, frame.height) = size,
+            Err(e) => {
+                eprintln!("hardware rendering: {e}");
+                return false;
+            }
+        }
         frame.in_texture = false;
         true
     })
 }
 
 fn keep_hw_frame(frame: &mut Frame, width: c_uint, height: c_uint) -> bool {
-    HW.with_borrow(|hw| {
-        let Some(hw) = hw else { return false };
-        let (texture_width, texture_height) = hw.renderer.size();
-        (frame.width, frame.height) = (width.min(texture_width), height.min(texture_height));
-        frame.in_texture = true;
-        true
-    })
+    let kept = HW.with_borrow(|hw| {
+        hw.as_ref().map(|hw| match &hw.renderer {
+            Renderer::Gl(renderer) => {
+                let (texture_width, texture_height) = renderer.size();
+                Some((width.min(texture_width), height.min(texture_height)))
+            }
+            Renderer::Vulkan(_) => SCREEN_DRAWS_VULKAN.then_some((width, height)),
+        })
+    });
+    match kept {
+        None => false,
+        Some(None) => read_hw_frame(frame, width, height),
+        Some(Some(size)) => {
+            (frame.width, frame.height) = size;
+            frame.in_texture = true;
+            true
+        }
+    }
 }
 
 fn read_back(frame: &mut Frame) {
@@ -720,18 +894,23 @@ fn read_back(frame: &mut Frame) {
     }
 }
 
-fn hw_texture(frame: &Frame) -> Option<Texture> {
+fn hw_picture(frame: &Frame) -> Option<Picture<'static>> {
     HW.with_borrow(|hw| {
         let hw = hw.as_ref()?;
-        let (texture_width, texture_height) = hw.renderer.size();
-        Some(Texture {
-            id: hw.renderer.texture(),
-            width: frame.width,
-            height: frame.height,
-            texture_width,
-            texture_height,
-            bottom_left: hw.bottom_left,
-        })
+        match &hw.renderer {
+            Renderer::Gl(renderer) => {
+                let (texture_width, texture_height) = renderer.size();
+                Some(Picture::Texture(Texture {
+                    id: renderer.texture(),
+                    width: frame.width,
+                    height: frame.height,
+                    texture_width,
+                    texture_height,
+                    bottom_left: hw.bottom_left,
+                }))
+            }
+            Renderer::Vulkan(renderer) => renderer.frame(frame.width, frame.height).map(Picture::Image),
+        }
     })
 }
 
@@ -750,8 +929,8 @@ fn take_frame<R>(f: impl FnOnce(&Frame) -> R) -> Option<R> {
 }
 
 fn take_picture<R>(f: impl FnOnce(Picture) -> R) -> Option<R> {
-    fresh_frame(|mixed, frame| match hw_texture(frame).filter(|_| frame.in_texture) {
-        Some(texture) => f(Picture::Texture(texture)),
+    fresh_frame(|mixed, frame| match hw_picture(frame).filter(|_| frame.in_texture) {
+        Some(picture) => f(picture),
         None => {
             read_back(frame);
             let shown = mixed.unwrap_or(frame);
@@ -857,6 +1036,7 @@ pub struct Core {
     system: System,
     system_ram_base: usize,
     ran_a_frame: bool,
+    _file: Option<crate::rom::RomFile>,
     // Frames and audio land in thread-locals, so the core stays on the thread that loaded it.
     _not_send: std::marker::PhantomData<*const ()>,
 }
@@ -878,8 +1058,17 @@ impl Core {
     fn start(rom: Rom, system_dir: &Path, transfer_pak: Option<&transfer_pak::Files>) -> Result<Core, String> {
         let system = rom.system();
         let api = api(system)?;
+        let azahar_dir = azahar_dir(system_dir);
+        if system == System::ThreeDs {
+            forget_console_keys(&azahar_dir)?;
+        }
         if LOADED.swap(true, Ordering::AcqRel) {
             return Err("a game is already loaded".into());
+        }
+        // Android's storage refuses the core a SAF file's /proc entry, so the app reads it for the core.
+        if let Some(Err(e)) = rom.file.as_ref().map(|file| vfs::serve_game(&file.path, &file.open)) {
+            LOADED.store(false, Ordering::Release);
+            return Err(e);
         }
         FRAME.with_borrow_mut(|frame| {
             frame.width = 0;
@@ -899,16 +1088,17 @@ impl Core {
         HW_REFUSED.set(false);
         CORE_FLOAT_MODE.set(None);
         TRANSFER_PAK.set(transfer_pak.is_some());
+        AZAHAR.set(system == System::ThreeDs);
         let system_ram_base = if system == System::Gb { 0xC000 } else { 0x0200_0000 };
-        let name = CString::new(rom.name).unwrap_or_default();
+        let path = rom.file.as_ref().map_or(&rom.name, |file| &file.path);
+        let path = CString::new(path.as_str()).unwrap_or_default();
+        let (data, size) = match rom.file {
+            Some(_) => (std::ptr::null(), 0),
+            None => (rom.bytes.as_ptr() as *const c_void, rom.bytes.len()),
+        };
         in_core(|| unsafe {
-            init(api, system_dir);
-            let info = GameInfo {
-                path: name.as_ptr(),
-                data: rom.bytes.as_ptr() as *const c_void,
-                size: rom.bytes.len(),
-                meta: std::ptr::null(),
-            };
+            init(api);
+            let info = GameInfo { path: path.as_ptr(), data, size, meta: std::ptr::null() };
             let loaded = match transfer_pak {
                 None => (api.retro_load_game)(&info),
                 Some(files) => {
@@ -927,6 +1117,7 @@ impl Core {
             };
             if !loaded {
                 (api.retro_deinit)();
+                vfs::stop_serving_game();
                 stop_hw_render();
                 LOADED.store(false, Ordering::Release);
                 return Err(if HW_REFUSED.get() { UNSUPPORTED_DEVICE } else { "the core refused the ROM" }.into());
@@ -934,10 +1125,19 @@ impl Core {
             let mut av = AvInfo::default();
             (api.retro_get_system_av_info)(&mut av);
             AV.set(av);
-            let core = Core { api, system, system_ram_base, ran_a_frame: false, _not_send: std::marker::PhantomData };
+            let core = Core {
+                api,
+                system,
+                system_ram_base,
+                ran_a_frame: false,
+                _file: rom.file,
+                _not_send: std::marker::PhantomData,
+            };
             let resized = resize_hw_render(av.geometry);
             // Even on a device that can't play, the reset connects Mupen64Plus-Next's plugins for its last frame.
-            if let Some(reset) = hw_callback(|hw| hw.reset) {
+            // Azahar's Vulkan reset would use the device it didn't get.
+            let reset = hw_callback(|hw| hw.reset.filter(|_| resized || matches!(hw.renderer, Renderer::Gl(_))));
+            if let Some(reset) = reset {
                 reset();
             }
             if !resized {
@@ -1075,14 +1275,34 @@ impl Drop for Core {
             (self.api.retro_unload_game)();
             (self.api.retro_deinit)();
         });
+        vfs::stop_serving_game();
         stop_hw_render();
         MEMORY_MAP.with_borrow_mut(Vec::clear);
         LOADED.store(false, Ordering::Release);
     }
 }
 
-unsafe fn init(api: Api, system_dir: &Path) {
-    let _ = SYSTEM_DIR.set(CString::new(system_dir.to_string_lossy().as_bytes()).unwrap());
+// A core may keep the pointer, so the first directory stays.
+fn system_dir(dir: &Path) -> &'static CString {
+    SYSTEM_DIR.get_or_init(|| CString::new(dir.to_string_lossy().as_bytes()).unwrap())
+}
+
+pub fn azahar_dir(dir: &Path) -> PathBuf {
+    Path::new(&*system_dir(dir).to_string_lossy()).join("Azahar")
+}
+
+// Azahar reads console keys from here, and the app plays without them. It makes only the last folder of its own.
+fn forget_console_keys(azahar_dir: &Path) -> Result<(), String> {
+    let system_dir = azahar_dir.parent().unwrap_or(azahar_dir);
+    std::fs::create_dir_all(system_dir).map_err(|e| format!("{}: {e}", system_dir.display()))?;
+    let keys = azahar_dir.join("sysdata/aes_keys.txt");
+    match std::fs::remove_file(&keys) {
+        Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(format!("{}: {e}", keys.display())),
+        _ => Ok(()),
+    }
+}
+
+unsafe fn init(api: Api) {
     (api.retro_set_environment)(environment);
     (api.retro_set_video_refresh)(video_refresh);
     (api.retro_set_audio_sample)(audio_sample);
@@ -1100,7 +1320,11 @@ pub fn core_info_for(system: System) -> Result<CoreInfo, String> {
     Ok(system_info(api(system)?))
 }
 
-fn system_info(api: Api) -> CoreInfo {
+pub fn needs_path(system: System) -> Result<bool, String> {
+    Ok(raw_info(api(system)?).need_fullpath)
+}
+
+fn raw_info(api: Api) -> RawCoreInfo {
     let mut raw = RawCoreInfo {
         library_name: std::ptr::null(),
         library_version: std::ptr::null(),
@@ -1108,6 +1332,12 @@ fn system_info(api: Api) -> CoreInfo {
         need_fullpath: false,
         block_extract: false,
     };
+    unsafe { (api.retro_get_system_info)(&mut raw) };
+    raw
+}
+
+fn system_info(api: Api) -> CoreInfo {
+    let raw = raw_info(api);
     let text = |ptr: *const c_char| {
         if ptr.is_null() {
             String::new()
@@ -1115,7 +1345,6 @@ fn system_info(api: Api) -> CoreInfo {
             unsafe { CStr::from_ptr(ptr) }.to_string_lossy().into_owned()
         }
     };
-    unsafe { (api.retro_get_system_info)(&mut raw) };
     CoreInfo {
         name: text(raw.library_name),
         version: text(raw.library_version),
@@ -1224,11 +1453,142 @@ mod tests {
 
     #[test]
     #[cfg(target_arch = "aarch64")]
+    fn reads_3ds_games_from_their_path() {
+        assert_eq!(needs_path(System::ThreeDs), Ok(true));
+        assert_eq!(needs_path(System::Gba), Ok(false));
+        assert_eq!(core_info_for(System::ThreeDs).unwrap().name, "Azahar");
+    }
+
+    // Azahar refuses a state from another revision, so the version a state records has to change with every revision.
+    #[test]
+    #[cfg(target_arch = "aarch64")]
+    fn names_the_revision_of_azahar_in_its_version() {
+        let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../vendor/azahar");
+        let described = std::process::Command::new("git").arg("-C").arg(source).args(["describe", "--tags"]).output();
+        let described = described.unwrap();
+        assert!(described.status.success(), "{}", String::from_utf8_lossy(&described.stderr));
+        let described = String::from_utf8(described.stdout).unwrap();
+
+        assert_eq!(core_info_for(System::ThreeDs).unwrap().version, described.trim());
+    }
+
+    // A 3DSX with no data that sleeps forever, so the core boots it with nothing from a console.
+    fn sleeping_3dsx(name: &str) -> Rom {
+        let code: Vec<u8> =
+            [0xE3A00101u32, 0xE3A01000, 0xEF00000A, 0xEAFFFFFB].iter().flat_map(|i| i.to_le_bytes()).collect();
+        let mut file = b"3DSX".to_vec();
+        for half in [0x2Cu16, 8] {
+            file.extend_from_slice(&half.to_le_bytes());
+        }
+        // Format version, flags, code size, then empty rodata, data, bss, icon and RomFS.
+        for word in [0, 0, code.len() as u32, 0, 0, 0, 0, 0, 0] {
+            file.extend_from_slice(&word.to_le_bytes());
+        }
+        file.extend_from_slice(&[0; 8 * 3]);
+        file.extend_from_slice(&code);
+        let path = std::env::temp_dir().join(name);
+        std::fs::write(&path, file).unwrap();
+        let open = std::fs::File::open(&path).unwrap();
+        Rom::at(name, crate::rom::RomFile::new(open, path.to_string_lossy().into_owned()))
+    }
+
+    #[test]
+    #[cfg(target_arch = "aarch64")]
+    fn boots_a_3dsx_from_its_path_with_both_screens() {
+        let _lock = crate::test_games::lock_core();
+        let dir = std::env::temp_dir();
+        let keys = dir.join("Azahar/sysdata/aes_keys.txt");
+        std::fs::create_dir_all(keys.parent().unwrap()).unwrap();
+        std::fs::write(&keys, "slot0x25KeyX=00").unwrap();
+
+        for _ in 0..2 {
+            let mut core = Core::load(sleeping_3dsx("sleeping.3dsx"), &dir).unwrap();
+            let mut size = None;
+            for _ in 0..30 {
+                core.run_frame();
+                core.take_frame(|frame| size = Some((frame.width, frame.height)));
+            }
+
+            assert_eq!(size, Some((400, 480)));
+            assert!(!keys.exists());
+            assert!(dir.join("Azahar/sdmc").is_dir());
+        }
+        plays_a_gba_game();
+    }
+
+    #[test]
+    #[cfg(target_arch = "aarch64")]
+    fn pksm_boots_and_answers_a() {
+        let _lock = crate::test_games::lock_core();
+        let Some(rom) = crate::test_games::homebrew_3dsx("PKSM") else { return };
+        // Without its extra data on the SD card, PKSM stops on a prompt that A answers.
+        let _ = std::fs::remove_dir_all(std::env::temp_dir().join("Azahar/sdmc"));
+        let mut core = Core::load(rom, &std::env::temp_dir()).unwrap();
+        let mut play = |frames, press: u16| {
+            for frame in 0..frames {
+                set_input(if frame < 10 { press } else { 0 });
+                core.run_frame();
+            }
+            core.last_frame(|frame| ((frame.width, frame.height), frame.pixels.clone())).unwrap()
+        };
+
+        let (size, asking) = play(600, 0);
+        let (_, still_asking) = play(60, 0);
+        let (_, answered) = play(300, A);
+
+        assert_eq!(size, (400, 480));
+        assert!(asking.iter().any(|&pixel| pixel != asking[0]), "the prompt is one colour");
+        assert_eq!(still_asking, asking);
+        assert_ne!(answered, asking);
+    }
+
+    #[test]
+    #[cfg(target_arch = "aarch64")]
+    fn pokemon_x_continues_a_save_into_the_overworld_with_pictures_and_sound() {
+        let _lock = crate::test_games::lock_core();
+        let Some(rom) = crate::test_games::cartridge_3ds("Pokémon X", 0x0004000000055D00) else { return };
+        let Some(save) = crate::test_games::save_of_size("a Pokémon X or Y main", 0x65600) else { return };
+        let dir = std::env::temp_dir();
+        let console = dir.join("Azahar/sdmc/Nintendo 3DS").join("0".repeat(32)).join("0".repeat(32));
+        let _ = std::fs::remove_dir_all(console.join("title/00040000/00055d00"));
+        let mut core = Core::load(rom, &dir).unwrap();
+        let mut play = |core: &mut Core, frames, press: u16| {
+            let (mut audio, mut loudest) = (Vec::new(), 0);
+            for frame in 0..frames {
+                set_input(if frame < 6 { press } else { 0 });
+                core.run_frame();
+                core.drain_audio(&mut audio);
+                loudest = audio.drain(..).map(i16::unsigned_abs).max().unwrap_or(0).max(loudest);
+            }
+            let pixels = core.last_frame(|frame| frame.pixels.clone()).unwrap_or_default();
+            (loudest, pixels)
+        };
+
+        // The game formats its save before asking for a language, and loads a save put in its place after a reset.
+        play(&mut core, 300, 0);
+        std::fs::write(console.join("title/00040000/00055d00/data/00000001/main"), save).unwrap();
+        core.reset();
+        for _ in 0..3 {
+            play(&mut core, 120, A);
+        }
+        play(&mut core, 300, 0);
+        play(&mut core, 600, A);
+        let (loudest, walking) = play(&mut core, 600, 0);
+        let (_, later) = play(&mut core, 120, 0);
+
+        assert!(loudest > 1000, "the overworld was silent");
+        let colours = walking.iter().collect::<std::collections::HashSet<_>>().len();
+        assert!(colours > 2000, "the overworld drew {colours} colours");
+        assert_ne!(walking, later);
+    }
+
+    #[test]
+    #[cfg(target_arch = "aarch64")]
     fn mupen64plus_next_starts_with_its_ini_in_the_system_directory() {
         let _lock = crate::test_games::lock_core();
         let ini = std::env::temp_dir().join("Mupen64plus/mupen64plus.ini");
         let _ = std::fs::remove_file(&ini);
-        let broken = Rom { name: "broken.z64".into(), bytes: vec![0; 0x1000] };
+        let broken = Rom { name: "broken.z64".into(), bytes: vec![0; 0x1000], file: None };
 
         let error = Core::load(broken, &std::env::temp_dir()).err();
 
@@ -1278,6 +1638,70 @@ mod tests {
     #[test]
     fn leaves_the_n64_stick_dead_zone_to_the_app() {
         assert_eq!(option(c"mupen64plus-astick-deadzone").as_deref(), Some("0"));
+    }
+
+    #[test]
+    fn sets_up_azahar_as_an_old_3ds_at_native_resolution() {
+        assert_eq!(option(c"citra_is_new_3ds").as_deref(), Some("Old 3DS"));
+        assert_eq!(option(c"citra_resolution_factor").as_deref(), Some("1"));
+        assert_eq!(option(c"citra_use_hw_shader").as_deref(), Some("enabled"));
+        assert_eq!(option(c"citra_use_disk_shader_cache").as_deref(), Some("enabled"));
+        assert_eq!(option(c"citra_audio_emulation").as_deref(), Some("hle"));
+    }
+
+    #[test]
+    fn compiles_azahar_shaders_in_the_background_only_when_asked() {
+        let _lock = crate::test_games::lock_core();
+        assert_eq!(option(c"citra_async_shader_compilation").as_deref(), Some("disabled"));
+
+        set_async_shaders(true);
+        assert_eq!(option(c"citra_async_shader_compilation").as_deref(), Some("enabled"));
+        set_async_shaders(false);
+        assert_eq!(option(c"citra_async_shader_compilation").as_deref(), Some("disabled"));
+    }
+
+    #[test]
+    fn runs_azahar_at_full_clock_with_the_fast_interpreter_and_no_texture_filter() {
+        assert_eq!(option(c"citra_use_fastinterp").as_deref(), Some("enabled"));
+        assert_eq!(option(c"citra_cpu_clock_percentage").as_deref(), Some("100"));
+        assert_eq!(option(c"citra_texture_filter").as_deref(), Some("none"));
+    }
+
+    #[test]
+    fn tells_cores_whether_they_can_jit_and_sets_azahars_jits_to_match() {
+        let mut capable = !JIT;
+        assert!(unsafe { environment(ENV_GET_JIT_CAPABLE, &mut capable as *mut bool as *mut c_void) });
+
+        assert_eq!(capable, JIT);
+        let expected = if JIT { "enabled" } else { "disabled" };
+        assert_eq!(option(c"citra_use_cpu_jit").as_deref(), Some(expected));
+        assert_eq!(option(c"citra_use_shader_jit").as_deref(), Some(expected));
+    }
+
+    #[test]
+    fn gives_only_azahar_the_system_directory_for_saves_too() {
+        let dir = |cmd| {
+            let mut dir: *const c_char = std::ptr::null();
+            let answered = unsafe { environment(cmd, &mut dir as *mut *const c_char as *mut c_void) };
+            answered.then_some(dir)
+        };
+
+        AZAHAR.set(true);
+        assert_eq!(dir(ENV_GET_SAVE_DIRECTORY), dir(ENV_GET_SYSTEM_DIRECTORY));
+        AZAHAR.set(false);
+        assert_eq!(dir(ENV_GET_SAVE_DIRECTORY), None);
+    }
+
+    #[test]
+    fn removes_console_keys_from_azahars_folder() {
+        let dir = std::env::temp_dir().join("pkh-emu-console-keys");
+        let keys = dir.join("Azahar/sysdata/aes_keys.txt");
+        std::fs::create_dir_all(keys.parent().unwrap()).unwrap();
+        std::fs::write(&keys, "slot0x25KeyX=00").unwrap();
+
+        assert_eq!(forget_console_keys(&dir.join("Azahar")), Ok(()));
+        assert!(!keys.exists());
+        assert_eq!(forget_console_keys(&dir.join("Azahar")), Ok(()));
     }
 
     #[test]
@@ -1370,9 +1794,9 @@ mod tests {
         });
     }
 
-    const RED: u16 = 0xF800;
+    pub(super) const RED: u16 = 0xF800;
     const GREEN: u16 = 0x07E0;
-    const BLUE: u16 = 0x001F;
+    pub(super) const BLUE: u16 = 0x001F;
 
     fn blended(blend: bool, frames: &[Option<[u16; 2]>]) -> Vec<u16> {
         set_pixel_format(PIXEL_FORMAT_RGB565);
@@ -1460,7 +1884,9 @@ mod tests {
         assert_eq!((av.timing.fps, av.timing.sample_rate), (59.83, 32768.0));
     }
 
-    fn hw_render((context_type, version_major, version_minor): (c_uint, c_uint, c_uint)) -> (bool, HwRenderCallback) {
+    pub(super) fn hw_render(
+        (context_type, version_major, version_minor): (c_uint, c_uint, c_uint),
+    ) -> (bool, HwRenderCallback) {
         let mut hw = HwRenderCallback {
             context_type,
             context_reset: None,
@@ -1485,15 +1911,16 @@ mod tests {
     }
 
     fn hw_size() -> Option<(u32, u32)> {
-        HW.with_borrow(|hw| hw.as_ref().map(|hw| hw.renderer.size()))
+        HW.with_borrow(|hw| match hw.as_ref().map(|hw| &hw.renderer) {
+            Some(Renderer::Gl(renderer)) => Some(renderer.size()),
+            _ => None,
+        })
     }
 
     #[test]
     fn refuses_gl_contexts_other_than_its_own() {
         let _lock = crate::test_games::lock_core();
-        let vulkan = 6;
-
-        for context in [(vulkan, 1, 1), (2, 2, 0), (HW_CONTEXT_OPENGL_CORE, 4, 6)] {
+        for context in [(2, 2, 0), (HW_CONTEXT_OPENGL_CORE, 4, 6)] {
             assert!(!hw_render(context).0, "{context:?}");
             assert!(HW.with_borrow(Option::is_none));
         }
@@ -1584,6 +2011,20 @@ mod tests {
     }
 
     #[test]
+    #[cfg(debug_assertions)]
+    fn fails_when_the_cores_context_is_made_current_asleep() {
+        let _lock = crate::test_games::lock_core();
+        hw_render(platform::OWN_CONTEXT);
+        sleep();
+
+        let made_current = std::panic::catch_unwind(|| in_core(|| ()));
+
+        wake();
+        stop_hw_render();
+        assert!(made_current.is_err());
+    }
+
+    #[test]
     fn hands_over_the_cores_texture_when_not_reading_gl_frames_back() {
         let _lock = crate::test_games::lock_core();
         leaving_gl_frames_in_the_texture();
@@ -1591,7 +2032,7 @@ mod tests {
         unsafe { video_refresh(HW_FRAME_BUFFER_VALID, 2, 2, 0) };
         let picture = take_picture(|picture| match picture {
             Picture::Texture(texture) => Some((texture.width, texture.height, texture.bottom_left)),
-            Picture::Pixels { .. } => None,
+            _ => None,
         });
 
         assert_eq!(picture, Some(Some((2, 2, true))));
@@ -1741,7 +2182,7 @@ mod tests {
     fn plays_stadium_and_a_gba_game_after_an_n64_rom_the_core_refuses() {
         let _lock = crate::test_games::lock_core();
         let Some(rom) = crate::test_games::stadium() else { return };
-        let broken = Rom { name: "broken.z64".into(), bytes: vec![0; 0x1000] };
+        let broken = Rom { name: "broken.z64".into(), bytes: vec![0; 0x1000], file: None };
 
         assert_eq!(Core::load(broken, &std::env::temp_dir()).err().as_deref(), Some("the core refused the ROM"));
         drop(plays_through_gl(rom));

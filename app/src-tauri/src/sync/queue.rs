@@ -90,6 +90,13 @@ impl<T: Clone + Send + 'static> Queue<T> {
         self.waiting().games.is_some()
     }
 
+    // Their callers get None, and the run's loop finds nothing left and ends.
+    pub fn drop_waiting(&self) {
+        let mut waiting = self.waiting();
+        waiting.games = None;
+        waiting.all = None;
+    }
+
     // Only a running sync calls this, so its loop picks the request up.
     pub fn run_after(&self, request: Request) {
         self.waiting().add(request, None);
@@ -224,6 +231,38 @@ mod tests {
             std::thread::yield_now();
         }
 
+        assert_eq!(*calls.0.lock().unwrap(), ["begin", "end"]);
+    }
+
+    #[test]
+    fn dropping_waiting_requests_ends_the_run_once() {
+        let queue = Arc::new(Queue::new());
+        let calls = Calls::default();
+        let (release, released) = oneshot::channel::<()>();
+        let released = Arc::new(Mutex::new(Some(released)));
+        let (started, has_started) = std::sync::mpsc::channel();
+        let sync = move |_: Request| {
+            let (released, started) = (released.clone(), started.clone());
+            async move {
+                let _ = started.send(());
+                let gate = released.lock().unwrap().take();
+                if let Some(gate) = gate {
+                    let _ = gate.await;
+                }
+                "synced"
+            }
+        };
+
+        let first = queue.run(Request::All, calls.clone(), sync.clone());
+        has_started.recv().unwrap();
+        let waiting = queue.run(Request::All, calls.clone(), sync.clone());
+        queue.drop_waiting();
+        release.send(()).unwrap();
+
+        assert_eq!(block_on(async { (first.await, waiting.await) }), (Some("synced"), None));
+        while queue.waiting().running {
+            std::thread::yield_now();
+        }
         assert_eq!(*calls.0.lock().unwrap(), ["begin", "end"]);
     }
 

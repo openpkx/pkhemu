@@ -27,6 +27,12 @@
         "contentTypes": ["com.rileytestut.delta.game.ds", "com.provenance.rom.ds", "public.aoshuang.game.ds"]
       },
       {
+        "ext": ["z64", "n64", "v64"],
+        "name": "N64 game",
+        "role": "Viewer",
+        "contentTypes": ["com.rileytestut.delta.game.n64", "com.provenance.rom.n64", "public.aoshuang.game.n64"]
+      },
+      {
         "ext": ["sav", "srm", "dsv"],
         "name": "Save",
         "role": "Viewer",
@@ -40,11 +46,25 @@
         "exportedType": { "identifier": "fyi.openpkx.pkhemu.clock", "conformsTo": ["public.data"] }
       },
       {
+        "ext": ["ips", "ups", "bps", "xdelta", "vcdiff"],
+        "name": "Patch",
+        "description": "Patch",
+        "role": "Viewer",
+        "exportedType": { "identifier": "fyi.openpkx.pkhemu.patch", "conformsTo": ["public.data"] }
+      },
+      {
         "ext": ["zip"],
         "name": "ZIP archive",
         "role": "Viewer",
         "rank": "Alternate",
         "contentTypes": ["public.zip-archive"]
+      },
+      {
+        "ext": ["7z"],
+        "name": "7z archive",
+        "role": "Viewer",
+        "rank": "Alternate",
+        "contentTypes": ["org.7-zip.7-zip-archive"]
       }
     ]
   }

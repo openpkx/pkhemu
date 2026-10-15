@@ -21,6 +21,7 @@ import { PatchRomProvider } from "./patch-rom/patchRom";
 import { hosts } from "./platform/platform";
 import { PlusProvider } from "./plus/plus";
 import { PreferencesProvider } from "./preferences/preferences";
+import { ShadersProvider } from "./shaders/shaders";
 import { SyncProvider } from "./sync/sync";
 import { SystemBarsProvider } from "./system-bars/systemBars";
 import { useAppliedTheme } from "./theme/theme";
@@ -37,44 +38,46 @@ export function App() {
     <EngineProvider engine={engine}>
       <SystemBarsProvider host={hosts.systemBars}>
         <GravityProvider host={hosts.gravity}>
-          <GameSurfaceProvider host={hosts.gameSurface}>
-            <HapticsProvider host={hosts.haptics}>
-              <PreferencesProvider host={hosts.preferences} defaults={hosts.defaultPreferences}>
-                <AppliedTheme />
-                <AudioSessionProvider host={hosts.audioSession}>
-                  <GamesFolderProvider host={hosts.gamesFolder}>
-                    <PlusProvider host={hosts.plus}>
-                      <AppUpdateProvider host={hosts.appUpdate}>
-                        <ExperimentsProvider host={hosts.experiments} registry={experiments}>
-                          <SyncProvider host={hosts.sync}>
-                            <BackProvider host={hosts.back}>
-                              <BoxArtProvider host={hosts.boxArt}>
-                                <ExportProvider host={hosts.export}>
-                                  <PokemonFileProvider host={hosts.pokemonFile}>
-                                    <ClipboardProvider host={hosts.clipboard}>
-                                      <CalibrationsProvider host={hosts.calibrations}>
-                                        <GameArtProvider host={hosts.gameArt}>
-                                          <PatchRomProvider host={hosts.patchRom}>
-                                            <ImportProvider host={hosts.import}>
-                                              <Home libraryHost={hosts.library} gamePageHost={hosts.gamePage} systems={hosts.systems} />
-                                            </ImportProvider>
-                                          </PatchRomProvider>
-                                        </GameArtProvider>
-                                      </CalibrationsProvider>
-                                    </ClipboardProvider>
-                                  </PokemonFileProvider>
-                                </ExportProvider>
-                              </BoxArtProvider>
-                            </BackProvider>
-                          </SyncProvider>
-                        </ExperimentsProvider>
-                      </AppUpdateProvider>
-                    </PlusProvider>
-                  </GamesFolderProvider>
-                </AudioSessionProvider>
-              </PreferencesProvider>
-            </HapticsProvider>
-          </GameSurfaceProvider>
+          <ShadersProvider host={hosts.shaders}>
+            <GameSurfaceProvider host={hosts.gameSurface}>
+              <HapticsProvider host={hosts.haptics}>
+                <PreferencesProvider host={hosts.preferences} defaults={hosts.defaultPreferences}>
+                  <AppliedTheme />
+                  <AudioSessionProvider host={hosts.audioSession}>
+                    <GamesFolderProvider host={hosts.gamesFolder}>
+                      <PlusProvider host={hosts.plus}>
+                        <AppUpdateProvider host={hosts.appUpdate}>
+                          <ExperimentsProvider host={hosts.experiments} registry={experiments}>
+                            <SyncProvider host={hosts.sync}>
+                              <BackProvider host={hosts.back}>
+                                <BoxArtProvider host={hosts.boxArt}>
+                                  <ExportProvider host={hosts.export}>
+                                    <PokemonFileProvider host={hosts.pokemonFile}>
+                                      <ClipboardProvider host={hosts.clipboard}>
+                                        <CalibrationsProvider host={hosts.calibrations}>
+                                          <GameArtProvider host={hosts.gameArt}>
+                                            <PatchRomProvider host={hosts.patchRom}>
+                                              <ImportProvider host={hosts.import}>
+                                                <Home libraryHost={hosts.library} gamePageHost={hosts.gamePage} systems={hosts.systems} />
+                                              </ImportProvider>
+                                            </PatchRomProvider>
+                                          </GameArtProvider>
+                                        </CalibrationsProvider>
+                                      </ClipboardProvider>
+                                    </PokemonFileProvider>
+                                  </ExportProvider>
+                                </BoxArtProvider>
+                              </BackProvider>
+                            </SyncProvider>
+                          </ExperimentsProvider>
+                        </AppUpdateProvider>
+                      </PlusProvider>
+                    </GamesFolderProvider>
+                  </AudioSessionProvider>
+                </PreferencesProvider>
+              </HapticsProvider>
+            </GameSurfaceProvider>
+          </ShadersProvider>
         </GravityProvider>
       </SystemBarsProvider>
     </EngineProvider>

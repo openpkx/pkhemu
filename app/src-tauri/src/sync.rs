@@ -21,6 +21,7 @@ mod provider;
 mod queue;
 mod record;
 mod removed;
+mod skins;
 #[cfg(test)]
 mod tests;
 
@@ -42,6 +43,7 @@ use crate::games_folder::{DirEntry, GamesFolder};
 use crate::index::{self, FileHash, Index, PendingUpload, SyncedFile, SyncedGame};
 use crate::plus::Plus;
 use crate::save;
+use crate::three_ds::update;
 use crate::{box_art, cheats, game_art, keep_alive, rom};
 use queue::{KeepAlive, Queue, Request};
 use record::{Blob, Entry, Record, Unit};
@@ -56,7 +58,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, Manager, Runtime, State};
 
-const SYSTEMS: [&str; 5] = ["gb", "gbc", "gba", "nds", "n64"];
+const SYSTEMS: [&str; 6] = ["gb", "gbc", "gba", "nds", "n64", "3ds"];
 const ROM_EXTENSIONS: [&str; 9] = ["gb", "gbc", "gba", "nds", "z64", "n64", "v64", "zip", "7z"];
 const RETRIES: usize = 8;
 const FIRST_RETRY: Duration = Duration::from_secs(1);
@@ -84,8 +86,27 @@ impl Checked {
 struct PendingRom {
     rom: String,
     id: String,
-    size: u64,
     conflicted: bool,
+}
+
+struct LocalUpdate {
+    version: u16,
+    size: u64,
+    modified: SystemTime,
+}
+
+enum UpdateTransfer {
+    Up(LocalUpdate),
+    Down(record::Update),
+}
+
+impl UpdateTransfer {
+    fn size(&self) -> u64 {
+        match self {
+            UpdateTransfer::Up(local) => local.size,
+            UpdateTransfer::Down(cloud) => cloud.size,
+        }
+    }
 }
 
 #[derive(Serialize, Clone, Debug, Default, PartialEq)]
@@ -285,7 +306,7 @@ impl<T: Write> Write for Counting<'_, T> {
     }
 }
 
-/// Cuts an upload short when `stop` says so. The upload resumes from where it got to.
+/// Cuts a transfer short when `stop` says so. An upload resumes from where it got to.
 struct Stopping<'a, T> {
     inner: T,
     stop: Option<&'a (dyn Fn() -> bool + Sync)>,
@@ -298,6 +319,23 @@ impl<T: Read> Read for Stopping<'_, T> {
         }
         self.inner.read(buf)
     }
+}
+
+impl<T: Write> Write for Stopping<'_, T> {
+    fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+        if self.stop.is_some_and(|stop| stop()) {
+            return Err(std::io::Error::other("the download paused"));
+        }
+        self.inner.write(buf)
+    }
+
+    fn flush(&mut self) -> std::io::Result<()> {
+        self.inner.flush()
+    }
+}
+
+fn is_game(id: &str) -> bool {
+    !kept::is_kept(id) && !skins::is_skins(id)
 }
 
 fn hex(bytes: &[u8]) -> String {
@@ -329,7 +367,11 @@ fn is_rom(entry: &DirEntry) -> bool {
     !entry.is_directory
         && !entry.name.starts_with('.')
         && entry.name.rsplit_once('.').is_some_and(|(stem, extension)| {
-            !stem.is_empty() && ROM_EXTENSIONS.iter().any(|known| extension.eq_ignore_ascii_case(known))
+            !stem.is_empty()
+                && ROM_EXTENSIONS
+                    .iter()
+                    .chain(&rom::THREE_DS_EXTENSIONS)
+                    .any(|known| extension.eq_ignore_ascii_case(known))
         })
 }
 
@@ -377,6 +419,7 @@ pub struct Engine<'a, R: Runtime> {
     pub conflicts: &'a Path,
     pub cheat_bases: &'a Path,
     pub kept_copies: &'a Path,
+    pub skins: &'a Path,
     pub removed: &'a Path,
     pub device: &'a str,
     pub sleep: &'a Sleep,
@@ -387,6 +430,7 @@ pub struct Engine<'a, R: Runtime> {
     pub mobile_data: &'a AtomicBool,
     pub mobile_roms: &'a AtomicBool,
     pub others_waiting: &'a (dyn Fn() -> bool + Sync),
+    pub stopping: &'a AtomicBool,
     pub tracker: Tracker,
     pub stopped_early: AtomicBool,
 }
@@ -405,8 +449,16 @@ impl<R: Runtime> Engine<'_, R> {
             && !(self.mobile_data.load(Ordering::Relaxed) && self.mobile_roms.load(Ordering::Relaxed))
     }
 
+    fn stopping(&self) -> bool {
+        self.stopping.load(Ordering::Relaxed)
+    }
+
     fn roms_wait(&self) -> bool {
-        !self.syncs_games() || self.mobile_data_holds_roms() || (self.others_waiting)() || self.in_use.any_playing()
+        self.stopping()
+            || !self.syncs_games()
+            || self.mobile_data_holds_roms()
+            || (self.others_waiting)()
+            || self.in_use.any_playing()
     }
 
     // A full sync stops between games for one waiting to open, and leaves the rest for a sync after it.
@@ -423,7 +475,7 @@ impl<R: Runtime> Engine<'_, R> {
         self.games.remove_half_written(&SYSTEMS).await;
         let roms = scan(self.games).await;
         let (mut report, pending, on_mobile_data) = self.check_and_sync(&roms, true).await?;
-        if on_mobile_data || self.stops_for_others() {
+        if on_mobile_data || self.stopping() || self.stops_for_others() {
             self.hold_roms(pending.into_iter());
             return Ok(report);
         }
@@ -432,8 +484,9 @@ impl<R: Runtime> Engine<'_, R> {
             eprintln!("purging retired blobs: {e}");
         }
         let kept = self.sync_kept_copies().await;
+        let skins = self.sync_skins().await;
         self.sync_roms(pending, &mut report).await;
-        kept.map(|_| report)
+        kept.and(skins).map(|_| report)
     }
 
     pub async fn sync(&self, roms: &[String]) -> Result<Report, Error> {
@@ -469,6 +522,10 @@ impl<R: Runtime> Engine<'_, R> {
         let mut on_mobile_data = false;
         let mut checked = checked.into_iter();
         while let Some(next) = checked.next() {
+            if full && self.stopping() {
+                self.hold_stopped(std::iter::once(next).chain(checked));
+                break;
+            }
             if full && self.stops_for_others() {
                 break;
             }
@@ -495,11 +552,11 @@ impl<R: Runtime> Engine<'_, R> {
                         self.events.game(&synced.path, &GameState::Conflict);
                     }
                     match rom_size {
-                        Some(size) => {
+                        Some(_) => {
                             if !conflicted {
                                 self.events.game(&rom, &GameState::Queued);
                             }
-                            pending.push(PendingRom { rom: rom.clone(), id, size, conflicted });
+                            pending.push(PendingRom { rom: rom.clone(), id, conflicted });
                         }
                         None if !conflicted => self.synced_now(&synced.path, &id),
                         None => {}
@@ -524,6 +581,14 @@ impl<R: Runtime> Engine<'_, R> {
                 self.tracker.wait_for_wifi(&game.rom);
             }
             self.events.game(&game.rom, &GameState::Waiting { reason: Wait::MobileData });
+        }
+        self.emit_run();
+    }
+
+    fn hold_stopped(&self, held: impl Iterator<Item = Checked>) {
+        for game in held.filter(|game| game.bytes() > 0) {
+            self.tracker.settle(&game.rom, 0);
+            self.events.game(&game.rom, &GameState::Waiting { reason: Wait::Stopped });
         }
         self.emit_run();
     }
@@ -621,14 +686,27 @@ impl<R: Runtime> Engine<'_, R> {
             };
         }
         let rom_size = match with_roms && self.syncs_games() {
-            true => self.rom_upload(rom, &game, record.as_ref()).await?,
+            true => self.rom_transfers(rom, &game, record.as_ref()).await?,
             false => None,
         };
         Ok(Checked { rom: rom.into(), game, files, rom_size, moved: from != rom })
     }
 
-    // A ROM held back for mobile data is listed as waiting. One held back for anything else is planned,
+    // A ROM or update held back for mobile data is listed as waiting. One held back for anything else is planned,
     // and drops out of the run if it still waits at its turn.
+    async fn rom_transfers(&self, rom: &str, game: &Game, record: Option<&Record>) -> Result<Option<u64>, Error> {
+        let rom_upload = self.rom_upload(rom, game, record).await?;
+        let update = self.update_transfer(rom, record.and_then(|record| record.update.as_ref())).await?;
+        if rom_upload.is_none() && update.is_none() {
+            return Ok(None);
+        }
+        if self.mobile_data_holds_roms() {
+            self.tracker.wait_for_wifi(rom);
+            return Ok(None);
+        }
+        Ok(Some(rom_upload.unwrap_or(0) + update.map_or(0, |update| update.size())))
+    }
+
     async fn rom_upload(&self, rom: &str, game: &Game, record: Option<&Record>) -> Result<Option<u64>, Error> {
         let (size, modified) = self.stat(rom).await?;
         let sha1 = self.rom_sha1(rom, size, millis(modified)).await?;
@@ -639,14 +717,41 @@ impl<R: Runtime> Engine<'_, R> {
             Some(record) if changed_here && (record.rom.sha1 != sha1 || record.rom.size != size) => true,
             Some(record) => record.rom.blob.is_none() && record.rom.sha1 == sha1,
         };
-        if !goes_up {
+        Ok(goes_up.then_some(size))
+    }
+
+    async fn local_update(&self, rom: &str) -> Result<Option<LocalUpdate>, Error> {
+        let path = update::path(rom);
+        if !rom::is_3ds(rom) || !self.games.has_file(&path).await {
             return Ok(None);
         }
-        if self.mobile_data_holds_roms() {
-            self.tracker.wait_for_wifi(rom);
-            return Ok(None);
+        let (size, modified) = self.stat(&path).await?;
+        let mut file = self.games.open_file(&path).await.map_err(|e| format!("{path}: {e}"))?;
+        // An update the app can't read stays on this device, so it holds back none of the game's other files.
+        match update::read(&mut file) {
+            Ok(Some(update)) => Ok(Some(LocalUpdate { version: update.version, size, modified })),
+            Ok(None) => Ok(None),
+            Err(refused) => {
+                eprintln!("{}", refused.message(&path));
+                Ok(None)
+            }
         }
-        Ok(Some(size))
+    }
+
+    async fn update_transfer(
+        &self,
+        rom: &str,
+        cloud: Option<&record::Update>,
+    ) -> Result<Option<UpdateTransfer>, Error> {
+        Ok(match (self.local_update(rom).await?, cloud) {
+            (Some(local), cloud) if cloud.is_none_or(|cloud| cloud.version < local.version) => {
+                Some(UpdateTransfer::Up(local))
+            }
+            (local, Some(cloud)) if local.as_ref().is_none_or(|local| local.version < cloud.version) => {
+                Some(UpdateTransfer::Down(cloud.clone()))
+            }
+            _ => None,
+        })
     }
 
     // Outside the games' locks, so a long upload holds back no game from starting.
@@ -657,10 +762,8 @@ impl<R: Runtime> Engine<'_, R> {
                 break;
             }
             self.tracker.game(&next.rom);
-            self.tracker.begin(&next.rom, Stage::UploadingRom, next.size);
             match self.sync_rom(&next.rom).await {
                 Ok(()) => {
-                    self.finish_file();
                     self.tracker.settle(&next.rom, 0);
                     self.rom_synced(next);
                 }
@@ -678,15 +781,19 @@ impl<R: Runtime> Engine<'_, R> {
         self.hold_roms(pending);
     }
 
-    // A game whose only transfer left is a ROM held back counts as synced.
+    // A game whose only transfer left is a ROM held back counts as synced, unless a stop held it.
     fn hold_roms(&self, held: impl Iterator<Item = PendingRom>) {
         let for_wifi = self.mobile_data_holds_roms() && self.syncs_games();
+        let stopped = self.stopping();
         for rom in held {
             self.tracker.settle(&rom.rom, 0);
             if for_wifi {
                 self.tracker.wait_for_wifi(&rom.rom);
             }
-            self.rom_synced(&rom);
+            match stopped {
+                true => self.events.game(&rom.rom, &GameState::Waiting { reason: Wait::Stopped }),
+                false => self.rom_synced(&rom),
+            }
         }
         self.emit_run();
     }
@@ -735,6 +842,11 @@ impl<R: Runtime> Engine<'_, R> {
 
     async fn sync_rom(&self, rom: &str) -> Result<(), Error> {
         let Some(game) = self.synced_game(rom)? else { return Ok(()) };
+        self.send_rom(rom, &game).await?;
+        self.sync_update(rom, &game).await
+    }
+
+    async fn send_rom(&self, rom: &str, game: &SyncedGame) -> Result<(), Error> {
         for _ in 0..STALE_RETRIES {
             let Some((version, mut record)) = self.cached(&game.id)? else { return Ok(()) };
             if record.rom.blob.is_some() || record.rom.path != rom || record.rom.sha1 != game.rom_sha1 {
@@ -744,12 +856,15 @@ impl<R: Runtime> Engine<'_, R> {
             if size as i64 != game.rom_size || millis(modified) != game.rom_mtime {
                 return Ok(());
             }
+            self.tracker.begin(rom, Stage::UploadingRom, size);
             record.rom.blob = Some(self.retry(|| self.upload_rom(&game.id, rom, size, modified)).await?);
             let json = serde_json::to_vec(&record).map_err(|e| e.to_string())?;
             match self.retry(|| self.provider.write_record(&game.id, &json, Some(&version))).await {
                 Ok(version) => {
                     self.keep_record(&record, &version)?;
-                    return Ok(self.index.forget_sync_upload(&game.id, rom)?);
+                    self.index.forget_sync_upload(&game.id, rom)?;
+                    self.finish_file();
+                    return Ok(());
                 }
                 Err(Error::Stale) => {
                     self.fetch(&game.id).await?;
@@ -758,6 +873,68 @@ impl<R: Runtime> Engine<'_, R> {
             }
         }
         Err(Error::Stale)
+    }
+
+    async fn sync_update(&self, rom: &str, game: &SyncedGame) -> Result<(), Error> {
+        let path = update::path(rom);
+        for _ in 0..STALE_RETRIES {
+            let Some((version, mut record)) = self.cached(&game.id)? else { return Ok(()) };
+            if record.rom.path != rom {
+                return Ok(());
+            }
+            let local = match self.update_transfer(rom, record.update.as_ref()).await? {
+                None => return Ok(()),
+                Some(UpdateTransfer::Down(update)) => {
+                    self.tracker.begin(&path, Stage::DownloadingUpdate, update.size);
+                    let stop = || self.roms_wait();
+                    self.download_update(rom, &update, &|done, _| self.sent(done), Some(&stop)).await?;
+                    self.finish_file();
+                    return Ok(());
+                }
+                Some(UpdateTransfer::Up(local)) => local,
+            };
+            self.tracker.begin(&path, Stage::UploadingUpdate, local.size);
+            let sha1 = self.file_sha1(&path, local.size, nanos(local.modified)).await?;
+            let file = Local { size: local.size, mtime: millis(local.modified), sha1: sha1.clone() };
+            let stop = || self.roms_wait();
+            let blob = self.retry(|| self.upload(&game.id, &path, &file, Some(&stop))).await?;
+            let replaced =
+                record.update.replace(record::Update { version: local.version, sha1, size: local.size, blob });
+            let json = serde_json::to_vec(&record).map_err(|e| e.to_string())?;
+            match self.retry(|| self.provider.write_record(&game.id, &json, Some(&version))).await {
+                Ok(version) => {
+                    self.keep_record(&record, &version)?;
+                    self.index.forget_sync_upload(&game.id, &path)?;
+                    self.finish_file();
+                    if let Some(old) = replaced {
+                        if let Err(e) = self.retry(|| self.provider.delete_blob(&old.blob)).await {
+                            eprintln!("deleting blob {}: {e}", old.blob);
+                        }
+                    }
+                    return Ok(());
+                }
+                Err(Error::Stale) => {
+                    self.fetch(&game.id).await?;
+                }
+                Err(e) => return Err(e),
+            }
+        }
+        Err(Error::Stale)
+    }
+
+    async fn download_update(
+        &self,
+        rom: &str,
+        update: &record::Update,
+        progress: &OnProgress<'_>,
+        stop: Option<&(dyn Fn() -> bool + Sync)>,
+    ) -> Result<(), Error> {
+        let path = update::path(rom);
+        let blob = Blob { id: update.blob.clone(), sha1: update.sha1.clone() };
+        self.retry(|| self.download_rom_file(&path, &blob, update.size, progress, stop)).await?;
+        let (size, modified) = self.stat(&path).await?;
+        let hash = FileHash { size: size as i64, mtime: nanos(modified), sha1: update.sha1.clone() };
+        Ok(self.index.keep_file_hash(&path, &hash)?)
     }
 
     async fn retry<T, F, Fut>(&self, mut call: F) -> Result<T, Error>
@@ -816,7 +993,8 @@ impl<R: Runtime> Engine<'_, R> {
     async fn remove_here(&self, id: &str, rom: &str) -> Result<(), Error> {
         self.forget_game(id)?;
         self.index.forget_sync_deletions(rom)?;
-        for path in self.game_files(rom).await? {
+        // The update goes like the ROM, which isn't held either.
+        for path in self.game_files(rom).await?.into_iter().filter(|path| *path != update::path(rom)) {
             self.hold(&path).await?;
         }
         Ok(remove_game(self.games, rom).await?)
@@ -836,7 +1014,7 @@ impl<R: Runtime> Engine<'_, R> {
     async fn fetch(&self, id: &str) -> Result<bool, Error> {
         match self.retry(|| self.provider.read_record(id)).await? {
             // Kept as it is, so a record this version can't read still has its version and stays untouched.
-            Some(Versioned { json, version }) if kept::is_kept(id) => {
+            Some(Versioned { json, version }) if !is_game(id) => {
                 self.index.keep_sync_record(id, &version, &String::from_utf8_lossy(&json))?;
                 Ok(false)
             }
@@ -874,7 +1052,7 @@ impl<R: Runtime> Engine<'_, R> {
             .index
             .sync_records()?
             .into_iter()
-            .filter(|(id, _, _)| !kept::is_kept(id))
+            .filter(|(id, _, _)| is_game(id))
             .filter_map(|(_, version, json)| Some((version, serde_json::from_str(&json).ok()?)))
             .collect())
     }
@@ -978,7 +1156,11 @@ impl<R: Runtime> Engine<'_, R> {
     }
 
     async fn move_files(&self, from: &str, to: &str) -> Result<(), Error> {
-        for path in self.local_paths(from).await? {
+        let mut paths = self.local_paths(from).await?;
+        if self.games.has_file(&update::path(from)).await {
+            paths.push(update::path(from));
+        }
+        for path in paths {
             let target = record::moved(&path, from, to);
             if !self.games.has_file(&target).await {
                 self.games.rename(&path, &target).await.map_err(|e| format!("{path}: {e}"))?;
@@ -1122,6 +1304,7 @@ impl<R: Runtime> Engine<'_, R> {
                 Record {
                     id: game.id.clone(),
                     rom: record::Rom { path: rom.clone(), sha1: rom_sha1.clone(), size: rom_size, blob: None },
+                    update: None,
                     files: Vec::new(),
                 }
             }
@@ -1742,10 +1925,11 @@ impl<R: Runtime> Engine<'_, R> {
     }
 
     pub async fn cloud_rom_size(&self, rom: &str) -> Result<Option<u64>, Error> {
-        Ok(self.free_record(rom).await?.filter(|record| record.rom.blob.is_some()).map(|record| record.rom.size))
+        let record = self.free_record(rom).await?.filter(|record| record.rom.blob.is_some());
+        Ok(record.map(|record| record.rom.size + record.update.map_or(0, |update| update.size)))
     }
 
-    // Only the ROM. The game's files follow at its next sync.
+    // Only the ROM and its update. The game's files follow at its next sync.
     pub async fn download_rom(&self, rom: &str, progress: &OnProgress<'_>) -> Result<(), Error> {
         let record = self.free_record(rom).await?.filter(|record| record.rom.blob.is_some());
         let record = record.ok_or_else(|| format!("{} isn't in your cloud", file_name(rom)))?;
@@ -1753,18 +1937,33 @@ impl<R: Runtime> Engine<'_, R> {
         if self.games.has_file(rom).await {
             return Err(format!("{rom} is already on this device").into());
         }
-        self.retry(|| self.download_rom_file(rom, blob, record.rom.size, progress)).await?;
+        let total = record.rom.size + record.update.as_ref().map_or(0, |update| update.size);
+        let before_rom = total - record.rom.size;
+        // The update comes first, so a game on the device always has the update its record names.
+        if let Some(update) = &record.update {
+            self.download_update(rom, update, &|done, _| progress(done, total), None).await?;
+        }
+        let rom_progress = |done, _| progress(before_rom + done, total);
+        self.retry(|| self.download_rom_file(rom, blob, record.rom.size, &rom_progress, None)).await?;
         let (size, modified) = self.stat(rom).await?;
         self.index.keep_file_hash(rom, &FileHash { size: size as i64, mtime: nanos(modified), sha1: blob.sha1.clone() })?;
         let game = SyncedGame { id: record.id.clone(), path: rom.into(), rom_size: size as i64, rom_mtime: millis(modified), rom_sha1: record.rom.sha1 };
         Ok(self.index.keep_synced_game(&game)?)
     }
 
-    async fn download_rom_file(&self, rom: &str, blob: &Blob, size: u64, progress: &OnProgress<'_>) -> Result<(), Error> {
+    async fn download_rom_file(
+        &self,
+        rom: &str,
+        blob: &Blob,
+        size: u64,
+        progress: &OnProgress<'_>,
+        stop: Option<&(dyn Fn() -> bool + Sync)>,
+    ) -> Result<(), Error> {
         let file = self.games.create_file(rom).await.map_err(|e| format!("{rom}: {e}"))?;
-        let mut writer = Counting { inner: Hashing::new(file), done: 0, total: size, progress };
+        let counting = Counting { inner: Hashing::new(file), done: 0, total: size, progress };
+        let mut writer = Stopping { inner: counting, stop };
         self.provider.download(&blob.id, &mut writer).await?;
-        let (file, sha1) = writer.inner.finish();
+        let (file, sha1) = writer.inner.inner.finish();
         if sha1 != blob.sha1 {
             return Err(format!("{} didn't download whole", file_name(rom)).into());
         }
@@ -1777,6 +1976,9 @@ impl<R: Runtime> Engine<'_, R> {
         let (_, record) = self.cached(&game.id)?.ok_or_else(not_synced)?;
         if record.rom.blob.is_none() || record.rom.path != rom || record.rom.sha1 != game.rom_sha1 {
             return Err("This game's ROM isn't in your cloud yet".into());
+        }
+        if matches!(self.update_transfer(rom, record.update.as_ref()).await?, Some(UpdateTransfer::Up(_))) {
+            return Err("This game's update isn't in your cloud yet".into());
         }
         if !self.index.sync_conflicts(&game.id)?.is_empty() {
             return Err("This game changed on another device. Open it to pick which version to keep".into());
@@ -1804,9 +2006,10 @@ impl<R: Runtime> Engine<'_, R> {
                         eprintln!("retiring blob {}: {e}", entry.blob);
                     }
                 }
-                if let Some(blob) = record.rom.blob {
-                    if let Err(e) = self.retry(|| self.provider.delete_blob(&blob.id)).await {
-                        eprintln!("deleting blob {}: {e}", blob.id);
+                let rom_blob = record.rom.blob.map(|blob| blob.id);
+                for blob in rom_blob.into_iter().chain(record.update.map(|update| update.blob)) {
+                    if let Err(e) = self.retry(|| self.provider.delete_blob(&blob)).await {
+                        eprintln!("deleting blob {blob}: {e}");
                     }
                 }
             }
@@ -1835,6 +2038,11 @@ fn remove_file(file: &Path) -> Result<(), Error> {
 type Outcome = Result<Report, String>;
 
 static NOT_METERED: AtomicBool = AtomicBool::new(false);
+static STOPPING: AtomicBool = AtomicBool::new(false);
+
+pub fn stop() {
+    STOPPING.store(true, Ordering::Relaxed);
+}
 
 pub struct Syncer {
     connected: Mutex<Option<(Cloud, Arc<dyn Provider>)>>,
@@ -1847,6 +2055,7 @@ pub struct Syncer {
     conflicts: PathBuf,
     cheat_bases: PathBuf,
     kept_copies: PathBuf,
+    skins: PathBuf,
     removed: PathBuf,
     signed_in: PathBuf,
     sync_games: AtomicBool,
@@ -1911,6 +2120,7 @@ impl Syncer {
             conflicts: data_dir.join("sync-conflicts"),
             cheat_bases: data_dir.join("sync-cheats"),
             kept_copies: crate::kept_copies::dir(data_dir),
+            skins: crate::skins::file(data_dir),
             removed: data_dir.join("removed"),
             signed_in: data_dir.join("sync-account.json"),
             sync_games: AtomicBool::new(settings.sync_games),
@@ -2140,10 +2350,15 @@ impl<R: Runtime> Events for AppEvents<R> {
 
     fn run(&self, run: &RunProgress) {
         let _ = self.0.emit("sync-run", run);
+        keep_alive::progress(&self.0, run);
     }
 
     fn box_art(&self, rom: &str) {
         let _ = self.0.emit("box-art-changed", rom);
+    }
+
+    fn skins(&self, skins: &crate::skins::Skins) {
+        let _ = self.0.emit("skins-changed", skins);
     }
 }
 
@@ -2166,6 +2381,7 @@ async fn run<R: Runtime>(app: AppHandle<R>, folder: String, request: Request) ->
     let index = app.state::<Arc<Index>>();
     // Taken before the provider, so a sign-out that clears the provider first waits for this sync or stops it starting.
     let _running = state.running.lock().await;
+    STOPPING.store(false, Ordering::Relaxed);
     let provider = state.provider()?;
     let _ = app.emit("sync-status", Status { syncing: true, error: None, account_error: None, last_synced: None });
     let games = GamesFolder::open(&app, &folder);
@@ -2191,13 +2407,16 @@ async fn run<R: Runtime>(app: AppHandle<R>, folder: String, request: Request) ->
     let report = match request {
         Request::All => {
             let report = engine.sync_all().await;
-            if engine.stopped_early.load(Ordering::Relaxed) {
+            if engine.stopped_early.load(Ordering::Relaxed) && !STOPPING.load(Ordering::Relaxed) {
                 state.queue.run_after(Request::All);
             }
             report
         }
         Request::Games(roms) => engine.sync(&roms.into_iter().collect::<Vec<_>>()).await,
     };
+    if STOPPING.load(Ordering::Relaxed) {
+        state.queue.drop_waiting();
+    }
     watching.abort();
     let error = match &report {
         Ok(report) => report.values().find_map(|synced| synced.error.clone()),
@@ -2258,6 +2477,7 @@ fn engine_for<'a, R: Runtime>(
         conflicts: &state.conflicts,
         cheat_bases: &state.cheat_bases,
         kept_copies: &state.kept_copies,
+        skins: &state.skins,
         removed: &state.removed,
         device,
         sleep: &sleep,
@@ -2268,6 +2488,7 @@ fn engine_for<'a, R: Runtime>(
         mobile_data: &state.mobile_data,
         mobile_roms: &state.mobile_roms,
         others_waiting: &|| false,
+        stopping: &STOPPING,
         tracker: Tracker::default(),
         stopped_early: AtomicBool::new(false),
     }

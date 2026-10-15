@@ -17,6 +17,7 @@ const emerald: Game = { system: "gba", name: "Pokemon - Emerald Version (USA, Eu
 const fireRed: Game = { system: "gba", name: "Pokemon - FireRed Version (USA)", path: "gba/FireRed.gba" };
 const crystal: Game = { system: "gbc", name: "Pokemon - Crystal Version (USA)", path: "gbc/Crystal.gbc" };
 const leafGreen: Game = { system: "gba", name: "Pokemon - LeafGreen Version (USA)", path: "gba/LeafGreen.gba" };
+const pokemonX: Game = { system: "3ds", name: "Pokemon X (USA)", path: "3ds/X.3ds" };
 const stadium: Game = { system: "n64", name: "Pokemon Stadium (USA)", path: "n64/Stadium.z64" };
 
 let pads: ReturnType<typeof fakePads>;
@@ -62,7 +63,7 @@ const theirs = [pokemon("Charmander", inParty(0)), pokemon("Kadabra", inBox(0, 0
 
 const defaultTransfer: FakeTransfer = {
   partners: {
-    "FireRed.sav": { version: "FireRed", routes: { send: "link", receive: "link" }, room: { mine: 4, partner: 12 }, pokemon: theirs },
+    "FireRed.sav": { version: "FireRed", routes: { send: ["link"], receive: ["link"] }, room: { mine: 4, partner: 12 }, pokemon: theirs },
     "Crystal.sav": { version: "Crystal", routes: { send: null, receive: null }, room: { mine: 4, partner: 20 } },
   },
 };
@@ -161,7 +162,7 @@ it("disables a game the saves can't transfer with", async () => {
 
 it("disables a game that can only send here", async () => {
   const transfer: FakeTransfer = {
-    partners: { ...defaultTransfer.partners, "Crystal.sav": { ...defaultTransfer.partners["Crystal.sav"], routes: { send: null, receive: "link" } } },
+    partners: { ...defaultTransfer.partners, "Crystal.sav": { ...defaultTransfer.partners["Crystal.sav"], routes: { send: null, receive: ["link"] } } },
   };
   await launch({ transfer });
 
@@ -173,7 +174,7 @@ it("disables a game that can only send here", async () => {
 const unofficialCrystal: FakeTransfer = {
   partners: {
     ...defaultTransfer.partners,
-    "Crystal.sav": { ...defaultTransfer.partners["Crystal.sav"], routes: { send: "unofficial", receive: "unofficial" } },
+    "Crystal.sav": { ...defaultTransfer.partners["Crystal.sav"], routes: { send: ["unofficial"], receive: ["unofficial"] } },
   },
 };
 
@@ -184,6 +185,28 @@ it("lets the player pick a game only an unofficial transfer reaches, and says so
   await waitFor(() => expect((crystalButton as HTMLButtonElement).disabled).toBe(false));
   expect(crystalButton.textContent).toContain("Not possible in the real games");
   expect(button(/^FireRed/)!.textContent).not.toContain("Not possible in the real games");
+});
+
+it("says the games only moved Pokémon forward when an unofficial transfer goes to an older generation", async () => {
+  const transfer: FakeTransfer = {
+    partners: { "Emerald.sav": { version: "Emerald", generation: 3, routes: { send: ["unofficial"], receive: ["palPark", "pokeTransfer"] }, room: { mine: 4, partner: 20 } } },
+  };
+  await launch({ transfer, save: { generation: 5, version: "Black" }, partners: [{ game: emerald, name: "Emerald" }] });
+
+  const emeraldButton = await screen.findByRole("button", { name: /^Emerald/ });
+  await waitFor(() => expect(emeraldButton.textContent).toContain("The games only moved Pokémon forward"));
+  expect(emeraldButton.textContent).not.toContain("Not possible in the real games");
+});
+
+it("keeps saying an unofficial transfer forward wasn't possible in the real games", async () => {
+  const transfer: FakeTransfer = {
+    partners: { "X.sav": { version: "X", generation: 6, routes: { send: ["unofficial"], receive: ["unofficial"] }, room: { mine: 4, partner: 20 } } },
+  };
+  await launch({ transfer, save: { generation: 2, version: "Crystal" }, partners: [{ game: pokemonX, name: "X" }] });
+
+  const xButton = await screen.findByRole("button", { name: /^X/ });
+  await waitFor(() => expect(xButton.textContent).toContain("Not possible in the real games"));
+  expect(xButton.textContent).not.toContain("only moved Pokémon forward");
 });
 
 it("notes what an unofficial transfer may lose under the status line", async () => {
@@ -280,7 +303,7 @@ it("marks a game only an unofficial transfer reaches as unofficial", async () =>
 
 it("marks a game that can only send here as blocked", async () => {
   const transfer: FakeTransfer = {
-    partners: { ...defaultTransfer.partners, "Crystal.sav": { ...defaultTransfer.partners["Crystal.sav"], routes: { send: null, receive: "link" } } },
+    partners: { ...defaultTransfer.partners, "Crystal.sav": { ...defaultTransfer.partners["Crystal.sav"], routes: { send: null, receive: ["link"] } } },
   };
   await launch({ transfer });
 
@@ -607,7 +630,7 @@ it("writes the other game first when sending from this one", async () => {
 
 it("writes a Stadium save it sends to", async () => {
   const transfer: FakeTransfer = {
-    partners: { "Stadium.sav": { version: "Red", routes: { send: "link", receive: "link" }, room: { mine: 4, partner: 240 } } },
+    partners: { "Stadium.sav": { version: "Red", routes: { send: ["link"], receive: ["link"] }, room: { mine: 4, partner: 240 } } },
   };
   const { host } = await launch({ transfer, partners: [{ game: stadium, name: "Stadium" }] });
   await pickGame("Stadium");
@@ -689,7 +712,7 @@ it("shows why sending failed when a save can't be written", async () => {
 const toCrystal: FakeTransfer = {
   partners: {
     ...defaultTransfer.partners,
-    "Crystal.sav": { version: "Crystal", generation: 2, routes: { send: "unofficial", receive: "unofficial" }, room: { mine: 4, partner: 20 } },
+    "Crystal.sav": { version: "Crystal", generation: 2, routes: { send: ["unofficial"], receive: ["unofficial"] }, room: { mine: 4, partner: 20 } },
   },
 };
 

@@ -1,11 +1,12 @@
 import { useRef, type ComponentProps, type KeyboardEvent, type ReactNode } from "react";
+import { cn } from "cn";
 import { BottomSheet } from "@/components/BottomSheet";
 import { Button } from "@/components/ui/button";
 import { buttons, type Input } from "@/input/input";
 
-export function MenuEntry({ icon, children, ...props }: { icon: ReactNode } & ComponentProps<typeof Button>) {
+export function MenuEntry({ icon, className, children, ...props }: { icon: ReactNode } & ComponentProps<typeof Button>) {
   return (
-    <Button variant="ghost" className="h-11 justify-start gap-3 rounded-lg px-3 text-base" {...props}>
+    <Button variant="ghost" className={cn("h-11 justify-start gap-3 rounded-lg px-3 text-base", className)} {...props}>
       {icon}
       {children}
     </Button>

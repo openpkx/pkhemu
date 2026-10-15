@@ -5,8 +5,17 @@
 @import "@fontsource/pixelify-sans/400.css";
 @import "@fontsource/pixelify-sans/600.css";
 @import "./motion/motion.css";
+@import "./skin-look/skinLook.css";
 
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+/* The skin picker draws the portrait game screen while the phone lies on its side. */
+@custom-variant landscape {
+  @media (orientation: landscape) {
+    &:not(:where([data-portrait], [data-portrait] *)) {
+      @slot;
+    }
+  }
+}
 
 @theme inline {
     --font-heading: var(--font-sans);

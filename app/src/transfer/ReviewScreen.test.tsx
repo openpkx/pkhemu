@@ -57,7 +57,7 @@ async function launch({
     party: [partyKadabra],
     transfer: {
       partners: {
-        "FireRed.sav": { version: "FireRed", routes: { send: "link", receive: "link" }, room: { mine: 4, partner: 12 }, pokemon: [kadabra, onix] },
+        "FireRed.sav": { version: "FireRed", routes: { send: ["link"], receive: ["link"] }, room: { mine: 4, partner: 12 }, pokemon: [kadabra, onix] },
       },
       offered,
     },
@@ -202,7 +202,7 @@ it("warns when the Pokémon fails the legality check, without blocking Send", as
 });
 
 it("shows a removed move with its reason", async () => {
-  await launch({ offered: () => ({ route: "unofficial", changes: [{ field: "moves", before: "Shadow Claw", after: null, reason: "notInGame" }] }) });
+  await launch({ offered: () => ({ route: ["unofficial"], changes: [{ field: "moves", before: "Shadow Claw", after: null, reason: "notInGame" }] }) });
 
   const row = within(within(await card(/Kadabra/)).getByRole("list", { name: "Changes" })).getByRole("listitem");
   expect(within(row).getByText("Moves")).toBeTruthy();
@@ -211,7 +211,7 @@ it("shows a removed move with its reason", async () => {
 });
 
 it("shows one alert for an unofficial transfer in place of the legality warning", async () => {
-  await launch({ offered: () => ({ route: "unofficial", legality: { valid: false, messages: ["Met Location: Invalid."] } }) });
+  await launch({ offered: () => ({ route: ["unofficial"], legality: { valid: false, messages: ["Met Location: Invalid."] } }) });
 
   const kadabraCard = await card(/Kadabra/);
   const alert = within(kadabraCard).getByRole("alert");
@@ -227,7 +227,7 @@ const sentKadabra = { offer: { send: [partyKadabra.at], receive: [] } };
 
 it("says a field the player didn't change came from the Pokémon's kept copy", async () => {
   const offered = (): Partial<OfferedPokemon> => ({
-    route: "unofficial",
+    route: ["unofficial"],
     changes: [
       { field: "ball", before: "Poké Ball", after: "Dusk Ball", reason: "unofficial" },
       { field: "moves", before: "Tackle", after: null, reason: "notInGame" },
@@ -244,7 +244,7 @@ it("says a field the player didn't change came from the Pokémon's kept copy", a
 
 it("says nothing is restored when kept copies can't tell Pokémon apart, in the unofficial alert", async () => {
   const notes: CopyNote[] = [{ at: partyKadabra.at, ambiguous: true }];
-  await launch({ ...sentKadabra, offered: () => ({ route: "unofficial" }), notes });
+  await launch({ ...sentKadabra, offered: () => ({ route: ["unofficial"] }), notes });
 
   const alert = within(await card(/Kadabra/)).getByRole("alert");
   expect(within(alert).getByText(/more than one Pokémon that could be this one/)).toBeTruthy();
@@ -261,7 +261,7 @@ it("says nothing is restored when kept copies can't tell Pokémon apart, on an o
 
 it("says pkhemu keeps the data an unofficial transfer drops when it keeps a copy", async () => {
   const notes: CopyNote[] = [{ at: partyKadabra.at, keptFrom: "FireRed" }];
-  await launch({ ...sentKadabra, offered: () => ({ route: "unofficial" }), notes });
+  await launch({ ...sentKadabra, offered: () => ({ route: ["unofficial"] }), notes });
 
   const alert = within(await card(/Kadabra/)).getByRole("alert");
   expect(within(alert).getByText(/keeps its FireRed data and puts it back/)).toBeTruthy();
@@ -269,7 +269,7 @@ it("says pkhemu keeps the data an unofficial transfer drops when it keeps a copy
 });
 
 it("hides Details on an unofficial transfer that passes the legality check", async () => {
-  await launch({ offered: () => ({ route: "unofficial" }) });
+  await launch({ offered: () => ({ route: ["unofficial"] }) });
 
   const alert = within(await card(/Kadabra/)).getByRole("alert");
   expect(within(alert).getByText("Not possible in the real games")).toBeTruthy();

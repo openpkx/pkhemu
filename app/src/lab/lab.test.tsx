@@ -171,3 +171,34 @@ it("reports a change that couldn't be saved and keeps it for this session", asyn
   expect(result.current.values.blend).toBe("on");
   expect(result.current.error).toBe("Error: disk full");
 });
+
+it("hides an experiment the platform can't offer and runs it at its first value", async () => {
+  const { host, launch } = fakeStore({ blend: "on", pacing: "drop" });
+  host.hidden = async () => ["pacing"];
+
+  const { result } = launch(reporting({ state: "unlocked" }));
+
+  await waitFor(() => expect(result.current.values).toEqual({ blend: "on", pacing: "catch-up" }));
+  expect(result.current.shown.map(({ id }) => id)).toEqual(["blend"]);
+});
+
+it("hides nothing when the platform can't say what to hide", async () => {
+  const { host, launch } = fakeStore({ blend: "on", pacing: "drop" });
+  host.hidden = async () => {
+    throw new Error("no answer");
+  };
+
+  const { result } = launch(reporting({ state: "unlocked" }));
+
+  await waitFor(() => expect(result.current.values).toEqual({ blend: "on", pacing: "drop" }));
+});
+
+it("describes an experiment the way the platform words it", async () => {
+  const { host, launch } = fakeStore();
+  host.lines = { pacing: "How owed frames run here." };
+
+  const { result } = launch(reporting({ state: "unlocked" }));
+
+  await waitFor(() => expect(result.current.shown).toHaveLength(2));
+  expect(result.current.shown.map(({ line }) => line)).toEqual(["Blends skipped frames.", "How owed frames run here."]);
+});

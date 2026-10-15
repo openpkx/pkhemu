@@ -1,6 +1,6 @@
 # pkhemu
 
-A Pokémon-focused emulator for GB, GBC, GBA and DS games. Pause the game, edit your save with [PKHeX Everywhere](https://github.com/arleypadua/PKHeX.Everywhere), and keep playing.
+A Pokémon-focused emulator for GB, GBC, GBA, DS, N64 and 3DS games. Pause the game, edit your save with [PKHeX Everywhere](https://github.com/arleypadua/PKHeX.Everywhere), and keep playing.
 
 Work in progress. Bring your own game files: this repo ships no ROMs or BIOS files.
 
@@ -10,7 +10,7 @@ These are free forever: the emulator, save states, cheats, backups, the save edi
 
 Plus is a one-time purchase in Google Play and the App Store that unlocks two things: sync to your own Google Drive or Dropbox, and the Lab, where you can try emulator features before they ship. Later Plus features come at no extra cost. Builds from this source have Plus unlocked. Buying it in a store pays for the work.
 
-pkhemu is built on [PKHeX](https://github.com/kwsch/PKHeX), [melonDS](https://melonds.kuribo64.net) and [mGBA](https://mgba.io). Consider supporting them too.
+pkhemu is built on [PKHeX](https://github.com/kwsch/PKHeX), [mGBA](https://mgba.io), [melonDS](https://melonds.kuribo64.net), [Mupen64Plus-Next](https://github.com/libretro/mupen64plus-libretro-nx) and [Azahar](https://azahar-emu.org). Consider supporting them too.
 
 ## Source
 
@@ -18,7 +18,7 @@ pkhemu is built on [PKHeX](https://github.com/kwsch/PKHeX), [melonDS](https://me
 
 ## Run it
 
-You need Node, Rust and CMake. The scripts fetch the source of the emulator cores, mGBA and melonDS DS, and install npm packages on first run. Extra arguments go through to the Tauri CLI.
+You need Node, Rust and CMake. The scripts fetch the source of the emulator cores, mGBA, melonDS DS, Mupen64Plus-Next and Azahar, and install npm packages on first run. Extra arguments go through to the Tauri CLI.
 
 Clone without `--recursive`. Mupen64Plus-Next has a nested gitlink with no URL, which stops a recursive clone. The scripts fetch the cores themselves.
 
@@ -29,7 +29,7 @@ Clone without `--recursive`. Mupen64Plus-Next has a nested gitlink with no URL, 
 | `scripts/android-dev.sh` | Runs the app on a connected Android device or emulator with hot reload. |
 | `scripts/android-build.sh` | Builds an APK. `--debug` gives a signed debug APK, `--target aarch64` builds for one ABI only, `--aab` adds an App Bundle. |
 | `scripts/ios-dev.sh` | Runs the app in the iOS simulator with hot reload. Needs Xcode and XcodeGen. Name a simulator, like `"iPhone 17 Pro"`, to skip the prompt. |
-| `scripts/ios-build.sh` | Builds the App Store version and uploads it to TestFlight with the keys in `~/.config/pkh-emu/ios.env`. Refuses to run while Plus or Sync keys are set, in the environment or in `app/src-tauri/sync.env`. |
+| `scripts/ios-build.sh` | Builds the App Store version and uploads it to TestFlight with the keys in `~/.config/pkh-emu/ios.env`. Refuses to run while Plus or Sync keys are set, in the environment or in `app/src-tauri/sync.env`. `--unlocked` uploads a build that shows every Lab experiment, for internal testing only. |
 
 Tests: `npm --prefix app test`.
 

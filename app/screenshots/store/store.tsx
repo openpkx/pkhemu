@@ -23,6 +23,7 @@ import { PatchRomProvider, type PatchRomHost } from "@/patch-rom/patchRom";
 import { androidHosts } from "@/platform/androidHosts";
 import { iosHosts } from "@/platform/iosHosts";
 import { PreferencesProvider, type Preferences } from "@/preferences/preferences";
+import type { SkinChoice } from "@/skins";
 import { fakeSync } from "@/sync/fakeSync";
 import { SyncProvider } from "@/sync/sync";
 import "@/index.css";
@@ -111,11 +112,11 @@ const libraryHost: LibraryHost = {
   playHistory: async () => ({ lastPlayed: Date.now() - 40 * 60 * 1000, playTime: 0 }),
 };
 
-const playingGame: Record<string, [Game, string]> = {
+const playingGame: Record<string, [Game, string, SkinChoice?]> = {
   "playing-gbc": [games.tobudx, "tobudx-10"],
-  "playing-gba": [games.collie, "collie-13"],
-  "playing-nds": [games.jamclown, "jamclown-04"],
-  "playing-gb": [games.rhythm, "rhythm-03"],
+  "playing-gba": [games.collie, "collie-13", { skin: "indigo", look: "moulded" }],
+  "playing-nds": [games.jamclown, "jamclown-04", { skin: "pkhemu", look: "frosted" }],
+  "playing-gb": [games.rhythm, "rhythm-03", { skin: "classic-grey", look: "moulded" }],
   "playing-pause": [games.tobu, "tobu-10"],
 };
 const playingFrame = playing ? await rgb565(playingGame[screen][1]) : null;
@@ -130,7 +131,6 @@ Object.assign(window, {
       return id;
     },
     invoke: async (command: string, args: Record<string, unknown>) => {
-      if (command === "core_info") return { name: "mGBA", version: "0.10.5" };
       if (command === "play") {
         callbacks.get((args.onFrame as { id: number }).id)?.({ index: 0, message: playingFrame!.slice(0) });
         return 60;
@@ -143,7 +143,13 @@ Object.assign(window, {
 });
 document.documentElement.dataset.theme = "dark";
 
-const preferences: Preferences = { ...hosts.defaultPreferences, touchControls: playing, theme: "dark" };
+const [playedGame, , skin] = playingGame[screen] ?? [];
+const preferences: Preferences = {
+  ...hosts.defaultPreferences,
+  touchControls: playing,
+  theme: "dark",
+  skins: playedGame && skin ? { ...hosts.defaultPreferences.skins, [playedGame.system]: skin } : hosts.defaultPreferences.skins,
+};
 
 const gamesFolderHost: GamesFolderHost = {
   pickFolder: async () => "/games",
@@ -162,9 +168,10 @@ const gamesFolderHost: GamesFolderHost = {
 const patchRomHost: PatchRomHost = {
   baseBuild: async () => null,
   pick: async () => null,
-  dropped: async () => ({ file: "", name: "", format: null }),
+  bases: async () => ({ checked: true, games: [] }),
+  dropped: async () => ({ file: "", name: "", format: null, baseChecked: false }),
   checkName: async () => {},
-  create: async () => ({ path: "", sha256: "" }),
+  create: async () => ({ path: "", sha256: "", baseChecked: false }),
   patchedFrom: async () => null,
   keepPatchedFrom: async () => {},
 };

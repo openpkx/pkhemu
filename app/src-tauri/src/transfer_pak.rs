@@ -495,7 +495,7 @@ mod tests {
         let cart = Cart {
             path: "gbc/Crystal.gbc".into(),
             dir,
-            rom: Rom { name: "Crystal.gbc".into(), bytes: gb_header(b"PM_CRYSTAL", 0x10, 0x03) },
+            rom: Rom { name: "Crystal.gbc".into(), bytes: gb_header(b"PM_CRYSTAL", 0x10, 0x03), file: None },
             save,
             slot,
             back_up: Box::new(move |reason, save| {
@@ -504,7 +504,11 @@ mod tests {
                 Ok(())
             }),
         };
-        Session::start(cart, &Rom { name: "Stadium 2.z64".into(), bytes: n64_header(b"NP3E", STADIUM_2_CRCS) }).unwrap()
+        Session::start(
+            cart,
+            &Rom { name: "Stadium 2.z64".into(), bytes: n64_header(b"NP3E", STADIUM_2_CRCS), file: None },
+        )
+        .unwrap()
     }
 
     #[test]

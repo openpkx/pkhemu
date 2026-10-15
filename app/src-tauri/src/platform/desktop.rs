@@ -14,6 +14,8 @@ pub fn plugins<R: Runtime>(builder: Builder<R>) -> Builder<R> {
 
 pub fn on_event<R: Runtime>(app: &AppHandle<R>, event: RunEvent) {
     match event {
+        #[cfg(target_os = "macos")]
+        RunEvent::Opened { urls } => crate::import::opened_urls(app, urls),
         RunEvent::WindowEvent { event: WindowEvent::Focused(false), .. } => app.state::<Emu>().send(Command::Suspend),
         // Cmd+Q on a Mac skips ExitRequested and ends here, so this is where the game gets its last upload.
         RunEvent::Exit => {

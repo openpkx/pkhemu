@@ -44,3 +44,7 @@
 	path = vendor/mupen64plus-next
 	url = https://github.com/pkhex-web/mupen64plus-libretro-nx
 	branch = pkh-emu
+[submodule "vendor/azahar"]
+	path = vendor/azahar
+	url = https://github.com/pkhex-web/azahar
+	branch = pkh-emu

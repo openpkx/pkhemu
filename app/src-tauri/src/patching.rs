@@ -2,16 +2,21 @@
 #[cfg_attr(target_os = "ios", path = "patching/ios.rs")]
 #[cfg_attr(desktop, path = "patching/desktop.rs")]
 mod platform;
+mod retail;
 
 use std::io::{BufReader, BufWriter, Read};
+use std::sync::Arc;
 
 use serde::Serialize;
 use sha2::{Digest, Sha256};
-use tauri::{AppHandle, Runtime};
+use tauri::{AppHandle, Runtime, State};
 
 use crate::files::open_picked;
 use crate::games_folder::{DirEntry, GamesFolder};
-use crate::patch::{self, PatchError, System};
+use crate::import::millis;
+use crate::index::{Index, RomCrc32};
+use crate::patch::{self, Fit, PatchError, System};
+use crate::rom;
 
 #[derive(Serialize, Debug, PartialEq)]
 #[serde(tag = "kind", rename_all = "camelCase", rename_all_fields = "camelCase")]
@@ -114,6 +119,7 @@ impl<R: Read> Read for Hashing<R> {
 pub struct Created {
     path: String,
     sha256: String,
+    base_checked: bool,
 }
 
 async fn create<R: Runtime>(
@@ -127,19 +133,19 @@ async fn create<R: Runtime>(
     let cartridge = self::system(system)?;
     let base = games.open_rom(base).await?;
     let output = games.create_file(&path).await?;
-    let (output, sha256) = tauri::async_runtime::spawn_blocking(move || -> Result<_, Failure> {
+    let (output, sha256, base_checked) = tauri::async_runtime::spawn_blocking(move || -> Result<_, Failure> {
         let mut patch = Hashing { inner: BufReader::new(patch), hash: Sha256::new() };
         let mut output = BufWriter::new(output);
-        patch::apply(&mut patch, base, &mut output, cartridge)?;
+        let patched = patch::apply(&mut patch, base, &mut output, cartridge)?;
         std::io::copy(&mut patch, &mut std::io::sink())?;
         let output = output.into_inner().map_err(|e| e.into_error())?;
         let sha256 = patch.hash.finalize().iter().map(|byte| format!("{byte:02x}")).collect();
-        Ok((output, sha256))
+        Ok((output, sha256, patched.base_checked))
     })
     .await
     .map_err(|e| e.to_string())??;
     output.finish().await?;
-    Ok(Created { path, sha256 })
+    Ok(Created { path, sha256, base_checked })
 }
 
 const NAMES: [(&str, &str); 16] = [
@@ -197,8 +203,20 @@ pub fn game_name(rom: &[u8]) -> Option<&'static str> {
 }
 
 pub fn build(rom: &[u8]) -> Option<String> {
-    let game = rom_art::identify(rom)?;
-    let name = known_name(&game);
+    Some(label(&rom_art::identify(rom)?))
+}
+
+pub fn retail_build(crc32: u32) -> Option<String> {
+    let &(_, platform, key, revision) = retail::RETAIL.iter().find(|(retail, ..)| *retail == crc32)?;
+    let (title, code) = match platform {
+        rom_art::Platform::Gb | rom_art::Platform::Gbc => (key, ""),
+        _ => ("", key),
+    };
+    Some(label(&rom_art::Game { platform, title: title.into(), code: code.into(), revision }))
+}
+
+fn label(game: &rom_art::Game) -> String {
+    let name = known_name(game);
     let language = match game.platform {
         rom_art::Platform::Gb | rom_art::Platform::Gbc => None,
         _ => language(&game.code),
@@ -209,7 +227,7 @@ pub fn build(rom: &[u8]) -> Option<String> {
         rom_art::Platform::Nds => Some(format!("rev {}", game.revision)),
         _ => Some(format!("1.{}", game.revision)),
     };
-    Some([Some(name.as_str()), language, version.as_deref()].into_iter().flatten().collect::<Vec<_>>().join(" "))
+    [Some(name.as_str()), language, version.as_deref()].into_iter().flatten().collect::<Vec<_>>().join(" ")
 }
 
 #[derive(Serialize)]
@@ -218,15 +236,20 @@ pub struct PickedPatch {
     file: String,
     name: String,
     format: Option<&'static str>,
+    base_checked: bool,
 }
 
-fn format(magic: &[u8]) -> Option<&'static str> {
-    Some(match patch::detect(magic)? {
+pub(crate) fn format_of(file: impl Read) -> Option<&'static str> {
+    patch::inspect(file).ok().flatten().map(|inspected| format(inspected.format))
+}
+
+pub(crate) fn format(format: patch::Format) -> &'static str {
+    match format {
         patch::Format::Ips => "ips",
         patch::Format::Ups => "ups",
         patch::Format::Bps => "bps",
         patch::Format::Xdelta => "xdelta",
-    })
+    }
 }
 
 #[tauri::command]
@@ -244,9 +267,13 @@ pub async fn patch_dropped<R: Runtime>(app: AppHandle<R>, file: String) -> Resul
 }
 
 async fn picked_patch<R: Runtime>(app: &AppHandle<R>, file: String, name: String) -> Result<PickedPatch, String> {
-    let mut magic = Vec::new();
-    open_picked(app, &file).await?.take(5).read_to_end(&mut magic).map_err(|e| e.to_string())?;
-    Ok(PickedPatch { file, name, format: format(&magic) })
+    let inspected = patch::inspect(open_picked(app, &file).await?).map_err(|e| e.to_string())?;
+    Ok(PickedPatch {
+        file,
+        name,
+        format: inspected.as_ref().map(|inspected| format(inspected.format)),
+        base_checked: inspected.is_some_and(|inspected| inspected.base_checked),
+    })
 }
 
 async fn rom_header<R: Runtime>(app: &AppHandle<R>, folder: &str, path: &str) -> Result<Vec<u8>, String> {
@@ -288,13 +315,102 @@ pub async fn patch_rom<R: Runtime>(
     create(&GamesFolder::open(&app, &folder), &path, &system, &name, patch).await
 }
 
+#[derive(Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Bases {
+    checked: bool,
+    games: Vec<String>,
+    needs: Option<Needs>,
+}
+
+#[derive(Serialize, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct Needs {
+    crc32: u32,
+    build: Option<String>,
+}
+
+fn rom_system(path: &str) -> Option<System> {
+    path.split_once('/').and_then(|(system, _)| self::system(system).ok())
+}
+
+async fn base_crc32<R: Runtime>(games: &GamesFolder<'_, R>, index: &Index, path: &str, size: u64) -> Option<u32> {
+    let (file_size, modified) = games.stat(path).await.ok()?;
+    let (file_size, mtime) = (file_size as i64, millis(modified));
+    let known = index.rom_crc32(path).ok().flatten().filter(|row| row.size == file_size && row.mtime == mtime);
+    let row = match known {
+        Some(row) => row,
+        None if !rom::is_archive(path) && file_size as u64 != size => return None,
+        None => {
+            let system = rom_system(path)?;
+            let rom = games.open_rom(path).await.ok()?;
+            let hashed = tauri::async_runtime::spawn_blocking(move || patch::base_crc32(BufReader::new(rom), system));
+            let (rom_size, crc32) = hashed.await.ok()?.ok()?;
+            let row = RomCrc32 { path: path.into(), size: file_size, mtime, rom_size: rom_size as i64, crc32 };
+            if let Err(e) = index.keep_rom_crc32(&row) {
+                eprintln!("keeping {path}'s CRC32: {e}");
+            }
+            row
+        }
+    };
+    (row.rom_size as u64 == size).then_some(row.crc32)
+}
+
+async fn first_window_fits<R: Runtime>(games: &GamesFolder<'_, R>, path: &str, fit: Arc<Fit>) -> bool {
+    let (Some(system), Ok(rom)) = (rom_system(path), games.open_rom(path).await) else { return false };
+    let fits = tauri::async_runtime::spawn_blocking(move || fit.fits(BufReader::new(rom), system));
+    fits.await.is_ok_and(|fits| fits.unwrap_or(false))
+}
+
+async fn bases<R: Runtime>(
+    games: &GamesFolder<'_, R>,
+    index: &Index,
+    patch: impl Read + Send + 'static,
+    paths: Vec<String>,
+) -> Result<Bases, Failure> {
+    let fit = tauri::async_runtime::spawn_blocking(move || patch::fit(BufReader::new(patch)))
+        .await
+        .map_err(|e| e.to_string())??;
+    let fit = Arc::new(fit);
+    let mut fitting = Vec::new();
+    for path in paths {
+        let fits = match &*fit {
+            Fit::Unchecked => true,
+            Fit::Crc32 { size, crc32 } => base_crc32(games, index, &path, *size).await == Some(*crc32),
+            Fit::FirstWindow(_) => first_window_fits(games, &path, fit.clone()).await,
+        };
+        if fits {
+            fitting.push(path);
+        }
+    }
+    let needs = match *fit {
+        Fit::Crc32 { crc32, .. } => Some(Needs { crc32, build: retail_build(crc32) }),
+        _ => None,
+    };
+    Ok(Bases { checked: fit.checked(), games: fitting, needs })
+}
+
+#[tauri::command]
+pub async fn patch_bases<R: Runtime>(
+    app: AppHandle<R>,
+    index: State<'_, Arc<Index>>,
+    folder: String,
+    patch: String,
+    games: Vec<String>,
+) -> Result<Bases, Failure> {
+    let patch = open_picked(&app, &patch).await?;
+    bases(&GamesFolder::open(&app, &folder), &index, patch, games).await
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::patch::tests::{bps, ips, xdelta};
+    use crate::index::temp_index;
+    use crate::patch::tests::{bps, ips, ups, xdelta, xdelta_with};
     use crate::save::sha256;
-    use crate::test_games::{gb_header, gba_header, nds_header, pattern, sevenz_of};
+    use crate::test_games::{gb_header, gba_header, nds_header, pattern, red, rom_by_header, sevenz_of};
     use std::io::{Cursor, Write};
+    use std::time::Duration;
     use tauri::async_runtime::block_on;
 
     fn temp_folder(name: &str) -> GamesFolder<'static, tauri::Wry> {
@@ -327,7 +443,7 @@ mod tests {
 
         let created = block_on(create(&games, "gba/FireRed.gba", "gba", "Radical Red", Cursor::new(patch.clone()))).unwrap();
 
-        assert_eq!(created, Created { path: "gba/Radical Red.gba".into(), sha256: sha256(&patch) });
+        assert_eq!(created, Created { path: "gba/Radical Red.gba".into(), sha256: sha256(&patch), base_checked: true });
         assert_eq!(block_on(games.read("gba/Radical Red.gba")).unwrap(), hacked(&base));
         assert_eq!(block_on(games.read("gba/FireRed.gba")).unwrap(), base);
         assert_eq!(names(&games, "gba"), ["FireRed.gba", "FireRed.sav", "Radical Red.gba"]);
@@ -372,6 +488,7 @@ mod tests {
         let created = block_on(create(&games, "n64/Stadium.v64", "n64", "Hack", patch)).unwrap();
 
         assert_eq!(created.path, "n64/Hack.z64");
+        assert!(!created.base_checked);
         assert_eq!(block_on(games.read("n64/Hack.z64")).unwrap(), hacked(&base));
     }
 
@@ -481,6 +598,163 @@ mod tests {
         assert_eq!(build(&gba_header(b"MY HACK", b"ZZZZ", 0)).as_deref(), Some("MY HACK ZZZZ 1.0"));
         assert_eq!(build(&gb_header(b"TETRIS", 0)).as_deref(), Some("TETRIS 1.0"));
         assert_eq!(build(&[0; 0x200]), None);
+    }
+
+    #[test]
+    fn names_the_retail_build_a_crc32_belongs_to() {
+        assert_eq!(retail_build(0xDD88761C).as_deref(), Some("FireRed EN 1.0"));
+        assert_eq!(retail_build(0x84EE4776).as_deref(), Some("FireRed EN 1.1"));
+        assert_eq!(retail_build(0x15E1E280).as_deref(), Some("Ruby DE 1.0"));
+        assert_eq!(retail_build(0xDCF7050B).as_deref(), Some("Diamond EN rev 13"));
+        assert_eq!(retail_build(0x2CA88FAA).as_deref(), Some("Black ES"));
+        assert_eq!(retail_build(0x9F7FDD53).as_deref(), Some("Red 1.0"));
+        assert_eq!(retail_build(0x3358E30A).as_deref(), Some("Crystal 1.1"));
+        assert_eq!(retail_build(0x235B1842).as_deref(), Some("Stadium EN 1.2"));
+        assert_eq!(retail_build(0x12345678), None);
+    }
+
+    #[test]
+    fn names_a_retail_dump_the_way_its_header_does() {
+        let roms = [
+            rom_by_header("FireRed", b"BPRE", 1),
+            rom_by_header("Emerald", b"BPEE", 0),
+            rom_by_header("Diamond", b"ADAE", 13),
+            rom_by_header("Platinum", b"CPUE", 1),
+            rom_by_header("HeartGold", b"IPKE", 0),
+            rom_by_header("Pokémon Stadium", b"NPOE", 2),
+            red(),
+        ];
+
+        for rom in roms.into_iter().flatten() {
+            let bytes = rom_art::n64_big_endian(&rom.bytes).unwrap_or(rom.bytes);
+            assert_eq!(retail_build(crc32fast::hash(&bytes)), build(&bytes), "{}", rom.name);
+        }
+    }
+
+    #[test]
+    fn says_which_retail_build_a_patch_needs() {
+        let games = temp_folder("bases-needs");
+        let (index, _) = temp_index("bases-needs");
+        let mut patch = bps(&pattern(100, 1), &pattern(100, 2));
+        let footer = patch.len() - 12;
+        patch[footer..footer + 4].copy_from_slice(&0xDD88761Cu32.to_le_bytes());
+        let checksum = crc32fast::hash(&patch[..footer + 8]);
+        patch[footer + 8..].copy_from_slice(&checksum.to_le_bytes());
+
+        let found = block_on(bases(&games, &index, Cursor::new(patch), Vec::new())).unwrap();
+
+        let needs = Needs { crc32: 0xDD88761C, build: Some("FireRed EN 1.0".into()) };
+        assert_eq!(found, Bases { checked: true, games: Vec::new(), needs: Some(needs) });
+    }
+
+    #[test]
+    fn tells_a_patch_by_its_magic_bytes() {
+        let base = pattern(100, 1);
+        assert_eq!(format_of(&bps(&base, &hacked(&base))[..]), Some("bps"));
+        assert_eq!(format_of(&xdelta(&base, &hacked(&base))[..]), Some("xdelta"));
+        assert_eq!(format_of(&b"PK\x03\x04"[..]), None);
+    }
+
+    fn paths(paths: &[&str]) -> Vec<String> {
+        paths.iter().map(|path| path.to_string()).collect()
+    }
+
+    fn zip_of(name: &str, rom: &[u8]) -> Vec<u8> {
+        let mut zip = zip::ZipWriter::new(Cursor::new(Vec::new()));
+        zip.start_file(name, zip::write::SimpleFileOptions::default()).unwrap();
+        zip.write_all(rom).unwrap();
+        zip.finish().unwrap().into_inner()
+    }
+
+    fn library(name: &str, base: &[u8]) -> GamesFolder<'static, tauri::Wry> {
+        let games = temp_folder(name);
+        block_on(games.write("gba/FireRed.gba", base)).unwrap();
+        block_on(games.write("gba/Emerald.gba", &pattern(base.len(), 99))).unwrap();
+        block_on(games.write("gb/Red.gb", &pattern(64, 98))).unwrap();
+        block_on(games.write("gba/zipped/FireRed.zip", &zip_of("FireRed.gba", base))).unwrap();
+        games
+    }
+
+    const LIBRARY: [&str; 4] = ["gba/FireRed.gba", "gba/Emerald.gba", "gb/Red.gb", "gba/zipped/FireRed.zip"];
+
+    #[test]
+    fn lists_the_games_a_ups_or_bps_patch_fits() {
+        let base = pattern(1000, 1);
+        let games = library("bases-crc32", &base);
+        let (index, _) = temp_index("bases-crc32");
+
+        for patch in [ups(&base, &hacked(&base)), bps(&base, &hacked(&base))] {
+            let found = block_on(bases(&games, &index, Cursor::new(patch), paths(&LIBRARY))).unwrap();
+
+            let fitting = paths(&["gba/FireRed.gba", "gba/zipped/FireRed.zip"]);
+            let needs = Some(Needs { crc32: crc32fast::hash(&base), build: None });
+            assert_eq!(found, Bases { checked: true, games: fitting, needs });
+        }
+    }
+
+    #[test]
+    fn lists_the_games_an_xdelta_patch_with_checksums_fits() {
+        let base = pattern(4000, 1);
+        let games = library("bases-xdelta", &base);
+        let (index, _) = temp_index("bases-xdelta");
+        let patch = Cursor::new(xdelta(&base, &hacked(&base)));
+
+        let found = block_on(bases(&games, &index, patch, paths(&LIBRARY))).unwrap();
+
+        let fitting = paths(&["gba/FireRed.gba", "gba/zipped/FireRed.zip"]);
+        assert_eq!(found, Bases { checked: true, games: fitting, needs: None });
+    }
+
+    #[test]
+    fn lists_every_game_when_the_patch_cant_check_its_base() {
+        let base = pattern(1000, 1);
+        let games = library("bases-unchecked", &base);
+        let (index, _) = temp_index("bases-unchecked");
+        let options = oxidelta::compress::encoder::CompressOptions { checksum: false, ..Default::default() };
+
+        for patch in [ips(&base, &hacked(&base)), xdelta_with(&base, &hacked(&base), options)] {
+            let found = block_on(bases(&games, &index, Cursor::new(patch), paths(&LIBRARY))).unwrap();
+
+            assert_eq!(found, Bases { checked: false, games: paths(&LIBRARY), needs: None });
+        }
+    }
+
+    #[test]
+    fn finds_an_n64_base_in_any_byte_order() {
+        let base = [&[0x80, 0x37, 0x12, 0x40][..], &pattern(1000, 8)].concat();
+        let v64: Vec<u8> = base.chunks(2).flat_map(|pair| [pair[1], pair[0]]).collect();
+        let games = temp_folder("bases-n64");
+        block_on(games.write("n64/Stadium.v64", &v64)).unwrap();
+        let (index, _) = temp_index("bases-n64");
+
+        for patch in [bps(&base, &hacked(&base)), xdelta(&base, &hacked(&base))] {
+            let found = block_on(bases(&games, &index, Cursor::new(patch), paths(&["n64/Stadium.v64"]))).unwrap();
+
+            assert_eq!(found.games, ["n64/Stadium.v64"]);
+        }
+    }
+
+    #[test]
+    fn hashes_each_rom_once_and_skips_roms_of_the_wrong_size() {
+        let base = pattern(1000, 1);
+        let games = library("bases-cache", &base);
+        let (index, _) = temp_index("bases-cache");
+        let patch = || Cursor::new(bps(&base, &hacked(&base)));
+        block_on(bases(&games, &index, patch(), paths(&LIBRARY))).unwrap();
+        assert_eq!(index.rom_crc32("gb/Red.gb"), Ok(None));
+
+        let rom = games.root().join("gba/FireRed.gba");
+        let modified = std::fs::metadata(&rom).unwrap().modified().unwrap();
+        std::fs::write(&rom, pattern(1000, 2)).unwrap();
+        std::fs::File::options().write(true).open(&rom).unwrap().set_modified(modified).unwrap();
+        let found = block_on(bases(&games, &index, patch(), paths(&LIBRARY))).unwrap();
+
+        assert_eq!(found.games, ["gba/FireRed.gba", "gba/zipped/FireRed.zip"]);
+        std::fs::write(&rom, pattern(1000, 2)).unwrap();
+        let later = modified + Duration::from_secs(1);
+        std::fs::File::options().write(true).open(&rom).unwrap().set_modified(later).unwrap();
+        let found = block_on(bases(&games, &index, patch(), paths(&LIBRARY))).unwrap();
+        assert_eq!(found.games, ["gba/zipped/FireRed.zip"]);
     }
 
     #[test]

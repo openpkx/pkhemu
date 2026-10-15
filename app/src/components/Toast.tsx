@@ -6,7 +6,7 @@ import { usePresence } from "@/motion/motion";
 export const TOAST_MS = 3000;
 
 export function useToast() {
-  const [toast, setToast] = useState<string>();
+  const [toast, setToast] = useState<ReactNode>();
   useEffect(() => {
     if (!toast) return;
     const timer = setTimeout(() => setToast(undefined), TOAST_MS);

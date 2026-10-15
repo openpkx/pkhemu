@@ -1,3 +1,5 @@
+use std::ffi::c_void;
+
 pub use super::google::plugin as google_sign_in;
 pub use super::network::plugin as network;
 pub use super::oauth::plugin as browser_sign_in;
@@ -9,4 +11,9 @@ pub fn device_name() -> String {
     unsafe { libc::__system_property_get(c"ro.product.model".as_ptr(), model.as_mut_ptr()) };
     let model = unsafe { std::ffi::CStr::from_ptr(model.as_ptr()) }.to_string_lossy().into_owned();
     if model.is_empty() { "Android".into() } else { model }
+}
+
+#[no_mangle]
+pub extern "system" fn Java_fyi_openpkx_pkhemu_NativeSync_stop(_env: *mut c_void, _class: *mut c_void) {
+    super::stop();
 }

@@ -26,7 +26,7 @@ impl Clock {
             System::Ds => Clock::Ds { offset_seconds },
             System::Gb => Clock::Mgba { state_size: GB_STATE_SIZE, offset_ms },
             System::Gba => Clock::Mgba { state_size: GBA_STATE_SIZE, offset_ms },
-            System::N64 => Clock::Absent,
+            System::N64 | System::ThreeDs => Clock::Absent,
         }
     }
 
@@ -158,7 +158,7 @@ mod tests {
 
     #[test]
     fn leaves_ds_states_alone() {
-        let ds = Rom { name: "HeartGold.nds".into(), bytes: Vec::new() };
+        let ds = Rom { name: "HeartGold.nds".into(), bytes: Vec::new(), file: None };
         let mut state = vec![7; 64];
 
         Clock::new(&ds, DAY).set(&mut state).unwrap();
@@ -168,7 +168,7 @@ mod tests {
 
     #[test]
     fn leaves_n64_states_alone() {
-        let n64 = Rom { name: "Stadium.z64".into(), bytes: Vec::new() };
+        let n64 = Rom { name: "Stadium.z64".into(), bytes: Vec::new(), file: None };
         let mut state = vec![7; 64];
 
         Clock::new(&n64, DAY).set(&mut state).unwrap();

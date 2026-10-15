@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { systems } from "@/systems";
 import { androidHosts } from "./androidHosts";
 import { desktopHosts } from "./desktopHosts";
@@ -18,13 +18,10 @@ describe.each(Object.entries(hostSets))("%s hosts", (_, hosts) => {
 
 it.each([
   ["Android", androidHosts],
+  ["iOS", iosHosts],
   ["macOS", desktopHosts],
 ])("offers every system on %s", (_, hosts) => {
   expect(hosts.systems).toEqual(systems);
-});
-
-it("offers every system but N64 on iOS", () => {
-  expect(iosHosts.systems).toEqual(["gb", "gbc", "gba", "nds"]);
 });
 
 it("turns touch controls on only on phones", () => {
@@ -51,4 +48,29 @@ it("offers the native renderer only on phones", () => {
 
 it("picks the renderer automatically until the player chooses", () => {
   for (const hosts of Object.values(hostSets)) expect(hosts.defaultPreferences.renderer).toBe("automatic");
+});
+
+it("turns fewer 3DS freezes on where the core draws while shaders compile", () => {
+  expect(androidHosts.defaultPreferences.asyncShaders).toBe(true);
+  expect(desktopHosts.defaultPreferences.asyncShaders).toBe(true);
+  expect(iosHosts.defaultPreferences.asyncShaders).toBe(false);
+});
+
+it.each([
+  ["iOS", iosHosts, ["On My iPhone", "Delta", "Provenance", "RetroArch", "Manic EMU"]],
+  ["Android", androidHosts, ["RetroArch", "Pizza Boy", "My Boy!"]],
+  ["macOS", desktopHosts, ["RetroArch"]],
+])("names the emulators people come from on %s", (_, hosts, apps) => {
+  for (const app of apps) expect(hosts.import.emulatorHint).toContain(app);
+});
+
+afterEach(() => delete window.iosDevice);
+
+it("points to On My iPad on an iPad", async () => {
+  window.iosDevice = "iPad";
+  vi.resetModules();
+
+  const { iosHosts } = await import("./iosHosts");
+
+  expect(iosHosts.import.emulatorHint).toContain("On My iPad");
 });

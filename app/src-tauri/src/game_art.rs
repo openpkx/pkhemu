@@ -2,7 +2,7 @@ use crate::games_folder::GamesFolder;
 use crate::index::{self, Index, RomArtRow};
 use crate::rom;
 use crate::files::write_file;
-use rom_art::{Extracted, Key, DECODER_VERSION};
+use rom_art::{Extracted, Key, Status, DECODER_VERSION};
 use serde::{Deserialize, Serialize};
 use sha1::{Digest, Sha1};
 use std::collections::VecDeque;
@@ -185,7 +185,9 @@ impl<H: Host> Worker<H> {
 
     fn hash(&self, folder: &str, path: &str) -> Result<(String, File), String> {
         let mut rom = self.host.open_rom(folder, path)?;
-        let sha1 = sha1_of_stream(&mut rom).map_err(|e| format!("{path}: {e}"))?;
+        // A ROM streams out of its archive, where sha1_of_rom can't fingerprint it, so it is hashed whole here too.
+        let sha1 = if rom::is_archive(path) { sha1_of_stream(&mut rom) } else { sha1_of_unpacked(&mut rom) };
+        let sha1 = sha1.map_err(|e| format!("{path}: {e}"))?;
         rom.rewind().map_err(|e| format!("{path}: {e}"))?;
         Ok((sha1, rom))
     }
@@ -209,6 +211,13 @@ impl<H: Host> Worker<H> {
             _ => {
                 let (sha1, rom) = self.hash(&job.folder, &job.path)?;
                 if sha1 != job.sha1 {
+                    // The ROM changed since it was checked, or an older version keyed it another way, so it is
+                    // checked again under its new key, and the game still showing the old key looks it up again.
+                    self.index.forget_rom_art(&job.path)?;
+                    if let Some(job) = self.check(&job.folder, &job.path)? {
+                        self.try_extract(&job)?;
+                    }
+                    self.host.changed(&job.sha1);
                     return Ok(());
                 }
                 let dir = self.root.join(&sha1);
@@ -233,7 +242,7 @@ impl<H: Host> Worker<H> {
     }
 
     fn forget_all_but(&self, paths: &[String]) -> Result<(), String> {
-        self.index.forget_rom_art_except(paths)?;
+        self.index.forget_roms_except(paths)?;
         let kept = self.index.rom_art_sha1s()?;
         let Ok(folders) = std::fs::read_dir(&self.root) else { return Ok(()) };
         for folder in folders.flatten() {
@@ -269,8 +278,17 @@ pub(crate) fn sha1_of_rom(name: &str, file: impl Read + Seek) -> Result<String, 
     if rom::is_archive(name) {
         rom::read_archived(name, BufReader::new(file), |_, _, rom| sha1_of_stream(rom))
     } else {
-        sha1_of_stream(file).map_err(|e| format!("{name}: {e}"))
+        sha1_of_unpacked(file).map_err(|e| format!("{name}: {e}"))
     }
+}
+
+pub(crate) fn sha1_of_unpacked(mut rom: impl Read + Seek) -> std::io::Result<String> {
+    let mut sha1 = Sha1::new();
+    if rom_art::fingerprint(&mut rom, &mut sha1)? {
+        return Ok(hex(&sha1.finalize()));
+    }
+    rom.rewind()?;
+    sha1_of_stream(rom)
 }
 
 fn read_manifest(root: &Path, sha1: &str) -> Option<Manifest> {
@@ -291,7 +309,14 @@ fn indexed<'a>(file: &'a mut Vec<u8>, width: u32, height: u32, palette: &[[u8; 4
 
 fn png(image: &rom_art::Image) -> Result<Vec<u8>, String> {
     let mut file = Vec::new();
-    let encoder = indexed(&mut file, image.width, image.height, &image.palette);
+    let encoder = if image.palette.is_empty() {
+        let mut encoder = png::Encoder::new(&mut file, image.width, image.height);
+        encoder.set_color(png::ColorType::Rgba);
+        encoder.set_depth(png::BitDepth::Eight);
+        encoder
+    } else {
+        indexed(&mut file, image.width, image.height, &image.palette)
+    };
     let mut writer = encoder.write_header().map_err(|e| e.to_string())?;
     writer.write_image_data(&image.pixels).map_err(|e| e.to_string())?;
     writer.finish().map_err(|e| e.to_string())?;
@@ -622,12 +647,36 @@ fn retail_generation(sha1: &str) -> Option<u8> {
     retail::ROMS.binary_search_by(|(rom, _)| rom.cmp(&sha1)).ok().map(|found| retail::ROMS[found].1)
 }
 
-// A hack keeps its base game's header, so only a retail ROM's hash shows its sprites are the species' own.
-fn lenders(index: &Index, generation: impl Fn(&str) -> Option<u8>) -> Result<Vec<Lender>, String> {
+const THREE_DS_POKEMON: [(&str, u8); 8] = [
+    ("0004000000055D00", 6),
+    ("0004000000055E00", 6),
+    ("000400000011C400", 6),
+    ("000400000011C500", 6),
+    ("0004000000164800", 7),
+    ("0004000000175E00", 7),
+    ("00040000001B5000", 7),
+    ("00040000001B5100", 7),
+];
+
+fn three_ds_generation(root: &Path, index: &Index, sha1: &str) -> Option<u8> {
+    let Art { status, manifest } = art(root, index, sha1).ok()??;
+    if ![Status::Done, Status::Partial].map(Status::as_str).contains(&status.as_str()) {
+        return None;
+    }
+    let code = manifest?.game?.code;
+    THREE_DS_POKEMON.iter().find(|(title_id, _)| *title_id == code).map(|&(_, generation)| generation)
+}
+
+// A hack keeps its base game's header, so only a retail ROM's hash shows its sprites are the species' own. A decrypted
+// 3DS dump never matches No-Intro's hashes, so a 3DS game goes by its title ID, which a hack may keep.
+fn lenders(root: &Path, index: &Index, retail: impl Fn(&str) -> Option<u8>) -> Result<Vec<Lender>, String> {
     let mut lenders: Vec<Lender> = index
         .rom_art_sha1s()?
         .into_iter()
-        .filter_map(|sha1| Some(Lender { generation: generation(&sha1)?, sha1 }))
+        .filter_map(|sha1| {
+            let generation = retail(&sha1).or_else(|| three_ds_generation(root, index, &sha1))?;
+            Some(Lender { generation, sha1 })
+        })
         .collect();
     lenders.sort_by(|a, b| b.generation.cmp(&a.generation).then_with(|| a.sha1.cmp(&b.sha1)));
     Ok(lenders)
@@ -659,8 +708,8 @@ pub fn game_art_manifest(
 }
 
 #[tauri::command]
-pub fn game_art_lenders(index: State<'_, Arc<Index>>) -> Result<Vec<Lender>, String> {
-    lenders(&index, retail_generation)
+pub fn game_art_lenders(art: State<'_, Arc<GameArt>>, index: State<'_, Arc<Index>>) -> Result<Vec<Lender>, String> {
+    lenders(&art.root, &index, retail_generation)
 }
 
 #[tauri::command]
@@ -745,6 +794,7 @@ mod tests {
         games: PathBuf,
         root: PathBuf,
         index: Arc<Index>,
+        index_file: PathBuf,
         reads: Arc<AtomicUsize>,
         changed: mpsc::Receiver<String>,
         progress: Reports,
@@ -755,7 +805,7 @@ mod tests {
         fn new(name: &str) -> Library {
             let dir = std::env::temp_dir().join(format!("pkh-emu-game-art-{name}-{}", std::process::id()));
             let _ = std::fs::remove_dir_all(&dir);
-            let (index, _) = temp_index(&format!("rom-art-{name}"));
+            let (index, index_file) = temp_index(&format!("rom-art-{name}"));
             let reads = Arc::new(AtomicUsize::new(0));
             let (sender, changed) = mpsc::channel();
             let progress = Arc::new(Mutex::new(Vec::new()));
@@ -763,7 +813,8 @@ mod tests {
             let host = Folder { reads: reads.clone(), changed: changed_sender, progress: progress.clone(), on_read: None };
             let root = dir.join("rom-art");
             let worker = Worker { root: root.clone(), index: index.clone(), host };
-            Library { games: dir.join("games"), root, index, reads, changed, progress, worker: Some(worker) }
+            let games = dir.join("games");
+            Library { games, root, index, index_file, reads, changed, progress, worker: Some(worker) }
         }
 
         fn add(&self, path: &str, bytes: &[u8]) {
@@ -811,6 +862,18 @@ mod tests {
             read_manifest(&self.root, &self.row(path).sha1).unwrap()
         }
 
+        fn keep_3ds(&self, path: &str, title_id: &str, status: &str) {
+            let (sha1, status) = (sha1_of(path.as_bytes()), status.to_string());
+            let decoder_version = DECODER_VERSION;
+            let row = RomArtRow { path: path.into(), size: 0, mtime: 0, sha1: sha1.clone(), decoder_version, status };
+            self.index.keep_rom_art(&row, 0).unwrap();
+            let game =
+                ManifestGame { platform: "threeds".into(), title: "".into(), code: title_id.into(), revision: 0 };
+            let manifest = Manifest { decoder_version, status: row.status, game: Some(game), keys: Vec::new() };
+            std::fs::create_dir_all(self.root.join(&sha1)).unwrap();
+            std::fs::write(self.root.join(&sha1).join(MANIFEST), serde_json::to_vec(&manifest).unwrap()).unwrap();
+        }
+
         fn changes(&self, count: usize) -> HashSet<String> {
             (0..count).map(|_| self.changed.recv_timeout(Duration::from_secs(5)).unwrap()).collect()
         }
@@ -825,17 +888,22 @@ mod tests {
     }
 
     #[test]
-    fn lends_only_retail_roms_newest_generation_first() {
+    fn lends_only_retail_roms_and_3ds_games_newest_generation_first() {
         let library = Library::new("lenders");
         let roms = [("gb/Red.gb", b"red".as_slice()), ("nds/Black.nds", b"black"), ("gba/Hack.gba", b"hack")];
         roms.iter().for_each(|(path, bytes)| library.add(path, bytes));
         library.scan(&roms.map(|(path, _)| path));
         let retail = HashMap::from([(sha1_of(b"red"), 1), (sha1_of(b"black"), 5)]);
+        library.keep_3ds("3ds/Moon.cxi", "0004000000175E00", "partial");
+        library.keep_3ds("3ds/X.cxi", "0004000000055D00", "done");
+        library.keep_3ds("3ds/Hack.cxi", "000400000F800100", "done");
+        library.keep_3ds("3ds/Encrypted.cxi", "0004000000055E00", "unsupported");
 
-        let lenders = lenders(&library.index, |sha1| retail.get(sha1).copied()).unwrap();
+        let lenders = lenders(&library.root, &library.index, |sha1| retail.get(sha1).copied()).unwrap();
 
         let expected =
-            [(sha1_of(b"black"), 5), (sha1_of(b"red"), 1)].map(|(sha1, generation)| Lender { sha1, generation });
+            [(sha1_of(b"3ds/Moon.cxi"), 7), (sha1_of(b"3ds/X.cxi"), 6), (sha1_of(b"black"), 5), (sha1_of(b"red"), 1)]
+                .map(|(sha1, generation)| Lender { sha1, generation });
         assert_eq!(lenders, expected);
     }
 
@@ -988,6 +1056,62 @@ mod tests {
     }
 
     #[test]
+    fn keys_a_3ds_game_by_its_fingerprint_rather_than_every_byte() {
+        let library = Library::new("3ds");
+        let game = crate::three_ds::tests::ncch(0x0004000000055D00, true, true);
+        library.add("3ds/X.cxi", &game);
+        library.add("3ds/Copy.cxi", &[game.as_slice(), &[0x5A; 0x200]].concat());
+
+        library.scan(&["3ds/X.cxi", "3ds/Copy.cxi"]);
+
+        let mut fingerprint = Sha1::new();
+        assert!(rom_art::fingerprint(std::io::Cursor::new(&game), &mut fingerprint).unwrap());
+        let sha1 = hex(&fingerprint.finalize());
+        assert_eq!([library.row("3ds/X.cxi").sha1, library.row("3ds/Copy.cxi").sha1], [sha1.clone(), sha1]);
+    }
+
+    #[test]
+    fn checks_a_rom_again_when_its_art_was_keyed_another_way() {
+        let library = Library::new("rekeyed");
+        let game = crate::three_ds::tests::ncch(0x0004000000055D00, true, true);
+        library.add("3ds/X.cxi", &game);
+        library.scan(&["3ds/X.cxi"]);
+        let row = library.row("3ds/X.cxi");
+        let old = RomArtRow { sha1: sha1_of(&game), decoder_version: 0, status: PENDING.into(), ..row.clone() };
+        library.index.keep_rom_art(&old, 0).unwrap();
+
+        let _ = library.changed.try_iter().count();
+
+        library.scan(&["3ds/X.cxi"]);
+
+        assert_eq!(library.row("3ds/X.cxi"), row);
+        assert!(library.root.join(&row.sha1).join(MANIFEST).exists());
+        assert!(library.changed.try_iter().any(|sha1| sha1 == old.sha1));
+    }
+
+    #[test]
+    fn shares_pokemon_xs_art_between_its_dump_and_its_imported_copy_across_restarts() {
+        let Some(dump) = crate::test_games::three_ds_by_header("Pokémon X", "CTR-P-EKJA", 2) else { return };
+        crate::test_games::pokemon_x().unwrap();
+        let copy = std::env::temp_dir().join("pkh-emu-pokemon-x.3ds");
+        let mut library = Library::new("pokemon-x");
+        std::fs::create_dir_all(library.games.join("3ds")).unwrap();
+        std::os::unix::fs::symlink(dump.canonicalize().unwrap(), library.games.join("3ds/X.3ds")).unwrap();
+        std::os::unix::fs::symlink(&copy, library.games.join("3ds/Copy.3ds")).unwrap();
+
+        library.scan(&["3ds/X.3ds", "3ds/Copy.3ds"]);
+
+        let row = library.row("3ds/X.3ds");
+        assert_eq!((row.sha1.as_str(), row.status.as_str()), (library.row("3ds/Copy.3ds").sha1.as_str(), "done"));
+        assert!(library.manifest("3ds/X.3ds").keys.contains(&"icon-25-0".to_string()));
+        let (worker, _) = library.stopped();
+        let index = Arc::new(Index::open(&library.index_file));
+        let restarted = Worker { root: worker.root, index, host: worker.host };
+        assert_eq!(restarted.check(&library.folder(), "3ds/X.3ds"), Ok(None));
+        assert_eq!(restarted.check(&library.folder(), "3ds/Copy.3ds"), Ok(None));
+    }
+
+    #[test]
     fn hashes_a_rom_longer_than_a_chunk_as_one() {
         let rom = pattern(3 * CHUNK + 5, 7);
 
@@ -1044,6 +1168,25 @@ mod tests {
         let mut pixels = vec![0; reader.output_buffer_size().unwrap()];
         reader.next_frame(&mut pixels).unwrap();
         assert_eq!(pixels, [0, 0, 0, 0, 255, 128, 0, 255]);
+    }
+
+    #[test]
+    fn writes_pngs_without_a_palette_as_rgba() {
+        let image = rom_art::Image {
+            key: Key::Sprite { species: 25, form: 0, shiny: false, female: false },
+            width: 2,
+            height: 1,
+            pixels: vec![10, 20, 30, 0x77, 255, 128, 0, 255],
+            palette: Vec::new(),
+        };
+
+        let file = png(&image).unwrap();
+
+        let mut reader = png::Decoder::new(std::io::Cursor::new(file)).read_info().unwrap();
+        let mut pixels = vec![0; reader.output_buffer_size().unwrap()];
+        reader.next_frame(&mut pixels).unwrap();
+        assert_eq!(reader.info().color_type, png::ColorType::Rgba);
+        assert_eq!(pixels, image.pixels);
     }
 
     #[test]

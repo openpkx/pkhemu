@@ -1,7 +1,7 @@
 import { act, cleanup, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { afterEach, expect, it } from "vitest";
-import { GravityProvider, useGravity, type GravityHost } from "./gravity";
+import { GravityProvider, useCanTilt, useGravity, type GravityHost } from "./gravity";
 
 afterEach(() => {
   cleanup();
@@ -15,13 +15,13 @@ function setVisibility(state: DocumentVisibilityState) {
 
 function recordCalls() {
   const calls: string[] = [];
-  const host: GravityHost = { start: () => void calls.push("start"), stop: () => void calls.push("stop"), read: () => undefined };
+  const host: GravityHost = { tilts: true, start: () => void calls.push("start"), stop: () => void calls.push("stop"), read: () => undefined };
   const wrapper = ({ children }: { children: ReactNode }) => <GravityProvider host={host}>{children}</GravityProvider>;
   return { calls, wrapper };
 }
 
 it("reads the host's latest gravity", () => {
-  const host: GravityHost = { start() {}, stop() {}, read: () => ({ x: 0.5, y: -9.7, z: 1.25 }) };
+  const host: GravityHost = { tilts: true, start() {}, stop() {}, read: () => ({ x: 0.5, y: -9.7, z: 1.25 }) };
   const { result } = renderHook(() => useGravity(false), {
     wrapper: ({ children }) => <GravityProvider host={host}>{children}</GravityProvider>,
   });
@@ -63,4 +63,10 @@ it("reads nothing without a host", () => {
   act(() => setVisibility("hidden"));
   expect(result.current()).toBeUndefined();
   unmount();
+});
+
+it("can't tilt without a host that reads tilt", () => {
+  const { result } = renderHook(useCanTilt);
+
+  expect(result.current).toBe(false);
 });

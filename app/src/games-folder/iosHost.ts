@@ -4,6 +4,12 @@ import type { GamesFolderHost } from "./gamesFolder";
 import { desktopGamesFolderHost } from "./desktopHost";
 import { tauriGamesFolderHost } from "./tauriHost";
 
+declare global {
+  interface Window {
+    iosDevice?: "iPhone" | "iPad";
+  }
+}
+
 // An update can move the app's container, so the folder is saved relative to Documents.
 async function inDocuments(folder: string) {
   const documents = `${await documentDir()}/`;
@@ -22,5 +28,5 @@ export const iosGamesFolderHost: GamesFolderHost = {
   },
   save: async (folder) => tauriGamesFolderHost.save(await inDocuments(folder)),
   label: (folder) => folder.slice(folder.lastIndexOf("/") + 1),
-  device: "iPhone",
+  device: window.iosDevice ?? "iPhone",
 };

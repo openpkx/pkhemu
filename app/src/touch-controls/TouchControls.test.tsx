@@ -5,6 +5,7 @@ import { buttons, createInput, n64Buttons, type Input, type InputEvent } from "@
 import { PreferencesProvider, type Preferences, type StickSensitivity } from "@/preferences/preferences";
 import type { System } from "@/systems";
 import { TouchControls } from "./TouchControls";
+import { defaultSkins } from "@/skins";
 
 let input: Input;
 let events: InputEvent[];
@@ -30,15 +31,15 @@ async function launch({
   fastForwardOn = false,
   stickSensitivity = 1 as StickSensitivity,
 } = {}) {
-  if (system === "n64") {
+  if (system === "n64" || system === "3ds") {
     detach();
-    input = createInput(() => [], undefined, "n64");
+    input = createInput(() => [], undefined, system);
     detach = input.attach(window);
   }
   const host = { load: async (): Promise<Partial<Preferences>> => ({ touchControls, stickSensitivity }), save: async () => {} };
   const fastForward = { on: fastForwardOn, speed: 1, toggle: vi.fn() } as const;
   render(
-    <PreferencesProvider host={host} defaults={{ touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic" }}>
+    <PreferencesProvider host={host} defaults={{ touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic", skins: defaultSkins, skinHintSeen: false, screenDepth: true, screenGlass: true, asyncShaders: false }}>
       <HapticsProvider host={{ tap: () => void taps++ }}>
         <TouchControls input={input} system={system} fastForward={fastForward} />
       </HapticsProvider>
@@ -361,6 +362,22 @@ it("has an N64 layout with a stick, Z and C buttons, and no Select", async () =>
   expect(names()).toEqual(["L", "Pause menu", "Start", "R", "Z", "B", "A", "C up", "C left", "C right", "C down", "Hold", "Fast-forward", "D-pad", "Stick"]);
 });
 
+it("has the DS layout with a circle pad for 3DS games, and no ZL, ZR or C-stick", async () => {
+  await launch({ system: "3ds" });
+
+  expect(names()).toEqual(["L", "Select", "Pause menu", "R", "X", "Y", "A", "B", "Hold", "Fast-forward", "Start", "D-pad", "Stick"]);
+});
+
+it("sends the 3DS circle pad to the core as the left stick", async () => {
+  await launch({ system: "3ds" });
+
+  pointer("pointerdown", stick(), 1, 60, 60);
+  pointer("pointermove", stick(), 1, 60, 100);
+
+  expect(input.poll(0)).toBe(0);
+  expect(input.pollAnalog()).toEqual([0, 0x7fff, 0, 0]);
+});
+
 it.each([
   ["A", n64Buttons.a],
   ["B", n64Buttons.b],
@@ -451,9 +468,9 @@ it("keeps the stick at full tilt past the edge, in a circle", async () => {
   expect(y).toBeCloseTo(0x7fff * Math.SQRT1_2, -1);
 });
 
-it("scales the stick's tilt by the sensitivity setting", async () => {
+it.each(["n64", "3ds"] as const)("scales the %s stick's tilt by the sensitivity setting", async (system) => {
   const tiltAt = async (stickSensitivity: StickSensitivity) => {
-    await launch({ system: "n64", stickSensitivity });
+    await launch({ system, stickSensitivity });
     pointer("pointerdown", stick(), 1, 60, 60);
     pointer("pointermove", stick(), 1, 76, 60);
     input.poll(0);

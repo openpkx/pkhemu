@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { expect, it } from "vitest";
 import { PreferencesProvider, type Preferences, type RendererChoice } from "@/preferences/preferences";
 import { GameSurfaceProvider, rendererFor, useGameSurface, useRenderer, type GameSurfaceHost } from "./gameSurface";
+import { defaultSkins } from "@/skins";
 
 function Playing({ playing }: { playing: boolean }) {
   useGameSurface(playing);
@@ -40,7 +41,7 @@ it.each(["automatic", "native", "compatible"] as const)("draws with Compatible f
   expect(rendererFor(choice, ["compatible"], false)).toBe("compatible");
 });
 
-const defaults: Preferences = { touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic" };
+const defaults: Preferences = { touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic", skins: defaultSkins, skinHintSeen: false, screenDepth: true, screenGlass: true, asyncShaders: false };
 
 async function withRenderer(renderer: RendererChoice) {
   const host: GameSurfaceHost = { renderers: ["native", "compatible"], setPlaying() {} };

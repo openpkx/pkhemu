@@ -48,6 +48,11 @@
                 <data android:mimeType="application/x-gba-rom" />
                 <data android:mimeType="application/x-nintendo-ds-rom" />
                 <data android:mimeType="application/x-n64-rom" />
+                <data android:mimeType="application/x-ips-patch" />
+                <data android:mimeType="application/x-ups-patch" />
+                <data android:mimeType="application/x-bps-patch" />
+                <data android:mimeType="application/x-xdelta" />
+                <data android:mimeType="application/vcdiff" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.SEND_MULTIPLE" />
@@ -61,6 +66,11 @@
                 <data android:mimeType="application/x-gba-rom" />
                 <data android:mimeType="application/x-nintendo-ds-rom" />
                 <data android:mimeType="application/x-n64-rom" />
+                <data android:mimeType="application/x-ips-patch" />
+                <data android:mimeType="application/x-ups-patch" />
+                <data android:mimeType="application/x-bps-patch" />
+                <data android:mimeType="application/x-xdelta" />
+                <data android:mimeType="application/vcdiff" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
@@ -75,12 +85,44 @@
                 <data android:mimeType="application/x-nintendo-ds-rom" />
                 <data android:mimeType="application/x-n64-rom" />
             </intent-filter>
+            <!-- Android matches pathPattern without backtracking, so each count of earlier dots needs its own pattern. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:host="*" />
+                <data android:mimeType="*/*" />
+                <data android:pathPattern=".*\\.ips" />
+                <data android:pathPattern=".*\\..*\\.ips" />
+                <data android:pathPattern=".*\\..*\\..*\\.ips" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\.ips" />
+                <data android:pathPattern=".*\\.ups" />
+                <data android:pathPattern=".*\\..*\\.ups" />
+                <data android:pathPattern=".*\\..*\\..*\\.ups" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\.ups" />
+                <data android:pathPattern=".*\\.bps" />
+                <data android:pathPattern=".*\\..*\\.bps" />
+                <data android:pathPattern=".*\\..*\\..*\\.bps" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\.bps" />
+                <data android:pathPattern=".*\\.xdelta" />
+                <data android:pathPattern=".*\\..*\\.xdelta" />
+                <data android:pathPattern=".*\\..*\\..*\\.xdelta" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\.xdelta" />
+                <data android:pathPattern=".*\\.vcdiff" />
+                <data android:pathPattern=".*\\..*\\.vcdiff" />
+                <data android:pathPattern=".*\\..*\\..*\\.vcdiff" />
+                <data android:pathPattern=".*\\..*\\..*\\..*\\.vcdiff" />
+            </intent-filter>
         </activity>
 
         <service
           android:name=".SyncService"
           android:exported="false"
           android:foregroundServiceType="dataSync" />
+
+        <receiver
+          android:name=".SyncStopReceiver"
+          android:exported="false" />
 
         <provider
           android:name="androidx.core.content.FileProvider"

@@ -29,7 +29,8 @@ it("counts the games, the ones with a save and the size to copy", () => {
   ]);
   expect(summary.withSave).toBe(1);
   expect(summary.size).toBe(146_128_000);
-  expect(summary.leftOut).toBe(4);
+  expect(summary.leftOut).toBe(3);
+  expect(summary.unmatched).toBe(1);
   expect(summary.known).toBe(0);
 });
 
@@ -44,7 +45,19 @@ it("fills in missing saves from another folder and counts only the saves it take
     ["Crystal", true],
     ["Emerald", false],
   ]);
-  expect(summary.leftOut).toBe(1 + 2 + 1 + 1);
+  expect(summary.leftOut).toBe(1 + 2 + 1);
+  expect(summary.unmatched).toBe(1);
+});
+
+it("names the emulator whose folder held the games, or the saves when only theirs is known", () => {
+  const roms = { files: [file("ROMs/Emerald.gba")], other: 0, app: "Provenance" };
+  const saves = { files: [file("saves/Emerald.srm")], other: 0, app: "RetroArch" };
+  const plain = { files: [file("roms/Emerald.gba")], other: 0 };
+
+  expect(summarize(planImport(roms.files, empty), roms).app).toBe("Provenance");
+  expect(summarize(planImport(plain.files, empty), plain).app).toBeNull();
+  expect(addSaves(roms, saves).app).toBe("Provenance");
+  expect(addSaves(plain, saves).app).toBe("RetroArch");
 });
 
 it("counts a clock that goes with a save as copied", () => {

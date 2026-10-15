@@ -1,0 +1,251 @@
+/* Unlayered, so these win over the touch controls' Tailwind classes while a skin is on. */
+
+[data-skin] [data-part] {
+  --skin-rubber-shadow:
+    0 0 0 3px var(--skin-rubber-well),
+    0 var(--skin-rubber-lift) 0 var(--skin-rubber-edge),
+    inset 0 1px 0 var(--skin-inset),
+    0 6px 16px var(--skin-drop);
+  --skin-pressed: transparent;
+  --skin-lit: transparent;
+  --skin-lip: var(--skin-face-lift);
+}
+
+[data-skin] :is([data-part="arm"], [data-part="dpad-centre"], [data-part="face"], [data-part="c"], [data-part="shoulder"], [data-part="action"], [data-part="stick"], [data-part="knob"]),
+[data-skin] [data-part="pill"]::before {
+  -webkit-backdrop-filter: blur(var(--skin-blur)) saturate(1.3);
+  backdrop-filter: blur(var(--skin-blur)) saturate(1.3);
+}
+
+[data-skin] [data-part="action"]:active,
+[data-skin] :is([data-part="face"], [data-part="c"], [data-part="shoulder"], [data-part="pill"]):is(:active, [data-pressed="true"]) {
+  --skin-pressed: var(--skin-press);
+}
+
+[data-skin] :is([data-part="arm"], [data-part="knob"])[data-pressed="true"] {
+  --skin-pressed: var(--skin-arm-press);
+}
+
+[data-skin] :is([data-part="face"], [data-part="c"]):is(:active, [data-pressed="true"]) {
+  --skin-lip: calc(var(--skin-face-lift) / 3);
+  transform: translateY(calc(var(--skin-face-lift) * 2 / 3));
+}
+
+[data-skin] [data-screen] canvas {
+  border-radius: var(--skin-screen-radius);
+  box-shadow:
+    0 0 0 var(--skin-screen-border-width) var(--skin-screen-border),
+    0 0 0 calc(var(--skin-screen-border-width) + 1px) var(--skin-screen-rim);
+}
+
+[data-skin] [data-part="dpad"]::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  translate: 0 5px;
+  filter: blur(5px);
+  background:
+    linear-gradient(var(--skin-dpad-shadow), var(--skin-dpad-shadow)) center / 33.4% 100% no-repeat,
+    linear-gradient(var(--skin-dpad-shadow), var(--skin-dpad-shadow)) center / 100% 33.4% no-repeat;
+}
+
+[data-skin] :is([data-part="arm"], [data-part="dpad-centre"]) {
+  color: var(--skin-arm-ink);
+  background-color: var(--skin-arm);
+  background-image:
+    linear-gradient(var(--skin-pressed), var(--skin-pressed)),
+    radial-gradient(circle at 38% 32%, var(--skin-arm-sheen), transparent 62%);
+  background-size: 100% 100%, 300% 300%;
+}
+
+/* Each arm outlines its three outer sides, so the hairline runs once around the cross. */
+[data-skin] [data-part="arm"][data-side="up"] {
+  background-position: center, 50% 0;
+  box-shadow: 0 2px 0 var(--skin-dpad-edge), inset 1px 0 0 var(--skin-hairline), inset -1px 0 0 var(--skin-hairline), inset 0 1px 0 var(--skin-hairline);
+}
+[data-skin] [data-part="arm"][data-side="down"] {
+  background-position: center, 50% 100%;
+  box-shadow: 0 2px 0 var(--skin-dpad-edge), inset 1px 0 0 var(--skin-hairline), inset -1px 0 0 var(--skin-hairline), inset 0 -1px 0 var(--skin-hairline);
+}
+[data-skin] [data-part="arm"][data-side="left"] {
+  background-position: center, 0 50%;
+  box-shadow: 0 2px 0 var(--skin-dpad-edge), inset 0 1px 0 var(--skin-hairline), inset 0 -1px 0 var(--skin-hairline), inset 1px 0 0 var(--skin-hairline);
+}
+[data-skin] [data-part="arm"][data-side="right"] {
+  background-position: center, 100% 50%;
+  box-shadow: 0 2px 0 var(--skin-dpad-edge), inset 0 1px 0 var(--skin-hairline), inset 0 -1px 0 var(--skin-hairline), inset -1px 0 0 var(--skin-hairline);
+}
+
+[data-skin] [data-part="dpad-centre"] {
+  background-image:
+    radial-gradient(circle, var(--skin-dimple) 0 28%, transparent 31%),
+    radial-gradient(circle at 38% 32%, var(--skin-arm-sheen), transparent 62%);
+  background-size: 100% 100%, 300% 300%;
+  background-position: center, 50% 50%;
+}
+
+[data-skin] [data-part="face"] {
+  border: 1px solid var(--skin-hairline);
+  color: var(--skin-face-ink);
+  background:
+    linear-gradient(var(--skin-pressed), var(--skin-pressed)),
+    radial-gradient(circle at 36% 30%, var(--skin-face-hi), var(--skin-face-mid) 48%, var(--skin-face-lo));
+  box-shadow:
+    0 0 0 4px var(--skin-well),
+    0 var(--skin-lip) 0 var(--skin-face-edge),
+    0 6px 10px var(--skin-face-shadow),
+    inset 0 1px 0 var(--skin-inset);
+}
+
+[data-skin] [data-tint="a"] {
+  --skin-face-hi: var(--skin-a-hi);
+  --skin-face-mid: var(--skin-a-mid);
+  --skin-face-lo: var(--skin-a-lo);
+  --skin-face-ink: var(--skin-a-ink);
+  --skin-face-edge: var(--skin-a-edge);
+}
+
+[data-skin] [data-tint="b"] {
+  --skin-face-hi: var(--skin-b-hi);
+  --skin-face-mid: var(--skin-b-mid);
+  --skin-face-lo: var(--skin-b-lo);
+  --skin-face-ink: var(--skin-b-ink);
+  --skin-face-edge: var(--skin-b-edge);
+}
+
+[data-skin] [data-tint="z"] {
+  --skin-face-hi: var(--skin-z-hi);
+  --skin-face-mid: var(--skin-z-mid);
+  --skin-face-lo: var(--skin-z-lo);
+  --skin-face-ink: var(--skin-z-ink);
+  --skin-face-edge: var(--skin-z-edge);
+}
+
+[data-skin] [data-part="face"][data-printed] {
+  position: relative;
+  color: var(--skin-face-label);
+}
+
+[data-skin] :is([data-part="face"][data-printed], [data-part="pill"])::after {
+  content: attr(aria-label);
+  position: absolute;
+  left: 50%;
+  translate: -50% 0;
+  pointer-events: none;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  color: var(--skin-print);
+}
+
+[data-skin] [data-part="face"][data-printed]::after {
+  top: calc(100% + 10px);
+  font-size: 13px;
+}
+
+/* The letters are printed on the plastic, so they stay put while the button goes down. */
+[data-skin] [data-part="face"][data-printed]:is(:active, [data-pressed="true"])::after {
+  transform: translateY(calc(var(--skin-face-lift) * -2 / 3));
+}
+
+[data-skin] [data-part="pill"] {
+  position: relative;
+  isolation: isolate;
+  border-color: transparent;
+  background: transparent;
+  color: var(--skin-pill-ink);
+}
+
+[data-skin] [data-part="pill"]::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: var(--skin-pill-y) var(--skin-pill-x);
+  border: 1px solid var(--skin-hairline);
+  border-radius: 999px;
+  rotate: var(--skin-pill-rotate);
+  background: linear-gradient(var(--skin-pressed), var(--skin-pressed)), var(--skin-pill);
+  box-shadow: var(--skin-rubber-shadow);
+}
+
+[data-skin] [data-part="pill"]:is(:active, [data-pressed="true"])::before {
+  transform: translateY(calc(var(--skin-rubber-lift) / 2));
+}
+
+[data-skin] [data-part="pill"]::after {
+  top: calc(100% - 4px);
+  font-size: 9px;
+  text-transform: uppercase;
+}
+
+[data-skin] :is([data-part="shoulder"], [data-part="action"]) {
+  border-color: var(--skin-hairline);
+  color: var(--skin-rubber-ink);
+  box-shadow: var(--skin-rubber-shadow);
+}
+
+[data-skin] [data-part="shoulder"] {
+  background:
+    linear-gradient(var(--skin-pressed), var(--skin-pressed)),
+    linear-gradient(var(--skin-rubber), var(--skin-rubber-bottom));
+}
+
+[data-skin] [data-part="action"] {
+  position: relative;
+  background:
+    linear-gradient(var(--skin-lit), var(--skin-lit)),
+    linear-gradient(var(--skin-pressed), var(--skin-pressed)),
+    radial-gradient(circle at 40% 32%, var(--skin-rubber-top), var(--skin-rubber) 60%);
+}
+
+[data-skin] [data-part="action"][data-pressed="true"] {
+  --skin-lit: var(--skin-on);
+  border-color: var(--skin-hairline);
+  color: var(--skin-on-ink);
+}
+
+[data-skin] [data-part="action"][data-pressed="true"]::after {
+  content: "";
+  position: absolute;
+  top: 7px;
+  right: 7px;
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--skin-led);
+  box-shadow: 0 0 6px var(--skin-led);
+}
+
+[data-skin] [data-part="c"] {
+  border-color: var(--skin-hairline);
+  color: var(--skin-c-ink);
+  background:
+    linear-gradient(var(--skin-pressed), var(--skin-pressed)),
+    radial-gradient(circle at 38% 30%, var(--skin-c-hi), var(--skin-c-mid) 55%, var(--skin-c-lo));
+  box-shadow:
+    0 0 0 3px var(--skin-well),
+    0 calc(var(--skin-lip) * 2 / 3) 0 var(--skin-c-edge),
+    0 4px 6px var(--skin-face-shadow),
+    inset 0 1px 0 var(--skin-inset);
+}
+
+[data-skin] [data-part="stick"] {
+  border-color: var(--skin-hairline);
+  background: radial-gradient(circle, var(--skin-stick-centre), var(--skin-stick-edge) 70%);
+  box-shadow: inset 0 3px 8px var(--skin-stick-inset), 0 6px 16px var(--skin-drop);
+}
+
+[data-skin] [data-part="knob"] {
+  border: 1px solid var(--skin-hairline);
+  background:
+    linear-gradient(var(--skin-pressed), var(--skin-pressed)),
+    radial-gradient(circle at 40% 34%, var(--skin-knob-hi), var(--skin-knob-mid) 62%);
+  box-shadow:
+    0 var(--skin-face-lift) 0 var(--skin-knob-edge),
+    0 6px 10px var(--skin-face-shadow),
+    inset 0 1px 0 var(--skin-inset);
+}
+
+[data-skin] [data-part="reach"] {
+  border-color: var(--skin-reach);
+}

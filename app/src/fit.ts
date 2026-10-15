@@ -4,11 +4,21 @@ export const origin: Point = { x: 0, y: 0 };
 
 const MIN_WHOLE_FILL = 0.85;
 
-export function fit(frame: Size, space: Size): Size {
-  const fractional = Math.min(space.width / frame.width, space.height / frame.height);
+export const stretch = (frame: Size, space: Size) => Math.min(space.width / frame.width, space.height / frame.height);
+
+export function fitScale(frame: Size, space: Size): number {
+  const fractional = stretch(frame, space);
   const whole = Math.floor(fractional);
-  const scale = whole >= 1 && (whole / fractional) ** 2 >= MIN_WHOLE_FILL ? whole : fractional;
-  return { width: Math.round(frame.width * scale), height: Math.round(frame.height * scale) };
+  return whole >= 1 && (whole / fractional) ** 2 >= MIN_WHOLE_FILL ? whole : fractional;
+}
+
+export const scaled = (size: Size, scale: number): Size => ({
+  width: Math.round(size.width * scale),
+  height: Math.round(size.height * scale),
+});
+
+export function fit(frame: Size, space: Size): Size {
+  return scaled(frame, fitScale(frame, space));
 }
 
 export type Shell = { border: number; gap?: number };

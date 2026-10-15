@@ -19,6 +19,7 @@ enum Event {
     Game(String, GameState),
     Run(RunProgress),
     BoxArt(String),
+    Skins(crate::skins::Skins),
 }
 
 #[derive(Default)]
@@ -35,6 +36,10 @@ impl Events for Recorded {
 
     fn box_art(&self, rom: &str) {
         self.0.lock().unwrap().push(Event::BoxArt(rom.into()));
+    }
+
+    fn skins(&self, skins: &crate::skins::Skins) {
+        self.0.lock().unwrap().push(Event::Skins(skins.clone()));
     }
 }
 
@@ -92,6 +97,10 @@ fn kept(key: &str, generation: u8, game: &str) -> StoredCopy {
     }
 }
 
+fn skin(skin: &str, changed_at: i64) -> crate::skins::Choice {
+    crate::skins::Choice { skin: skin.into(), look: "moulded".into(), changed_at }
+}
+
 fn kept_as(key: &str, alias: &str, generation: u8, game: &str) -> StoredCopy {
     StoredCopy { aliases: vec![alias.into()], ..kept(key, generation, game) }
 }
@@ -100,6 +109,7 @@ struct Device {
     name: &'static str,
     root: PathBuf,
     kept: PathBuf,
+    skins: PathBuf,
     cheat_bases: PathBuf,
     removed: PathBuf,
     games: GamesFolder<'static, tauri::Wry>,
@@ -120,6 +130,7 @@ fn device(test: &str, name: &'static str) -> Device {
         name,
         games: GamesFolder::at(root.join("games")).logging_to(index.clone()),
         kept: kept_copies::dir(&root),
+        skins: crate::skins::file(&root),
         cheat_bases: root.join("sync-cheats"),
         removed: root.join("removed"),
         root,
@@ -189,6 +200,8 @@ mod dropbox {
     include!("suite.rs");
 }
 
+static NOT_STOPPING: AtomicBool = AtomicBool::new(false);
+
 impl Device {
     fn engine<'a>(&'a self, cloud: &'a impl Cloud, sleep: &'a Sleep) -> Engine<'a, tauri::Wry> {
         Engine {
@@ -198,6 +211,7 @@ impl Device {
             conflicts: &self.root,
             cheat_bases: &self.cheat_bases,
             kept_copies: &self.kept,
+            skins: &self.skins,
             removed: &self.removed,
             device: self.name,
             sleep,
@@ -208,6 +222,7 @@ impl Device {
             mobile_data: &self.mobile_data,
             mobile_roms: &self.mobile_roms,
             others_waiting: &|| false,
+            stopping: &NOT_STOPPING,
             tracker: Tracker::default(),
             stopped_early: AtomicBool::new(false),
         }
@@ -274,6 +289,14 @@ impl Device {
 
     fn kept_copies(&self, keys: &[&str]) -> Vec<StoredCopy> {
         kept_copies::read_all(&self.kept, &keys.iter().map(|key| key.to_string()).collect::<Vec<_>>()).unwrap()
+    }
+
+    fn choose_skin(&self, system: &str, skin: &str, at: i64) {
+        crate::skins::choose(&self.skins, system, self::skin(skin, at)).unwrap();
+    }
+
+    fn skins(&self) -> crate::skins::Skins {
+        crate::skins::read(&self.skins).unwrap()
     }
 
     fn add_cheat(&self, name: &str, at: i64) {
@@ -448,14 +471,19 @@ fn forgets_a_record_deleted_while_the_cloud_had_reset_its_cursor() {
 #[test]
 fn finds_the_roms_the_library_shows() {
     let a = device("scan", "A");
-    for path in ["gba/Emerald.gba", "gba/Emerald/states/slot-1.state", "gba/Hacks/Radical Red.zip", "nds/Platinum.7z", "gb/Red.GB", "gb/.hidden.gb", "Loose.gba"] {
+    let games = ["gba/Emerald.gba", "gba/Emerald/states/slot-1.state", "gba/Hacks/Radical Red.zip", "nds/Platinum.7z"];
+    let more = ["gb/Red.GB", "gb/.hidden.gb", "Loose.gba", "3ds/X.3ds", "3ds/X.sav", "3ds/PKSM.3dsx"];
+    for path in games.into_iter().chain(more) {
         a.write(path, b"x");
     }
 
     let mut roms = block_on(scan(&a.games));
     roms.sort();
 
-    assert_eq!(roms, ["gb/Red.GB", "gba/Emerald.gba", "gba/Hacks/Radical Red.zip", "nds/Platinum.7z"]);
+    assert_eq!(
+        roms,
+        ["3ds/PKSM.3dsx", "3ds/X.3ds", "gb/Red.GB", "gba/Emerald.gba", "gba/Hacks/Radical Red.zip", "nds/Platinum.7z"]
+    );
 }
 
 fn sha1s(files: &[(&str, &str)]) -> Sha1s {
@@ -655,6 +683,102 @@ fn signing_in_after_a_reinstall_deletes_nothing_from_the_cloud() {
     assert_eq!(cloud.blobs(), blobs);
 }
 
+const X: &str = "3ds/X.3ds";
+const X_UPDATE: &str = "3ds/X/update.cia";
+
+fn x_update(version: u16) -> Vec<u8> {
+    use crate::three_ds::tests::{cia_of, ncch};
+    let id = 0x0004000E00055D00;
+    cia_of(id, version, &[(0, 0, ncch(id, true, true))])
+}
+
+fn with_x(device: &Device, update: u16) {
+    device.write(X, &crate::three_ds::tests::ncch(0x0004000000055D00, true, true));
+    device.write(X_UPDATE, &x_update(update));
+}
+
+#[test]
+fn a_games_update_goes_up_and_comes_down_with_its_rom() {
+    let (a, b, cloud) = syncing_games("update");
+    with_x(&a, 1040);
+    a.sync_ok(&cloud);
+    b.sync_ok(&cloud);
+
+    let rom = a.read(X).unwrap();
+    assert_eq!(b.cloud_rom_size(&cloud, X), Some((rom.len() + x_update(1040).len()) as u64));
+    b.download_rom(&cloud, X).unwrap();
+    assert_eq!(b.read(X_UPDATE), Some(x_update(1040)));
+
+    a.write(X_UPDATE, &x_update(5232));
+    a.sync_ok(&cloud);
+    b.sync_ok(&cloud);
+    assert_eq!(b.read(X_UPDATE), Some(x_update(5232)));
+    assert!(!cloud.blobs().contains(&x_update(1040)));
+    assert!(cloud.retired().is_empty());
+
+    b.write(X_UPDATE, &x_update(1040));
+    b.sync_ok(&cloud);
+    assert_eq!(b.read(X_UPDATE), Some(x_update(5232)));
+
+    a.delete(&cloud, X);
+    assert!(!cloud.blobs().contains(&x_update(5232)));
+}
+
+#[test]
+fn an_update_moves_only_while_sync_games_is_on_and_waits_for_wifi() {
+    let (a, cloud) = (device("update-gated", "A"), Memory::new());
+    with_x(&a, 5232);
+    a.write("3ds/X.sav", b"save");
+
+    a.sync_ok(&cloud);
+    assert_eq!(cloud.blobs(), [b"save".to_vec()]);
+
+    a.sync_games(true);
+    a.metered.store(true, Ordering::Relaxed);
+    a.sync_ok(&cloud);
+    assert!(!cloud.blobs().contains(&x_update(5232)));
+    assert!(a.remove_from_device(&cloud, X).is_err());
+
+    a.metered.store(false, Ordering::Relaxed);
+    a.sync_ok(&cloud);
+    assert!(cloud.blobs().contains(&x_update(5232)));
+    a.remove_from_device(&cloud, X).unwrap();
+    assert!(a.held().iter().all(|(path, _)| !path.ends_with("update.cia")), "{:?}", a.held());
+}
+
+#[test]
+fn an_update_moves_with_its_renamed_game_on_every_device() {
+    let (a, b, cloud) = syncing_games("update-rename");
+    with_x(&a, 5232);
+    a.sync_ok(&cloud);
+    b.sync_ok(&cloud);
+    b.download_rom(&cloud, X).unwrap();
+
+    a.rename(X, "3ds/Y.3ds");
+    a.sync_ok(&cloud);
+    b.sync_ok(&cloud);
+
+    for device in [&a, &b] {
+        assert_eq!(device.read("3ds/Y/update.cia"), Some(x_update(5232)), "{}", device.name);
+        assert_eq!(device.read(X_UPDATE), None, "{}", device.name);
+    }
+}
+
+#[test]
+fn an_update_the_app_cant_read_holds_back_none_of_the_games_files() {
+    let (a, cloud) = (device("update-unreadable", "A"), Memory::new());
+    a.sync_games(true);
+    a.write(X, &crate::three_ds::tests::ncch(0x0004000000055D00, true, true));
+    let id = 0x0004000E00055D00;
+    let encrypted = crate::three_ds::tests::cia_of(id, 5232, &[(0, 1, crate::three_ds::tests::ncch(id, true, true))]);
+    a.write(X_UPDATE, &encrypted);
+    a.write("3ds/X.sav", b"save");
+
+    a.sync_ok(&cloud);
+
+    assert!(cloud.blobs().contains(&b"save".to_vec()));
+}
+
 #[test]
 fn a_replaced_save_stays_in_the_cloud_retired_but_a_replaced_rom_goes_at_once() {
     let (a, cloud) = (device("retired", "A"), Memory::new());
@@ -739,6 +863,95 @@ fn a_rom_upload_stopped_partway_for_a_waiting_sync_queues_another_full_sync() {
     assert!(report[EMERALD].error.is_none(), "{report:?}");
     assert!(engine.stopped_early.load(Ordering::Relaxed));
     assert!(cloud.records()[0]["rom"].get("blob").is_none());
+}
+
+#[test]
+fn a_stopped_full_sync_pauses_its_rom_upload_partway() {
+    let (a, cloud) = (device("rom-stopped-partway", "A"), FakeDrive::new());
+    a.sync_games(true);
+    let rom: Vec<u8> = (0..super::drive::CHUNK * 2 + 1000).map(|i| (i % 251) as u8).collect();
+    a.write(EMERALD, &rom);
+    let stopping = AtomicBool::new(false);
+    let stops_after_a_chunk = || {
+        if cloud.uploaded_bytes() >= super::drive::CHUNK {
+            stopping.store(true, Ordering::Relaxed);
+        }
+        false
+    };
+    let engine = Engine { stopping: &stopping, others_waiting: &stops_after_a_chunk, ..a.engine(&cloud, &no_wait) };
+
+    let report = block_on(engine.sync_all()).unwrap();
+
+    assert!(report[EMERALD].error.is_none(), "{report:?}");
+    assert!(!engine.stopped_early.load(Ordering::Relaxed));
+    assert!(cloud.records()[0]["rom"].get("blob").is_none());
+    a.sync_ok(&cloud);
+    assert_eq!(cloud.uploaded_bytes(), rom.len() as u64);
+    assert!(cloud.records()[0]["rom"].get("blob").is_some());
+}
+
+struct StopsOnceSynced<'a> {
+    recorded: Recorded,
+    stopping: &'a AtomicBool,
+}
+
+impl Events for StopsOnceSynced<'_> {
+    fn game(&self, rom: &str, state: &GameState) {
+        if matches!(state, GameState::Synced { .. }) {
+            self.stopping.store(true, Ordering::Relaxed);
+        }
+        self.recorded.game(rom, state);
+    }
+
+    fn run(&self, run: &RunProgress) {
+        self.recorded.run(run);
+    }
+}
+
+#[test]
+fn a_stopped_full_sync_leaves_the_games_it_hasnt_reached() {
+    let (a, cloud) = (device("stopped-between-games", "A"), Memory::new());
+    for rom in [EMERALD, RUBY] {
+        a.write(rom, rom.as_bytes());
+    }
+    a.write("gba/Emerald.sav", b"emerald save");
+    a.write("gba/Ruby.sav", b"ruby save");
+    let stopping = AtomicBool::new(false);
+    let events = StopsOnceSynced { recorded: Recorded::default(), stopping: &stopping };
+    let engine = Engine { stopping: &stopping, events: &events, ..a.engine(&cloud, &no_wait) };
+
+    let report = block_on(engine.sync_all()).unwrap();
+
+    assert_eq!(report.len(), 1, "{report:?}");
+    assert!(!engine.stopped_early.load(Ordering::Relaxed));
+    let left = if report.contains_key(EMERALD) { RUBY } else { EMERALD };
+    assert_eq!(events.recorded.states(left).last(), Some(&GameState::Waiting { reason: Wait::Stopped }));
+    assert_eq!(cloud.records().len(), 1);
+}
+
+#[test]
+fn a_stopped_rom_doesnt_count_as_synced() {
+    let (a, _, cloud) = syncing_games("stopped-rom");
+    let stopping = AtomicBool::new(false);
+    let stops_once_recorded = || {
+        if !cloud.records().is_empty() {
+            stopping.store(true, Ordering::Relaxed);
+        }
+        false
+    };
+    let events = Recorded::default();
+    let engine = Engine {
+        stopping: &stopping,
+        others_waiting: &stops_once_recorded,
+        events: &events,
+        ..a.engine(&cloud, &no_wait)
+    };
+
+    block_on(engine.sync_all()).unwrap();
+
+    let states = events.states(EMERALD);
+    assert_eq!(states.last(), Some(&GameState::Waiting { reason: Wait::Stopped }));
+    assert!(!states.iter().any(|state| matches!(state, GameState::Synced { .. })), "{states:?}");
 }
 
 #[test]
@@ -940,6 +1153,42 @@ fn a_kept_copy_seen_by_a_one_game_sync_comes_down_at_the_full_sync() {
     b.sync_ok(&cloud);
 
     assert_eq!(b.kept_copies(&[KADABRA]), [kept(KADABRA, 5, "Black")]);
+}
+
+#[test]
+fn skins_from_the_cloud_reach_the_screen() {
+    let (a, b, cloud) = (device("skins-event", "A"), device("skins-event", "B"), Memory::new());
+    a.choose_skin("gba", "glacier", 5);
+    a.sync_ok(&cloud);
+    b.choose_skin("gb", "classic-grey", 6);
+
+    let (_, events) = b.sync_recorded(&cloud);
+
+    let shown: Vec<_> = events.events().into_iter().filter(|event| matches!(event, Event::Skins(_))).collect();
+    assert_eq!(shown, [Event::Skins(crate::skins::Skins::from([("gba".into(), skin("glacier", 5))]))]);
+}
+
+#[test]
+fn skins_already_here_send_nothing_to_the_screen() {
+    let (a, cloud) = (device("skins-no-event", "A"), Memory::new());
+    a.choose_skin("gba", "glacier", 5);
+
+    let (_, events) = a.sync_recorded(&cloud);
+
+    assert!(!events.events().iter().any(|event| matches!(event, Event::Skins(_))));
+}
+
+#[test]
+fn a_skins_record_this_version_cant_read_is_left_alone() {
+    let (a, cloud) = (device("skins-unreadable", "A"), Memory::new());
+    block_on(cloud.write_record("skins", br#"["a later version"]"#, None)).unwrap();
+    a.choose_skin("gba", "glacier", 5);
+    let writes = cloud.record_writes();
+
+    a.sync_ok(&cloud);
+
+    assert_eq!(cloud.record_writes(), writes);
+    assert_eq!(a.skins(), crate::skins::Skins::from([("gba".into(), skin("glacier", 5))]));
 }
 
 #[test]

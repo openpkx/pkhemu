@@ -46,6 +46,10 @@ impl<'a, R: Runtime> Tree<'a, R> {
         self.never()
     }
 
+    pub async fn open_for_core(&self, _path: &str) -> Result<crate::rom::RomFile, String> {
+        self.never()
+    }
+
     pub fn unpack_dir(&self) -> Result<PathBuf, String> {
         self.never()
     }

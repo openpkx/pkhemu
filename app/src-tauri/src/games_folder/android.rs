@@ -150,6 +150,14 @@ impl<'a, R: Runtime> Tree<'a, R> {
         self.fs().open_file_readable(&file).await.map_err(error)
     }
 
+    // A SAF file has no path the app may open, so the core gets the descriptor's /proc entry, which retro::vfs serves.
+    pub async fn open_for_core(&self, path: &str) -> Result<crate::rom::RomFile, String> {
+        use std::os::fd::AsRawFd;
+        let file = self.open_file(path).await?;
+        let proc = format!("/proc/self/fd/{}", file.as_raw_fd());
+        Ok(crate::rom::RomFile::new(file, proc))
+    }
+
     // std::env::temp_dir() isn't writable on Android.
     pub fn unpack_dir(&self) -> Result<PathBuf, String> {
         cache_dir(self.app, "unpacked")

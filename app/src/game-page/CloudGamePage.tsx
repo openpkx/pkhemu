@@ -8,7 +8,7 @@ import type { Game } from "@/library/scan";
 import { Screen } from "@/motion/motion";
 import { useSync } from "@/sync/sync";
 import { GameMenu } from "./GameMenu";
-import { Hero, type GamePageHost, type Gone } from "./GamePage";
+import { Hero } from "./GamePage";
 
 const MB = 1024 * 1024;
 
@@ -21,20 +21,18 @@ function downloaded(done: number, total: number) {
 type Asking = { size: number; answer(download: boolean): void; answered?: boolean };
 
 export function CloudGamePage({
-  host,
   folder,
   game,
   sharedArt,
   onDownloaded,
-  onGone,
+  onDelete,
   onBack,
 }: {
-  host: Pick<GamePageHost, "deleteGame">;
   folder: string;
   game: Game;
   sharedArt?: string;
   onDownloaded(game: Game): void;
-  onGone(game: Game, how: Gone): void;
+  onDelete(game: Game): void;
   onBack(): void;
 }) {
   const sync = useSync();
@@ -106,10 +104,7 @@ export function CloudGamePage({
                 folder={folder}
                 game={game}
                 deletesEverywhere={!!sync.account}
-                onDelete={async () => {
-                  await host.deleteGame(folder, game.path);
-                  onGone(game, "deleted");
-                }}
+                onDelete={async () => onDelete(game)}
               />
             }
             onBack={onBack}

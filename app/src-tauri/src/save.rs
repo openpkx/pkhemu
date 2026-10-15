@@ -9,6 +9,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::Runtime;
 
 pub(crate) mod n64;
+pub(crate) mod three_ds;
 
 const CHECK_EVERY: u64 = 30;
 const CLOCK_BYTES: usize = 48;
@@ -36,8 +37,7 @@ enum Kind {
 
 impl Slot {
     pub fn new(path: String, mut file: Vec<u8>) -> (Slot, Vec<u8>) {
-        let footer = (is_dsv(&path) && file.len() >= DSV_FOOTER_BYTES && file.ends_with(DSV_MARKER))
-            .then(|| file.split_off(file.len() - DSV_FOOTER_BYTES));
+        let footer = has_dsv_footer(&file).then(|| file.split_off(file.len() - DSV_FOOTER_BYTES));
         (Slot(Kind::File { path, footer }), file)
     }
 
@@ -128,6 +128,10 @@ fn is_dsv(path: &str) -> bool {
     has_extension(path, "dsv")
 }
 
+fn has_dsv_footer(file: &[u8]) -> bool {
+    file.len() >= DSV_FOOTER_BYTES && file.ends_with(DSV_MARKER)
+}
+
 fn beside(rom: &str, extension: &str) -> String {
     Path::new(rom).with_extension(extension).to_string_lossy().into_owned()
 }
@@ -200,7 +204,7 @@ pub fn imported(rom: &str, name: &str, file: Vec<u8>) -> Result<(Slot, Vec<u8>),
             false => Err(format!("{name} isn't a Nintendo 64 save")),
         };
     }
-    let path = if is_dsv(name) { rom::dsv_path(rom) } else { rom::save_path(rom) };
+    let path = if is_dsv(name) || has_dsv_footer(&file) { rom::dsv_path(rom) } else { rom::save_path(rom) };
     Ok(Slot::new(path, file))
 }
 
@@ -302,15 +306,18 @@ pub fn with_clock(rom: &str, mut save: Vec<u8>, rtc: &[u8], now: u64) -> Vec<u8>
     if !is_game_boy(rom) || !save.len().is_power_of_two() {
         return save;
     }
-    match rtc.len() {
-        CLOCK_BYTES => save.extend_from_slice(rtc),
-        // Gambatte's, which Delta keeps: the big-endian Unix time the clock counts from.
-        4 => {
-            let base = u32::from_be_bytes(rtc.try_into().unwrap()) as u64;
-            save.extend(mgba_clock(now.saturating_sub(base), now));
+    let base = match rtc.len() {
+        CLOCK_BYTES => {
+            save.extend_from_slice(rtc);
+            return save;
         }
-        _ => {}
-    }
+        // Gambatte's, which Delta keeps: the big-endian Unix time the clock counts from.
+        4 => u32::from_be_bytes(rtc.try_into().unwrap()) as u64,
+        // gambatte-libretro's: the same time as a little-endian u64.
+        8 => u64::from_le_bytes(rtc.try_into().unwrap()),
+        _ => return save,
+    };
+    save.extend(mgba_clock(now.saturating_sub(base), now));
     save
 }
 
@@ -511,6 +518,17 @@ pub(crate) mod tests {
     }
 
     #[test]
+    fn reads_gambatte_libretros_little_endian_64_bit_base_time() {
+        let now = 1_800_000_000;
+        let base = (now - (3 * DAY + 5 * 3600 + 7 * 60 + 9)).to_le_bytes();
+
+        let file = with_clock("gbc/Crystal.gbc", vec![0; 0x8000], &base, now);
+
+        let registers: Vec<u8> = [9u32, 7, 5, 3, 0].iter().flat_map(|register| register.to_le_bytes()).collect();
+        assert_eq!(file[0x8000..], [registers.as_slice(), &registers, &now.to_le_bytes()].concat());
+    }
+
+    #[test]
     fn puts_day_256_in_the_high_register_and_sets_the_carry_past_day_511() {
         let day = |elapsed_days: u64| {
             let clock = mgba_clock(elapsed_days * DAY, 0);
@@ -529,7 +547,7 @@ pub(crate) mod tests {
 
         assert_eq!(with_clock("gba/Emerald.gba", vec![0; 0x20000], &rtc, 1_800_000_000).len(), 0x20000);
         assert_eq!(with_clock("gbc/Crystal.gbc", vec![0; 0x8000 + 48], &rtc, 1_800_000_000).len(), 0x8000 + 48);
-        assert_eq!(with_clock("gbc/Crystal.gbc", vec![0; 0x8000], &[0; 8], 1_800_000_000).len(), 0x8000);
+        assert_eq!(with_clock("gbc/Crystal.gbc", vec![0; 0x8000], &[0; 12], 1_800_000_000).len(), 0x8000);
         assert_eq!(with_clock("gb/Red.gb", vec![0; 0x8000], &mgba, 1_800_000_000)[0x8000..], mgba);
     }
 

@@ -162,15 +162,22 @@ it("hands the tapped tile and its last screen to the game it opens", async () =>
   });
 });
 
-it("rescans from the refresh button", async () => {
+it("rescans when the window gets focus", async () => {
   const paths = ["gb/Red.gb"];
   renderLibrary(paths);
   await screen.findByRole("region");
   paths.push("gbc/Crystal.gbc");
 
-  fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  fireEvent.focus(window);
 
   expect(await screen.findByRole("button", { name: /Crystal/ })).toBeTruthy();
+});
+
+it("has no refresh button in the header", async () => {
+  renderLibrary(["gb/Red.gb"]);
+  await screen.findByRole("region");
+
+  expect(screen.queryByRole("button", { name: "Refresh" })).toBeNull();
 });
 
 it("opens settings from the header", async () => {
@@ -242,7 +249,7 @@ it("shows a DS game's top screen on the Continue card and its tile", async () =>
 
   expect(tiles).toHaveLength(2);
   for (const tile of tiles) {
-    await waitFor(() => expect(tile.querySelector("img")?.classList.contains("object-top")).toBe(true));
+    await waitFor(() => expect(tile.querySelector("img")?.style.height).toBe("200%"));
   }
 });
 
@@ -271,7 +278,7 @@ it("reads a visible tile's last screen again on refresh", async () => {
   await screen.findByRole("button", { name: /Red/ });
   await waitFor(() => expect(host.resumeScreenshot).toHaveBeenCalledTimes(1));
 
-  fireEvent.click(screen.getByRole("button", { name: "Refresh" }));
+  fireEvent.focus(window);
 
   await waitFor(() => expect(host.resumeScreenshot).toHaveBeenCalledTimes(2));
 });
@@ -306,6 +313,7 @@ it.each([
   [{ state: "queued" }, "img", "Waiting to sync"],
   [{ state: "waiting", reason: "mobileData" }, "img", "Waiting for Wi-Fi"],
   [{ state: "waiting", reason: "offline" }, "img", "Waiting for a connection"],
+  [{ state: "waiting", reason: "stopped" }, "img", "Sync stopped"],
   [{ state: "conflict" }, "img", "Changed on another device. Open the game to choose a version"],
   [{ state: "error", message: "Your Google Drive is full" }, "img", "Your Google Drive is full"],
 ] as const)("badges a tile while its game syncs: %o", async (game, role, label) => {
