@@ -3,6 +3,16 @@ use crate::vulkan::Settings;
 use std::ffi::CStr;
 use std::path::PathBuf;
 
+#[cfg_attr(sideload, path = "ios_jit.rs")]
+#[cfg_attr(not(sideload), path = "ios_no_jit.rs")]
+mod jit;
+pub use jit::{enable_jit_url, exec_mem_alloc, exec_mem_free, jit_on, release_exec_mem};
+#[cfg(sideload)]
+#[path = "ios_jit_helper.rs"]
+mod jit_helper;
+#[cfg(sideload)]
+pub use jit_helper::{jit_helper, turn_on_jit_with_helper, JitHelper};
+
 // App Store apps can't map memory writable and executable.
 pub const N64_CPU: &CStr = c"cached_interpreter";
 pub const JIT: bool = false;
@@ -71,6 +81,25 @@ mod tests {
         crate::retro::set_async_shaders(false);
 
         assert_eq!(fallback.as_deref(), Some("disabled"));
+    }
+
+    #[test]
+    fn tells_cores_there_is_no_executable_memory_with_no_debugger_attached() {
+        let _lock = crate::test_games::lock_core();
+        let mut alloc = ExecMemAlloc {
+            version: 1,
+            size: 0,
+            mode: EXEC_MEM_MODE_DUAL_MAP,
+            rx: std::ptr::null_mut(),
+            rw: std::ptr::null_mut(),
+        };
+        let ask = |alloc: &mut ExecMemAlloc| unsafe { environment(ENV_EXEC_MEM_ALLOC, alloc as *mut _ as *mut c_void) };
+
+        assert!(ask(&mut alloc));
+        assert_eq!(alloc.mode, EXEC_MEM_MODE_UNAVAILABLE);
+        alloc.size = 4096;
+        assert!(!ask(&mut alloc));
+        assert!(!jit_on());
     }
 
     #[test]

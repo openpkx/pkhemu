@@ -245,14 +245,14 @@ it.each([
   );
 });
 
-it("lets 3DS use the DS skins", async () => {
+it("keeps a 3DS skin choice", async () => {
   const { launch } = fakeStore({
-    skins: { "3ds": { skin: "enamel-navy", look: "moulded" } } as Preferences["skins"],
+    skins: { "3ds": { skin: "aqua-blue", look: "moulded" } } as Preferences["skins"],
   });
 
   const { result } = launch();
 
-  await waitFor(() => expect(result.current.preferences.skins["3ds"]).toEqual({ skin: "enamel-navy", look: "moulded" }));
+  await waitFor(() => expect(result.current.preferences.skins["3ds"]).toEqual({ skin: "aqua-blue", look: "moulded" }));
 });
 
 it("shows a skin chosen on another device once sync brings it down", async () => {

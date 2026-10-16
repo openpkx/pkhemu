@@ -322,6 +322,27 @@
 		</dict>
 		<dict>
 			<key>UTTypeIdentifier</key>
+			<string>public.aoshuang.game.3ds</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>3DS Game</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>3ds</string>
+					<string>3dsx</string>
+					<string>cci</string>
+					<string>cxi</string>
+					<string>cia</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
 			<string>public.aoshuang.gamesave</string>
 			<key>UTTypeConformsTo</key>
 			<array>
@@ -478,6 +499,26 @@
 			</array>
 			<key>CFBundleTypeName</key>
 			<string>N64 game</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Default</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>3ds</string>
+				<string>3dsx</string>
+				<string>cci</string>
+				<string>cxi</string>
+				<string>cia</string>
+			</array>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.aoshuang.game.3ds</string>
+			</array>
+			<key>CFBundleTypeName</key>
+			<string>3DS game</string>
 			<key>CFBundleTypeRole</key>
 			<string>Viewer</string>
 			<key>LSHandlerRank</key>

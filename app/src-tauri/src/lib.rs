@@ -1,3 +1,4 @@
+mod achievements;
 mod app_update;
 mod audio;
 mod backups;
@@ -5,7 +6,9 @@ mod box_art;
 mod cheats;
 mod clock;
 mod edit;
+mod edited;
 mod emu;
+mod entitlements;
 mod export;
 mod files;
 mod frame_time;
@@ -18,6 +21,8 @@ mod keep_alive;
 mod kept_copies;
 mod memory;
 mod pace;
+#[cfg(any(sideload, test))]
+mod pairing_file;
 mod patch;
 mod patching;
 #[cfg_attr(target_os = "android", path = "platform/android.rs")]
@@ -71,6 +76,7 @@ async fn play<R: Runtime>(
     folder: String,
     path: String,
     resume: bool,
+    hardcore: bool,
     clock_offset: i64,
     async_shaders: bool,
     on_frame: Channel<InvokeResponseBody>,
@@ -95,6 +101,7 @@ async fn play<R: Runtime>(
         path,
         cart,
         resume,
+        hardcore,
         clock_offset,
         on_frame,
         on_step,
@@ -116,6 +123,7 @@ async fn start_game<R: Runtime>(
     path: String,
     cart: Option<String>,
     resume: bool,
+    hardcore: bool,
     clock_offset: i64,
     on_frame: Channel<InvokeResponseBody>,
     on_step: Channel<String>,
@@ -147,13 +155,15 @@ async fn start_game<R: Runtime>(
     let _ = on_step.send("save".into());
     let (slot, save) = save::open(&games, &path).await?;
     let running = retro::core_info_for(rom.system())?;
-    let (state, state_slot, other_version) = starting_point(&games, &path, resume, &running).await?;
+    let (state, state_slot, kept_in) =
+        starting_point(&games, &path, resume, &running, &slot, save.as_deref().unwrap_or_default()).await?;
+    let hardcore = hardcore && state.is_none();
     if let Err(e) = states::remove(&games, &path, StateName::BeforeLoad).await {
         eprintln!("{e}");
     }
     if let Some(save) = &save {
         let _ = on_step.send("backup".into());
-        if let Err(e) = back_up_at_start(&games, &path, &slot, save, cheats_on).await {
+        if let Err(e) = back_up_at_start(&games, &path, &slot, save, cheats_on && !hardcore).await {
             eprintln!("backing up {path}: {e}");
         }
     }
@@ -170,6 +180,16 @@ async fn start_game<R: Runtime>(
         }
     };
 
+    let mark_edited = {
+        let (app, folder, path) = (app.clone(), folder.clone(), path.clone());
+        move || {
+            let games = GamesFolder::open(&app, &folder);
+            if let Err(e) = tauri::async_runtime::block_on(edited::mark(&games, &path)) {
+                eprintln!("marking the save edited: {e}");
+            }
+        }
+    };
+    let achievements = app.state::<achievements::Achievements>().identify(&rom).map(|load| load.in_hardcore(hardcore));
     let notify = app.clone();
     let (writes, queued) = mpsc::unbounded_channel();
     let writer = {
@@ -195,16 +215,21 @@ async fn start_game<R: Runtime>(
         writes,
         back_up: Box::new(back_up),
         mark_cheats,
+        mark_edited: Box::new(mark_edited),
         writer,
         on_frame,
         native,
         on_native_failed,
+        achievements,
         reply,
     });
     let fps = result.await.map_err(|e| e.to_string())??;
-    if other_version {
-        let text = "Your resume point is from a different version of pkhemu, so the game started from its last save.";
-        let _ = notify.emit("core-message", retro::Message { text: text.into(), duration_ms: 6000 });
+    if let Some(kept_in) = kept_in {
+        let text = format!(
+            "Your resume point is from a different version of pkhemu, so the game started from its last save. \
+             The resume point is in slot {kept_in}. Load it on the device that made it."
+        );
+        let _ = notify.emit("core-message", retro::Message { text, duration_ms: 6000 });
     }
     Ok(fps)
 }
@@ -254,13 +279,15 @@ async fn starting_point<R: Runtime>(
     path: &str,
     resume: bool,
     running: &retro::CoreInfo,
-) -> Result<(Option<Vec<u8>>, Option<u8>, bool), String> {
+    save_slot: &save::Slot,
+    save: &[u8],
+) -> Result<(Option<Vec<u8>>, Option<u8>, Option<u8>), String> {
     if !resume {
-        return Ok((None, None, false));
+        return Ok((None, None, None));
     }
     Ok(match resume::read(games, path, running).await? {
-        Some((state, slot)) => (Some(state), slot, false),
-        None => (None, None, true),
+        Some((state, slot)) => (Some(state), slot, None),
+        None => (None, None, Some(resume::keep_in_slot(games, path, save_slot, save).await?)),
     })
 }
 
@@ -460,6 +487,13 @@ async fn write_transfer<R: Runtime>(
 }
 
 #[tauri::command]
+async fn leave_hardcore(emu: State<'_, Emu>) -> Result<(), String> {
+    let (done, left) = oneshot::channel();
+    emu.send(Command::LeaveHardcore { done });
+    left.await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
 async fn undo_edit(emu: State<'_, Emu>) -> Result<(), String> {
     let (reply, result) = oneshot::channel();
     emu.send(Command::UndoEdit { reply });
@@ -586,6 +620,35 @@ async fn can_undo_edit(emu: State<'_, Emu>) -> Result<bool, String> {
     result.await.map_err(|e| e.to_string())
 }
 
+// Approving the JIT pool can keep the debugger busy for a while.
+#[tauri::command]
+async fn jit_on() -> Result<bool, String> {
+    tauri::async_runtime::spawn_blocking(retro::jit_on).await.map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn jit_enable<R: Runtime>(app: AppHandle<R>) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    let url = retro::enable_jit_url().ok_or("JIT can't be turned on in this build")?;
+    app.opener().open_url(url, None::<&str>).map_err(|e| e.to_string())
+}
+
+#[cfg(sideload)]
+#[tauri::command]
+fn jit_helper() -> retro::JitHelper {
+    retro::jit_helper()
+}
+
+#[cfg(sideload)]
+#[tauri::command]
+async fn jit_turn_on<R: Runtime>(app: AppHandle<R>) -> Result<bool, String> {
+    let data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+    let pairing_file = std::fs::read(pairing_file::path(&data_dir)).map_err(|_| "Import a pairing file first.")?;
+    tauri::async_runtime::spawn_blocking(move || retro::turn_on_jit_with_helper(pairing_file))
+        .await
+        .map_err(|e| e.to_string())?
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     // Tauri's mobile dev server proxy builds a reqwest client without a TLS provider of its own.
@@ -602,6 +665,8 @@ pub fn run() {
         .setup(|app| {
             let data_dir = app.path().app_data_dir()?;
             std::fs::create_dir_all(&data_dir)?;
+            // StikDebug can launch the app attached, and its script waits until the app sets JIT up and lets it go.
+            std::thread::spawn(retro::jit_on);
             if let Ok(cache_dir) = app.path().app_cache_dir() {
                 std::thread::spawn(move || files::remove_old_sprites(&cache_dir));
             }
@@ -633,6 +698,13 @@ pub fn run() {
                     let _ = app.emit("core-message", message);
                 })
             };
+            let on_event = {
+                let app = app.handle().clone();
+                Box::new(move |event: achievements::Event| {
+                    let _ = app.emit("retro-achievements", event);
+                })
+            };
+            app.manage(achievements::for_app(app.handle(), &data_dir, on_event));
             app.manage(Emu::start(data_dir.join("system"), index.clone(), emu_in_use, on_game, on_message));
             audio::platform::watch(app.handle());
             app.manage(art);
@@ -664,6 +736,9 @@ pub fn run() {
             apply_edit_to_file,
             write_transfer,
             undo_edit,
+            leave_hardcore,
+            edited::edited_mark,
+            edited::settle_edited_mark,
             list_backups,
             read_backup,
             restore_backup,
@@ -761,8 +836,31 @@ pub fn run() {
             sync::sync_remove_from_device,
             sync::delete_game,
             plus::plus_status,
+            entitlements::missing_memory_entitlements,
             plus::plus_buy,
             plus::plus_restore,
+            jit_on,
+            jit_enable,
+            #[cfg(sideload)]
+            jit_helper,
+            #[cfg(sideload)]
+            jit_turn_on,
+            #[cfg(sideload)]
+            pairing_file::commands::jit_pairing_file,
+            #[cfg(sideload)]
+            pairing_file::commands::jit_pairing_file_import,
+            #[cfg(sideload)]
+            pairing_file::commands::jit_pairing_file_remove,
+            achievements::retro_achievements_turn,
+            achievements::retro_achievements_account,
+            achievements::retro_achievements_sign_in,
+            achievements::retro_achievements_sign_out,
+            achievements::retro_achievements_badge,
+            achievements::retro_achievements_playing,
+            achievements::retro_achievements_game,
+            achievements::retro_achievements_create_account,
+            achievements::retro_achievements_summary,
+            achievements::retro_achievements_open_profile,
             app_update::platform::app_update_check,
             app_update::platform::app_update_start,
             app_update::platform::app_update_complete,
@@ -800,13 +898,19 @@ mod tests {
         games
     }
 
+    fn start(
+        games: &GamesFolder<'_, tauri::Wry>,
+        resume: bool,
+    ) -> Result<(Option<Vec<u8>>, Option<u8>, Option<u8>), String> {
+        let (slot, _) = save::Slot::new("gb/Red.sav".into(), Vec::new());
+        tauri::async_runtime::block_on(starting_point(games, "gb/Red.gb", resume, &retro::core_info(), &slot, b"save"))
+    }
+
     #[test]
     fn resumes_from_the_slot_it_was_playing_from() {
         let games = resumable("resume-slot");
 
-        let started = tauri::async_runtime::block_on(starting_point(&games, "gb/Red.gb", true, &retro::core_info()));
-
-        assert_eq!(started, Ok((Some(b"state".to_vec()), Some(3), false)));
+        assert_eq!(start(&games, true), Ok((Some(b"state".to_vec()), Some(3), None)));
     }
 
     #[test]
@@ -815,18 +919,16 @@ mod tests {
         let json = br#"{"playSinceSave":null,"slot":3,"core":"mGBA","coreVersion":"0.0.1"}"#;
         tauri::async_runtime::block_on(games.write("gb/Red/states/resume.json", json)).unwrap();
 
-        let started = tauri::async_runtime::block_on(starting_point(&games, "gb/Red.gb", true, &retro::core_info()));
-
-        assert_eq!(started, Ok((None, None, true)));
+        assert_eq!(start(&games, true), Ok((None, None, Some(1))));
+        assert_eq!(tauri::async_runtime::block_on(games.read("gb/Red/states/slot-1.state")).unwrap(), b"state");
+        assert!(!tauri::async_runtime::block_on(games.has_file("gb/Red/states/resume.state")));
     }
 
     #[test]
     fn starts_from_no_slot() {
         let games = resumable("start-slot");
 
-        let started = tauri::async_runtime::block_on(starting_point(&games, "gb/Red.gb", false, &retro::core_info()));
-
-        assert_eq!(started, Ok((None, None, false)));
+        assert_eq!(start(&games, false), Ok((None, None, None)));
     }
 
     fn backed_up_at_start(name: &str, cheats_on: bool) -> Vec<String> {

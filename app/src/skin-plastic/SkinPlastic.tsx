@@ -28,6 +28,41 @@ export function openingsMask(size: Size, windows: Rect[], radius: number, inset:
   return `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
 }
 
+// Past the height of the largest phone a larger photo would enlarge the plastic's pattern and blur it, so the photo
+// stops at that height and mirrored copies cover the rest, which keeps every seam continuous.
+const photo = { width: 1290, height: 2312, maxHeight: 960 };
+const photoHeight = `min(max(100cqh, 100cqw * ${photo.height} / ${photo.width}), ${photo.maxHeight}px)`;
+const photoWidth = `${photoHeight} * ${photo.width} / ${photo.height}`;
+const mirrored = [0, 1, 2].flatMap((row) =>
+  [-2, -1, 0, 1, 2].filter((column) => column || row).map((column) => ({ column, row })),
+);
+
+export function PlasticPhoto({ image }: { image: string }) {
+  return (
+    <div className="absolute inset-0 overflow-hidden [container-type:size]">
+      <div
+        className="absolute inset-0 bg-top bg-no-repeat"
+        style={{ backgroundImage: `url(${image})`, backgroundSize: `auto ${photoHeight}` }}
+      />
+      {mirrored.map(({ column, row }) => (
+        <div
+          key={`${column} ${row}`}
+          data-copy={`${column} ${row}`}
+          className="absolute bg-size-[100%_100%]"
+          style={{
+            backgroundImage: `url(${image})`,
+            width: `calc(${photoWidth})`,
+            height: photoHeight,
+            left: `calc(50% + ${column - 0.5} * ${photoWidth})`,
+            top: `calc(${row} * ${photoHeight})`,
+            transform: `scale(${column % 2 ? -1 : 1}, ${row % 2 ? -1 : 1})`,
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 // The native surface draws the opening under the page, and the hole stops a device pixel short of its edge so the
 // surface's own anti-aliased corner stays under the plastic.
 export function SkinPlastic({ skin, radius, windows }: { skin: Skin; radius: number; windows?: Rect[] }) {
@@ -48,8 +83,10 @@ export function SkinPlastic({ skin, radius, windows }: { skin: Skin; radius: num
     <div
       ref={plastic}
       aria-hidden
-      className="pointer-events-none absolute inset-0 -z-10 bg-cover bg-top bg-no-repeat [mask-size:100%_100%]"
-      style={{ backgroundImage: `url(${skin.image})`, backgroundColor: skin.base }}
-    />
+      className="pointer-events-none absolute inset-0 -z-10 [mask-size:100%_100%]"
+      style={{ backgroundColor: skin.base }}
+    >
+      <PlasticPhoto image={skin.image} />
+    </div>
   );
 }

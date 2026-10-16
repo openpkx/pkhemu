@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { EngineProvider } from "@pkhex-everywhere/react";
 import type { PokemonHandle, PokemonId, PokemonSummary } from "@pkhex-everywhere/engine";
 import { afterEach, expect, it, vi } from "vitest";
+import { BackProvider } from "@/back/back";
 import { EditorScreen } from "./EditorScreen";
 import { ExportProvider } from "./exportFile";
 import { fakeEngine, type FakeEngineSave } from "./fakeEngine";
@@ -44,15 +45,17 @@ function launch(save: FakeEngineSave, art = fakeGameArt(), clipboard: ClipboardH
   const { engine } = fakeEngine(save);
   const host = { read: async () => new Uint8Array([1]), apply: async () => {}, playTimeSinceSave: async () => 0 };
   render(
-    <EngineProvider engine={engine}>
-      <FakeGameArt art={art}>
-        <ExportProvider host={{ saveFile: async () => undefined, saveFiles: async () => undefined }}>
-          <ClipboardProvider host={clipboard}>
-            <EditorScreen host={host} home={saveHome} onBackGesture={() => () => {}} onClose={() => {}} onSaveFirst={() => {}} />
-          </ClipboardProvider>
-        </ExportProvider>
-      </FakeGameArt>
-    </EngineProvider>,
+    <BackProvider>
+      <EngineProvider engine={engine}>
+        <FakeGameArt art={art}>
+          <ExportProvider host={{ saveFile: async () => undefined, saveFiles: async () => undefined }}>
+            <ClipboardProvider host={clipboard}>
+              <EditorScreen host={host} home={saveHome} onBackGesture={() => () => {}} onClose={() => {}} onSaveFirst={() => {}} />
+            </ClipboardProvider>
+          </ExportProvider>
+        </FakeGameArt>
+      </EngineProvider>
+    </BackProvider>,
   );
 }
 

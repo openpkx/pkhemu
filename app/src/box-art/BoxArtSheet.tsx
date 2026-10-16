@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ImageOff, ImagePlus, Link, RotateCcw, Search } from "lucide-react";
-import { useBack } from "@/back/back";
 import { BottomSheet } from "@/components/BottomSheet";
 import { MenuEntry } from "@/components/MenuDialog";
 import { Button } from "@/components/ui/button";
@@ -149,7 +148,6 @@ export function BoxArtSheet({
   }, [boxArt, folder, game.path]);
 
   const close = () => !saving && onClose();
-  useBack(open ? close : undefined);
 
   const save = async (source: Saving, action: (folder: string, path: string) => Promise<boolean | void>) => {
     if (folder === undefined || saving) return;

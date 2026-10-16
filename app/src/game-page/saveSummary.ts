@@ -19,7 +19,7 @@ export type SaveSummary = {
   version: string | null;
   formatId: string | null;
   generation: number | null;
-  trainer: Pick<TrainerCard, "name" | "gender" | "money"> | null;
+  trainer: Pick<TrainerCard, "id" | "name" | "gender" | "money"> | null;
   party: PartyMember[];
   progress: GameProgress;
 };
@@ -35,7 +35,7 @@ export type SaveSummaryHost = SummaryCacheHost &
   };
 
 // Bump when an engine update changes what a summary holds, so cached summaries are made again.
-export const summaryRevision = 3;
+export const summaryRevision = 4;
 
 export const genderSymbols = { male: "♂", female: "♀" };
 
@@ -43,7 +43,7 @@ export type SaveCardState =
   | { state: "none" }
   | { state: "unreadable" }
   | { state: "choose"; candidates: FormatEntry[] }
-  | { state: "read"; modified: number; summary: SaveSummary; format: SaveFormat | null };
+  | { state: "read"; modified: number; sha256: string; summary: SaveSummary; format: SaveFormat | null };
 
 export const originalGame = "pkhex";
 
@@ -91,7 +91,7 @@ async function summarise(
       formatId: version?.formatId ?? null,
       generation: version?.generationId ?? null,
       // A Stadium save has no single trainer, yet the engine still answers with a placeholder name and money.
-      trainer: teams.length ? null : { name: trainer.name, gender: trainer.gender, money: trainer.money },
+      trainer: teams.length ? null : { id: trainer.id, name: trainer.name, gender: trainer.gender, money: trainer.money },
       party: party.map(({ speciesId, speciesIndex, species, isUnknown, isShiny, gender, isEgg, types, level, form }) => ({
         speciesId,
         speciesIndex,
@@ -157,12 +157,25 @@ async function readCard(
     }
     if (!summary) return;
     if (!format && summary.formatId) await keep((format = { id: summary.formatId, chosen: false }));
-    return { state: "read", modified: file.modified, summary, format };
+    return { state: "read", modified: file.modified, sha256: file.sha256, summary, format };
   } catch (error) {
     const candidates = formatChoiceOf(error);
     if (candidates) return { state: "choose", candidates };
     throw error;
   }
+}
+
+/** The trainer ID and OT, which change only when a new game starts on the save. */
+export const trainerKey = ({ id, name }: { id: string; name: string }) => `${id} ${name}`;
+
+/** The trainer in a save, with the hash of the save it was read from. */
+export type SavedTrainer = { trainer: string; sha256: string };
+
+export const savedTrainerOf = (card: SaveCardState | undefined): SavedTrainer | null =>
+  card?.state === "read" && card.summary.trainer ? { trainer: trainerKey(card.summary.trainer), sha256: card.sha256 } : null;
+
+export async function savedTrainer(engine: Engine, host: SaveSummaryHost, folder: string, path: string) {
+  return savedTrainerOf(await readCard(engine, host, folder, path, () => true));
 }
 
 export function useSaveCard(host: SaveSummaryHost, folder: string, path: string, reload: number) {

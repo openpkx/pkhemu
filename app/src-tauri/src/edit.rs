@@ -95,6 +95,8 @@ pub async fn apply_file<R: Runtime>(
     at: &str,
 ) -> Result<(), String> {
     let opened = open_for(folder, rom, edited).await?;
+    // Marked first, so a sync between the two can't send the edited save without its mark.
+    crate::edited::mark(folder, rom).await?;
     write_over(folder, rom, opened, edited, Reason::Edit, None, at).await
 }
 
@@ -109,6 +111,7 @@ pub async fn write_transfer<R: Runtime>(
     for game in [destination, source] {
         opened.push(open_for(folder, &game.path, &game.save).await.map_err(|e| format!("{}: {e}", game.path))?);
     }
+    crate::edited::mark(folder, &destination.path).await?;
     for (game, opened) in [destination, source].into_iter().zip(opened) {
         write_over(folder, &game.path, opened, &game.save, Reason::Transfer, Some(&game.note), at)
             .await
@@ -461,6 +464,32 @@ mod tests {
 
         assert_eq!(block_on(folder.read("gba/Emerald.sav")).unwrap(), b"EDITS");
         assert_eq!(block_on(folder.read("gba/Emerald/backups/2026-10-05_1412_edit.sav")).unwrap(), b"saved");
+    }
+
+    #[test]
+    fn marks_a_save_edited_from_its_file() {
+        let folder = saved_game("file-edited");
+
+        block_on(apply_file(&folder, "gba/Emerald.gba", b"EDITS", "2026-10-05_1412")).unwrap();
+
+        assert!(block_on(crate::edited::read(&folder, "gba/Emerald.gba")).is_some());
+    }
+
+    #[test]
+    fn marks_the_save_a_transfer_goes_into_and_leaves_the_other_alone() {
+        let folder = saved_game("transfer-edited");
+        block_on(folder.write("n64/Stadium.sra", &pattern(0x8000, 1))).unwrap();
+
+        block_on(write_transfer(
+            &folder,
+            &sent("n64/Stadium.z64", &pattern(0x8000, 7), "Received"),
+            &sent("gba/Emerald.gba", b"SAVED", "Sent"),
+            "2026-10-06_1412",
+        ))
+        .unwrap();
+
+        assert!(block_on(crate::edited::read(&folder, "n64/Stadium.z64")).is_some());
+        assert_eq!(block_on(crate::edited::read(&folder, "gba/Emerald.gba")), None);
     }
 
     #[test]

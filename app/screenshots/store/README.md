@@ -1,6 +1,6 @@
 # Store screenshots
 
-Makes the phone screenshots for the Google Play and App Store listings: the app's own screens, with frames from homebrew games, framed on a dark background with a caption. The listings can't show Pokémon, so every game here is homebrew whose licence allows it.
+Makes the phone and iPad screenshots for the Google Play and App Store listings: the app's own screens, with frames from homebrew games, framed on a dark background with a caption. The listings can't show Pokémon, so every game here is homebrew whose licence allows it.
 
 Everything it downloads or writes goes under `data/store/`, which git ignores.
 
@@ -26,12 +26,13 @@ Upload each folder of `data/store/out/` in name order:
 | `play` | Google Play phone | 1080×1920 |
 | `iphone-6.9` | App Store 6.9" iPhone | 1320×2868 |
 | `iphone-6.3` | App Store 6.3" iPhone | 1206×2622 |
+| `ipad-13` | App Store 13" iPad | 2064×2752 |
 
 ## How it works
 
 - `frames.py` loads the app's cores through libretro and plays each game from power-on with scripted presses. `GAMES_STEPS` holds the presses. The `HANDHELD` and `DS` scripts press Start and A in a loop and save a frame each round, as `<game>-01.png` to `-16.png`. Look through the frames and pick by number. The runs are deterministic, except DS games, which read the clock.
-- `store.tsx` mounts the real screens with the test fakes, as `../main.tsx` does. Picked frames become box art (`covers`), last screens on the library (`lastScreens`), and the running game (`playingGame`), which also names its skin and look. `capture.mjs` shoots each screen at each device's size from `devices.mjs`, at 3×, and opens the pause menu for `playing-pause`. The systems, default preferences and device name come from the Android hosts for Play and the iOS hosts for the iPhone.
-- `compose.mjs` places each shot on the background with the caption from `shots.json`. A shot's `ios` entry overrides its fields on the iPhone.
+- `store.tsx` mounts the real screens with the test fakes, as `../main.tsx` does. Picked frames become box art (`covers`), last screens on the library (`lastScreens`), and the running game (`playingGame`), which also names its skin and look. `capture.mjs` shoots each screen at each device's size and scale from `devices.mjs`, and opens the pause menu for `playing-pause`. The systems, default preferences and device name come from the Android hosts for Play and the iOS hosts for the iPhone and iPad. `capture.mjs` sets the device name to iPad for `ipad-13`.
+- `compose.mjs` places each shot on the background with the caption from `shots.json`. A shot's `ios` entry overrides its fields on the iPhone and iPad.
 
 ## What's in the shots
 

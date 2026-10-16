@@ -1,5 +1,5 @@
 import { useEffect, useId, useMemo, useRef, useState, type CSSProperties, type ReactNode, type RefObject } from "react";
-import { ArchiveRestore, ArrowLeftRight, ChevronLeft, FolderOpen, History, Pencil, Play } from "lucide-react";
+import { ArchiveRestore, ArrowLeftRight, ChevronLeft, CircleAlert, FolderOpen, History, Pencil, Play } from "lucide-react";
 import type { FormatEntry } from "@pkhex-everywhere/engine";
 import { cn } from "cn";
 import { useBack, useBackGesture } from "@/back/back";
@@ -18,21 +18,28 @@ import { useBoxArt } from "@/box-art/boxArt";
 import { sectionHeading } from "@/components/sectionHeading";
 import { SystemChip } from "@/components/SystemChip";
 import { TopScreen } from "@/components/TopScreen";
+import { Toast } from "@/components/Toast";
 import { Button } from "@/components/ui/button";
 import { EditorScreen } from "@/editor/EditorScreen";
 import { useMinute } from "@/game-clock/GameClockSetting";
 import { noSaveYet, type SaveHost } from "@/editor/editSession";
-import { ExportMenu, type ExportedFile } from "@/editor/exportFile";
+import { ExportMenu, useExportFile, type ExportedFile } from "@/editor/exportFile";
 import { saveHome } from "@/editor/saveHome";
 import type { Game } from "@/library/scan";
 import { storedFormatId } from "@/preferences/gameSettings";
 import { pngDataUrl } from "@/lib/utils";
 import { Crossfade, navigate, Screen, Shared } from "@/motion/motion";
 import { usePreferences } from "@/preferences/preferences";
+import { AchievementsCard } from "@/retro-achievements/AchievementsCard";
+import { AchievementsScreen } from "@/retro-achievements/AchievementsScreen";
+import { useRetroAchievements } from "@/retro-achievements/retroAchievements";
+import { RetroAchievementsScreen } from "@/retro-achievements/RetroAchievementsSettings";
+import { useGameAchievements } from "@/retro-achievements/useAchievements";
 import { dualScreens } from "@/screens";
 import { SlotGrid, type SavedState, type SlotsHost } from "@/save-states/StatesScreen";
 import { gameSyncLine } from "@/sync/gameStatus";
 import { useSync } from "@/sync/sync";
+import { useConflictSheet } from "@/sync/useConflictSheet";
 import { systemColors, systemNames } from "@/systems";
 import { useTransferPartners, type Partner, type RomNameHost } from "@/transfer/partners";
 import { TransferScreen, type TransferHost } from "@/transfer/TransferScreen";
@@ -41,7 +48,7 @@ import { useTransferPak, type TransferPakHost } from "@/transfer-pak/setting";
 import { GameMenu } from "./GameMenu";
 import { gameTitle, playedSummary, resumedFrom, savedSummary, type PlayHistory } from "./details";
 import { lastKnown, remember } from "./lastKnown";
-import { formatChoices, originalGame, useSaveCard, type SaveCardState, type SaveSummaryHost } from "./saveSummary";
+import { formatChoices, originalGame, savedTrainerOf, useSaveCard, type SaveCardState, type SaveSummaryHost } from "./saveSummary";
 import { TrainerAndParty } from "./TrainerAndParty";
 import { findUnsavedPlay, UnsavedResumeDialog, type ResumeCheckHost, type UnsavedPlay } from "./unsavedResume";
 
@@ -146,6 +153,7 @@ export function Hero({
   screenshot,
   played,
   syncLine,
+  onResolve,
   version,
   update,
   updating,
@@ -157,6 +165,7 @@ export function Hero({
   screenshot?: string;
   played?: string;
   syncLine?: string;
+  onResolve?(): void;
   version?: string | null;
   update?: string;
   updating: boolean;
@@ -228,7 +237,20 @@ export function Hero({
               <p className="text-sm text-(--hero-text)">{played}</p>
             </Crossfade>
           )}
-          {syncLine && <p className="text-sm text-(--hero-text)">{syncLine}</p>}
+          {syncLine &&
+            (onResolve ? (
+              <>
+                <p className="flex items-center gap-1.5 text-sm text-overlay-warning">
+                  <CircleAlert className="size-3.5 shrink-0" />
+                  {syncLine}
+                </p>
+                <Button variant="secondary" size="sm" className="mt-1 justify-self-start" onClick={onResolve}>
+                  Choose version
+                </Button>
+              </>
+            ) : (
+              <p className="text-sm text-(--hero-text)">{syncLine}</p>
+            ))}
           {updating && <p className="text-sm text-(--hero-text)">Updating…</p>}
         </div>
       </div>
@@ -262,6 +284,8 @@ function FormatQuestion({
   );
 }
 
+const hidesSaveCard = (card?: SaveCardState) => card?.state === "none" || card?.state === "unreadable";
+
 function SaveCard({
   card,
   romPath,
@@ -290,19 +314,15 @@ function SaveCard({
   onBackups(): void;
 }) {
   const headingId = useId();
-  if (!card) return null;
+  if (!card || hidesSaveCard(card)) return null;
   return (
     <section aria-labelledby={headingId} className="relative grid content-start gap-3 rounded-xl border p-4">
       <h2 id={headingId} className={sectionHeading}>
         Save
       </h2>
-      {card.state !== "none" && (
-        <div className="absolute top-2 right-2">
-          <ExportMenu file={file} />
-        </div>
-      )}
-      {card.state === "none" && <p className="text-sm text-muted-foreground">No save yet</p>}
-      {card.state === "unreadable" && <p className="text-sm text-muted-foreground">Can't read this save</p>}
+      <div className="absolute top-2 right-2">
+        <ExportMenu file={file} />
+      </div>
       {card.state === "choose" && (
         <FormatQuestion candidates={card.candidates} romPath={romPath} disabled={updating} onPick={onChooseFormat} />
       )}
@@ -365,9 +385,13 @@ export function GamePage({
   const sync = useSync();
   const now = useMinute();
   const syncLine = sync.account ? gameSyncLine(sync.gameSync[game.path], sync.gameLastSynced[game.path], now) : undefined;
+  const conflicted = sync.gameSync[game.path]?.state === "conflict";
+  const conflictSheet = useConflictSheet(host, folder);
   const [reload, setReload] = useState(0);
   const [details, loadingDetails] = useDetails(host, folder, game.path, reload);
   const [card, loadingCard] = useSaveCard(host, folder, game.path, reload);
+  const { settleEdited } = useRetroAchievements();
+  const trainer = loadingCard ? null : savedTrainerOf(card);
   const updating = (loadingDetails && !!details) || (loadingCard && !!card);
   const [startingScreenshot, setStartingScreenshot] = useState(cover);
   if (startingScreenshot && !loadingDetails) setStartingScreenshot(undefined);
@@ -388,6 +412,9 @@ export function GamePage({
   const [showingStates, setShowingStates] = useState(false);
   const loadStateButton = useRef<HTMLButtonElement>(null);
   const [showingBackups, setShowingBackups] = useState(false);
+  const achievements = useGameAchievements(folder, game.path, !!game.cloudOnly, reload);
+  const [showingAchievements, setShowingAchievements] = useState(false);
+  const [showingAccount, setShowingAccount] = useState(false);
   const [inspecting, setInspecting] = useState<Backup>();
   const [confirmingRestore, setConfirmingRestore] = useState<Backup>();
   const [confirmingDelete, setConfirmingDelete] = useState<Backup>();
@@ -396,6 +423,7 @@ export function GamePage({
   const [backupError, setBackupError] = useState<string>();
   const summaries = useSummaries(host, folder, game.path, showingBackups ? backups : noBackups);
   const onBackGesture = useBackGesture();
+  const screens = dualScreens[game.system];
   useBack(onBack);
 
   const saveHost = useMemo<SaveHost>(
@@ -417,6 +445,8 @@ export function GamePage({
     if (!files.length) throw new Error("No save yet");
     return files.map((file) => ({ bytes: new Uint8Array(file.bytes), fileName: `${game.name}.${file.extension}` }));
   };
+  const [exportFile, exportToast] = useExportFile();
+  const openBackups = () => navigate("forward", () => setShowingBackups(true));
 
   const chooseFormat = async (formatId: string | null) => {
     await host.keepSaveFormat(game.path, formatId ? { id: formatId, chosen: true } : null).catch((error) => console.error(error));
@@ -541,6 +571,10 @@ export function GamePage({
   }, [showingStates]);
 
   useEffect(() => {
+    if (trainer) settleEdited(folder, game.path, trainer).catch((error) => console.error(error));
+  }, [settleEdited, folder, game.path, trainer?.trainer, trainer?.sha256]);
+
+  useEffect(() => {
     if (transferring || !focusTransferButton.current) return;
     focusTransferButton.current = false;
     (transferButton.current ?? first.current)?.focus({ preventScroll: true });
@@ -598,7 +632,17 @@ export function GamePage({
           />
         </Screen>
       )}
-      <Screen hidden={showingBackups || showingStates || !!transferring}>
+      {showingAchievements && achievements && (
+        <Screen>
+          <AchievementsScreen achievements={achievements} onBack={() => navigate("back", () => setShowingAchievements(false))} />
+        </Screen>
+      )}
+      {showingAccount && (
+        <Screen>
+          <RetroAchievementsScreen onBack={() => navigate("back", () => setShowingAccount(false))} />
+        </Screen>
+      )}
+      <Screen hidden={showingBackups || showingStates || showingAchievements || showingAccount || !!transferring}>
         <div className="min-h-screen pb-safe md:grid md:grid-cols-2 md:gap-4 md:p-4 md:pb-[max(1rem,env(safe-area-inset-bottom))]">
           <main className="grid content-start">
             <Hero
@@ -607,6 +651,7 @@ export function GamePage({
               screenshot={startingScreenshot ?? details?.screenshot}
               played={details?.played}
               syncLine={syncLine}
+              onResolve={conflicted ? () => void conflictSheet.open(game.path) : undefined}
               version={card?.state === "read" ? (romName ?? card.summary.version) : undefined}
               update={update}
               updating={updating}
@@ -616,6 +661,8 @@ export function GamePage({
                   game={game}
                   deletesEverywhere={!!sync.account}
                   onChangeFormat={card?.state === "read" && card.format?.chosen ? () => void chooseFormat(null) : undefined}
+                  onExportSave={card?.state === "unreadable" ? () => void exportFile(currentSaveFiles) : undefined}
+                  onBackups={hidesSaveCard(card) && backups.length > 0 ? openBackups : undefined}
                   onPatched={onPatched}
                   onUpdated={() => setReload((reload) => reload + 1)}
                   onRemove={
@@ -646,7 +693,11 @@ export function GamePage({
                   >
                     {details.screenshot ? (
                       <Crossfade value={details.screenshot}>
-                        <img src={details.screenshot} alt="" className="h-12 rounded-sm [image-rendering:pixelated]" />
+                        {screens ? (
+                          <TopScreen src={details.screenshot} screens={screens} className="h-12 shrink-0 rounded-sm" />
+                        ) : (
+                          <img src={details.screenshot} alt="" className="h-12 rounded-sm [image-rendering:pixelated]" />
+                        )}
                       </Crossfade>
                     ) : (
                       <History />
@@ -702,10 +753,17 @@ export function GamePage({
               onChooseFormat={(formatId) => void chooseFormat(formatId)}
               onEdit={() => void editSave()}
               onTransfer={() => void transfer()}
-              onBackups={() => navigate("forward", () => setShowingBackups(true))}
+              onBackups={openBackups}
             />
             {transferPak.pak && (
               <TransferPakCard games={games} chosen={transferPak.pak.game} onChoose={(cart) => void chooseCart(cart)} />
+            )}
+            {!!achievements?.length && (
+              <AchievementsCard
+                achievements={achievements}
+                onOpen={() => navigate("forward", () => setShowingAchievements(true))}
+                onAccount={() => navigate("forward", () => setShowingAccount(true))}
+              />
             )}
           </aside>
         </div>
@@ -730,6 +788,8 @@ export function GamePage({
         onDelete={(backup) => void deleteBackup(backup)}
         onCancel={() => setConfirmingDelete(undefined)}
       />
+      {conflictSheet.sheet}
+      <Toast>{exportToast}</Toast>
       {transferring && card?.state === "read" && (
         <Screen>
           <TransferScreen

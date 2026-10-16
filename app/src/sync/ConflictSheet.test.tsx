@@ -2,6 +2,7 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 import { EngineProvider } from "@pkhex-everywhere/react";
 import type { GameProgress } from "@pkhex-everywhere/engine";
 import { afterEach, expect, it, vi } from "vitest";
+import { BackProvider } from "@/back/back";
 import { fakeEngine } from "@/editor/fakeEngine";
 import type { SaveFile, SaveSummary } from "@/game-page/saveSummary";
 import { createInput } from "@/input/input";
@@ -55,18 +56,20 @@ async function open(conflicts: Conflict[], { readable = true } = {}) {
   const onResolved = vi.fn();
   const onClose = vi.fn();
   render(
-    <EngineProvider engine={engine.engine}>
-      <ConflictSheet
-        host={host}
-        cloud={sync.host}
-        folder="/games"
-        path={path}
-        conflicts={conflicts}
-        input={createInput(() => [])}
-        onResolved={onResolved}
-        onClose={onClose}
-      />
-    </EngineProvider>,
+    <BackProvider>
+      <EngineProvider engine={engine.engine}>
+        <ConflictSheet
+          host={host}
+          cloud={sync.host}
+          folder="/games"
+          path={path}
+          conflicts={conflicts}
+          input={createInput(() => [])}
+          onResolved={onResolved}
+          onClose={onClose}
+        />
+      </EngineProvider>
+    </BackProvider>,
   );
   await act(async () => {});
   return { sync, host, onResolved, onClose };

@@ -33,6 +33,12 @@
         "contentTypes": ["com.rileytestut.delta.game.n64", "com.provenance.rom.n64", "public.aoshuang.game.n64"]
       },
       {
+        "ext": ["3ds", "3dsx", "cci", "cxi", "cia"],
+        "name": "3DS game",
+        "role": "Viewer",
+        "contentTypes": ["public.aoshuang.game.3ds"]
+      },
+      {
         "ext": ["sav", "srm", "dsv"],
         "name": "Save",
         "role": "Viewer",

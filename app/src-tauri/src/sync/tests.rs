@@ -643,7 +643,7 @@ fn with_sync_on_mobile_data_off_wifi_still_syncs() {
 }
 
 fn unlocked(dir: &Path) -> Arc<crate::plus::Plus> {
-    Arc::new(crate::plus::Plus::new(dir, crate::plus::Build::Unlocked, None, Box::new(|_| {})))
+    Arc::new(crate::plus::Plus::new(dir, crate::plus::Build::Unlocked { sideload: false }, None, Box::new(|_| {})))
 }
 
 #[test]

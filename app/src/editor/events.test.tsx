@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { EngineProvider } from "@pkhex-everywhere/react";
 import type { EventFlag, EventWork, Pouch, SaveEvents } from "@pkhex-everywhere/engine";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { BackProvider } from "@/back/back";
 import { PreferencesProvider, type Preferences, type PreferencesHost } from "@/preferences/preferences";
 import { EditorScreen } from "./EditorScreen";
 import { fakeEngine } from "./fakeEngine";
@@ -98,11 +99,13 @@ function launch(events?: SaveEvents, inventory?: Pouch[], preferences = memoryPr
   const { engine } = fakeEngine({ events, inventory });
   const host = { read: async () => new Uint8Array([1]), apply: async () => {}, playTimeSinceSave: async () => 0 };
   render(
-    <PreferencesProvider host={preferences} defaults={defaults}>
-      <EngineProvider engine={engine}>
-        <EditorScreen host={host} home={saveHome} onBackGesture={() => () => {}} onClose={() => {}} onSaveFirst={() => {}} />
-      </EngineProvider>
-    </PreferencesProvider>,
+    <BackProvider>
+      <PreferencesProvider host={preferences} defaults={defaults}>
+        <EngineProvider engine={engine}>
+          <EditorScreen host={host} home={saveHome} onBackGesture={() => () => {}} onClose={() => {}} onSaveFirst={() => {}} />
+        </EngineProvider>
+      </PreferencesProvider>
+    </BackProvider>,
   );
   return engine;
 }

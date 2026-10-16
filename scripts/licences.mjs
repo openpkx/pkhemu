@@ -28,11 +28,15 @@ const azaharPinned = (dep, repo) => {
   return `https://github.com/${repo}/tree/${commit}`;
 };
 
+const rcheevosRelease = run("git", ["-C", path("vendor/rcheevos"), "describe", "--tags", "--abbrev=0"]).trim();
+const rcheevos = `https://github.com/RetroAchievements/rcheevos/tree/${rcheevosRelease}`;
+
 const moltenVkRelease = readFileSync(path("app/src-tauri/build.rs"), "utf8").match(/MOLTENVK_VERSION: &str = "v(.+)"/)[1];
 const moltenVk = `https://github.com/KhronosGroup/MoltenVK/tree/v${moltenVkRelease}`;
 
 // Only the parts of mGBA that core/CMakeLists.txt compiles in, what melonDS DS's CMake bundles,
-// what build.rs compiles into Mupen64Plus-Next, what Azahar's libretro core links, and what Khronos links into MoltenVK.
+// what build.rs compiles into Mupen64Plus-Next, what Azahar's libretro core links, what Khronos links into MoltenVK
+// and rcheevos.
 const core = [
   {
     name: "mGBA",
@@ -99,7 +103,7 @@ const core = [
   },
   { name: "Boost", licence: "BSL-1.0", source: azaharPinned("boost", "azahar-emu/ext-boost") },
   { name: "Crypto++", licence: "BSL-1.0", source: azaharPinned("cryptopp", "cryptopp-modern/cryptopp-modern") },
-  { name: "dynarmic", licence: "0BSD", source: azaharPinned("dynarmic", "azahar-emu/dynarmic") },
+  { name: "dynarmic", version: "modified", licence: "0BSD", source: azaharPinned("dynarmic", "pkhex-web/dynarmic") },
   { name: "mcl", licence: "MIT", source: azaharPinned("dynarmic/externals/mcl", "azahar-emu/mcl") },
   { name: "robin-map", licence: "MIT", source: azaharPinned("dynarmic/externals/robin-map", "Tessil/robin-map") },
   { name: "oaknut", licence: "MIT", source: azaharPinned("oaknut", "merryhime/oaknut") },
@@ -131,6 +135,8 @@ const core = [
   { name: "SPIRV-Cross", licence: "Apache-2.0", source: `${moltenVk}/ExternalRevisions` },
   { name: "SPIRV-Tools (MoltenVK)", licence: "Apache-2.0", source: `${moltenVk}/ExternalRevisions` },
   { name: "cereal", licence: "BSD-3-Clause", source: `${moltenVk}/ExternalRevisions` },
+  { name: "rcheevos", version: rcheevosRelease.replace(/^v/, ""), licence: "MIT", source: rcheevos },
+  { name: "md5 (rcheevos)", licence: "Zlib", source: `${rcheevos}/src/rhash` },
 ];
 
 const metadata = JSON.parse(

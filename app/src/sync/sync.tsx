@@ -79,6 +79,7 @@ export type Sync = {
   syncNow(): void;
   beforeOpen(folder: string, path: string): Promise<Checked>;
   synced(folder: string, paths: string[]): Promise<void>;
+  conflicts(folder: string, path: string): Promise<Conflict[]>;
   conflictHost: ConflictsHost;
   syncGames: SyncGames;
   setSyncGames(on: boolean): Promise<void>;
@@ -102,6 +103,7 @@ const off: Sync = {
   syncNow: () => {},
   beforeOpen: async () => ({ checked: true, conflicts: [] }),
   synced: async () => {},
+  conflicts: async () => [],
   conflictHost: {
     resolve: async () => {},
     cloudSave: async () => null,
@@ -279,6 +281,11 @@ export function SyncProvider({ host, children }: { host: SyncHost; children: Rea
     [host],
   );
 
+  const conflicts = useCallback(
+    async (folder: string, path: string) => (signedIn.current ? host.conflicts(folder, path) : []),
+    [host],
+  );
+
   const connect = useCallback(async (cloud: Cloud) => signedInAs(await host.signIn(cloud)), [host, signedInAs]);
 
   const setSyncGames = useCallback(
@@ -366,6 +373,7 @@ export function SyncProvider({ host, children }: { host: SyncHost; children: Rea
       syncNow: syncAll,
       beforeOpen,
       synced,
+      conflicts,
       conflictHost: host,
       syncGames,
       setSyncGames,
@@ -389,6 +397,7 @@ export function SyncProvider({ host, children }: { host: SyncHost; children: Rea
       syncAll,
       beforeOpen,
       synced,
+      conflicts,
       host,
       syncGames,
       setSyncGames,

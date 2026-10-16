@@ -594,6 +594,15 @@ it("leaves the page clear over each window while Rust draws natively, and whole 
   expect(onWindows).toHaveBeenLastCalledWith(undefined);
 });
 
+it("shows the corner at the bottom-right of the screens once the game shows", async () => {
+  render(player({ corner: <p>Corner</p> }));
+  expect(screen.queryByText("Corner")).toBeNull();
+
+  await sendFrame(240, 160);
+
+  expect(screen.getByText("Corner")).toBeTruthy();
+});
+
 it("leaves the page whole while WebGL draws", async () => {
   media();
   const onWindows = vi.fn();

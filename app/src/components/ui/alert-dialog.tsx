@@ -2,11 +2,14 @@ import * as React from "react"
 import { cn } from "cn"
 import { AlertDialog as AlertDialogPrimitive } from "radix-ui"
 
+import { useBack } from "@/back/back"
 import { Button } from "@/components/ui/button"
 
 function AlertDialog({
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Root>) {
+  const { open, onOpenChange } = props
+  useBack(open && onOpenChange ? () => onOpenChange(false) : undefined)
   return <AlertDialogPrimitive.Root data-slot="alert-dialog" {...props} />
 }
 
@@ -46,6 +49,7 @@ function AlertDialogContent({
   className,
   size = "default",
   onOverlayClick,
+  onEscapeKeyDown,
   ...props
 }: React.ComponentProps<typeof AlertDialogPrimitive.Content> & {
   size?: "default" | "sm"
@@ -62,6 +66,11 @@ function AlertDialogContent({
           "motion-dialog group/alert-dialog-content fixed top-1/2 left-1/2 z-50 grid w-full -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-popover-foreground ring-1 ring-foreground/10 outline-none data-[size=default]:max-w-xs data-[size=sm]:max-w-xs data-[size=default]:sm:max-w-sm",
           className
         )}
+        onEscapeKeyDown={(event) => {
+          // Escape closes one layer: the desktop back host and the game's keyboard also listen on window.
+          event.stopPropagation()
+          onEscapeKeyDown?.(event)
+        }}
         {...props}
       />
     </AlertDialogPortal>

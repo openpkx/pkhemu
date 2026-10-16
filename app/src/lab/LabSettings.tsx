@@ -1,27 +1,20 @@
-import { useId } from "react";
+import { SettingRow, SwitchRow } from "@/components/SettingsRow";
 import { TitledCard } from "@/components/TitledCard";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { Experiment } from "./experiments";
 import { useExperiments } from "./lab";
 
 function ExperimentRow({ experiment, value, onChange }: { experiment: Experiment; value: string; onChange(value: string): void }) {
-  const labelId = useId();
-  const switchId = useId();
   const [off, on] = experiment.values;
 
   return (
     <div className="grid gap-2">
-      <div className="flex items-center justify-between gap-3">
-        {experiment.values.length === 2 ? (
-          <>
-            <label htmlFor={switchId}>{experiment.label}</label>
-            <Switch id={switchId} checked={value === on} onCheckedChange={(checked) => onChange(checked ? on : off)} />
-          </>
-        ) : (
-          <>
-            <span id={labelId}>{experiment.label}</span>
+      {experiment.values.length === 2 ? (
+        <SwitchRow label={experiment.label} checked={value === on} onCheckedChange={(checked) => onChange(checked ? on : off)} />
+      ) : (
+        <SettingRow label={experiment.label}>
+          {(labelId) => (
             <ToggleGroup
               type="single"
               variant="outline"
@@ -37,9 +30,9 @@ function ExperimentRow({ experiment, value, onChange }: { experiment: Experiment
                 </ToggleGroupItem>
               ))}
             </ToggleGroup>
-          </>
-        )}
-      </div>
+          )}
+        </SettingRow>
+      )}
       <div className="flex min-h-7 items-center justify-between gap-3">
         <p className="text-muted-foreground">{experiment.line}</p>
         {value !== off && (

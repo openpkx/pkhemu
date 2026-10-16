@@ -240,3 +240,23 @@ it("finishes a download and reads the cloud games when syncing the game's files 
   expect(host.syncGame).toHaveBeenCalledOnce();
   expect(host.cloudGames).toHaveBeenCalledWith("/games");
 });
+
+const conflict = {
+  file: "save",
+  device: { savedOn: "Pixel 10", modified: 1_000, cheats: false },
+  cloud: { savedOn: "MacBook", modified: 2_000, cheats: false },
+};
+
+it("reads a game's conflicts from the host", async () => {
+  const { host, current } = await start(fakeSync({ account: "player@example.com", conflicts: [conflict] }));
+
+  await expect(current.sync!.conflicts("/games", "gba/Emerald.gba")).resolves.toEqual([conflict]);
+  expect(host.conflicts).toHaveBeenCalledWith("/games", "gba/Emerald.gba");
+});
+
+it("reads no conflicts while signed out", async () => {
+  const { host, current } = await start(fakeSync({ conflicts: [conflict] }));
+
+  await expect(current.sync!.conflicts("/games", "gba/Emerald.gba")).resolves.toEqual([]);
+  expect(host.conflicts).not.toHaveBeenCalled();
+});

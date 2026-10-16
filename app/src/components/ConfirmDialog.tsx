@@ -31,8 +31,7 @@ export function ConfirmDialog({
 }) {
   return (
     <AlertDialog open={open} onOpenChange={(isOpen) => !isOpen && onCancel()}>
-      {/* The page's own Esc would otherwise leave it as the dialog closes. */}
-      <AlertDialogContent onEscapeKeyDown={(event) => event.stopPropagation()} onCloseAutoFocus={onCloseAutoFocus}>
+      <AlertDialogContent onCloseAutoFocus={onCloseAutoFocus}>
         <AlertDialogHeader>
           <AlertDialogTitle>{title}</AlertDialogTitle>
           <AlertDialogDescription>{children}</AlertDialogDescription>

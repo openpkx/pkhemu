@@ -116,7 +116,7 @@ The body around the game screen in portrait, behind the header, the screens and 
 _Avoid_: Body, case, frame
 
 **Skin**:
-The plastic and button look that covers the shell, chosen per system along with its look, Moulded or Frosted. 3DS uses the DS skins. The choice syncs, the one setting that does, and the newer change wins.
+The plastic and button look that covers the shell, chosen per system along with its look, Moulded or Frosted. 3DS has its own skins, all free. The choice syncs, the one setting that does, and the newer change wins.
 _Avoid_: Theme (that's light or dark), shell theme
 
 ## Editing
@@ -130,6 +130,19 @@ A copy of a save file taken before the app changes it, labelled with why it was 
 **Cheat code**:
 A code the player enters that the emulator applies to the game's memory while it runs. It changes the save only when the game saves.
 _Avoid_: Cheat, patch (a patch changes the ROM)
+
+**Edited save**:
+A save pkhemu changed through an edit, an undo of one, a transfer into it or a cheat code. Sync carries the mark in the save's record, and it clears only when a new game starts on it: the save is deleted or replaced, or the engine reads another trainer ID and OT.
+_Avoid_: Tainted save, cheated save
+
+## RetroAchievements
+
+**Hardcore**:
+RetroAchievements' strict mode, a switch that applies from the next launch. A session in hardcore can't edit, cheat or load states, and can drop to softcore but not come back until the game restarts.
+_Avoid_: Hard mode, challenge mode
+
+**Softcore**:
+Every session that isn't in hardcore. Everything works, and unlocks count as softcore.
 
 ## Moving Pokémon
 
@@ -167,16 +180,24 @@ The synced files the app deleted itself, with each one's SHA-1. A sync deletes a
 _Avoid_: Tombstone, trash
 
 **Plus**:
-The one-time purchase that unlocks sync and the Lab in a store build. Builds from source have it unlocked.
+The one-time purchase that unlocks sync and the Lab in a store build. Builds from source and the sideload build have it unlocked.
 _Avoid_: Pro, premium, subscription
 
 **Store build**:
-A build for Google Play or the App Store, where Plus is sold. Every other build is a build from source, with Plus unlocked.
+A build for Google Play or the App Store, where Plus is sold. Every other build is a build from source or the sideload build, with Plus unlocked.
+
+**Sideload build**:
+The iOS build players install with SideStore or AltStore, from an unsigned IPA. It can JIT, has Plus unlocked and a "JIT" badge on its icon. Otherwise it matches the App Store build.
+_Avoid_: JIT build, IPA build
+
+**JIT helper**:
+The app extension inside the sideload build. The app starts it with a pairing file, and it attaches to the app through the iPhone's debugserver to turn JIT on without StikDebug.
+_Avoid_: JIT enabler, built-in StikDebug
 
 ## Lab
 
 **Lab**:
-The card in Settings that lists experiments. A store build shows it while the Plus switch is on and the player owns Plus, with only the experiments for players. A build from source shows it with every experiment.
+The card in Settings that lists experiments. A store build shows it while the Plus switch is on and the player owns Plus, with only the experiments for players. The sideload build shows it with only the experiments for players, and a build from source with every experiment.
 _Avoid_: Lab build
 
 **Experiment**:

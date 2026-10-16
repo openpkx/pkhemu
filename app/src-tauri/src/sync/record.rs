@@ -53,6 +53,9 @@ pub struct Entry {
     pub device: String,
     #[serde(default, skip_serializing_if = "std::ops::Not::not")]
     pub cheats: bool,
+    /// A save's edited mark, which syncs in the save's entry rather than as a file of its own.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub edited: Option<crate::edited::Mark>,
 }
 
 impl Record {
@@ -150,6 +153,7 @@ pub fn syncs(rom: &str, path: &str) -> bool {
         && !name.ends_with(".incomplete")
         && !path.starts_with(&before_load)
         && path != crate::three_ds::update::path(rom)
+        && path != crate::edited::path(rom)
 }
 
 impl From<&Entry> for SyncedFile {
@@ -219,6 +223,11 @@ mod tests {
         assert!(!syncs("gba/Emerald.sav.partial"));
         assert!(!syncs("gba/Emerald/states/slot-1.state.incomplete"));
         assert!(!syncs("gba/Emerald/.DS_Store"));
+    }
+
+    #[test]
+    fn leaves_out_the_edited_mark_which_syncs_in_the_saves_entry() {
+        assert!(!syncs("gba/Emerald.gba", "gba/Emerald/edited.json"));
     }
 
     #[test]

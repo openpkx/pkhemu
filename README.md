@@ -31,6 +31,8 @@ Clone without `--recursive`. Mupen64Plus-Next has a nested gitlink with no URL, 
 | `scripts/ios-dev.sh` | Runs the app in the iOS simulator with hot reload. Needs Xcode and XcodeGen. Name a simulator, like `"iPhone 17 Pro"`, to skip the prompt. |
 | `scripts/ios-build.sh` | Builds the App Store version and uploads it to TestFlight with the keys in `~/.config/pkh-emu/ios.env`. Refuses to run while Plus or Sync keys are set, in the environment or in `app/src-tauri/sync.env`. `--unlocked` uploads a build that shows every Lab experiment, for internal testing only. |
 
+The first build compiles every core, which takes several minutes. After that, builds in any checkout on the same Mac copy each core from `~/.cache/pkh-emu/cores` while its source and build settings stay the same. A core with uncommitted changes is always built. Set `PKH_EMU_CORE_CACHE` to another folder to move the cache, or to `off` to build every core.
+
 Tests: `npm --prefix app test`.
 
 ### CI builds

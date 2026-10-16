@@ -751,6 +751,7 @@ pub async fn import_save_file<R: Runtime>(
     for path in stale {
         games.remove(rom, &path).await.map_err(|e| format!("{path}: {e}"))?;
     }
+    crate::edited::put(games, rom, None).await?;
     resume::remove(games, rom).await
 }
 
@@ -1647,6 +1648,19 @@ mod tests {
 
         assert!(existing(vec![1; 0x8000]).same);
         assert!(!existing(vec![2; 0x8000]).same);
+    }
+
+    #[test]
+    fn a_replaced_save_loses_its_edited_mark() {
+        let games = temp_folder("replaced-edited");
+        block_on(games.write("gba/Emerald.gba", b"rom")).unwrap();
+        block_on(games.write("gba/Emerald.sav", &[1; 0x20000])).unwrap();
+        block_on(crate::edited::mark(&games, "gba/Emerald.gba")).unwrap();
+
+        block_on(import_save_file(&games, "gba/Emerald.gba", "e.sav", vec![2; 0x20000], None, "2026-10-11_1200"))
+            .unwrap();
+
+        assert_eq!(block_on(crate::edited::read(&games, "gba/Emerald.gba")), None);
     }
 
     #[test]

@@ -21,9 +21,20 @@ it("draws the skin's image over its base colour", () => {
   const { container } = render(<SkinPlastic skin={skin} radius={3} />);
   const plastic = container.firstElementChild as HTMLElement;
 
-  expect(plastic.style.backgroundImage).toContain(skin.image);
+  expect(plastic.querySelector<HTMLElement>("[style*='background-image']")!.style.backgroundImage).toContain(skin.image);
   expect(plastic.style.backgroundColor).not.toBe("");
   expect(plastic.style.maskImage).toBe("");
+});
+
+it("mirrors the photo at every seam beside and below it", () => {
+  const { container } = render(<SkinPlastic skin={skins.gba[0]} radius={3} />);
+  const copies = [...container.querySelectorAll<HTMLElement>("[data-copy]")];
+
+  expect(copies).toHaveLength(14);
+  for (const copy of copies) {
+    const [column, row] = copy.dataset.copy!.split(" ").map(Number);
+    expect(copy.style.transform).toBe(`scale(${column % 2 ? -1 : 1}, ${row % 2 ? -1 : 1})`);
+  }
 });
 
 it("masks the plastic once there are windows", () => {

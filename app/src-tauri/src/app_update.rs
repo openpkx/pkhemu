@@ -2,6 +2,10 @@
 #[cfg_attr(target_os = "ios", path = "app_update/ios.rs")]
 #[cfg_attr(desktop, path = "app_update/desktop.rs")]
 pub mod platform;
+#[cfg_attr(not(target_os = "ios"), allow(dead_code))]
+mod feed;
+#[cfg(test)]
+mod tests;
 
 use serde::{Deserialize, Serialize};
 

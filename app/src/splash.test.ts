@@ -85,6 +85,23 @@ it("hides the splash when the animation ends after the app is ready", async () =
   expect(splash()).toBeNull();
 });
 
+it("hides the splash on its own where an end delay never resolves the animation", async () => {
+  Element.prototype.animate = function (this: Element, keyframes, options) {
+    if (typeof options === "object" && options.endDelay) {
+      let finish!: () => void;
+      const finished = new Promise<void>((resolve) => (finish = resolve));
+      return { finished, finish } as unknown as Animation;
+    }
+    return fakeAnimate.call(this, keyframes, options);
+  };
+  playSplash();
+  hideSplash();
+
+  await vi.advanceTimersByTimeAsync(2340 + 220);
+
+  expect(splash()).toBeNull();
+});
+
 it("skips the rest of the animation on a tap", async () => {
   playSplash();
   hideSplash();

@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { EngineProvider } from "@pkhex-everywhere/react";
 import type { TrainerCard } from "@pkhex-everywhere/engine";
 import { afterEach, expect, it, vi } from "vitest";
+import { BackProvider } from "@/back/back";
 import { EditorScreen } from "./EditorScreen";
 import { fakeEngine } from "./fakeEngine";
 import { saveHome } from "./saveHome";
@@ -22,9 +23,11 @@ async function openTrainer(trainer: Partial<TrainerCard> = {}) {
   const { engine } = fakeEngine({ trainer: { ...card, ...trainer } });
   const host = { read: async () => new Uint8Array([1]), apply: async () => {}, playTimeSinceSave: async () => 0 };
   render(
-    <EngineProvider engine={engine}>
-      <EditorScreen host={host} home={saveHome} onBackGesture={() => () => {}} onClose={() => {}} onSaveFirst={() => {}} />
-    </EngineProvider>,
+    <BackProvider>
+      <EngineProvider engine={engine}>
+        <EditorScreen host={host} home={saveHome} onBackGesture={() => () => {}} onClose={() => {}} onSaveFirst={() => {}} />
+      </EngineProvider>
+    </BackProvider>,
   );
   fireEvent.click(await screen.findByRole("button", { name: "Trainer" }));
   await screen.findByRole("heading", { name: "Trainer" });

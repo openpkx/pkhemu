@@ -141,6 +141,53 @@
   animation: var(--motion-duration-short4) var(--motion-easing-standard) both motion-fade-out;
 }
 
+.motion-unlock[data-state="in"] {
+  animation:
+    var(--motion-duration-medium4) var(--motion-easing-emphasized-decelerate) both motion-unlock-drop,
+    var(--motion-duration-long2) var(--motion-easing-emphasized) var(--motion-duration-medium4) both motion-unlock-grow;
+}
+
+.motion-unlock[data-state="in"] .motion-unlock-text {
+  animation: var(--motion-duration-short4) var(--motion-easing-emphasized-decelerate)
+    calc(var(--motion-duration-medium4) + 260ms) both motion-unlock-text-in;
+}
+
+.motion-unlock[data-state="out"] {
+  animation:
+    var(--motion-duration-medium2) var(--motion-easing-emphasized-accelerate) var(--motion-duration-short2) both
+      motion-unlock-shrink,
+    var(--motion-duration-short4) var(--motion-easing-emphasized-accelerate)
+      calc(var(--motion-duration-short2) + var(--motion-duration-medium2)) both motion-unlock-rise;
+}
+
+.motion-unlock[data-state="out"] .motion-unlock-text {
+  animation: var(--motion-duration-short2) linear both motion-fade-out;
+}
+
+.motion-unlock[data-state="flung"] {
+  animation: var(--motion-duration-short4) var(--motion-easing-emphasized-accelerate) both motion-unlock-fling;
+}
+
+.motion-unlock[data-state="back"] {
+  animation: var(--motion-duration-short4) var(--motion-easing-emphasized) both motion-unlock-back;
+}
+
+.motion-unlock-dismiss {
+  transition: opacity var(--motion-duration-short2) var(--motion-easing-standard);
+}
+
+.motion-unlock[data-state="hold"] .motion-unlock-shine {
+  animation: var(--motion-duration-extra-long3) var(--motion-easing-emphasized) both motion-unlock-shine;
+}
+
+.motion-indicator[data-state="in"] {
+  animation: var(--motion-duration-short4) var(--motion-easing-emphasized-decelerate) both motion-indicator-in;
+}
+
+.motion-indicator[data-state="out"] {
+  animation: var(--motion-duration-short3) linear both motion-fade-out;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .motion-press:active { scale: 0.97; }
   .motion-ring { transition: stroke-dashoffset var(--motion-duration-medium2) var(--motion-easing-standard); }
@@ -240,6 +287,44 @@
   to { opacity: 0; translate: 0 -100%; }
 }
 
+@keyframes motion-unlock-drop {
+  from { translate: 0 -160%; }
+}
+
+@keyframes motion-unlock-grow {
+  from { width: var(--unlock-badge); }
+}
+
+@keyframes motion-unlock-text-in {
+  from { opacity: 0; translate: -6px 0; }
+}
+
+@keyframes motion-unlock-shrink {
+  to { width: var(--unlock-badge); }
+}
+
+@keyframes motion-unlock-rise {
+  to { translate: 0 -160%; }
+}
+
+@keyframes motion-unlock-fling {
+  from { translate: var(--unlock-x) var(--unlock-y); opacity: var(--unlock-opacity); }
+  to { translate: var(--unlock-to-x) var(--unlock-to-y); opacity: 0; }
+}
+
+@keyframes motion-unlock-back {
+  from { translate: var(--unlock-x) var(--unlock-y); opacity: var(--unlock-opacity); }
+}
+
+@keyframes motion-unlock-shine {
+  from { opacity: 1; translate: -100% 0; }
+  to { opacity: 1; translate: 100% 0; }
+}
+
+@keyframes motion-indicator-in {
+  from { opacity: 0; translate: 0 6px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-new(.nav-forward),
   ::view-transition-new(.nav-back),
@@ -269,6 +354,23 @@
 
   .stagger > * {
     animation: none;
+  }
+
+  .motion-unlock[data-state="in"] {
+    animation: var(--motion-duration-short3) var(--motion-easing-standard) both motion-fade-in;
+  }
+
+  .motion-unlock:is([data-state="out"], [data-state="flung"]) {
+    animation: var(--motion-duration-short3) var(--motion-easing-standard) both motion-fade-out;
+  }
+
+  .motion-unlock[data-state] :is(.motion-unlock-text, .motion-unlock-shine),
+  .motion-unlock[data-state="back"] {
+    animation: none;
+  }
+
+  .motion-indicator[data-state="in"] {
+    animation: var(--motion-duration-short3) var(--motion-easing-standard) both motion-fade-in;
   }
 
   :is(.motion-scrim, .motion-dialog, .motion-sheet, .motion-sheet-dialog, .motion-toast, .motion-bottom-bar)[data-state],

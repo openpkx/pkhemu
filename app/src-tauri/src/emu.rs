@@ -1,3 +1,4 @@
+use crate::achievements;
 use crate::audio::Audio;
 use crate::backups::Reason;
 use crate::cheats::{self, Code, Platform};
@@ -28,12 +29,14 @@ use tokio::sync::{mpsc as tokio_mpsc, oneshot, watch};
 
 const NO_GAME: &str = "no game is running";
 const NO_SAVE_YET: &str = "no-save-yet";
+const IDLE: std::time::Duration = std::time::Duration::from_secs(1);
 
 pub type BackUp = Box<dyn FnMut(Reason, &[u8]) -> Result<(), String> + Send>;
 /// The game that started, or none, and the cart in its Transfer Pak.
 pub type OnGame = Box<dyn Fn(Option<&str>, Option<&str>) + Send>;
 pub type OnMessage = Box<dyn Fn(retro::Message) + Send>;
 pub type MarkCheats = Box<dyn FnMut(&[u8]) + Send>;
+pub type MarkEdited = Box<dyn FnMut() + Send>;
 pub type Display = Box<dyn Fn(OnRefresh) -> Ticker + Send>;
 pub type MakeScreen = Box<dyn FnOnce() -> Option<Box<dyn Screen>> + Send>;
 
@@ -77,11 +80,16 @@ pub enum Command {
         writes: tokio_mpsc::UnboundedSender<Write>,
         back_up: BackUp,
         mark_cheats: MarkCheats,
+        mark_edited: MarkEdited,
         writer: JoinHandle<()>,
         on_frame: Channel<InvokeResponseBody>,
         native: bool,
         on_native_failed: Channel<()>,
+        achievements: Option<achievements::Load>,
         reply: oneshot::Sender<Result<f64, String>>,
+    },
+    LeaveHardcore {
+        done: oneshot::Sender<()>,
     },
     SetCheats {
         path: String,
@@ -194,6 +202,7 @@ impl Command {
             self,
             Command::Play { .. }
                 | Command::SetCheats { .. }
+                | Command::LeaveHardcore { .. }
                 | Command::Step { .. }
                 | Command::ApplyEdit { .. }
                 | Command::UndoEdit { .. }
@@ -290,6 +299,8 @@ struct Game {
     folder: String,
     path: String,
     platform: Platform,
+    // Dropped before the core, since it reads the core's memory.
+    achievements: Option<achievements::Session>,
     core: Core,
     clock: Clock,
     audio: Option<Audio>,
@@ -299,7 +310,10 @@ struct Game {
     writes: tokio_mpsc::UnboundedSender<Write>,
     back_up: BackUp,
     cheats: Vec<String>,
+    // A hardcore session's codes, which wait for it to drop to softcore.
+    held_cheats: Option<Vec<Code>>,
     mark_cheats: MarkCheats,
+    mark_edited: MarkEdited,
     writer: JoinHandle<()>,
     undo: Option<edit::Undo>,
     slot: Option<u8>,
@@ -317,6 +331,9 @@ struct Game {
 impl Game {
     fn run_frame(&mut self) {
         self.core.run_frame();
+        if let Some(achievements) = &mut self.achievements {
+            achievements.frame(&mut self.core);
+        }
         self.frames += 1;
         let (core, main) = (&mut self.core, &mut self.main);
         let changed = self.watch.after_frame(|| save_memory(core, main, false));
@@ -414,11 +431,16 @@ impl Game {
         self.undo = None;
         if !self.cheats.is_empty() {
             (self.mark_cheats)(&file);
+            (self.mark_edited)();
         }
         self.write(Write::Save(file));
     }
 
     fn set_cheats(&mut self, codes: &[Code]) {
+        if let Some(held) = &mut self.held_cheats {
+            *held = codes.to_vec();
+            return;
+        }
         let codes = cheats::on_codes(self.platform, codes);
         if codes == self.cheats {
             return;
@@ -439,20 +461,35 @@ impl Game {
         edit::read(save_memory(&mut self.core, &mut self.main, true)[0])
     }
 
+    fn leave_hardcore(&mut self) {
+        if let Some(achievements) = &mut self.achievements {
+            achievements.leave_hardcore();
+        }
+        if let Some(codes) = self.held_cheats.take() {
+            self.set_cheats(&codes);
+        }
+    }
+
     fn apply(&mut self, edited: &[u8]) -> Result<(), String> {
+        self.leave_hardcore();
         let back_up = |save: &[u8]| (self.back_up)(Reason::Edit, save);
         let (undo, file) = match &mut self.main {
             Some(main) => edit::apply_main(&mut self.core, main, &mut self.watch, edited, back_up)?,
             None => edit::apply(&mut self.core, &mut self.watch, edited, back_up)?,
         };
         self.undo = Some(undo);
+        self.reset_achievements();
+        (self.mark_edited)();
         self.write(Write::Save(file));
         Ok(())
     }
 
     fn undo(&mut self) -> Result<(), String> {
         let undo = self.undo.take().ok_or("there's no edit to undo")?;
+        self.leave_hardcore();
         let file = edit::undo(&mut self.core, &mut self.watch, undo)?;
+        self.reset_achievements();
+        (self.mark_edited)();
         if let Some(main) = &mut self.main {
             main.place(Some(&file)).map_err(|e| format!("couldn't write the save back: {e}"))?;
         }
@@ -496,6 +533,7 @@ impl Game {
         if self.main.as_ref().is_some_and(Main::is_waiting) {
             return Err("The game has to reach its title screen once before a state loads.".into());
         }
+        self.leave_hardcore();
         let mut before = self.moment()?;
         before.info.slot = self.slot;
         let fps = self.core.av().timing.fps;
@@ -505,6 +543,7 @@ impl Game {
             states::load(&mut self.core, &self.clock, &mut self.watch, loaded, frames_since_save, &before, |save| {
                 back_up(Reason::Load, save)
             })?;
+        self.reset_achievements();
         if let Some(main) = &mut self.main {
             if !loaded.save.is_empty() {
                 main.place(Some(&loaded.save)).map_err(|e| format!("couldn't write the state's save: {e}"))?;
@@ -524,6 +563,18 @@ impl Game {
         self.load_state(loaded.info.slot, loaded, None)?;
         self.write(Write::State(StateChange::Remove { name: StateName::BeforeLoad, removed }));
         Ok(())
+    }
+
+    fn reset_achievements(&self) {
+        if let Some(achievements) = &self.achievements {
+            achievements.reset();
+        }
+    }
+
+    fn idle(&self) {
+        if let Some(achievements) = &self.achievements {
+            achievements.idle();
+        }
     }
 
     fn forget_slot(&mut self, slot: u8) {
@@ -665,7 +716,13 @@ fn run(
     let mut held = VecDeque::new();
     let mut unloading: Option<Unloading> = None;
 
-    while let Some(command) = next(&rx, &mut held, asleep) {
+    loop {
+        let idle = || {
+            if let Some(game) = game.as_ref().filter(|_| !runs(&pacing, &game)) {
+                game.idle();
+            }
+        };
+        let Some(command) = next(&rx, &mut held, asleep, idle) else { break };
         if asleep && command.waits_for_wake() {
             held.push_back(command);
             continue;
@@ -690,12 +747,15 @@ fn run(
                 writes,
                 back_up,
                 mark_cheats,
+                mark_edited,
                 writer,
                 on_frame,
                 native,
                 on_native_failed,
+                achievements,
                 reply,
             } => {
+                let hardcore = achievements.as_ref().is_some_and(achievements::Load::hardcore);
                 quit_running(&mut game, &mut last_quit, &mut screen, false);
                 retro::release_input();
                 let platform = Platform::of_rom(&rom);
@@ -713,7 +773,10 @@ fn run(
                     });
                 on_game(loaded.as_ref().ok().map(|_| path.as_str()), cart_path.as_deref());
                 let _ = reply.send(loaded.map(|(mut core, watch, main, transfer_pak)| {
-                    let cheats = cheats::on_codes(platform, &cheats);
+                    let (cheats, held_cheats) = match hardcore {
+                        true => (Vec::new(), Some(cheats)),
+                        false => (cheats::on_codes(platform, &cheats), None),
+                    };
                     if !cheats.is_empty() {
                         core.set_cheats(&cheats);
                     }
@@ -723,6 +786,7 @@ fn run(
                     }
                     let native = native && screen.is_some();
                     core.read_back(!native);
+                    let achievements = achievements.map(achievements::Load::start);
                     let audio = open_audio(&core);
                     let session = index
                         .start_session(&path, fps, index::now())
@@ -732,6 +796,7 @@ fn run(
                         folder,
                         path,
                         platform,
+                        achievements,
                         core,
                         clock,
                         audio,
@@ -741,7 +806,9 @@ fn run(
                         writes,
                         back_up,
                         cheats,
+                        held_cheats,
                         mark_cheats,
+                        mark_edited,
                         writer,
                         undo: None,
                         slot,
@@ -763,6 +830,12 @@ fn run(
                 }
                 let _ = done.send(());
             }
+            Command::LeaveHardcore { done } => {
+                if let Some(game) = &mut game {
+                    game.leave_hardcore();
+                }
+                let _ = done.send(());
+            }
             Command::Refresh => {
                 let taken = refreshes.take();
                 let playing = game.as_mut().filter(|game| !game.paused && !pacing.paused);
@@ -776,6 +849,7 @@ fn run(
             Command::Pace(new) => pacing = new,
             Command::Step { frames, done } => {
                 if let Some(game) = game.as_mut().filter(|game| !game.paused) {
+                    game.leave_hardcore();
                     game.advance(frames, false, false, &mut rate, &mut samples);
                     let shown = game.show(screen.as_mut());
                     fall_back_on(shown, &mut screen, Some(game));
@@ -904,10 +978,17 @@ fn runs(pacing: &Pacing, game: &Option<Game>) -> bool {
     !pacing.paused && game.as_ref().is_some_and(|game| !game.paused)
 }
 
-fn next(rx: &mpsc::Receiver<Command>, held: &mut VecDeque<Command>, asleep: bool) -> Option<Command> {
-    match held.front() {
-        Some(_) if !asleep => held.pop_front(),
-        _ => rx.recv().ok(),
+// rcheevos keeps sending unlocks and the player's rich presence while nothing runs frames.
+fn next(rx: &mpsc::Receiver<Command>, held: &mut VecDeque<Command>, asleep: bool, idle: impl Fn()) -> Option<Command> {
+    if !asleep && !held.is_empty() {
+        return held.pop_front();
+    }
+    loop {
+        match rx.recv_timeout(IDLE) {
+            Ok(command) => return Some(command),
+            Err(mpsc::RecvTimeoutError::Timeout) => idle(),
+            Err(mpsc::RecvTimeoutError::Disconnected) => return None,
+        }
     }
 }
 
@@ -1012,7 +1093,7 @@ fn running(game: &mut Option<Game>) -> Result<&mut Game, String> {
     game.as_mut().ok_or_else(|| NO_GAME.into())
 }
 
-fn epoch_ms() -> f64 {
+pub(crate) fn epoch_ms() -> f64 {
     SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs_f64() * 1000.0
 }
 
@@ -1075,6 +1156,7 @@ mod tests {
             folder: String::new(),
             path: "gb/Game.gb".into(),
             platform: Platform::Gb,
+            achievements: None,
             core,
             audio: None,
             on_frame: Channel::new(|_| Ok(())),
@@ -1084,7 +1166,9 @@ mod tests {
             writes,
             back_up: Box::new(|_, _| Ok(())),
             cheats: Vec::new(),
+            held_cheats: None,
             mark_cheats: Box::new(|_| {}),
+            mark_edited: Box::new(|| {}),
             writer: tauri::async_runtime::spawn(async {}),
             undo: None,
             slot: None,
@@ -1231,10 +1315,12 @@ mod tests {
                 writes,
                 back_up: Box::new(|_, _| Ok(())),
                 mark_cheats: Box::new(|_| {}),
+                mark_edited: Box::new(|| {}),
                 writer,
                 on_frame,
                 native,
                 on_native_failed,
+                achievements: None,
                 reply,
             });
             block_on(result).unwrap().unwrap()
@@ -1547,6 +1633,8 @@ mod tests {
 
         assert!(!states.join("resume.state").exists());
         emu.send(Command::Wake);
+        // Commands run in order, so this waits for the Wake to unload the core before the next test loads one.
+        emu.run_frames(0);
     }
 
     // A debug build fails when the core's context is made current asleep, so this checks iOS's rule on the Mac.
@@ -1728,6 +1816,62 @@ mod tests {
         let emu = Emu::start(std::env::temp_dir(), index, Arc::default(), Box::new(|_, _| {}), Box::new(|_| {}));
 
         assert_eq!(emu.read_memory(0xC000, 1), Err(NO_GAME.into()));
+    }
+
+    fn with_achievements(name: &str) -> (Game, achievements::tests::Events) {
+        let fake = achievements::tests::FakeRetroAchievements::start();
+        let (achievements, unlocked, _) = achievements::tests::signed_in(&fake, name);
+        let rom = counting_rom();
+        let load = achievements.identify(&rom).unwrap();
+        let mut core = start_rom(rom, &pattern(0x8030, 1));
+        let mut session = load.start();
+        achievements::tests::until_loaded(&mut core, &mut session);
+        let mut game = game(core, save::Watch::new());
+        game.achievements = Some(session);
+        (game, unlocked)
+    }
+
+    #[test]
+    fn checks_achievements_after_every_frame_fast_forwarded_ones_too() {
+        let _lock = lock_core();
+        let (mut game, unlocked) = with_achievements("emu-fast-forward");
+
+        game.advance(achievements::tests::FRAMES_TO_UNLOCK + 2, true, false, &mut DisplayRate::new(), &mut Vec::new());
+
+        assert_eq!(unlocked.unlocks(), [achievements::tests::ten_frames()]);
+    }
+
+    #[test]
+    fn maps_n64_memory_for_achievements_once_the_core_has_run_a_frame() {
+        let _lock = lock_core();
+        let Some(rom) = crate::test_games::stadium() else { return };
+        let fake = achievements::tests::FakeRetroAchievements::start();
+        let (achievements, _, _) = achievements::tests::signed_in(&fake, "emu-n64");
+        let load = achievements.identify(&rom).unwrap();
+        let root = std::env::temp_dir().join(format!("pkh-emu-emu-achievements-n64-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let mut game = playing_stadium(&root, rom);
+        game.achievements = Some(load.start());
+
+        game.run_frame();
+
+        assert!(game.achievements.as_ref().unwrap().mapped());
+        quit(game);
+    }
+
+    #[test]
+    fn idles_while_no_command_comes() {
+        let (tx, rx) = mpsc::channel();
+        let idled = std::cell::Cell::new(0);
+        std::thread::spawn(move || {
+            std::thread::sleep(IDLE + IDLE / 2);
+            let _ = tx.send(Command::Resume);
+        });
+
+        let command = next(&rx, &mut VecDeque::new(), false, || idled.set(idled.get() + 1));
+
+        assert!(matches!(command, Some(Command::Resume)));
+        assert_eq!(idled.get(), 1);
     }
 
     #[test]
@@ -2473,6 +2617,49 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
     }
 
+    fn presents(game: &mut Game) -> crate::vulkan::Frame {
+        for _ in 0..600 {
+            game.run_frame();
+            if let Some(frame) = retro::vulkan_frame() {
+                return frame;
+            }
+        }
+        panic!("Azahar didn't hand over an image");
+    }
+
+    #[test]
+    #[cfg(target_arch = "aarch64")]
+    fn a_3ds_reset_or_state_load_leaves_no_frame_of_azahars_freed_image_to_draw() {
+        let _lock = lock_core();
+        let Some(rom) = pokemon_x() else { return };
+        let clock = Clock::new(&rom, 0);
+        let (core, watch) = load(rom, None, None, &clock, &std::env::temp_dir(), None).unwrap();
+        let mut game = Game { platform: Platform::ThreeDs, clock, native: true, ..game(core, watch) };
+        let log: Arc<std::sync::Mutex<ScreenLog>> = Arc::default();
+        let mut screen: Box<dyn Screen> = Box::new(FakeScreen(log.clone()));
+        let before_reset = presents(&mut game);
+        let state = game.core.serialize().unwrap();
+
+        game.core.reset();
+        game.show(Some(&mut screen)).unwrap();
+
+        assert!(!before_reset.current(), "the screen would redraw the image Azahar freed on the reset");
+        assert!(retro::vulkan_frame().is_none(), "the handoff still names the image Azahar freed on the reset");
+        assert!(log.lock().unwrap().shown.is_empty());
+
+        let before_load = presents(&mut game);
+        game.show(Some(&mut screen)).unwrap();
+        assert_eq!(log.lock().unwrap().shown.len(), 1);
+        assert!(game.core.unserialize(&state));
+        game.show(Some(&mut screen)).unwrap();
+
+        assert!(!before_load.current(), "the screen would redraw the image Azahar freed on the state load");
+        assert!(retro::vulkan_frame().is_none(), "the handoff still names the image Azahar freed on the state load");
+        assert_eq!(log.lock().unwrap().shown.len(), 1);
+        assert!(presents(&mut game).current());
+        quit(game);
+    }
+
     const WRITE_AB_TO_C100: &str = "01AB00C1";
 
     fn code(text: &str, on: bool) -> Code {
@@ -2538,10 +2725,12 @@ mod tests {
             writes,
             back_up: Box::new(|_, _| Ok(())),
             mark_cheats: Box::new(|_| {}),
+            mark_edited: Box::new(|| {}),
             writer: tauri::async_runtime::spawn(async {}),
             on_frame: Channel::new(|_| Ok(())),
             native: false,
             on_native_failed: Channel::new(|_| Ok(())),
+            achievements: None,
             reply,
         });
         block_on(result).unwrap().unwrap();
@@ -2646,6 +2835,86 @@ mod tests {
 
         assert!(!game.can_undo(), "the game didn't save");
         assert!(marks.lock().unwrap().is_empty());
+    }
+
+    fn recorded_edits(game: &mut Game) -> Arc<std::sync::atomic::AtomicUsize> {
+        let edits = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let counted = edits.clone();
+        game.mark_edited = Box::new(move || {
+            counted.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        });
+        edits
+    }
+
+    #[test]
+    fn marks_the_save_edited_on_an_edit_and_its_undo() {
+        let _lock = lock_core();
+        let mut game = playing(counting_rom());
+        let edits = recorded_edits(&mut game);
+
+        game.apply(&pattern(0x8000, 7)).unwrap();
+        assert_eq!(edits.load(std::sync::atomic::Ordering::SeqCst), 1);
+        game.undo().unwrap();
+
+        assert_eq!(edits.load(std::sync::atomic::Ordering::SeqCst), 2);
+    }
+
+    #[test]
+    fn marks_a_save_the_game_writes_with_codes_on_as_edited() {
+        let _lock = lock_core();
+        let mut game = playing(boot_counting_rom());
+        game.set_cheats(&[code(WRITE_AB_TO_C100, true)]);
+        game.apply(&pattern(0x8000, 7)).unwrap();
+        let edits = recorded_edits(&mut game);
+
+        game.play(60);
+
+        assert_eq!(edits.load(std::sync::atomic::Ordering::SeqCst), 1);
+    }
+
+    fn in_hardcore(name: &str) -> Game {
+        let fake = achievements::tests::FakeRetroAchievements::start();
+        let (achievements, _, _) = achievements::tests::signed_in(&fake, name);
+        let rom = counting_rom();
+        let mut session = achievements.identify(&rom).unwrap().in_hardcore(true).start();
+        let mut core = start_rom(rom, &pattern(0x8030, 1));
+        achievements::tests::until_loaded(&mut core, &mut session);
+        let mut game = game(core, save::Watch::new());
+        game.achievements = Some(session);
+        game.held_cheats = Some(Vec::new());
+        game
+    }
+
+    fn hardcore(game: &Game) -> bool {
+        game.achievements.as_ref().unwrap().hardcore()
+    }
+
+    #[test]
+    fn a_hardcore_session_holds_its_codes_until_it_drops_to_softcore() {
+        let _lock = lock_core();
+        let mut game = in_hardcore("emu-hardcore-codes");
+        let before = work_ram(&mut game, 0xC100);
+
+        game.set_cheats(&[code(WRITE_AB_TO_C100, true)]);
+        game.play(1);
+        assert_eq!(work_ram(&mut game, 0xC100), before);
+        assert!(hardcore(&game));
+
+        game.leave_hardcore();
+        game.play(1);
+
+        assert_eq!(work_ram(&mut game, 0xC100), 0xAB);
+        assert!(!hardcore(&game));
+    }
+
+    #[test]
+    fn an_edit_drops_a_hardcore_session_to_softcore() {
+        let _lock = lock_core();
+        let mut game = in_hardcore("emu-hardcore-edit");
+
+        game.apply(&pattern(0x8000, 7)).unwrap();
+
+        assert!(!hardcore(&game));
     }
 
     #[test]

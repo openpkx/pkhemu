@@ -50,10 +50,10 @@ it("picks the renderer automatically until the player chooses", () => {
   for (const hosts of Object.values(hostSets)) expect(hosts.defaultPreferences.renderer).toBe("automatic");
 });
 
-it("turns fewer 3DS freezes on where the core draws while shaders compile", () => {
+it("turns fewer 3DS freezes on everywhere it's offered", () => {
   expect(androidHosts.defaultPreferences.asyncShaders).toBe(true);
   expect(desktopHosts.defaultPreferences.asyncShaders).toBe(true);
-  expect(iosHosts.defaultPreferences.asyncShaders).toBe(false);
+  expect(iosHosts.defaultPreferences.asyncShaders).toBe(true);
 });
 
 it.each([

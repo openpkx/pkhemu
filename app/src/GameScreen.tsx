@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEngine } from "@pkhex-everywhere/react";
 import { ArrowLeftRight, Menu } from "lucide-react";
 import { cn } from "cn";
 import { useBackGesture, useGoBack } from "@/back/back";
@@ -26,6 +27,8 @@ import type { Game } from "@/library/scan";
 import { useMediaQuery } from "@/lib/useMediaQuery";
 import { useWideScreen } from "@/lib/useWideScreen";
 import { LicencesScreen } from "@/licences/LicencesScreen";
+import { useMemoryNotice } from "@/memory-notice/memoryNotice";
+import { tauriMemoryNoticeHost } from "@/memory-notice/tauriHost";
 import { navigate, Screen } from "@/motion/motion";
 import { Cover } from "@/pause-menu/Cover";
 import { useOverlay, type Overlay } from "@/pause-menu/overlay";
@@ -38,8 +41,17 @@ import { OpponentPill } from "@/pokemon-info/OpponentPill";
 import { PokemonInfoPanel } from "@/pokemon-info/PokemonInfoPanel";
 import { useGameMemory } from "@/game-memory/useGameMemory";
 import { loadSlot, StatesScreen, undoLoad, useStates, type StateMessage } from "@/save-states/StatesScreen";
+import { AchievementIndicators } from "@/retro-achievements/AchievementIndicators";
+import { AchievementSheet } from "@/retro-achievements/AchievementSheet";
+import { AchievementsScreen } from "@/retro-achievements/AchievementsScreen";
+import { useHardcoreLaunch, useHardcoreLock } from "@/retro-achievements/hardcore";
+import { useRetroAchievements, type Unlock } from "@/retro-achievements/retroAchievements";
+import { tallyText } from "@/retro-achievements/tally";
+import { UnlockNotifications } from "@/retro-achievements/UnlockNotifications";
+import { usePlayingAchievements } from "@/retro-achievements/useAchievements";
 import { StateToast } from "@/save-states/StateToast";
 import { tauriStatesHost } from "@/save-states/tauriHost";
+import { savedTrainer } from "@/game-page/saveSummary";
 import { tauriGamePageHost } from "@/game-page/tauriHost";
 import { ConflictSheet } from "@/sync/ConflictSheet";
 import { usePlus } from "@/plus/plus";
@@ -55,9 +67,10 @@ import { TransferPakScreen } from "@/transfer-pak/TransferPak";
 import { cartName, useTransferPak } from "@/transfer-pak/setting";
 import { clearOfTouchControls, TouchControls, useTouchControlsShown } from "@/touch-controls/TouchControls";
 import { Player } from "./Player";
+import { usePortraitLayout } from "./portraitLayout";
 import { SettingsScreen } from "./SettingsScreen";
 import { useBarsTone, useHiddenSystemBars } from "./system-bars/systemBars";
-import { dualScreens, type Rect } from "./screens";
+import { closeToSquare, dualScreens, type Rect } from "./screens";
 import type { Frame } from "./screen";
 import { handheld, type System } from "./systems";
 
@@ -122,7 +135,8 @@ export function GameScreen({
   const [toast, setToast] = useState<StateMessage>();
   const { showFps, gameClockOffset, skins, touchControls: touchControlsOn } = usePreferences().preferences;
   const display = handheld[game.system];
-  const portrait = useMediaQuery("(orientation: portrait)");
+  const portrait = usePortraitLayout(game.system);
+  const square = useMediaQuery(closeToSquare);
   const skinChoice = skins[game.system];
   const plus = usePlus().status?.state;
   const skin = chosenSkin(game.system, skinChoice, plus);
@@ -160,6 +174,13 @@ export function GameScreen({
   const transferPak = useTransferPak(tauriTransferPakHost, folder, game.path);
   const [run, setRun] = useState({ key: 0, resume });
   const [pausedShot, setPausedShot] = useState<Frame>();
+  const [screenWidth, setScreenWidth] = useState<number>();
+  const achievements = usePlayingAchievements(running, overlay);
+  const [tapped, setTapped] = useState<Unlock>();
+  const tappedAchievement = tapped && achievements?.find((achievement) => achievement.id === tapped.id);
+  const engine = useEngine();
+  const { playingHardcore } = useRetroAchievements();
+  const lock = useHardcoreLock(input);
 
   useEffect(() => {
     let current = true;
@@ -175,6 +196,23 @@ export function GameScreen({
   }, [beforeOpen, folder, game.path, setSyncNotice]);
 
   const conflicted = conflicts.length > 0 && !resolved;
+  const memoryNotice = useMemoryNotice({
+    host: tauriMemoryNoticeHost,
+    system: game.system,
+    ready: !checking && !conflicted,
+    input,
+    onQuit,
+  });
+  const { launch, dialog: launchDialog } = useHardcoreLaunch({
+    folder,
+    path: game.path,
+    resume,
+    slot,
+    ready: !checking && !conflicted && memoryNotice.settled,
+    readTrainer: () => savedTrainer(engine, tauriGamePageHost, folder, game.path),
+    input,
+    onQuit,
+  });
   useEffect(() => {
     if (conflicted) return onBackGesture(onQuit);
   }, [conflicted, onBackGesture, onQuit]);
@@ -197,7 +235,7 @@ export function GameScreen({
 
   const onGameStarted = async () => {
     setRunning(true);
-    if (slot !== undefined && run.key === 0) setToast(await loadSlot(tauriStatesHost, folder, game.path, slot));
+    if (launch?.slot !== undefined && run.key === 0) setToast(await loadSlot(tauriStatesHost, folder, game.path, launch.slot));
   };
 
   const undoLoadState = async () => {
@@ -257,16 +295,17 @@ export function GameScreen({
         {error ? (
           <main className="p-4 text-sm text-destructive">{error}</main>
         ) : (
-          <div className="flex min-h-0 flex-1">
+          <div className="flex min-h-0 flex-1" data-landscape={!portrait || undefined}>
             <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
               <Player
                 key={run.key}
                 folder={folder}
                 path={game.path}
-                resume={run.resume}
+                resume={run.resume && (launch?.resume ?? true)}
+                hardcore={playingHardcore}
                 speed={fastForward.speed}
                 input={input}
-                paused={!!overlay}
+                paused={!!overlay || lock.asking}
                 screens={screens}
                 display={display}
                 wall={skinned ? wallColour(skin, skinChoice.look) : undefined}
@@ -275,19 +314,24 @@ export function GameScreen({
                 renderer={renderer.renderer}
                 onNativeFailed={() => renderer.reportNativeFailure() && setRendererNotice(NATIVE_FAILED)}
                 onStacked={setStacked}
+                onScreenWidth={setScreenWidth}
                 onWindows={setWindows}
                 onStarted={onGameStarted}
                 onFps={showFps ? setRates : undefined}
                 onError={(message) => (message === UNSUPPORTED_DEVICE ? onUnsupported() : setError(message))}
                 cover={cover}
-                holdMessage={conflicted ? "" : checking ? "Checking your other devices…" : undefined}
+                holdMessage={conflicted ? "" : checking ? "Checking your other devices…" : launch ? undefined : ""}
                 className={cn(
                   touchControls ? "landscape:pb-safe" : "pb-safe",
                   skinned && ["items-start px-6 pt-6", dual ? "pb-6" : "pb-14"],
                 )}
+                portrait={portrait}
                 clearance={
-                  dual && touchControls ? clearOfTouchControls(stacked ? "both" : swapped ? "left" : "right") : undefined
+                  touchControls && (dual || square)
+                    ? clearOfTouchControls(stacked || square ? "both" : swapped ? "left" : "right")
+                    : undefined
                 }
+                corner={<AchievementIndicators skin={skin} paused={!!overlay} />}
               >
                 {skinned && !dual && (
                   <span
@@ -305,11 +349,22 @@ export function GameScreen({
                 </p>
               )}
               <div className="pointer-events-none absolute inset-x-0 top-3 flex flex-col items-center gap-2">
+                <UnlockNotifications
+                  skin={skin}
+                  paused={!!overlay}
+                  screenWidth={screenWidth}
+                  onOpen={(shown) => {
+                    if (shown.kind !== "unlock") return achievements && forwardTo("achievements")();
+                    if (!achievements?.some((achievement) => achievement.id === shown.unlock.id)) return;
+                    setTapped(shown.unlock);
+                    show("achievement");
+                  }}
+                />
                 <Toast inline>{awaitingSave && "Save in game to open the editor"}</Toast>
                 <Toast inline>{syncNotice}</Toast>
                 <Toast inline>{rendererNotice}</Toast>
-                <UndoToast onUndo={() => void undo.undo()}>{undo.undoable && "Save edited"}</UndoToast>
-                <StateToast toast={toast} onUndo={() => void undoLoadState()} />
+                <UndoToast onUndo={lock.guard("undoEdit", () => void undo.undo())}>{undo.undoable && "Save edited"}</UndoToast>
+                <StateToast toast={toast} onUndo={lock.guard("undoLoad", () => void undoLoadState())} />
                 <CoreMessageToast messages={tauriCoreMessages} />
                 {infoMemory && !wide && (
                   <OpponentPill
@@ -331,7 +386,7 @@ export function GameScreen({
       </div>
       {/* The pause menu's modal dialog would take clicks from the pad setup and close on them. */}
       <PauseMenu
-        open={overlay === "menu" && !settingUpPad}
+        open={overlay === "menu" && !settingUpPad && !lock.asking}
         input={input}
         canEdit={!error}
         canUndo={undo.undoable && !error}
@@ -354,18 +409,20 @@ export function GameScreen({
         transferPak={transferPak.pak ? cartName(transferPak.pak.game) : undefined}
         onTransferPak={forwardTo("transferPak")}
         onResume={() => show(undefined)}
-        onEditSave={forwardTo("editor")}
-        onUndo={() => {
+        onEditSave={lock.guard("editSave", forwardTo("editor"))}
+        onUndo={lock.guard("undoEdit", () => {
           void undo.undo();
           show(undefined);
-        }}
+        })}
         onSaveState={forwardTo("saveState")}
-        onLoadState={forwardTo("loadState")}
-        onUndoLoad={() => {
+        onLoadState={lock.guard("loadState", forwardTo("loadState"))}
+        onUndoLoad={lock.guard("undoLoad", () => {
           void undoLoadState();
           show(undefined);
-        }}
-        onCheats={forwardTo("cheats")}
+        })}
+        onCheats={lock.guard("cheats", forwardTo("cheats"))}
+        achievements={achievements ? tallyText(achievements) : undefined}
+        onAchievements={forwardTo("achievements")}
         skin={touchControlsOn ? skinLine(skin, skinChoice.look) : undefined}
         onSkin={() => void openSkinPicker()}
         onSettings={forwardTo("settings")}
@@ -391,6 +448,21 @@ export function GameScreen({
         <Screen>
           <CheatsScreen host={tauriCheatsHost} folder={folder} path={game.path} system={game.system} input={input} onBack={backTo("menu")} />
         </Screen>
+      )}
+      {overlay === "achievements" && achievements && (
+        <Screen>
+          <AchievementsScreen achievements={achievements} input={input} onBack={backTo("menu")} onResume={() => show(undefined)} />
+        </Screen>
+      )}
+      {tappedAchievement && (
+        <AchievementSheet
+          achievement={tappedAchievement}
+          open={overlay === "achievement"}
+          input={input}
+          onAll={forwardTo("achievements")}
+          onResume={() => show(undefined)}
+          onClose={() => show(undefined)}
+        />
       )}
       {overlay === "transferPak" && transferPak.pak && (
         <Screen>
@@ -448,6 +520,9 @@ export function GameScreen({
           onClose={onQuit}
         />
       )}
+      {lock.dialog}
+      {memoryNotice.dialog}
+      {launchDialog}
       <PadSetupPrompt
         input={input}
         dismissed={dismissedPads}

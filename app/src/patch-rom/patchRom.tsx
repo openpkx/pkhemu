@@ -1,5 +1,4 @@
 import { createContext, useContext, useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { useBack } from "@/back/back";
 import { WithSkeleton } from "@/components/WithSkeleton";
 import { Button } from "@/components/ui/button";
 import {
@@ -294,7 +293,6 @@ export function PatchRomDialog({
 
   const working = creating || adding;
   const close = () => !working && onClose();
-  useBack(open ? close : undefined);
 
   const takeDrop = useRef(choose);
   takeDrop.current = choose;

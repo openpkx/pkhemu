@@ -61,8 +61,7 @@ function CodeForm({
 
   return (
     <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onClose()}>
-      {/* The screen's own Esc would otherwise leave it as the dialog closes. */}
-      <DialogContent showCloseButton={!saving} onEscapeKeyDown={(event) => event.stopPropagation()}>
+      <DialogContent showCloseButton={!saving}>
         <form className="grid gap-4" onSubmit={submit}>
           <DialogHeader>
             <DialogTitle>{form?.id ? "Edit code" : "Add code"}</DialogTitle>

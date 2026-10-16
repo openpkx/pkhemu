@@ -30,15 +30,15 @@ body {
 .copy { position: absolute; top: 112px; left: 80px; right: 80px; text-align: center; }
 .kicker { font-family: Pixel; font-size: 40px; color: #a996ff; letter-spacing: 1px; }
 h1 { margin-top: 20px; font-size: 76px; line-height: 1.08; font-weight: 650; letter-spacing: -1.5px; text-wrap: balance; }
-.phone {
-  position: absolute; left: 50%; top: ${shot.top ?? device.phone.top}px; width: ${shot.width ?? device.phone.width}px;
-  transform: translateX(-50%); padding: 14px; border-radius: 74px;
+.device {
+  position: absolute; left: 50%; top: ${shot.top ?? device.frame.top}px; width: ${shot.width ?? device.frame.width}px;
+  transform: translateX(-50%); padding: 14px; border-radius: ${device.frame.radius + 14}px;
   background: #1b1730; box-shadow: 0 0 0 2px #2e2850, 0 40px 120px rgba(0, 0, 0, 0.6);
 }
-.phone img { display: block; width: 100%; border-radius: 60px; }
+.device img { display: block; width: 100%; border-radius: ${device.frame.radius}px; }
 </style></head><body>
 <div class="copy"><div class="kicker">${shot.kicker}</div><h1>${shot.title}</h1></div>
-<div class="phone"><img src="${png(device, shot.raw)}"></div>
+<div class="device"><img src="${png(device, shot.raw)}"></div>
 </body></html>`;
 
 const browser = await chromium.launch();

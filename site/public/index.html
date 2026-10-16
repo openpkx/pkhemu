@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>pkhemu: an emulator with a save editor built in</title>
-<meta name="description" content="pkhemu is a GB, GBC, GBA, DS, N64 and 3DS emulator with a save editor built in. In testing on Android, coming soon to iOS and macOS.">
+<meta name="description" content="pkhemu is a GB, GBC, GBA, DS, N64 and 3DS emulator with a save editor built in. In testing on Android, with an iOS build you can sideload. Coming soon to the App Store and macOS.">
 <link rel="icon" href="icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="style.css?v=4">
+<link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
 <div class="page">
@@ -28,8 +28,9 @@
       <p>Play GB, GBC, GBA, DS, N64 and 3DS games. For supported games, pause, edit your save and keep playing.</p>
       <div class="actions">
         <a class="button" href="#join">Join the Android test</a>
-        <span class="note">Coming soon to iOS and macOS</span>
+        <span class="note">Coming soon to the App Store and macOS</span>
       </div>
+      <p class="note sideload">On iPhone or iPad? <a href="/ios-jit">Sideload the iOS build with JIT</a>.</p>
     </section>
 
     <section id="join" class="join">
@@ -72,16 +73,33 @@
       <p class="lead">No servers, accounts, ads or analytics. Your games and saves stay on your device.</p>
       <p class="small">You can connect your Google Drive or Dropbox to copy your saves and save states between your own devices. pkhemu then asks Google for two things: your email address, to show which account is connected, and access to a private app folder in your Drive that only pkhemu can see. It can't see any other file in your Drive. The <a href="/privacy">privacy policy</a> has the details.</p>
     </section>
+
+    <section id="coffee" class="coffee">
+      <h2>Buy me a coffee</h2>
+      <p>A coffee on Ko-fi helps keep pkhemu going. It's a gift and doesn't unlock anything.</p>
+      <a class="button" href="https://ko-fi.com/pkhemu">Buy me a coffee on Ko-fi</a>
+    </section>
   </main>
 
   <footer>
     <p>Built on <a href="https://github.com/kwsch/PKHeX">PKHeX</a> for save editing, and <a href="https://mgba.io">mGBA</a>, <a href="https://melonds.kuribo64.net">melonDS</a>, <a href="https://github.com/libretro/mupen64plus-libretro-nx">Mupen64Plus-Next</a> and <a href="https://azahar-emu.org">Azahar</a> for emulation. Consider supporting them.</p>
     <nav>
+      <a href="/ios-jit">iOS with JIT</a>
       <a href="/privacy">Privacy policy</a>
       <a href="mailto:pkhemu@openpkx.fyi">pkhemu@openpkx.fyi</a>
     </nav>
     <p>pkhemu isn't affiliated with or endorsed by Nintendo.</p>
   </footer>
 </div>
+  <aside class="kofi-bar" hidden>
+    <span>Enjoying pkhemu?</span>
+    <a class="button" href="https://ko-fi.com/pkhemu">Buy me a coffee</a>
+  </aside>
+  <script>
+    const bar = document.querySelector(".kofi-bar");
+    new IntersectionObserver(([coffee]) => {
+      bar.hidden = coffee.isIntersecting;
+    }).observe(document.getElementById("coffee"));
+  </script>
 </body>
 </html>

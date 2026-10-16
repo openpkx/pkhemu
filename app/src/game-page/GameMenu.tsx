@@ -41,6 +41,8 @@ export function GameMenu({
   game,
   deletesEverywhere,
   onChangeFormat,
+  onExportSave,
+  onBackups,
   onPatched,
   onUpdated,
   onRemove,
@@ -50,6 +52,8 @@ export function GameMenu({
   game: Game;
   deletesEverywhere: boolean;
   onChangeFormat?(): void;
+  onExportSave?(): void;
+  onBackups?(): void;
   onPatched?(game: Game): void;
   onUpdated?(): void;
   onRemove?(): Promise<void>;
@@ -142,6 +146,8 @@ export function GameMenu({
             <>
               <DropdownMenuItem onSelect={openBoxArt}>Change box art</DropdownMenuItem>
               <DropdownMenuItem onSelect={() => void reextract()}>Re-extract game art</DropdownMenuItem>
+              {onExportSave && <DropdownMenuItem onSelect={onExportSave}>Export save</DropdownMenuItem>}
+              {onBackups && <DropdownMenuItem onSelect={onBackups}>Backups</DropdownMenuItem>}
               {onChangeFormat && <DropdownMenuItem onSelect={onChangeFormat}>Change save format</DropdownMenuItem>}
               <DropdownMenuItem onSelect={openPatching}>Patch ROM…</DropdownMenuItem>
               {takesUpdates && (

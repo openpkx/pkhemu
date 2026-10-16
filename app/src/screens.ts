@@ -12,8 +12,13 @@ const whole: Rect = { x: 0, y: 0, width: 1, height: 1 };
 const topHalf: Rect = { x: 0, y: 0, width: 1, height: 0.5 };
 const bottomHalf: Rect = { x: 0, y: 0.5, width: 1, height: 0.5 };
 
-export function singleScreen(frame: Size, space: Size, shell?: Shell): Layout {
-  const { image, border } = fitInShell(frame, space, shell);
+// Closer to square than this, a landscape window leaves the touch controls no black beside the game to lie on.
+export const closeToSquare = "(orientation: landscape) and (max-aspect-ratio: 5/3)";
+
+// Shrunk below its own size the game would be better off under the controls.
+export function singleScreen(frame: Size, space: Size, shell?: Shell, clearance = 0): Layout {
+  const cleared = { ...space, width: space.width - 2 * clearance };
+  const { image, border } = fitInShell(frame, stretch(frame, cleared) >= 1 ? cleared : space, shell);
   return {
     canvas: { width: image.width + 2 * border, height: image.height + 2 * border },
     border,
@@ -29,11 +34,17 @@ export const dualScreens: Partial<Record<System, Screens>> = {
   "3ds": { top: topHalf, bottom: { x: 0.1, y: 0.5, width: 0.8, height: 0.5 }, largeAndSmall: true },
 };
 
+// Large and small is for landscape. A portrait window's space can still be wider than tall once the controls below take their share, and stacking fills it better.
+export const inPortrait = (screens: Screens): Screens => ({ ...screens, largeAndSmall: false });
+
 // Both screens share one scale, except large and small, where the second gets half the first's. Snapping to a whole scale never shrinks the bigger of two, so comparing before it is safe
-// and keeps a near tie where it would fall without snapping. The clearance keeps the touch screen off controls at the sides, so side by side gives it up on the touch screen's side only.
-export function dualScreen(frame: Size, screens: Screens, space: Size, swapped: boolean, shell?: Shell, clearance = 0): Layout {
+// and keeps a near tie where it would fall without snapping. The clearance keeps the touch screen off controls at the sides, so side by side gives it up on the touch screen's side only,
+// unless both sides are asked for. With both sides, the window is close to square and large and small has to beat stacking on size; elsewhere a wide space is enough.
+// Shrunk below their own size, like a single screen, they'd be better off under the controls.
+export function dualScreen(frame: Size, screens: Screens, space: Size, swapped: boolean, shell?: Shell, clearance = 0, bothSides = false): Layout {
   const border = shell?.border ?? 0;
   const gap = shell?.gap ?? 0;
+  const beside = bothSides ? 2 * clearance : clearance;
   const inFrame = (source: Rect) => ({ width: frame.width * source.width, height: frame.height * source.height });
   const [top, bottom] = [inFrame(screens.top), inFrame(screens.bottom)];
   const room = (width: number, height: number) => ({ width: Math.max(width, 0), height: Math.max(height, 0) });
@@ -43,7 +54,7 @@ export function dualScreen(frame: Size, screens: Screens, space: Size, swapped: 
   ] as const;
   const sideBySideFit = [
     { width: top.width + bottom.width, height: Math.max(top.height, bottom.height) },
-    room(space.width - clearance - 4 * border, space.height - 2 * border),
+    room(space.width - beside - 4 * border, space.height - 2 * border),
   ] as const;
   const topScreen = { source: screens.top, frame: top, window: 0 };
   const bottomScreen = { source: screens.bottom, frame: bottom, window: 1 };
@@ -55,9 +66,10 @@ export function dualScreen(frame: Size, screens: Screens, space: Size, swapped: 
     },
     sideBySideFit[1],
   ] as const;
-  const largeAndSmall = !!screens.largeAndSmall && space.width - clearance > space.height;
+  const largeAndSmall = !!screens.largeAndSmall && (bothSides ? stretch(...largeAndSmallFit) > stretch(...stackedFit) : space.width - beside > space.height);
   const stacked = !largeAndSmall && stretch(...stackedFit) > stretch(...sideBySideFit);
   const scale = fitScale(...(largeAndSmall ? largeAndSmallFit : stacked ? stackedFit : sideBySideFit));
+  if (scale < 1 && clearance > 0) return dualScreen(frame, screens, space, swapped, shell);
   const first = { ...firstScreen, size: scaled(firstScreen.frame, scale) };
   const second = { ...secondScreen, size: scaled(secondScreen.frame, largeAndSmall ? scale / 2 : scale) };
   const across = Math.max(first.size.width, second.size.width);

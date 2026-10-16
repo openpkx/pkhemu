@@ -12,7 +12,7 @@ export function TitledCard({ title, className, children }: { title: string; clas
           {title}
         </CardTitle>
       </CardHeader>
-      <CardContent className="grid gap-3">{children}</CardContent>
+      <CardContent className="grid grid-cols-[minmax(0,1fr)] gap-3">{children}</CardContent>
     </Card>
   );
 }

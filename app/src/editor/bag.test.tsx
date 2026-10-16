@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { EngineProvider } from "@pkhex-everywhere/react";
 import type { Pouch } from "@pkhex-everywhere/engine";
 import { afterEach, expect, it, vi } from "vitest";
+import { BackProvider } from "@/back/back";
 import { EditorScreen } from "./EditorScreen";
 import { fakeEngine } from "./fakeEngine";
 import { saveHome } from "./saveHome";
@@ -31,11 +32,13 @@ async function openBag(art = gameWithArt({ "item-1": png }), inventory = bag) {
   const { engine } = fakeEngine({ inventory });
   const host = { read: async () => new Uint8Array([1]), apply: async () => {}, playTimeSinceSave: async () => 0 };
   render(
-    <EngineProvider engine={engine}>
-      <FakeGameArt art={art}>
-        <EditorScreen host={host} home={saveHome} onBackGesture={() => () => {}} onClose={() => {}} onSaveFirst={() => {}} />
-      </FakeGameArt>
-    </EngineProvider>,
+    <BackProvider>
+      <EngineProvider engine={engine}>
+        <FakeGameArt art={art}>
+          <EditorScreen host={host} home={saveHome} onBackGesture={() => () => {}} onClose={() => {}} onSaveFirst={() => {}} />
+        </FakeGameArt>
+      </EngineProvider>
+    </BackProvider>,
   );
   fireEvent.click(await screen.findByRole("button", { name: "Bag" }));
   await screen.findByRole("heading", { name: "Bag" });

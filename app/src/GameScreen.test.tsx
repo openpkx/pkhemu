@@ -25,6 +25,7 @@ import { PreferencesProvider, type PreferencesHost, type RendererChoice } from "
 import { FakeGameArt } from "./game-art/fakeGameArt";
 import { GamesFolderProvider, type GamesFolderHost } from "./games-folder/gamesFolder";
 import { ExperimentsProvider } from "./lab/lab";
+import { RetroAchievementsProvider, type Achievement, type AchievementEvent, type RetroAchievementsHost } from "./retro-achievements/retroAchievements";
 import { fakePlus } from "./plus/fakePlus";
 import { PlusProvider, type PlusStatus } from "./plus/plus";
 import { fakeSync } from "./sync/fakeSync";
@@ -40,6 +41,8 @@ const game = vi.hoisted(() => ({
   onFps: undefined as ((rates: Rates) => void) | undefined,
   onError: undefined as ((message: string) => void) | undefined,
   starts: [] as boolean[],
+  launches: [] as { resume: boolean; hardcore: boolean }[],
+  states: { current: null, slots: [], canUndoLoad: false } as unknown,
   transferPak: null as { game: string | null } | null,
   pauseRequested: undefined as (() => void) | undefined,
   renderer: undefined as string | undefined,
@@ -48,12 +51,13 @@ const game = vi.hoisted(() => ({
   swapped: undefined as boolean | undefined,
   clearance: undefined as string | undefined,
   onStacked: undefined as ((stacked: boolean) => void) | undefined,
+  missingEntitlements: [] as string[],
 }));
 
 vi.mock("@tauri-apps/api/core", () => ({
   invoke: vi.fn(async (command: string, args?: { ranges: Range[] }) =>
     command === "list_states"
-      ? { current: null, slots: [], canUndoLoad: false }
+      ? game.states
       : command === "can_undo_edit"
         ? false
         : command === "read_memory"
@@ -64,6 +68,10 @@ vi.mock("@tauri-apps/api/core", () => ({
 
 vi.mock("./cheats/tauriHost", async () => ({
   tauriCheatsHost: (await import("./cheats/fakeCheats")).fakeCheats([{ name: "Infinite money", code: "82025838 FFFF", on: false }]),
+}));
+
+vi.mock("./memory-notice/tauriHost", () => ({
+  tauriMemoryNoticeHost: { missingEntitlements: async () => game.missingEntitlements },
 }));
 
 vi.mock("./screen", () => ({ createScreen: () => () => {} }));
@@ -96,6 +104,7 @@ vi.mock("./Player", () => ({
   Player: function Player({
     input,
     resume,
+    hardcore = false,
     paused,
     holdMessage,
     onStarted,
@@ -111,6 +120,7 @@ vi.mock("./Player", () => ({
   }: {
     input: Input;
     resume: boolean;
+    hardcore?: boolean;
     paused: boolean;
     holdMessage?: string;
     onStarted?(): Promise<void>;
@@ -133,7 +143,11 @@ vi.mock("./Player", () => ({
     game.renderer = renderer;
     game.onNativeFailed = onNativeFailed;
     useEffect(() => void game.starts.push(resume), []);
-    useEffect(() => void (holdMessage === undefined && onStarted?.()), [holdMessage]);
+    useEffect(() => {
+      if (holdMessage !== undefined) return;
+      game.launches.push({ resume, hardcore });
+      void onStarted?.();
+    }, [holdMessage]);
     useEffect(() => {
       if (paused) return;
       let raf = 0;
@@ -155,18 +169,23 @@ vi.mock("./Player", () => ({
 let pads: ReturnType<typeof fakePads>;
 
 let wide = false;
-let portrait = false;
+let square = false;
+const windowSize = (innerWidth: number, innerHeight: number) => Object.assign(window, { innerWidth, innerHeight });
 
 beforeEach(() => {
   game.readMemory = async () => Uint8Array.from([0, 0, 0, 0, 0]);
   game.settings = {};
   game.starts = [];
+  game.launches = [];
+  game.states = { current: null, slots: [], canUndoLoad: false };
   game.transferPak = null;
+  game.missingEntitlements = [];
   vi.mocked(tauriTransferPakHost.chooseTransferPak).mockClear();
   wide = false;
-  portrait = false;
+  windowSize(1024, 768);
+  square = false;
   window.matchMedia = ((query: string) => ({
-    matches: query.includes("portrait") ? portrait : wide,
+    matches: query.includes("aspect-ratio") ? square : wide,
     addEventListener() {},
     removeEventListener() {},
   })) as never;
@@ -217,6 +236,7 @@ async function play(
     played = emerald,
     games = [] as Game[],
     resume = false,
+    slot = undefined as number | undefined,
     back = desktopBackHost,
     renderer = "automatic" as RendererChoice,
     gameSurface = noGameSurfaceHost,
@@ -225,8 +245,12 @@ async function play(
     bars = { setHidden() {}, setLight() {}, splashHidden() {} } as SystemBarsHost,
     preferences = { load: async () => ({}), save: async () => {} } as PreferencesHost,
     plusHost = fakePlus({ status: plus }).host,
+    retroAchievements = undefined as RetroAchievementsHost | undefined,
   } = {},
 ) {
+  const screenOfGame = (
+    <GameScreen folder="/games" game={played} games={games} resume={resume} slot={slot} dismissedPads={new Set()} onQuit={onQuit} onUnsupported={onUnsupported} />
+  );
   render(
     <SystemBarsProvider host={bars}>
       <EngineProvider engine={using}>
@@ -241,7 +265,11 @@ async function play(
                   <BackProvider host={back}>
                     <PlusProvider host={plusHost}>
                       <ExperimentsProvider host={{ load: async () => ({}), save: async () => {} }} registry={[]}>
-                        <GameScreen folder="/games" game={played} games={games} resume={resume} dismissedPads={new Set()} onQuit={onQuit} onUnsupported={onUnsupported} />
+                        {retroAchievements ? (
+                          <RetroAchievementsProvider host={retroAchievements}>{screenOfGame}</RetroAchievementsProvider>
+                        ) : (
+                          screenOfGame
+                        )}
                       </ExperimentsProvider>
                     </PlusProvider>
                   </BackProvider>
@@ -271,7 +299,7 @@ async function pressOddPad() {
 const plastic = () => document.querySelector<HTMLElement>("[style*='background-image']");
 
 it("draws the chosen skin's plastic behind the game in portrait, with the bars' icons to suit it", async () => {
-  portrait = true;
+  windowSize(390, 844);
   const light: boolean[] = [];
   const polarWhite = skins.nds.find(({ id }) => id === "polar-white")!;
 
@@ -286,7 +314,7 @@ it("draws the chosen skin's plastic behind the game in portrait, with the bars' 
 });
 
 it("replaces the shown skin when sync brings another one down during the game", async () => {
-  portrait = true;
+  windowSize(390, 844);
   let syncDown = (_: Partial<Record<System, unknown>>) => {};
   const glacier = skins.gba.find(({ id }) => id === "glacier")!;
   await play(undefined, undefined, undefined, {
@@ -308,7 +336,7 @@ it("replaces the shown skin when sync brings another one down during the game", 
 });
 
 it("shows pkhemu for a saved Plus skin until Plus comes back, keeping the choice", async () => {
-  portrait = true;
+  windowSize(390, 844);
   const glacier = skins.gba.find(({ id }) => id === "glacier")!;
   const { host, report } = fakePlus({ status: { state: "notOwned", price: "$3.99" } });
   const save = vi.fn(async () => {});
@@ -329,7 +357,7 @@ const skinned = () => document.querySelector<HTMLElement>("[data-skin]");
 const wordmark = () => screen.getByTestId("player").textContent;
 
 it("styles the touch controls in the chosen look and prints the wordmark under the screen", async () => {
-  portrait = true;
+  windowSize(390, 844);
   const classicGrey = skins.gb.find(({ id }) => id === "classic-grey")!;
 
   await play(undefined, undefined, undefined, {
@@ -342,7 +370,7 @@ it("styles the touch controls in the chosen look and prints the wordmark under t
 });
 
 it("leaves the wordmark off DS", async () => {
-  portrait = true;
+  windowSize(390, 844);
 
   await play(undefined, undefined, undefined, { played: { name: "Platinum", path: "nds/Platinum.nds", system: "nds" } });
 
@@ -360,7 +388,7 @@ it("keeps the game area black in landscape", async () => {
 const holding = () => screen.getByTestId("player").getAttribute("data-holding");
 
 it.each(["nds", "3ds"] as const)("shows both screens of a %s game, with a button to swap them", async (system) => {
-  portrait = true;
+  windowSize(390, 844);
   await play(undefined, undefined, undefined, { played: { name: "Game", path: `${system}/Game`, system } });
 
   expect(game.screens).toBe(dualScreens[system]);
@@ -374,10 +402,19 @@ it("drops the header in landscape while the touch controls show", async () => {
 });
 
 it("keeps the header in portrait with the touch controls", async () => {
-  portrait = true;
+  windowSize(390, 844);
   await play(undefined, undefined, undefined, { touchControls: true });
 
   screen.getByRole("button", { name: "Back" });
+});
+
+it("lays a short portrait window out as landscape, without the header or the skin, and the game under the controls", async () => {
+  windowSize(375, 486);
+  await play(undefined, undefined, undefined, { touchControls: true });
+
+  expect(screen.queryByRole("button", { name: "Back" })).toBeNull();
+  expect(plastic()).toBeNull();
+  expect(game.clearance).toBeUndefined();
 });
 
 it("keeps the header in landscape without the touch controls", async () => {
@@ -411,6 +448,19 @@ it("keeps stacked screens clear of touch controls on both sides", async () => {
   await play(undefined, undefined, undefined, { touchControls: true, played: { name: "Game", path: "nds/Game", system: "nds" } });
 
   act(() => game.onStacked?.(true));
+
+  expect(game.clearance).toBe("landscape:px-[11rem]");
+});
+
+it("leaves one screen under the touch controls in a phone's landscape window", async () => {
+  await play(undefined, undefined, undefined, { touchControls: true });
+
+  expect(game.clearance).toBeUndefined();
+});
+
+it.each(["gba", "nds"] as const)("keeps a %s game clear of touch controls on both sides in a window close to square", async (system) => {
+  square = true;
+  await play(undefined, undefined, undefined, { touchControls: true, played: { name: "Game", path: `${system}/Game`, system } });
 
   expect(game.clearance).toBe("landscape:px-[11rem]");
 });
@@ -933,4 +983,291 @@ it("falls back quietly when Automatic's Native fails", async () => {
   act(() => game.onNativeFailed!());
 
   expect(screen.queryByRole("status")).toBeNull();
+});
+
+const boulder: Achievement = {
+  id: 1,
+  title: "Boulder Badge",
+  description: "Defeat Brock in Pewter City",
+  points: 10,
+  badge: "00001",
+  earned: { at: null, hardcore: false },
+  progress: null,
+  rarity: 62,
+};
+const cascade: Achievement = { ...boulder, id: 2, title: "Cascade Badge", description: "Defeat Misty", earned: null, progress: "1/2" };
+
+function fakeRetroAchievements({ hardcore = false, set = false, edited = false } = {}) {
+  const listeners = new Set<(event: AchievementEvent) => void>();
+  const host = {
+    turn: async () => {},
+    account: async () => "Player",
+    signIn: async (user) => user,
+    signOut: async () => {},
+    createAccount: async () => {},
+    openProfile: async () => {},
+    onEvent: (listener) => {
+      listeners.add(listener);
+      return () => void listeners.delete(listener);
+    },
+    badge: async () => undefined,
+    playing: async () => [cascade, boulder],
+    game: async () => (set ? [cascade, boulder] : null),
+    summary: async () => null,
+    hardcore: async () => hardcore,
+    setHardcore: async () => {},
+    leaveHardcore: vi.fn(async () => {}),
+    edited: async () => edited,
+    settleEdited: async () => edited,
+  } satisfies RetroAchievementsHost;
+  const unlock = (...achievements: Achievement[]) =>
+    act(async () =>
+      achievements.forEach(({ id, title, description, points, badge }) =>
+        listeners.forEach((listener) => listener({ kind: "unlocked", id, title, description, points, badge })),
+      ),
+    );
+  return { host, unlock };
+}
+
+const pill = () => screen.queryByRole("status", { name: /^Achievement unlocked/ });
+
+async function tapPill() {
+  const shown = pill()!;
+  shown.setPointerCapture = () => {};
+  fireEvent.pointerDown(shown, { pointerId: 1, clientX: 100, clientY: 20 });
+  fireEvent.pointerUp(shown, { pointerId: 1, clientX: 100, clientY: 20 });
+  await act(async () => {});
+}
+
+it("opens a tapped unlock's details over the paused game, and holds the next until Resume", async () => {
+  const { host, unlock } = fakeRetroAchievements();
+  await play(undefined, undefined, undefined, { retroAchievements: host, plus: { state: "unlocked" } });
+  await unlock(boulder, cascade);
+
+  await tapPill();
+
+  expect(pill()).toBeNull();
+  expect(paused()).toBe(true);
+  const sheet = screen.getByRole("dialog", { name: /Boulder Badge/ });
+  expect(within(sheet).getByText("Defeat Brock in Pewter City")).toBeTruthy();
+  expect(within(sheet).getByText("62%")).toBeTruthy();
+  expect(screen.queryByRole("status", { name: /Cascade Badge/ })).toBeNull();
+
+  fireEvent.click(within(sheet).getByRole("button", { name: "Resume" }));
+  await act(async () => {});
+
+  expect(paused()).toBe(false);
+  expect(screen.getByRole("status", { name: /Cascade Badge/ })).toBeTruthy();
+});
+
+it("goes from a tapped unlock's details to the game's list", async () => {
+  const { host, unlock } = fakeRetroAchievements();
+  await play(undefined, undefined, undefined, { retroAchievements: host, plus: { state: "unlocked" } });
+  await unlock(boulder);
+  await tapPill();
+
+  fireEvent.click(screen.getByRole("button", { name: "All achievements" }));
+  await act(async () => {});
+
+  expect(screen.getByRole("heading", { name: "Achievements" })).toBeTruthy();
+  expect(screen.getByText("1/2 · 10 pts")).toBeTruthy();
+  expect(paused()).toBe(true);
+});
+
+it("opens the game's list from the pause menu, and a row's details from it", async () => {
+  const { host } = fakeRetroAchievements();
+  await play(undefined, undefined, undefined, { retroAchievements: host, plus: { state: "unlocked" } });
+  await openPauseMenu();
+
+  fireEvent.click(screen.getByRole("button", { name: /^Achievements/ }));
+  await act(async () => {});
+  fireEvent.click(screen.getByRole("button", { name: /Cascade Badge/ }));
+  await act(async () => {});
+
+  const sheet = screen.getByRole("dialog", { name: /Cascade Badge/ });
+  expect(within(sheet).getByText("1/2")).toBeTruthy();
+  fireEvent.click(within(sheet).getByRole("button", { name: "Resume" }));
+  await act(async () => {});
+  expect(paused()).toBe(false);
+});
+
+const quits = vi.fn();
+
+const inHardcore = async (options: Parameters<typeof fakeRetroAchievements>[0] = {}, start: { resume?: boolean; slot?: number } = {}) => {
+  quits.mockClear();
+  const ra = fakeRetroAchievements({ hardcore: true, set: true, ...options });
+  await play(undefined, undefined, quits, { retroAchievements: ra.host, plus: { state: "unlocked" }, ...start });
+  return ra;
+};
+
+const lockQuestion = () => screen.queryByRole("alertdialog");
+
+it("starts a game with a set in hardcore once the switch is on", async () => {
+  await inHardcore();
+
+  expect(game.launches).toEqual([{ resume: false, hardcore: true }]);
+});
+
+it("plays a game without a set as asked, in softcore", async () => {
+  await inHardcore({ set: false }, { resume: true });
+
+  expect(lockQuestion()).toBeNull();
+  expect(game.launches).toEqual([{ resume: true, hardcore: false }]);
+});
+
+it("asks before each feature hardcore locks, and keeps fast-forward and save states", async () => {
+  game.states = { current: 1, slots: [{ slot: 1, savedAt: 0, playSinceSave: null, loadable: true }], canUndoLoad: true };
+  await inHardcore();
+  const asked: Record<string, string> = {};
+
+  for (const entry of ["Edit save", "Load state", "Undo load state", "Cheats"]) {
+    await openPauseMenu();
+    fireEvent.click(screen.getByRole("button", { name: entry }));
+    await act(async () => {});
+    asked[entry] = within(lockQuestion()!).getByRole("heading").textContent!;
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await act(async () => {});
+    expect(screen.getByRole("button", { name: "Resume" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Resume" }));
+    await act(async () => {});
+  }
+
+  expect(asked).toEqual({
+    "Edit save": "Editing the save ends hardcore until you restart the game",
+    "Load state": "Loading a state ends hardcore until you restart the game",
+    "Undo load state": "Undoing the load ends hardcore until you restart the game",
+    Cheats: "Cheats end hardcore until you restart the game",
+  });
+  await openPauseMenu();
+  fireEvent.click(screen.getByRole("button", { name: /^Fast-forward/ }));
+  fireEvent.click(screen.getByRole("button", { name: "Save state" }));
+  await act(async () => {});
+  expect(lockQuestion()).toBeNull();
+  expect(screen.getByRole("heading", { name: "Save state" })).toBeTruthy();
+});
+
+it("drops the session to softcore when the player switches, and opens what they picked", async () => {
+  const { host } = await inHardcore();
+  await openPauseMenu();
+  fireEvent.click(screen.getByRole("button", { name: "Cheats" }));
+  await act(async () => {});
+
+  fireEvent.click(screen.getByRole("button", { name: "Switch to softcore" }));
+  await act(async () => {});
+
+  expect(host.leaveHardcore).toHaveBeenCalledOnce();
+  expect(screen.getByRole("switch", { name: "Infinite money" })).toBeTruthy();
+  fireEvent.keyDown(window, { key: "Escape" });
+  await act(async () => {});
+  fireEvent.click(screen.getByRole("button", { name: "Edit save" }));
+  await act(async () => {});
+  expect(lockQuestion()).toBeNull();
+});
+
+it("asks before a hardcore launch resumes from a state, and resumes in softcore", async () => {
+  await inHardcore({}, { resume: true });
+
+  expect(game.launches).toEqual([]);
+  fireEvent.click(within(lockQuestion()!).getByRole("button", { name: "Resume (softcore)" }));
+  await act(async () => {});
+
+  expect(game.launches).toEqual([{ resume: true, hardcore: false }]);
+  expect(quits).not.toHaveBeenCalled();
+});
+
+it("quits from the launch question with Escape", async () => {
+  await inHardcore({}, { resume: true });
+
+  fireEvent.keyDown(lockQuestion()!, { key: "Escape" });
+  await act(async () => {});
+
+  expect(quits).toHaveBeenCalledOnce();
+  expect(game.launches).toEqual([]);
+});
+
+it("restarts from the save in hardcore instead of loading the picked slot", async () => {
+  await inHardcore({}, { resume: true, slot: 3 });
+
+  fireEvent.click(within(lockQuestion()!).getByRole("button", { name: "Restart (hardcore)" }));
+  await act(async () => {});
+
+  expect(game.launches).toEqual([{ resume: false, hardcore: true }]);
+  expect(quits).not.toHaveBeenCalled();
+  expect(vi.mocked(invoke)).not.toHaveBeenCalledWith("load_state", expect.anything());
+});
+
+it("warns before playing an edited save in hardcore, and plays it in softcore", async () => {
+  await inHardcore({ edited: true });
+
+  const warning = lockQuestion()!;
+  expect(within(warning).getByText(/This save was changed in pkhemu/)).toBeTruthy();
+  fireEvent.click(within(warning).getByRole("button", { name: "Play in softcore" }));
+  await act(async () => {});
+
+  expect(game.launches).toEqual([{ resume: false, hardcore: false }]);
+  expect(quits).not.toHaveBeenCalled();
+});
+
+it("plays an edited save in hardcore when the player insists", async () => {
+  await inHardcore({ edited: true }, { resume: true });
+  fireEvent.click(within(lockQuestion()!).getByRole("button", { name: "Restart (hardcore)" }));
+  await act(async () => {});
+
+  fireEvent.click(within(lockQuestion()!).getByRole("button", { name: "Play hardcore anyway" }));
+  await act(async () => {});
+
+  expect(game.launches).toEqual([{ resume: false, hardcore: true }]);
+});
+
+it("leaves Achievements out of the pause menu without RetroAchievements", async () => {
+  await play();
+  await openPauseMenu();
+
+  expect(screen.queryByRole("button", { name: /^Achievements/ })).toBeNull();
+});
+
+const threeDs: Game = { name: "Pokémon Y", path: "3ds/Y.3ds", system: "3ds" };
+
+it("warns before a 3DS game boots when the app lacks memory entitlements, naming each, and plays on", async () => {
+  game.missingEntitlements = ["extended-virtual-addressing", "increased-memory-limit"];
+  await play(undefined, undefined, undefined, { played: threeDs });
+
+  const warning = notice()!;
+  expect(within(warning).getByText(/extended virtual addressing/)).toBeTruthy();
+  expect(within(warning).getByText(/increased memory limit/)).toBeTruthy();
+  expect(within(warning).getByText(/AltStore/)).toBeTruthy();
+  expect(game.launches).toEqual([]);
+
+  fireEvent.click(within(warning).getByRole("button", { name: "Play anyway" }));
+  await act(async () => {});
+
+  expect(notice()).toBeNull();
+  expect(game.launches).toEqual([{ resume: false, hardcore: false }]);
+});
+
+it("quits from the memory warning without booting the game", async () => {
+  const quit = vi.fn();
+  game.missingEntitlements = ["increased-memory-limit"];
+  await play(undefined, undefined, quit, { played: threeDs });
+
+  fireEvent.click(within(notice()!).getByRole("button", { name: "Back" }));
+  await act(async () => {});
+
+  expect(quit).toHaveBeenCalledOnce();
+  expect(game.launches).toEqual([]);
+});
+
+it("boots a 3DS game without a warning when the app has its memory entitlements", async () => {
+  await play(undefined, undefined, undefined, { played: threeDs });
+
+  expect(notice()).toBeNull();
+  expect(game.launches).toEqual([{ resume: false, hardcore: false }]);
+});
+
+it("boots other systems without the memory warning", async () => {
+  game.missingEntitlements = ["extended-virtual-addressing", "increased-memory-limit"];
+  await play();
+
+  expect(notice()).toBeNull();
+  expect(game.launches).toEqual([{ resume: false, hardcore: false }]);
 });

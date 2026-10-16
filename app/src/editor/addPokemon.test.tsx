@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { EngineProvider } from "@pkhex-everywhere/react";
 import type { EditablePokemon, ErrorCode, SaveCapability } from "@pkhex-everywhere/engine";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { BackProvider } from "@/back/back";
 import { EditorScreen } from "./EditorScreen";
 import { ExportProvider } from "./exportFile";
 import { fakeCardFile, fakeEngine, type FakeEncounter, type FakeEventEncounter, type FakeMysteryGift } from "./fakeEngine";
@@ -76,15 +77,17 @@ function launch({
   const host = { read: async () => new Uint8Array([1]), apply: async () => {}, playTimeSinceSave: async () => 0 };
   const files = { pick: vi.fn(async () => picked.shift() ?? null) };
   render(
-    <EngineProvider engine={fake.engine}>
-      <FakeGameArt>
-        <ExportProvider host={{ saveFile: async () => undefined, saveFiles: async () => undefined }}>
-          <PokemonFileProvider host={files}>
-            <EditorScreen host={host} home={saveHome} onBackGesture={() => () => {}} onClose={() => {}} onSaveFirst={() => {}} />
-          </PokemonFileProvider>
-        </ExportProvider>
-      </FakeGameArt>
-    </EngineProvider>,
+    <BackProvider>
+      <EngineProvider engine={fake.engine}>
+        <FakeGameArt>
+          <ExportProvider host={{ saveFile: async () => undefined, saveFiles: async () => undefined }}>
+            <PokemonFileProvider host={files}>
+              <EditorScreen host={host} home={saveHome} onBackGesture={() => () => {}} onClose={() => {}} onSaveFirst={() => {}} />
+            </PokemonFileProvider>
+          </ExportProvider>
+        </FakeGameArt>
+      </EngineProvider>
+    </BackProvider>,
   );
   return { ...fake, files };
 }

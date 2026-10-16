@@ -37,24 +37,40 @@ function Icon({ badge }: { badge: SyncBadgeState }) {
   return <CircleAlert className="size-3.5 text-overlay-warning" />;
 }
 
-export function SyncBadge({ badge }: { badge?: SyncBadgeState }) {
+export function SyncBadge({ badge, onResolve }: { badge?: SyncBadgeState; onResolve(): void }) {
   const { ref, shown, state } = usePresence(badge);
   if (!shown) return null;
+  const label = shown.kind === "conflict" ? `${shown.label}. Choose a version to keep` : shown.label;
+  const className = "rounded-full bg-overlay/60 p-1 text-white";
   return (
     <span ref={ref} data-presence={state} className="motion-badge flex">
       <TooltipProvider>
         <Tooltip>
           <TooltipTrigger asChild>
-            <span
-              role={shown.kind === "ring" ? "progressbar" : "img"}
-              aria-label={shown.label}
-              aria-valuenow={shown.kind === "ring" ? shown.percent : undefined}
-              className="rounded-full bg-overlay/60 p-1 text-white"
-            >
-              <Icon badge={shown} />
-            </span>
+            {shown.kind === "conflict" ? (
+              <button
+                type="button"
+                aria-label={label}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onResolve();
+                }}
+                className={cn("motion-press outline-none focus-visible:ring-3 focus-visible:ring-ring/50", className)}
+              >
+                <Icon badge={shown} />
+              </button>
+            ) : (
+              <span
+                role={shown.kind === "ring" ? "progressbar" : "img"}
+                aria-label={label}
+                aria-valuenow={shown.kind === "ring" ? shown.percent : undefined}
+                className={className}
+              >
+                <Icon badge={shown} />
+              </span>
+            )}
           </TooltipTrigger>
-          <TooltipContent>{shown.label}</TooltipContent>
+          <TooltipContent>{label}</TooltipContent>
         </Tooltip>
       </TooltipProvider>
     </span>

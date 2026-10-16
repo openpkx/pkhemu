@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>iOS with JIT · pkhemu</title>
+<meta name="description" content="Install the pkhemu iOS build with SideStore or AltStore, and turn on JIT with StikDebug or inside the app.">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="style.css?v=5">
+</head>
+<body>
+<div class="page">
+  <header>
+    <a href="/"><img src="icon.svg" alt=""><span class="wordmark">pkhemu</span></a>
+  </header>
+
+  <main>
+    <h1>iOS with JIT</h1>
+    <p>App Store apps can't use a JIT, so pkhemu has a second iOS build that you sideload and sign with your own Apple account. With JIT on, 3DS games run faster. Otherwise it's the same app, and its icon has a JIT badge so you can tell the two apart. It needs iOS 18 or later.</p>
+
+    <h3>Install it</h3>
+    <ol>
+      <li>Install <a href="https://sidestore.io">SideStore</a> or <a href="https://altstore.io">AltStore</a> and sign in with your Apple account.</li>
+      <li>Add this source:<br><code class="url">https://github.com/openpkx/pkhemu/releases/latest/download/altstore.json</code></li>
+      <li>Install pkhemu from the source. If SideStore asks about app extensions, keep them. One of them is the JIT helper.</li>
+    </ol>
+    <p>The source updates with each release, and pkhemu tells you when a newer version is out. You can also download the IPA from the <a href="https://github.com/openpkx/pkhemu/releases/latest">latest release</a>.</p>
+
+    <h3>Turn on JIT</h3>
+    <p>JIT stays on until the app closes, so turn it on each time you open pkhemu. Both ways need Developer Mode, under Settings, Privacy &amp; Security.</p>
+    <p><strong>With StikDebug.</strong> Set up <a href="https://github.com/StikDebug/StikDebug">StikDebug</a> as its guide says. In pkhemu, open Settings and tap Enable JIT on the JIT card, or Use StikDebug once you've imported a pairing file. StikDebug opens, turns JIT on and sends you back.</p>
+    <p><strong>Inside pkhemu.</strong> Make a pairing file with <a href="https://github.com/nab138/iloader">iloader</a> on your computer and copy it to your iPhone. Install LocalDevVPN and keep it on. In pkhemu, open Settings, tap Import pairing file on the JIT card, then Turn on JIT. The first time, it downloads Apple's developer disk image, about 17 MB, from GitHub. If SideStore removed the JIT helper, use StikDebug instead.</p>
+
+    <h3>Free and paid Apple accounts</h3>
+    <ul>
+      <li><strong>Free account.</strong> The app stops opening after 7 days unless SideStore or AltStore refreshes it. You can have 3 sideloaded apps at once, SideStore or AltStore included, and register 10 app IDs a week. pkhemu uses up to 2, one for the app and one for the JIT helper.</li>
+      <li><strong>Memory on a free account.</strong> The app can't get extended virtual addressing, and SideStore also leaves out the increased memory limit, which AltStore keeps. 3DS games may run out of memory, and pkhemu warns you before one starts.</li>
+      <li><strong>Paid developer account.</strong> The app lasts a year, and it gets both memory entitlements.</li>
+    </ul>
+
+    <h3>Sync is free</h3>
+    <p>In this build, Sync with Google Drive or Dropbox is free. A new install starts empty, so bring your games and saves over with Sync or the Files app.</p>
+
+    <p class="aside">Found a bug? Email <a href="mailto:pkhemu@openpkx.fyi">pkhemu@openpkx.fyi</a>.</p>
+  </main>
+
+  <footer>
+    <nav>
+      <a href="/">Home</a>
+      <a href="/privacy">Privacy policy</a>
+      <a href="mailto:pkhemu@openpkx.fyi">pkhemu@openpkx.fyi</a>
+    </nav>
+    <p>pkhemu isn't affiliated with or endorsed by Nintendo or Apple.</p>
+  </footer>
+</div>
+  <aside class="kofi-bar">
+    <span>Enjoying pkhemu?</span>
+    <a class="button" href="https://ko-fi.com/pkhemu">Buy me a coffee</a>
+  </aside>
+</body>
+</html>

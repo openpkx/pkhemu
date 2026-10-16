@@ -13,9 +13,12 @@ use crate::screen::{Picture, Texture};
 use crate::transfer_pak;
 use crate::vulkan;
 use platform::{
-    azahar_renderer, core_path, supports, vulkan_library, JIT, N64_CPU, SCREEN_DRAWS_VULKAN, UBERSHADER_FALLBACK,
-    VULKAN_SETTINGS,
+    azahar_renderer, core_path, exec_mem_alloc, exec_mem_free, release_exec_mem, supports, vulkan_library, JIT,
+    N64_CPU, SCREEN_DRAWS_VULKAN, UBERSHADER_FALLBACK, VULKAN_SETTINGS,
 };
+pub use platform::{enable_jit_url, jit_on};
+#[cfg(sideload)]
+pub use platform::{jit_helper, turn_on_jit_with_helper, JitHelper};
 use std::cell::{Cell, RefCell};
 use std::ffi::{c_char, c_uint, c_void, CStr, CString};
 use std::path::{Path, PathBuf};
@@ -27,6 +30,7 @@ pub const MEMORY_RTC: c_uint = 1;
 pub const MEMORY_SYSTEM_RAM: c_uint = 2;
 
 const ENV_GET_CAN_DUPE: c_uint = 3;
+const ENV_SET_MESSAGE: c_uint = 6;
 const ENV_GET_SYSTEM_DIRECTORY: c_uint = 9;
 const ENV_SET_PIXEL_FORMAT: c_uint = 10;
 const ENV_SET_HW_RENDER: c_uint = 14;
@@ -51,6 +55,8 @@ const ENV_GET_VFS_INTERFACE: c_uint = 45 | 0x10000;
 const ENV_GET_HW_RENDER_INTERFACE: c_uint = 41 | 0x10000;
 const ENV_SET_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE: c_uint = 43 | 0x10000;
 const ENV_GET_JIT_CAPABLE: c_uint = 74;
+const ENV_EXEC_MEM_ALLOC: c_uint = 83;
+const ENV_EXEC_MEM_FREE: c_uint = 84;
 const LOG_ERROR: c_uint = 3;
 const MESSAGE_TARGET_LOG: c_uint = 2;
 const MESSAGE_TYPE_NOTIFICATION_ALT: c_uint = 1;
@@ -68,6 +74,31 @@ const DEVICE_ID_POINTER_X: c_uint = 0;
 const DEVICE_ID_POINTER_Y: c_uint = 1;
 const DEVICE_ID_POINTER_PRESSED: c_uint = 2;
 const GAME_TYPE_TRANSFERPAK: c_uint = 2;
+const EXEC_MEM_MODE_UNAVAILABLE: c_uint = 0;
+const EXEC_MEM_MODE_WX_TOGGLE: c_uint = 3;
+const EXEC_MEM_MODE_DUAL_MAP: c_uint = 4;
+
+#[repr(C)]
+struct ExecMemAlloc {
+    version: c_uint,
+    size: usize,
+    mode: c_uint,
+    rx: *mut c_void,
+    rw: *mut c_void,
+}
+
+#[derive(Debug, PartialEq)]
+struct ExecMem {
+    mode: c_uint,
+    rx: *mut c_void,
+    rw: *mut c_void,
+}
+
+impl ExecMem {
+    fn probe(mode: c_uint) -> ExecMem {
+        ExecMem { mode, rx: std::ptr::null_mut(), rw: std::ptr::null_mut() }
+    }
+}
 
 #[repr(C)]
 struct GameInfo {
@@ -78,6 +109,7 @@ struct GameInfo {
 }
 
 #[repr(C)]
+#[derive(Clone, Copy)]
 struct MemoryDescriptor {
     flags: u64,
     ptr: *mut c_void,
@@ -93,6 +125,12 @@ struct MemoryDescriptor {
 struct MemoryMap {
     descriptors: *const MemoryDescriptor,
     num_descriptors: c_uint,
+}
+
+#[repr(C)]
+struct RetroMessage {
+    msg: *const c_char,
+    frames: c_uint,
 }
 
 #[repr(C)]
@@ -233,8 +271,9 @@ const OPTIONS: [(&CStr, &CStr); 30] = [
     // The app applies its own dead zones, which differ between the touch stick and a pad's.
     (c"mupen64plus-astick-deadzone", c"0"),
     (c"citra_is_new_3ds", c"Old 3DS"),
-    (c"citra_use_cpu_jit", JIT_OPTION),
-    (c"citra_use_shader_jit", JIT_OPTION),
+    // Azahar asks for executable memory itself, and runs without its JITs when it gets none.
+    (c"citra_use_cpu_jit", c"enabled"),
+    (c"citra_use_shader_jit", c"enabled"),
     (c"citra_use_fastinterp", c"enabled"),
     (c"citra_cpu_clock_percentage", c"100"),
     (c"citra_resolution_factor", c"1"),
@@ -462,6 +501,8 @@ thread_local! {
     static AUDIO: RefCell<Vec<i16>> = RefCell::new(Vec::with_capacity(4096));
     static AV: Cell<AvInfo> = Cell::new(AvInfo::default());
     static MEMORY_MAP: RefCell<Vec<Region>> = const { RefCell::new(Vec::new()) };
+    // rcheevos maps memory itself, from the map as the core sent it.
+    static MEMORY_DESCRIPTORS: RefCell<Vec<MemoryDescriptor>> = const { RefCell::new(Vec::new()) };
     static DS_CLOCK_OFFSET: RefCell<[CString; 2]> = RefCell::new([c"0".into(), c"0".into()]);
     static OPTION_DEFAULTS: RefCell<Vec<(CString, CString)>> = const { RefCell::new(Vec::new()) };
     static HW: RefCell<Option<HwRender>> = const { RefCell::new(None) };
@@ -487,6 +528,13 @@ static LOADED: AtomicBool = AtomicBool::new(false);
 static ASYNC_SHADERS: AtomicBool = AtomicBool::new(false);
 static SYSTEM_DIR: OnceLock<CString> = OnceLock::new();
 static MESSAGES: Mutex<Vec<Message>> = Mutex::new(Vec::new());
+
+unsafe fn keep_for_player(text: *const c_char, duration_ms: c_uint) {
+    if !text.is_null() {
+        let text = CStr::from_ptr(text).to_string_lossy().into_owned();
+        MESSAGES.lock().unwrap_or_else(|e| e.into_inner()).push(Message { text, duration_ms });
+    }
+}
 
 pub fn take_messages() -> Vec<Message> {
     std::mem::take(&mut *MESSAGES.lock().unwrap_or_else(|e| e.into_inner()))
@@ -769,20 +817,23 @@ unsafe extern "C" fn environment(cmd: c_uint, data: *mut c_void) -> bool {
                 })
                 .collect();
             MEMORY_MAP.set(regions);
+            MEMORY_DESCRIPTORS.set(descriptors.to_vec());
             true
         }
         ENV_GET_MESSAGE_INTERFACE_VERSION => {
             *(data as *mut c_uint) = 1;
             true
         }
+        ENV_SET_MESSAGE => {
+            let message = &*(data as *const RetroMessage);
+            keep_for_player(message.msg, message.frames.saturating_mul(1000) / 60);
+            true
+        }
         ENV_SET_MESSAGE_EXT => {
             let message = &*(data as *const MessageExt);
             // Status and progress lines are for frontends that keep them on screen, like a shader compile count.
-            let for_player = message.target != MESSAGE_TARGET_LOG && message.kind <= MESSAGE_TYPE_NOTIFICATION_ALT;
-            if for_player && !message.msg.is_null() {
-                let text = CStr::from_ptr(message.msg).to_string_lossy().into_owned();
-                let message = Message { text, duration_ms: message.duration };
-                MESSAGES.lock().unwrap_or_else(|e| e.into_inner()).push(message);
+            if message.target != MESSAGE_TARGET_LOG && message.kind <= MESSAGE_TYPE_NOTIFICATION_ALT {
+                keep_for_player(message.msg, message.duration);
             }
             true
         }
@@ -790,6 +841,17 @@ unsafe extern "C" fn environment(cmd: c_uint, data: *mut c_void) -> bool {
             *(data as *mut bool) = JIT;
             true
         }
+        ENV_EXEC_MEM_ALLOC => {
+            let alloc = &mut *(data as *mut ExecMemAlloc);
+            match exec_mem_alloc(alloc.size) {
+                Some(memory) => {
+                    (alloc.mode, alloc.rx, alloc.rw) = (memory.mode, memory.rx, memory.rw);
+                    true
+                }
+                None => false,
+            }
+        }
+        ENV_EXEC_MEM_FREE => exec_mem_free(*(data as *const *mut c_void)),
         ENV_GET_SAVE_DIRECTORY if !AZAHAR.get() => false,
         ENV_GET_VFS_INTERFACE => AZAHAR.get() && vfs::answer(data as *mut vfs::InterfaceInfo),
         ENV_GET_SYSTEM_DIRECTORY | ENV_GET_SAVE_DIRECTORY => match SYSTEM_DIR.get() {
@@ -888,6 +950,22 @@ fn keep_hw_frame(frame: &mut Frame, width: c_uint, height: c_uint) -> bool {
     }
 }
 
+fn forget_hw_image() {
+    let forgot = HW.with_borrow(|hw| match hw.as_ref().map(|hw| &hw.renderer) {
+        Some(Renderer::Vulkan(renderer)) => {
+            renderer.forget();
+            true
+        }
+        _ => false,
+    });
+    if forgot {
+        FRAME.with_borrow_mut(|frame| {
+            frame.fresh = false;
+            frame.in_texture = false;
+        });
+    }
+}
+
 fn read_back(frame: &mut Frame) {
     if frame.in_texture {
         read_hw_frame(frame, frame.width, frame.height);
@@ -911,6 +989,14 @@ fn hw_picture(frame: &Frame) -> Option<Picture<'static>> {
             }
             Renderer::Vulkan(renderer) => renderer.frame(frame.width, frame.height).map(Picture::Image),
         }
+    })
+}
+
+#[cfg(test)]
+pub fn vulkan_frame() -> Option<vulkan::Frame> {
+    HW.with_borrow(|hw| match &hw.as_ref()?.renderer {
+        Renderer::Vulkan(renderer) => renderer.frame(0, 0),
+        Renderer::Gl(_) => None,
     })
 }
 
@@ -1085,6 +1171,7 @@ impl Core {
         PIXEL_FORMAT.store(PIXEL_FORMAT_RGB565, Ordering::Relaxed);
         AUDIO.with_borrow_mut(|audio| audio.clear());
         MEMORY_MAP.with_borrow_mut(Vec::clear);
+        MEMORY_DESCRIPTORS.with_borrow_mut(Vec::clear);
         HW_REFUSED.set(false);
         CORE_FLOAT_MODE.set(None);
         TRANSFER_PAK.set(transfer_pak.is_some());
@@ -1117,6 +1204,7 @@ impl Core {
             };
             if !loaded {
                 (api.retro_deinit)();
+                release_exec_mem();
                 vfs::stop_serving_game();
                 stop_hw_render();
                 LOADED.store(false, Ordering::Release);
@@ -1159,7 +1247,8 @@ impl Core {
     }
 
     pub fn reset(&mut self) {
-        in_core(|| unsafe { (self.api.retro_reset)() })
+        in_core(|| unsafe { (self.api.retro_reset)() });
+        forget_hw_image();
     }
 
     pub fn set_cheats(&mut self, codes: &[String]) {
@@ -1191,14 +1280,13 @@ impl Core {
     pub fn unserialize(&mut self, state: &[u8]) -> bool {
         let api = self.api;
         let load = || in_core(|| unsafe { (api.retro_unserialize)(state.as_ptr() as *const c_void, state.len()) });
-        if load() {
-            return true;
+        let mut loaded = load();
+        if !loaded && !self.ran_a_frame {
+            self.run_frame();
+            loaded = load();
         }
-        if self.ran_a_frame {
-            return false;
-        }
-        self.run_frame();
-        load()
+        forget_hw_image();
+        loaded
     }
 
     pub fn blend(&mut self, blend: bool) {
@@ -1242,6 +1330,17 @@ impl Core {
         })
     }
 
+    pub fn memory_data(&mut self, id: c_uint) -> &mut [u8] {
+        unsafe { self.memory(id) }
+    }
+
+    pub fn libretro_memory_map<R>(&self, f: impl FnOnce(*const c_void) -> R) -> R {
+        MEMORY_DESCRIPTORS.with_borrow(|descriptors| {
+            let map = MemoryMap { descriptors: descriptors.as_ptr(), num_descriptors: descriptors.len() as c_uint };
+            f(if descriptors.is_empty() { std::ptr::null() } else { &map as *const MemoryMap as *const c_void })
+        })
+    }
+
     #[cfg(test)]
     pub fn write_memory(&mut self, address: u32, bytes: &[u8]) {
         let ptr = MEMORY_MAP
@@ -1275,9 +1374,11 @@ impl Drop for Core {
             (self.api.retro_unload_game)();
             (self.api.retro_deinit)();
         });
+        release_exec_mem();
         vfs::stop_serving_game();
         stop_hw_render();
         MEMORY_MAP.with_borrow_mut(Vec::clear);
+        MEMORY_DESCRIPTORS.with_borrow_mut(Vec::clear);
         LOADED.store(false, Ordering::Release);
     }
 }
@@ -1668,14 +1769,17 @@ mod tests {
     }
 
     #[test]
-    fn tells_cores_whether_they_can_jit_and_sets_azahars_jits_to_match() {
+    fn tells_cores_whether_they_can_jit() {
         let mut capable = !JIT;
         assert!(unsafe { environment(ENV_GET_JIT_CAPABLE, &mut capable as *mut bool as *mut c_void) });
 
         assert_eq!(capable, JIT);
-        let expected = if JIT { "enabled" } else { "disabled" };
-        assert_eq!(option(c"citra_use_cpu_jit").as_deref(), Some(expected));
-        assert_eq!(option(c"citra_use_shader_jit").as_deref(), Some(expected));
+    }
+
+    #[test]
+    fn leaves_azahars_jits_on_for_it_to_turn_off_without_executable_memory() {
+        assert_eq!(option(c"citra_use_cpu_jit").as_deref(), Some("enabled"));
+        assert_eq!(option(c"citra_use_shader_jit").as_deref(), Some("enabled"));
     }
 
     #[test]
@@ -2325,6 +2429,17 @@ mod tests {
 
         assert_eq!(take_messages(), [Message { text: "Cheat #0 isn't valid".into(), duration_ms: 3000 }]);
         assert_eq!(take_messages(), []);
+    }
+
+    #[test]
+    fn keeps_the_cores_plain_messages_for_the_player() {
+        let _lock = crate::test_games::lock_core();
+        take_messages();
+
+        let mut message = RetroMessage { msg: c"Out of JIT memory".as_ptr(), frames: 600 };
+        assert!(unsafe { environment(ENV_SET_MESSAGE, &mut message as *mut RetroMessage as *mut c_void) });
+
+        assert_eq!(take_messages(), [Message { text: "Out of JIT memory".into(), duration_ms: 10_000 }]);
     }
 
     fn cheat_writes_a_byte(rom: Rom, file: &[u8], platform: crate::cheats::Platform, code: &str, address: u32) {

@@ -16,7 +16,7 @@ import { sharedHosts, sharedPreferences, type Hosts } from "./hosts";
 export const iosHosts: Hosts = {
   ...sharedHosts,
   systems,
-  defaultPreferences: { ...sharedPreferences, touchControls: true, asyncShaders: false },
+  defaultPreferences: { ...sharedPreferences, touchControls: true, asyncShaders: true },
   gamesFolder: iosGamesFolderHost,
   import: iosImportHost,
   back: iosBackHost,

@@ -3,6 +3,7 @@ import { EngineProvider } from "@pkhex-everywhere/react";
 import { draftHandle, type EditablePokemon, type ItemChoice, type PokemonId, type PokemonSummary } from "@pkhex-everywhere/engine";
 import { invoke } from "@tauri-apps/api/core";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { BackProvider } from "@/back/back";
 import { FakeGameArt, gameWithArt } from "@/game-art/fakeGameArt";
 import { androidExportHost } from "./androidHost";
 import { EditorScreen } from "./EditorScreen";
@@ -83,13 +84,15 @@ function launch({
   const onClose = vi.fn();
   const exportHost = { saveFile: vi.fn(async ({ fileName }: { fileName: string }) => savedAs(fileName)), saveFiles: vi.fn(async () => undefined) };
   render(
-    <EngineProvider engine={fake.engine}>
-      <FakeGameArt art={gameWithArt(art)}>
-        <ExportProvider host={exportVia ?? exportHost}>
-          <EditorScreen host={host} home={saveHome} onBackGesture={() => () => {}} onClose={onClose} onSaveFirst={() => {}} />
-        </ExportProvider>
-      </FakeGameArt>
-    </EngineProvider>,
+    <BackProvider>
+      <EngineProvider engine={fake.engine}>
+        <FakeGameArt art={gameWithArt(art)}>
+          <ExportProvider host={exportVia ?? exportHost}>
+            <EditorScreen host={host} home={saveHome} onBackGesture={() => () => {}} onClose={onClose} onSaveFirst={() => {}} />
+          </ExportProvider>
+        </FakeGameArt>
+      </EngineProvider>
+    </BackProvider>,
   );
   return { ...fake, party, host, onClose, exportHost };
 }

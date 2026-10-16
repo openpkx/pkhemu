@@ -38,7 +38,8 @@ try {
   for (const device of picked(devices, only)) {
     await mkdir(path.join(out, device.name), { recursive: true });
     for (const screen of screens) {
-      const page = await browser.newPage({ viewport: device.viewport, deviceScaleFactor: 3, colorScheme: "dark", hasTouch: true });
+      const page = await browser.newPage({ viewport: device.viewport, deviceScaleFactor: device.scale, colorScheme: "dark", hasTouch: true });
+      if (device.iosDevice) await page.addInitScript((name) => (window.iosDevice = name), device.iosDevice);
       page.on("pageerror", (error) => console.error(`${device.name}/${screen}: ${error.message}`));
       await page.route("**/store-frames/*.png", async (route) =>
         route.fulfill({ contentType: "image/png", body: await readFile(path.join(frames, path.basename(new URL(route.request().url()).pathname))) }),

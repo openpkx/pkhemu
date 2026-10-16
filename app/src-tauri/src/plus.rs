@@ -17,7 +17,7 @@ pub const PRODUCT: &str = "plus";
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Build {
-    Unlocked,
+    Unlocked { sideload: bool },
     Store { plus: bool },
 }
 
@@ -28,7 +28,8 @@ impl Build {
 
     pub fn from_keys(store: &str, plus: &str) -> Build {
         match store {
-            "" => Build::Unlocked,
+            "" => Build::Unlocked { sideload: false },
+            "sideload" => Build::Unlocked { sideload: true },
             _ => Build::Store { plus: plus == "on" },
         }
     }
@@ -41,7 +42,7 @@ impl Build {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(tag = "state", rename_all = "camelCase")]
 pub enum Status {
-    Unlocked,
+    Unlocked { sideload: bool },
     Owned,
     NotOwned { price: String },
     Unavailable,
@@ -88,8 +89,8 @@ impl Plus {
     }
 
     pub fn cached(&self) -> Option<Status> {
-        if self.build == Build::Unlocked {
-            return Some(Status::Unlocked);
+        if let Build::Unlocked { sideload } = self.build {
+            return Some(Status::Unlocked { sideload });
         }
         self.last.lock().unwrap_or_else(|e| e.into_inner()).clone()
     }
@@ -99,13 +100,13 @@ impl Plus {
     }
 
     pub fn syncs(&self) -> bool {
-        self.offers_sync() && matches!(self.cached(), Some(Status::Unlocked | Status::Owned))
+        self.offers_sync() && matches!(self.cached(), Some(Status::Unlocked { .. } | Status::Owned))
     }
 
     /// Asking the store also acknowledges any new purchase.
     pub async fn check(&self) -> Status {
-        if self.build == Build::Unlocked {
-            return Status::Unlocked;
+        if let Build::Unlocked { sideload } = self.build {
+            return Status::Unlocked { sideload };
         }
         let Some(store) = &self.store else { return Status::Unavailable };
         match ask(store.as_ref()).await {
@@ -118,7 +119,7 @@ impl Plus {
     }
 
     pub async fn buy(&self) -> Result<Bought, String> {
-        if self.build == Build::Unlocked {
+        if let Build::Unlocked { .. } = self.build {
             return Err("Plus is already unlocked".into());
         }
         let Some(store) = &self.store else { return Err("Plus can't be bought on this device".into()) };

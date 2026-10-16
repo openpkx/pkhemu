@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { createEngine, type EngineHost } from "@pkhex-everywhere/engine";
 import { EngineProvider } from "@pkhex-everywhere/react";
+import { invoke } from "@tauri-apps/api/core";
 import { afterEach, expect, it, vi } from "vitest";
 import { fakeAppUpdate } from "./app-update/fakeAppUpdate";
 import { AppUpdateProvider } from "./app-update/appUpdate";
@@ -15,6 +16,8 @@ import { ExperimentsProvider } from "./lab/lab";
 import { fakePlus } from "./plus/fakePlus";
 import { PlusProvider } from "./plus/plus";
 import { PreferencesProvider, type Preferences, type PreferencesHost } from "./preferences/preferences";
+import { fakeRetroAchievements } from "./retro-achievements/fakeRetroAchievements";
+import { RetroAchievementsProvider } from "./retro-achievements/retroAchievements";
 import { SettingsScreen } from "./SettingsScreen";
 import { ShadersProvider, type ShadersHost } from "./shaders/shaders";
 import { fakeSync } from "./sync/fakeSync";
@@ -22,9 +25,18 @@ import { SyncProvider } from "./sync/sync";
 import type { System } from "./systems";
 import { defaultSkins } from "./skins";
 
+const build = vi.hoisted(() => ({ sideload: false }));
+vi.mock("./coffee/sideloadBuild", () => ({
+  get sideloadBuild() {
+    return build.sideload;
+  },
+}));
 vi.mock("@tauri-apps/api/core", () => ({ invoke: vi.fn(async () => ({ name: "mGBA", version: "0.10.5" })) }));
 
-afterEach(cleanup);
+afterEach(() => {
+  cleanup();
+  build.sideload = false;
+});
 
 const defaults: Preferences = { touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic", skins: defaultSkins, skinHintSeen: false, screenDepth: true, screenGlass: true, asyncShaders: false };
 
@@ -47,6 +59,7 @@ function openSettings({
   update = fakeAppUpdate(),
   tilts = true,
   shaders = { offered: async () => true, onLine: "New scenes load without freezing." } as ShadersHost,
+  retroAchievements = fakeRetroAchievements({ account: null }).host,
 } = {}) {
   const openFolder = vi.fn(async () => {});
   const onLicences = vi.fn();
@@ -76,7 +89,9 @@ function openSettings({
       <GameSurfaceProvider host={gameSurface}>
         <ShadersProvider host={shaders}>
           <AppUpdateProvider host={update.host}>
-            <SettingsScreen system={system} systems={systems} onBack={() => {}} onLicences={onLicences} />
+            <RetroAchievementsProvider host={retroAchievements}>
+              <SettingsScreen system={system} systems={systems} onBack={() => {}} onLicences={onLicences} />
+            </RetroAchievementsProvider>
           </AppUpdateProvider>
         </ShadersProvider>
       </GameSurfaceProvider>
@@ -105,6 +120,52 @@ function openSettings({
   );
   return { openFolder, onLicences, saved: () => saved, gameArt };
 }
+
+it("leads Settings with the RetroAchievements card while signed in", async () => {
+  openSettings({ sync: fakeSync(), retroAchievements: fakeRetroAchievements({ account: "Player" }).host });
+  await waitFor(() => {
+    const first = screen.getAllByRole("region")[0];
+    expect(first).toBe(screen.getByRole("region", { name: "RetroAchievements" }));
+    expect(within(first).getByRole("button", { name: /Player/ })).toBeTruthy();
+  });
+
+  expect(screen.getAllByRole("region", { name: "RetroAchievements" })).toHaveLength(1);
+});
+
+it("puts the RetroAchievements card right after Sync while signed out", async () => {
+  openSettings({ sync: fakeSync() });
+  const card = await screen.findByRole("region", { name: "RetroAchievements" });
+  const sync = await screen.findByRole("region", { name: "Sync" });
+
+  const regions = screen.getAllByRole("region");
+  expect(regions.indexOf(card)).toBe(regions.indexOf(sync) + 1);
+  expect(screen.getAllByRole("region", { name: "RetroAchievements" })).toHaveLength(1);
+});
+
+it.each([
+  ["signed in", "Player"],
+  ["signed out", null],
+])("puts the coffee card right after RetroAchievements in the sideload build while %s", async (_, account) => {
+  build.sideload = true;
+  openSettings({ sync: fakeSync(), retroAchievements: fakeRetroAchievements({ account }).host });
+  await waitFor(() => {
+    const regions = screen.getAllByRole("region");
+    const retroAchievements = screen.getByRole("region", { name: "RetroAchievements" });
+    expect(regions[regions.indexOf(retroAchievements) + 1]).toBe(screen.getByRole("region", { name: "Buy me a coffee" }));
+    if (account) expect(regions[0]).toBe(retroAchievements);
+  });
+
+  const coffee = screen.getByRole("region", { name: "Buy me a coffee" });
+  fireEvent.click(within(coffee).getByRole("button", { name: "Open Ko-fi" }));
+  expect(vi.mocked(invoke)).toHaveBeenCalledWith("plugin:opener|open_url", { url: "https://ko-fi.com/pkhemu" });
+});
+
+it("has no coffee card in other builds", async () => {
+  openSettings({ sync: fakeSync() });
+  await screen.findByRole("region", { name: "RetroAchievements" });
+
+  expect(screen.queryByRole("region", { name: "Buy me a coffee" })).toBeNull();
+});
 
 it("shows the games folder and changes it", async () => {
   openSettings();

@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { EngineProvider } from "@pkhex-everywhere/react";
 import type { WonderCardEntry } from "@pkhex-everywhere/engine";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { BackProvider } from "@/back/back";
 import { FakeGameArt } from "@/game-art/fakeGameArt";
 import { EditorScreen } from "./EditorScreen";
 import { fakeCardFile, fakeEngine, type FakeGiftEvent, type FakeMysteryGift } from "./fakeEngine";
@@ -84,13 +85,15 @@ function launch(mysteryGift?: Partial<FakeMysteryGift>, picked: (PickedFile | nu
   const host = { read: async () => new Uint8Array([1]), apply: async () => {}, playTimeSinceSave: async () => 0 };
   const files = { pick: vi.fn(async () => picked.shift() ?? null) };
   render(
-    <EngineProvider engine={fake.engine}>
-      <FakeGameArt>
-        <PokemonFileProvider host={files}>
-          <EditorScreen host={host} home={saveHome} onBackGesture={() => () => {}} onClose={() => {}} onSaveFirst={() => {}} />
-        </PokemonFileProvider>
-      </FakeGameArt>
-    </EngineProvider>,
+    <BackProvider>
+      <EngineProvider engine={fake.engine}>
+        <FakeGameArt>
+          <PokemonFileProvider host={files}>
+            <EditorScreen host={host} home={saveHome} onBackGesture={() => () => {}} onClose={() => {}} onSaveFirst={() => {}} />
+          </PokemonFileProvider>
+        </FakeGameArt>
+      </EngineProvider>
+    </BackProvider>,
   );
   return fake;
 }

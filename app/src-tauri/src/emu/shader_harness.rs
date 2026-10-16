@@ -1,9 +1,11 @@
 use super::tests::{playing_pokemon_x, quit};
 use crate::retro;
 use crate::test_games::{lock_core, pokemon_x, pokemon_x_save};
+use crate::vulkan::harness;
 use serde_json::{json, Value};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
+use std::sync::atomic::Ordering;
 use std::time::Instant;
 
 const A: u16 = 1 << 8;
@@ -15,6 +17,19 @@ fn number(name: &str, default: u32) -> u32 {
 
 fn on(name: &str) -> bool {
     std::env::var(name).as_deref() == Ok("1")
+}
+
+fn thread_cpu_ns() -> u64 {
+    let mut time = libc::timespec { tv_sec: 0, tv_nsec: 0 };
+    unsafe { libc::clock_gettime(libc::CLOCK_THREAD_CPUTIME_ID, &mut time) };
+    time.tv_sec as u64 * 1_000_000_000 + time.tv_nsec as u64
+}
+
+fn process_cpu_ns() -> u64 {
+    let mut usage: libc::rusage = unsafe { std::mem::zeroed() };
+    unsafe { libc::getrusage(libc::RUSAGE_SELF, &mut usage) };
+    let us = |t: libc::timeval| t.tv_sec as u64 * 1_000_000 + t.tv_usec as u64;
+    (us(usage.ru_utime) + us(usage.ru_stime)) * 1000
 }
 
 // The core stamps its events with the same clock.
@@ -59,6 +74,12 @@ fn pokemon_x_pipelines() {
     let mut game = playing_pokemon_x(&root, rom, &save);
     let load_ms = loading.elapsed().as_secs_f64() * 1000.0;
     let mut frames = Vec::with_capacity((boot + walk) as usize);
+    let mut cpu = String::from("frame,wall_ms,gpu_wait_ms,thread_cpu_ms,process_cpu_ms\n");
+    let rgb8 = on("PKH_EMU_HARNESS_RGB8");
+    harness::KEEP_RGB8.store(rgb8, Ordering::Relaxed);
+    if rgb8 {
+        std::fs::create_dir_all(out.join("shots8")).unwrap();
+    }
     for frame in 0..boot + walk {
         let input = match frame {
             frame if frame < 300 => 0,
@@ -73,13 +94,33 @@ fn pokemon_x_pipelines() {
         };
         retro::set_input(input);
         let (started, timer) = (uptime_ns(), Instant::now());
+        let (thread0, process0) = (thread_cpu_ns(), process_cpu_ns());
+        harness::READBACK_WAIT_NS.store(0, Ordering::Relaxed);
         game.run_frame();
-        frames.push((started, timer.elapsed().as_secs_f64() * 1000.0));
+        let wall = timer.elapsed().as_secs_f64() * 1000.0;
+        frames.push((started, wall));
+        let waited = harness::READBACK_WAIT_NS.load(Ordering::Relaxed) as f64 / 1e6;
+        let thread = (thread_cpu_ns() - thread0) as f64 / 1e6;
+        let process = (process_cpu_ns() - process0) as f64 / 1e6;
+        cpu.push_str(&format!("{frame},{wall:.3},{waited:.3},{thread:.3},{process:.3}\n"));
         let in_range = (shot_from..shot_to).contains(&(frame + 1));
         if in_range || (every > 0 && (frame + 1) % every == 0) {
             match game.screenshot() {
                 Some(png) => std::fs::write(shots.join(format!("frame-{:05}.png", frame + 1)), png).unwrap(),
                 None => eprintln!("no screenshot at frame {}", frame + 1),
+            }
+            if rgb8 {
+                let (width, height, pixels) = harness::LAST_RGB8.lock().unwrap().clone();
+                if width == 0 {
+                    eprintln!("no 8-bit screenshot at frame {}", frame + 1);
+                    continue;
+                }
+                let file =
+                    std::fs::File::create(out.join("shots8").join(format!("frame-{:05}.png", frame + 1))).unwrap();
+                let mut encoder = png::Encoder::new(std::io::BufWriter::new(file), width, height);
+                encoder.set_color(png::ColorType::Rgb);
+                encoder.set_depth(png::BitDepth::Eight);
+                encoder.write_header().unwrap().write_image_data(&pixels).unwrap();
             }
         }
     }
@@ -88,6 +129,7 @@ fn pokemon_x_pipelines() {
     let _ = std::fs::remove_dir_all(&root);
 
     let csv: String = frames.iter().enumerate().map(|(i, (t, ms))| format!("{i},{t},{ms:.3}\n")).collect();
+    std::fs::write(out.join("cpu.csv"), cpu).unwrap();
     std::fs::write(out.join("frames.csv"), format!("frame,start_ns,ms\n{csv}")).unwrap();
     let events: Vec<Value> = std::fs::read_to_string(&stats)
         .unwrap_or_default()

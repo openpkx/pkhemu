@@ -29,10 +29,17 @@ it.each(["unlocked", "owned", "notOwned"] as const)("offers every skin when Plus
   expect(offeredSkins("gb", plus)).toEqual(skins.gb);
 });
 
-it.each(systems)("offers only the two free %s skins in a build without Plus", (system) => {
-  const offered = offeredSkins(system, "unavailable");
-  expect(offered.map(({ id }) => id)).toEqual(skins[system].filter(({ free }) => free).map(({ id }) => id));
-  expect(offered).toHaveLength(2);
+it.each(systems.filter((system) => system !== "3ds"))(
+  "offers only the two free %s skins in a build without Plus",
+  (system) => {
+    const offered = offeredSkins(system, "unavailable");
+    expect(offered.map(({ id }) => id)).toEqual(skins[system].filter(({ free }) => free).map(({ id }) => id));
+    expect(offered).toHaveLength(2);
+  },
+);
+
+it("keeps every 3DS skin free", () => {
+  expect(offeredSkins("3ds", "unavailable")).toEqual(skins["3ds"]);
 });
 
 it.each(["unlocked", "owned", undefined] as const)("shows a Plus skin when Plus is %s", (plus) => {

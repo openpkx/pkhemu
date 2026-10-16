@@ -1,6 +1,7 @@
 // @vitest-environment node
 import { readFileSync } from "node:fs";
 import { expect, it } from "vitest";
+import { unlockColours } from "@/retro-achievements/unlockColours";
 import { skins } from "@/skins";
 import { systemColors, systems } from "@/systems";
 
@@ -75,7 +76,7 @@ for (const system of systems) {
       expect(contrast(chipText, chip)).toBeGreaterThanOrEqual(4.5);
     });
   }
-  for (const text of ["hero-text", "hero-version"]) {
+  for (const text of ["hero-text", "hero-version", "overlay-warning"]) {
     it(`reads --${text} at 4.5:1 on the ${system} hero ground`, () => {
       expect(contrast(themes.light[text], systemColors[system].hero)).toBeGreaterThanOrEqual(4.5);
     });
@@ -93,3 +94,13 @@ for (const system of systems) {
 it("reads --overlay-warning at 4.5:1 on --overlay", () => {
   expect(contrast(themes.light["overlay-warning"], themes.light.overlay)).toBeGreaterThanOrEqual(4.5);
 });
+
+for (const system of systems) {
+  for (const skin of skins[system]) {
+    it(`reads the ${system} ${skin.name} unlock notification's text at 4.5:1 on its fill`, () => {
+      const { fill, text, muted } = unlockColours(skin);
+      expect(contrast(text, fill)).toBeGreaterThanOrEqual(4.5);
+      expect(contrast(muted, fill)).toBeGreaterThanOrEqual(4.5);
+    });
+  }
+}

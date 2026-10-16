@@ -1,6 +1,6 @@
-use super::{HwRenderCallback, HW_CONTEXT_OPENGL_CORE};
+use super::{ExecMem, HwRenderCallback, HW_CONTEXT_OPENGL_CORE};
 use crate::vulkan::Settings;
-use std::ffi::CStr;
+use std::ffi::{c_void, CStr};
 use std::path::PathBuf;
 
 // Apple Silicon refuses the memory the arm64 dynarec maps writable and executable.
@@ -13,6 +13,25 @@ pub fn azahar_renderer() -> &'static CStr {
 // The Mac draws through WebGL, so a Vulkan frame is read back.
 pub const SCREEN_DRAWS_VULKAN: bool = false;
 pub const UBERSHADER_FALLBACK: bool = true;
+
+// Cores map their own executable memory here.
+pub fn exec_mem_alloc(_size: usize) -> Option<ExecMem> {
+    None
+}
+
+pub fn exec_mem_free(_rx: *mut c_void) -> bool {
+    false
+}
+
+pub fn release_exec_mem() {}
+
+pub fn jit_on() -> bool {
+    JIT
+}
+
+pub fn enable_jit_url() -> Option<String> {
+    None
+}
 
 pub fn core_path(name: &str) -> Option<PathBuf> {
     let exe = std::env::current_exe().ok()?;

@@ -213,6 +213,55 @@ fn a_conflict_tells_which_side_had_cheats_on() {
 }
 
 #[test]
+fn an_edited_save_carries_its_mark_to_the_other_device() {
+    let (a, b, cloud) = devices("edited");
+    a.write("gba/Emerald.sav", b"edited save");
+    block_on(edited::mark(&a.games, EMERALD)).unwrap();
+
+    a.sync_ok(&cloud);
+    b.sync_ok(&cloud);
+
+    let record = &cloud.records()[0];
+    assert_eq!(record["files"][0]["path"], "gba/Emerald.sav");
+    assert!(record["files"][0]["edited"].is_object());
+    assert!(record["files"].as_array().unwrap().iter().all(|file| file["path"] != edited::path(EMERALD)));
+    assert_eq!(block_on(edited::read(&b.games, EMERALD)), Some(edited::Mark::default()));
+}
+
+#[test]
+fn a_save_from_a_device_that_cleared_the_mark_clears_it_here() {
+    let (a, b, cloud) = devices("edited-cleared");
+    a.write("gba/Emerald.sav", b"edited save");
+    block_on(edited::mark(&a.games, EMERALD)).unwrap();
+    a.sync_ok(&cloud);
+    b.sync_ok(&cloud);
+
+    b.write("gba/Emerald.sav", b"a new game");
+    block_on(edited::put(&b.games, EMERALD, None)).unwrap();
+    b.sync_ok(&cloud);
+    a.sync_ok(&cloud);
+
+    assert_eq!(block_on(edited::read(&a.games, EMERALD)), None);
+}
+
+#[test]
+fn picking_the_clouds_save_takes_its_edited_mark() {
+    let (a, b, cloud) = devices("edited-conflict");
+    a.write("gba/Emerald.sav", b"save 0");
+    a.sync_ok(&cloud);
+    b.sync_ok(&cloud);
+    a.write("gba/Emerald.sav", b"save from A");
+    block_on(edited::mark(&a.games, EMERALD)).unwrap();
+    b.write("gba/Emerald.sav", b"save from B");
+    a.sync_ok(&cloud);
+    assert_eq!(b.sync(&cloud)[EMERALD].conflicts, ["save"]);
+
+    b.resolve(&cloud, EMERALD, "save", Choice::Cloud);
+
+    assert_eq!(block_on(edited::read(&b.games, EMERALD)), Some(edited::Mark::default()));
+}
+
+#[test]
 fn picking_the_cloud_keeps_the_devices_save_as_a_backup_and_takes_the_clouds_resume_state() {
     let (a, b, cloud) = conflicted("conflict-cloud");
 

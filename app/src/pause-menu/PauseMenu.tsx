@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ArrowLeftRight, FastForward as FastForwardIcon, FolderOpen, Gamepad2, LogOut, Palette, Pencil, Play, RotateCcw, Save, ScanSearch, Settings, Shuffle, Undo2, WandSparkles } from "lucide-react";
+import { ArrowLeftRight, FastForward as FastForwardIcon, FolderOpen, Gamepad2, LogOut, Palette, Pencil, Play, RotateCcw, Save, ScanSearch, Settings, Shuffle, Trophy, Undo2, WandSparkles } from "lucide-react";
 import { MenuDialog, MenuEntry } from "@/components/MenuDialog";
 import type { FastForward } from "@/fast-forward/fastForward";
 import type { Input } from "@/input/input";
@@ -27,6 +27,8 @@ export function PauseMenu({
   onLoadState,
   onUndoLoad,
   onCheats,
+  achievements,
+  onAchievements,
   skin,
   onSkin,
   onSettings,
@@ -58,6 +60,9 @@ export function PauseMenu({
   onLoadState(): void;
   onUndoLoad(): void;
   onCheats(): void;
+  /** The tally, as in "34/72 · 410 pts". Undefined hides the entry, for games without a set or while signed out. */
+  achievements?: string;
+  onAchievements(): void;
   /** The skin and look, as in "Classic grey · Moulded". Undefined hides the entry, as while the touch controls are off. */
   skin?: string;
   onSkin(): void;
@@ -89,6 +94,14 @@ export function PauseMenu({
       <MenuEntry icon={<WandSparkles />} onClick={onCheats}>
         Cheats
       </MenuEntry>
+      {achievements !== undefined && (
+        <MenuEntry icon={<Trophy />} onClick={onAchievements}>
+          Achievements
+          <span aria-hidden className="ml-auto min-w-0 truncate text-sm text-muted-foreground tabular-nums">
+            {achievements}
+          </span>
+        </MenuEntry>
+      )}
       {transferPak !== undefined && (
         <MenuEntry icon={<Gamepad2 />} onClick={onTransferPak}>
           Transfer Pak

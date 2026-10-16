@@ -1,5 +1,11 @@
+use core_cache::{Cache, Key};
+use std::ffi::OsStr;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::OnceLock;
+
+#[path = "build/azahar_file_check.rs"]
+mod azahar_file_check;
 
 const MELONDS_DS_DEPS: [&str; 11] = [
     "melonDS",
@@ -16,7 +22,8 @@ const MELONDS_DS_DEPS: [&str; 11] = [
 ];
 
 const SYNC_KEYS: [&str; 3] = ["PKH_EMU_GOOGLE_CLIENT_ID", "PKH_EMU_GOOGLE_CLIENT_SECRET", "PKH_EMU_DROPBOX_APP_KEY"];
-const STORE_KEYS: [(&str, &[&str]); 2] = [("PKH_EMU_STORE", &["", "play", "appstore"]), ("PKH_EMU_PLUS", &["", "on"])];
+const STORE_KEYS: [(&str, &[&str]); 2] =
+    [("PKH_EMU_STORE", &["", "play", "appstore", "sideload"]), ("PKH_EMU_PLUS", &["", "on"])];
 
 fn sync_config() {
     // Cargo reruns a build script on every build while a file it watches is missing.
@@ -42,6 +49,10 @@ fn sync_config() {
         assert!(allowed.contains(&value.as_str()), "{key} is {value:?}, but it can only be one of {allowed:?}");
         println!("cargo:rustc-env={key}={value}");
         println!("cargo:rerun-if-env-changed={key}");
+    }
+    println!("cargo:rustc-check-cfg=cfg(sideload)");
+    if value("PKH_EMU_STORE") == "sideload" {
+        println!("cargo:rustc-cfg=sideload");
     }
     println!("cargo:rerun-if-changed=sync.env");
 }
@@ -85,9 +96,59 @@ fn transfer_pak_crcs() {
     std::fs::write(out, format!("const CRCS: [(u32, u32); {}] = [{}];\n", crcs.len(), crcs.join(""))).unwrap();
 }
 
+const RCHEEVOS: &str = "../../vendor/rcheevos";
+
+// Mupen64Plus-Next has its own md5_init, md5_append and md5_finish, so rcheevos' get a prefix, as does its one other
+// unprefixed global.
+fn rcheevos() {
+    println!("cargo:rerun-if-changed={RCHEEVOS}");
+    let src = Path::new(RCHEEVOS).join("src");
+    let files = ["rc_client.c", "rc_compat.c", "rc_libretro.c", "rc_util.c", "rc_version.c"]
+        .map(|file| src.join(file))
+        .into_iter()
+        .chain(
+            ["rc_api_common.c", "rc_api_info.c", "rc_api_runtime.c", "rc_api_user.c"]
+                .map(|file| src.join("rapi").join(file)),
+        )
+        .chain(
+            [
+                "alloc.c",
+                "condition.c",
+                "condset.c",
+                "consoleinfo.c",
+                "format.c",
+                "lboard.c",
+                "memref.c",
+                "operand.c",
+                "rc_validate.c",
+                "richpresence.c",
+                "runtime.c",
+                "runtime_progress.c",
+                "trigger.c",
+                "value.c",
+            ]
+            .map(|file| src.join("rcheevos").join(file)),
+        )
+        .chain(["hash.c", "hash_rom.c", "md5.c"].map(|file| src.join("rhash").join(file)));
+    cc::Build::new()
+        .include(Path::new(RCHEEVOS).join("include"))
+        .include("../../vendor/mgba/src/platform/libretro")
+        .files(files)
+        .define("RC_HASH_NO_DISC", None)
+        .define("RC_HASH_NO_ENCRYPTED", None)
+        .define("RC_HASH_NO_ZIP", None)
+        .define("md5_init", "rc_md5_init")
+        .define("md5_append", "rc_md5_append")
+        .define("md5_finish", "rc_md5_finish")
+        .define("g_host", "rc_api_g_host")
+        .warnings(false)
+        .compile("rcheevos");
+}
+
 fn main() {
     sync_config();
     transfer_pak_crcs();
+    rcheevos();
     match std::env::var("CARGO_CFG_TARGET_OS").unwrap().as_str() {
         "android" => build_android(),
         "macos" => build_macos(),
@@ -116,8 +177,8 @@ fn build_android() {
     build_mgba(use_ndk(&mut mgba_config(), &ndk, abi));
 
     let jit = abi == "arm64-v8a";
-    let built = build_melonds_ds(use_ndk(&mut melonds_ds_config(jit), &ndk, abi));
-    std::fs::copy(built.join("melondsds_libretro_android.so"), jni_libs.join("libmelondsds_libretro.so")).unwrap();
+    let library = build_melonds_ds(use_ndk(&mut melonds_ds_config(jit), &ndk, abi), "melondsds_libretro_android.so");
+    std::fs::copy(library, jni_libs.join("libmelondsds_libretro.so")).unwrap();
 
     if abi == "arm64-v8a" {
         let (source, out) = mupen64plus_next();
@@ -131,19 +192,20 @@ fn build_android() {
             // Android.mk hardcodes the linux-x86_64 llvm-strings.
             .arg(format!("STRINGS={}", prebuilt.join("bin/llvm-strings").display()))
             .arg(format!("NDK_OUT={}", out.join("obj").display()))
-            .arg(format!("NDK_LIBS_OUT={}", out.join("libs").display()))
-            .arg(jobs());
-        run(&mut build);
-        let unstripped = out.join("obj/local/arm64-v8a/libretro.so");
+            .arg(format!("NDK_LIBS_OUT={}", out.join("libs").display()));
+        let (unstripped, library) =
+            (out.join("obj/local/arm64-v8a/libretro.so"), out.join("libs/arm64-v8a/libretro.so"));
+        let mut key = core_key(&format!("{build:?}"));
+        key.git_tree(&source);
+        cached("mupen64plus-next", key, &[&unstripped, &library], || run(build.arg(jobs())));
         assert_no_angrylion(&prebuilt.join("bin/llvm-nm"), &unstripped);
-        std::fs::copy(out.join("libs/arm64-v8a/libretro.so"), jni_libs.join("libmupen64plus_next_libretro.so"))
-            .unwrap();
+        std::fs::copy(library, jni_libs.join("libmupen64plus_next_libretro.so")).unwrap();
 
         let mut azahar = azahar_config();
         use_ndk(&mut azahar, &ndk, abi)
             // From API 23 bionic gives the GNU strerror_r, which Azahar doesn't expect on Android. Upstream builds for 21.
             .define("ANDROID_PLATFORM", "21");
-        let library = build_azahar(&mut azahar, "azahar_libretro.so");
+        let library = build_azahar(&mut azahar, "azahar_libretro.so", false);
         // Gradle packages it as it is, and its debug info would add over 200 MB to the APK.
         run(Command::new(prebuilt.join("bin/llvm-strip"))
             .arg("--strip-unneeded")
@@ -159,26 +221,26 @@ fn build_macos() {
     let mut melonds_ds = melonds_ds_config(true);
     // melonDS needs std::filesystem; tauri.conf.json's minimumSystemVersion matches.
     melonds_ds.define("CMAKE_OSX_DEPLOYMENT_TARGET", "10.15");
-    let library = build_melonds_ds(&mut melonds_ds).join("melondsds_libretro.dylib");
+    let library = build_melonds_ds(&mut melonds_ds, "melondsds_libretro.dylib");
     // tauri.conf.json bundles the cores from here into Contents/Frameworks.
     std::fs::create_dir_all("cores").unwrap();
     std::fs::copy(&library, "cores/melondsds_libretro.dylib").unwrap();
     println!("cargo:rustc-env=PKH_EMU_MELONDS_DS={}", library.display());
 
     if target_arch() == "aarch64" {
-        let (copy, mut build) = mupen64plus_next_apple("osx");
-        run(build.env("MACOSX_DEPLOYMENT_TARGET", "11.0"));
-        let library = copy.join("mupen64plus_next_libretro.dylib");
+        let library = mupen64plus_next_apple("osx", "mupen64plus_next_libretro.dylib", |build| {
+            build.env("MACOSX_DEPLOYMENT_TARGET", "11.0");
+        });
         assert_no_angrylion(Path::new("nm"), &library);
         std::fs::copy(&library, "cores/mupen64plus_next_libretro.dylib").unwrap();
         println!("cargo:rustc-env=PKH_EMU_MUPEN64PLUS_NEXT={}", library.display());
 
         let mut azahar = azahar_config();
         azahar.define("CMAKE_OSX_ARCHITECTURES", "arm64").define("CMAKE_OSX_DEPLOYMENT_TARGET", "11.0");
-        let library = build_azahar(&mut azahar, "azahar_libretro.dylib");
+        let library = build_azahar(&mut azahar, "azahar_libretro.dylib", true);
         std::fs::copy(&library, "cores/azahar_libretro.dylib").unwrap();
         println!("cargo:rustc-env=PKH_EMU_AZAHAR={}", library.display());
-        let check = azahar_file_check();
+        let check = azahar_file_check::library();
         println!("cargo:rustc-env=PKH_EMU_AZAHAR_FILE_CHECK={}", check.display());
 
         let library = moltenvk(MOLTENVK_MACOS, "MoltenVK/MoltenVK/dynamic/dylib/macOS/libMoltenVK.dylib");
@@ -198,9 +260,15 @@ const MOLTENVK_ALL: (&str, &str) =
 fn moltenvk((asset, sha256): (&str, &str), inside: &str) -> PathBuf {
     let dir = Path::new(&std::env::var("OUT_DIR").unwrap()).join("moltenvk").join(MOLTENVK_VERSION);
     let library = dir.join(Path::new(inside).file_name().unwrap());
-    if library.is_file() {
-        return library;
+    if !library.is_file() {
+        let key = core_key(&format!("{MOLTENVK_VERSION} {asset} {sha256} {inside}"));
+        cached("moltenvk", key, &[&library], || download_moltenvk(&dir, asset, sha256, inside));
     }
+    library
+}
+
+fn download_moltenvk(dir: &Path, asset: &str, sha256: &str, inside: &str) {
+    let library = dir.join(Path::new(inside).file_name().unwrap());
     let unpacked = dir.join("unpacked");
     std::fs::create_dir_all(&unpacked).unwrap();
     let tar = dir.join(asset);
@@ -221,7 +289,6 @@ fn moltenvk((asset, sha256): (&str, &str), inside: &str) -> PathBuf {
     run(Command::new("codesign").args(["--force", "--sign", "-", "-o", "linker-signed"]).arg(&library));
     std::fs::remove_file(&tar).unwrap();
     std::fs::remove_dir_all(&unpacked).unwrap();
-    library
 }
 
 const IOS_DEPLOYMENT_TARGET: &str = "18.0";
@@ -254,7 +321,7 @@ fn build_ios() {
             assert_encryption_info(&binary);
         }
     };
-    embed(&build_melonds_ds(&mut melonds_ds).join("melondsds_libretro.dylib"));
+    embed(&build_melonds_ds(&mut melonds_ds, "melondsds_libretro.dylib"));
 
     if target_arch() == "aarch64" {
         let output = Command::new("xcrun").args(["--sdk", sdk, "--show-sdk-path"]).output().unwrap();
@@ -263,11 +330,9 @@ fn build_ios() {
         let suffix = if simulator { "-simulator" } else { "" };
         // ios-arm64 hardcodes the device SDK into CC and CXX, and the triple wins over its iOS 8 minimum.
         let target = format!("-target arm64-apple-ios{IOS_DEPLOYMENT_TARGET}{suffix} -isysroot {}", sysroot.trim());
-        let (copy, mut build) = mupen64plus_next_apple("ios-arm64");
-        run(build.arg(format!("CC=clang {target}")).arg(format!("CXX=clang++ {target}")));
-        // retro/ios.rs looks for the framework under the core's name, without the suffix.
-        let library = copy.join("mupen64plus_next_libretro.dylib");
-        std::fs::rename(copy.join("mupen64plus_next_libretro_ios.dylib"), &library).unwrap();
+        let library = mupen64plus_next_apple("ios-arm64", "mupen64plus_next_libretro_ios.dylib", |build| {
+            build.arg(format!("CC=clang {target}")).arg(format!("CXX=clang++ {target}"));
+        });
         assert_no_angrylion(Path::new("nm"), &library);
         embed(&library);
 
@@ -284,7 +349,7 @@ fn build_ios() {
             .cxxflag("-DIOS")
             .define("CITRA_USE_PRECOMPILED_HEADERS", "OFF")
             .define("ENABLE_OPT", "OFF");
-        let library = build_azahar(&mut azahar, "azahar_libretro.dylib");
+        let library = build_azahar(&mut azahar, "azahar_libretro.dylib", false);
         embed(&library);
         println!("cargo:rustc-env=PKH_EMU_AZAHAR={}", library.display());
 
@@ -392,36 +457,38 @@ fn target_arch() -> String {
     std::env::var("CARGO_CFG_TARGET_ARCH").unwrap()
 }
 
-fn use_ndk<'a>(config: &'a mut cmake::Config, ndk: &Path, abi: &str) -> &'a mut cmake::Config {
+fn use_ndk<'a>(config: &'a mut CmakeCore, ndk: &Path, abi: &str) -> &'a mut CmakeCore {
     config
         .define("CMAKE_TOOLCHAIN_FILE", ndk.join("build/cmake/android.toolchain.cmake"))
         .define("ANDROID_ABI", abi)
         .define("ANDROID_PLATFORM", "26")
 }
 
-fn mgba_config() -> cmake::Config {
-    let mut core = cmake::Config::new("../../core");
+fn mgba_config() -> CmakeCore {
+    let mut core = CmakeCore::new("../../core".into());
     core.define("CMAKE_POLICY_VERSION_MINIMUM", "3.5").build_target("mgba_retro").profile("Release");
     core
 }
 
-fn build_mgba(core: &mut cmake::Config) {
-    let dst = core.build();
-    println!("cargo:rustc-link-search=native={}/build", dst.display());
+fn build_mgba(core: &mut CmakeCore) {
+    let library = out_dir().join("build/libmgba_retro.a");
+    let mut key = core.key();
+    key.git_tree(&vendor("mgba")).file(Path::new("../../core/CMakeLists.txt"));
+    cached("mgba", key, &[&library], || core.build());
+    println!("cargo:rustc-link-search=native={}", library.parent().unwrap().display());
     println!("cargo:rustc-link-lib=static=mgba_retro");
     println!("cargo:rerun-if-changed=../../core/CMakeLists.txt");
     println!("cargo:rerun-if-changed=../../vendor/mgba");
 }
 
-fn melonds_ds_config(jit: bool) -> cmake::Config {
-    let vendor = std::fs::canonicalize("../../vendor").unwrap();
-    let deps = vendor.join("melonds-ds-deps");
-    let mut core = cmake::Config::new(vendor.join("melonds-ds"));
-    core.out_dir(Path::new(&std::env::var("OUT_DIR").unwrap()).join("melonds-ds"));
+fn melonds_ds_config(jit: bool) -> CmakeCore {
+    let deps = vendor("melonds-ds-deps");
+    let mut core = CmakeCore::new(vendor("melonds-ds"));
+    core.out_dir(out_dir().join("melonds-ds"));
     // melonDS DS's CMake would clone these at configure time; the submodules pin them instead.
     core.define("FETCHCONTENT_FULLY_DISCONNECTED", "ON");
     for dep in MELONDS_DS_DEPS {
-        core.define(format!("FETCHCONTENT_SOURCE_DIR_{}", dep.to_uppercase()), deps.join(dep));
+        core.define(&format!("FETCHCONTENT_SOURCE_DIR_{}", dep.to_uppercase()), deps.join(dep));
     }
     // It looks for these CMake modules where FetchContent would have cloned them.
     let modules = [deps.join("melonDS/cmake"), deps.join("embed-binaries/cmake")];
@@ -434,10 +501,17 @@ fn melonds_ds_config(jit: bool) -> cmake::Config {
     core
 }
 
-fn build_melonds_ds(core: &mut cmake::Config) -> PathBuf {
+fn build_melonds_ds(core: &mut CmakeCore, name: &str) -> PathBuf {
     println!("cargo:rerun-if-changed=../../vendor/melonds-ds");
     println!("cargo:rerun-if-changed=../../vendor/melonds-ds-deps");
-    core.build().join("build/src/libretro")
+    let library = out_dir().join("melonds-ds/build/src/libretro").join(name);
+    let mut key = core.key();
+    key.git_tree(&vendor("melonds-ds"));
+    for dep in MELONDS_DS_DEPS {
+        key.git_tree(&vendor("melonds-ds-deps").join(dep));
+    }
+    cached("melonds-ds", key, &[&library], || core.build());
+    library
 }
 
 // angrylion is under the non-commercial MAME licence; paraLLEl needs Vulkan.
@@ -453,58 +527,64 @@ fn mupen64plus_next() -> (PathBuf, PathBuf) {
 // includes <fp.h>, which they don't have.
 const MUPEN64PLUS_NEXT_APPLE_CPPFLAGS: &str = "CPPFLAGS=-include math.h -Dfdopen=fdopen";
 
-fn mupen64plus_next_apple(platform: &str) -> (PathBuf, Command) {
+fn mupen64plus_next_apple(platform: &str, built: &str, configure: impl FnOnce(&mut Command)) -> PathBuf {
     let (source, out) = mupen64plus_next();
     // The Makefile writes objects next to the sources, and Cargo would rerun this script
     // for every file it writes into a folder it watches.
     let copy = out.join("source");
-    std::fs::create_dir_all(&copy).unwrap();
-    run(Command::new("rsync").args(["-a", "--exclude=.git"]).arg(format!("{}/", source.display())).arg(&copy));
-    // The Makefile doesn't track included files, so a changed one would leave a stale object behind.
     let platform = format!("platform={platform}");
-    run(Command::new("make").current_dir(&copy).args([&platform, "clean"]));
     let mut build = Command::new("make");
-    build
-        .current_dir(&copy)
-        .arg(platform)
-        .args(MUPEN64PLUS_NEXT_PLUGINS_OFF)
-        .arg(MUPEN64PLUS_NEXT_APPLE_CPPFLAGS)
-        .arg(jobs());
-    (copy, build)
+    build.current_dir(&copy).arg(&platform).args(MUPEN64PLUS_NEXT_PLUGINS_OFF).arg(MUPEN64PLUS_NEXT_APPLE_CPPFLAGS);
+    configure(&mut build);
+    let library = copy.join("mupen64plus_next_libretro.dylib");
+    let mut key = core_key(&format!("{build:?}"));
+    key.git_tree(&source);
+    cached("mupen64plus-next", key, &[&library], || {
+        std::fs::create_dir_all(&copy).unwrap();
+        run(Command::new("rsync").args(["-a", "--exclude=.git"]).arg(format!("{}/", source.display())).arg(&copy));
+        // The Makefile doesn't track included files, so a changed one would leave a stale object behind.
+        run(Command::new("make").current_dir(&copy).args([&platform, "clean"]));
+        run(build.arg(jobs()));
+        // retro/ios.rs looks for the framework under the core's name, without the suffix the iOS Makefile gives it.
+        std::fs::rename(copy.join(built), &library).unwrap();
+    });
+    library
 }
 
 const AZAHAR_KEYS: &str = "../../vendor/azahar/src/core/hw/default_keys.h";
 
+fn azahar_git(args: &[&str]) -> Vec<u8> {
+    let source = vendor("azahar");
+    let output = Command::new("git").arg("-C").arg(&source).args(args).output().unwrap();
+    assert!(output.status.success(), "git {args:?} failed in {}", source.display());
+    output.stdout
+}
+
 // Azahar's CMake copies a git hook into .git, which is a file in a submodule, and takes its version from .git.
 // A copy without .git builds like Azahar's source archive, which gives the version in GIT-COMMIT and GIT-TAG.
-fn azahar_source() -> PathBuf {
-    println!("cargo:rerun-if-changed=../../vendor/azahar");
-    let source = std::fs::canonicalize("../../vendor/azahar").unwrap();
-    let copy = Path::new(&std::env::var("OUT_DIR").unwrap()).join("azahar-source");
+fn azahar_source() {
+    let copy = out_dir().join("azahar-source");
     std::fs::create_dir_all(&copy).unwrap();
     run(Command::new("rsync")
         .args(["-a", "--delete", "--exclude=.git"])
-        .arg(format!("{}/", source.display()))
+        .arg(format!("{}/", vendor("azahar").display()))
         .arg(&copy));
     for (file, args) in [("GIT-COMMIT", &["rev-parse", "HEAD"][..]), ("GIT-TAG", &["describe", "--tags"])] {
-        let output = Command::new("git").arg("-C").arg(&source).args(args).output().unwrap();
-        assert!(output.status.success(), "git {args:?} failed in {}", source.display());
+        let version = azahar_git(args);
         let path = copy.join(file);
-        if std::fs::read(&path).ok().as_ref() != Some(&output.stdout) {
-            std::fs::write(path, output.stdout).unwrap();
+        if std::fs::read(&path).ok().as_ref() != Some(&version) {
+            std::fs::write(path, version).unwrap();
         }
     }
-    copy
 }
 
-fn azahar_config() -> cmake::Config {
-    let source = azahar_source();
-    let tag = std::fs::read_to_string(source.join("GIT-TAG")).unwrap();
-    let mut core = cmake::Config::new(source);
-    core.out_dir(Path::new(&std::env::var("OUT_DIR").unwrap()).join("azahar"))
-        // Under GitHub Actions Azahar names itself after the short commit or the app's tag instead of GIT-TAG. Its
-        // version is what states record, so it has to be the same in every build of one revision.
-        .define("GIT_TAG", tag.trim())
+fn azahar_config() -> CmakeCore {
+    let tag = String::from_utf8(azahar_git(&["describe", "--tags"])).unwrap();
+    let mut core = CmakeCore::new(out_dir().join("azahar-source"));
+    core.out_dir(out_dir().join("azahar"));
+    // Under GitHub Actions Azahar names itself after the short commit or the app's tag instead of GIT-TAG. Its
+    // version is what states record, so it has to be the same in every build of one revision.
+    core.define("GIT_TAG", tag.trim())
         .define("ENABLE_LIBRETRO", "ON")
         // The blob holds console keys; the app plays decrypted games only.
         .define("ENABLE_BUILTIN_KEYBLOB", "OFF")
@@ -515,75 +595,25 @@ fn azahar_config() -> cmake::Config {
     core
 }
 
-// Azahar writes through the app's VFS only on Android, so the macOS tests load Azahar's file code built that way.
-fn azahar_file_check() -> PathBuf {
-    println!("cargo:rerun-if-changed=src/retro/azahar_file_check.cpp");
-    let out = PathBuf::from(std::env::var("OUT_DIR").unwrap());
-    let (source, build) = (out.join("azahar-source"), out.join("azahar/build"));
-    let retro = source.join("externals/libretro-common/libretro-common");
-    let mut cpp = cc::Build::new();
-    cpp.cpp(true)
-        .std("gnu++20")
-        .define("HAVE_LIBRETRO_VFS", None)
-        .define("BOOST_ERROR_CODE_HEADER_ONLY", None)
-        .define("BOOST_NO_CXX98_FUNCTION_BASE", None)
-        .includes([source.join("src"), build.join("src"), retro.join("include")])
-        .includes(
-            ["boost", "cryptopp/include", "fmt/include", "zstd/lib", "zstd/contrib/seekable_format"]
-                .map(|dir| source.join("externals").join(dir)),
-        )
-        .file("src/retro/azahar_file_check.cpp")
-        .files(["file_util.cpp", "error.cpp", "string_util.cpp"].map(|file| source.join("src/common").join(file)))
-        .warnings(false)
-        .cargo_warnings(false)
-        .cargo_metadata(false)
-        .compile("azahar_file_check_cpp");
-    cc::Build::new()
-        .include(retro.join("include"))
-        .files(
-            [
-                "compat/compat_posix_string.c",
-                "compat/compat_strl.c",
-                "compat/fopen_utf8.c",
-                "encodings/encoding_utf.c",
-                "file/file_path.c",
-                "streams/file_stream.c",
-                "streams/file_stream_transforms.c",
-                "string/stdstring.c",
-                "time/rtime.c",
-                "vfs/vfs_implementation.c",
-            ]
-            .map(|file| retro.join(file)),
-        )
-        .warnings(false)
-        .cargo_warnings(false)
-        .cargo_metadata(false)
-        .compile("azahar_file_check_c");
-    let library = out.join("libazahar_file_check.dylib");
-    run(cpp
-        .get_compiler()
-        .to_command()
-        .args(["-dynamiclib", "-o"])
-        .arg(&library)
-        .arg(format!("-Wl,-force_load,{}", out.join("libazahar_file_check_cpp.a").display()))
-        .arg(out.join("libazahar_file_check_c.a"))
-        .args(
-            [
-                "externals/fmt/libfmt.a",
-                "externals/libboost_iostreams.a",
-                "externals/libboost_serialization.a",
-                "externals/cryptopp/libcryptopp.a",
-                "externals/libzstd_seekable.a",
-                "externals/zstd/build/cmake/lib/libzstd.a",
-            ]
-            .map(|lib| build.join(lib)),
-        )
-        .args(["-framework", "CoreFoundation"]));
-    library
-}
-
-fn build_azahar(core: &mut cmake::Config, name: &str) -> PathBuf {
-    let library = core.build().join("build/bin/Release").join(name);
+fn build_azahar(core: &mut CmakeCore, name: &str, file_check: bool) -> PathBuf {
+    println!("cargo:rerun-if-changed=../../vendor/azahar");
+    let library = out_dir().join("azahar/build/bin/Release").join(name);
+    let check = azahar_file_check::library();
+    let mut key = core.key();
+    key.git_tree(&vendor("azahar"));
+    let mut outputs = vec![library.as_path()];
+    if file_check {
+        println!("cargo:rerun-if-changed={}", azahar_file_check::SOURCE);
+        key.file(Path::new(azahar_file_check::FILE)).file(Path::new(azahar_file_check::SOURCE));
+        outputs.push(&check);
+    }
+    cached("azahar", key, &outputs, || {
+        azahar_source();
+        core.build();
+        if file_check {
+            azahar_file_check::build();
+        }
+    });
     assert_no_keyblob(&library);
     library
 }
@@ -603,6 +633,170 @@ fn assert_no_keyblob(library: &Path) {
         "{} has Azahar's built-in AES key blob; build it with ENABLE_BUILTIN_KEYBLOB=OFF",
         library.display()
     );
+}
+
+fn out_dir() -> PathBuf {
+    PathBuf::from(std::env::var("OUT_DIR").unwrap())
+}
+
+fn vendor(name: &str) -> PathBuf {
+    std::fs::canonicalize("../../vendor").unwrap().join(name)
+}
+
+// Every setting goes through here, so the core cache's key sees all of them.
+struct CmakeCore {
+    config: cmake::Config,
+    recipe: String,
+}
+
+impl CmakeCore {
+    fn new(source: PathBuf) -> Self {
+        CmakeCore { recipe: format!("source {source:?}\n"), config: cmake::Config::new(source) }
+    }
+
+    fn define(&mut self, key: &str, value: impl AsRef<OsStr>) -> &mut Self {
+        self.recipe += &format!("define {key}={:?}\n", value.as_ref());
+        self.config.define(key, value);
+        self
+    }
+
+    fn cflag(&mut self, flag: &str) -> &mut Self {
+        self.recipe += &format!("cflag {flag}\n");
+        self.config.cflag(flag);
+        self
+    }
+
+    fn cxxflag(&mut self, flag: &str) -> &mut Self {
+        self.recipe += &format!("cxxflag {flag}\n");
+        self.config.cxxflag(flag);
+        self
+    }
+
+    fn build_target(&mut self, target: &str) -> &mut Self {
+        self.recipe += &format!("target {target}\n");
+        self.config.build_target(target);
+        self
+    }
+
+    fn profile(&mut self, profile: &str) -> &mut Self {
+        self.recipe += &format!("profile {profile}\n");
+        self.config.profile(profile);
+        self
+    }
+
+    fn out_dir(&mut self, dir: PathBuf) -> &mut Self {
+        self.recipe += &format!("out {dir:?}\n");
+        self.config.out_dir(dir);
+        self
+    }
+
+    fn key(&self) -> Key {
+        core_key(&self.recipe)
+    }
+
+    fn build(&mut self) {
+        self.config.build();
+    }
+}
+
+// Raise it to drop every cached core after a change to how one builds that its key doesn't cover.
+const CORE_CACHE_VERSION: &str = "1";
+
+const COMPILER_ENV: [&str; 14] = [
+    "CC",
+    "CXX",
+    "CFLAGS",
+    "CXXFLAGS",
+    "CPPFLAGS",
+    "LDFLAGS",
+    "AR",
+    "ARFLAGS",
+    "RANLIB",
+    "CRATE_CC_NO_DEFAULTS",
+    "CMAKE",
+    "CMAKE_GENERATOR",
+    "CMAKE_TOOLCHAIN_FILE",
+    "CMAKE_PREFIX_PATH",
+];
+
+// Paths inside the checkout are written relative to it, so every worktree shares one entry.
+fn core_key(recipe: &str) -> Key {
+    let root = std::fs::canonicalize("../..").unwrap();
+    let inputs = format!("{recipe}\n{}", String::from_utf8_lossy(toolchain()))
+        .replace(&out_dir().display().to_string(), "$OUT_DIR")
+        .replace(&root.display().to_string(), "$ROOT");
+    let mut key = Key::new();
+    key.add("version", CORE_CACHE_VERSION).add("inputs", inputs);
+    key
+}
+
+fn toolchain() -> &'static [u8] {
+    static TOOLCHAIN: OnceLock<Vec<u8>> = OnceLock::new();
+    TOOLCHAIN.get_or_init(|| {
+        let target = std::env::var("TARGET").unwrap();
+        let mut toolchain = format!("{target}\n").into_bytes();
+        let versions: &[&[&str]] = match std::env::var("CARGO_CFG_TARGET_OS").unwrap().as_str() {
+            "android" => &[&["cmake", "--version"]],
+            "macos" | "ios" => &[&["cmake", "--version"], &["cc", "--version"], &["xcodebuild", "-version"]],
+            _ => &[&["cmake", "--version"], &["cc", "--version"], &["c++", "--version"]],
+        };
+        for command in versions {
+            let output = Command::new(command[0]).args(&command[1..]).output();
+            toolchain.extend(output.map(|output| [output.stdout, output.stderr].concat()).unwrap_or_default());
+        }
+        if let Ok(ndk) = std::env::var("NDK_HOME") {
+            toolchain.extend(std::fs::read(Path::new(&ndk).join("source.properties")).unwrap_or_default());
+        }
+        // What the cc and cmake crates read to pick compilers and flags.
+        let underscored = target.replace('-', "_");
+        for base in COMPILER_ENV {
+            for name in [
+                base.into(),
+                format!("{base}_{target}"),
+                format!("{base}_{underscored}"),
+                format!("TARGET_{base}"),
+                format!("HOST_{base}"),
+            ] {
+                toolchain.extend(format!("{name}={:?}\n", std::env::var_os(&name)).into_bytes());
+            }
+        }
+        for name in [
+            // cc passes some of rustc's flags on.
+            "CARGO_ENCODED_RUSTFLAGS",
+            "SDKROOT",
+            "DEVELOPER_DIR",
+            "NDK_HOME",
+            "MACOSX_DEPLOYMENT_TARGET",
+            "IPHONEOS_DEPLOYMENT_TARGET",
+            "IPHONESIMULATOR_DEPLOYMENT_TARGET",
+        ] {
+            toolchain.extend(format!("{name}={:?}\n", std::env::var_os(name)).into_bytes());
+        }
+        let lock = std::fs::read_to_string("../../Cargo.lock").unwrap();
+        for crate_name in ["cc", "cmake"] {
+            let package = format!("name = \"{crate_name}\"\n");
+            for (_, rest) in lock.match_indices(&package).map(|(at, _)| lock.split_at(at + package.len())) {
+                toolchain.extend(rest.lines().next().unwrap_or_default().as_bytes());
+            }
+        }
+        toolchain
+    })
+}
+
+fn cached(core: &str, key: Key, outputs: &[&Path], build: impl FnOnce()) {
+    println!("cargo:rerun-if-env-changed=PKH_EMU_CORE_CACHE");
+    let dir = match std::env::var_os("PKH_EMU_CORE_CACHE") {
+        Some(dir) if dir == "off" => None,
+        Some(dir) => Some(PathBuf::from(dir)),
+        None => std::env::var_os("HOME").map(|home| Path::new(&home).join(".cache/pkh-emu/cores")),
+    };
+    let cache = match dir {
+        Some(dir) => Cache::new(&dir.join(std::env::var("TARGET").unwrap())),
+        None => Cache::off(),
+    };
+    let start = std::time::Instant::now();
+    let outcome = cache.fetch_or_build(core, key, outputs, build);
+    eprintln!("{core}: {outcome:?} in {:.1?}", start.elapsed());
 }
 
 fn jobs() -> String {

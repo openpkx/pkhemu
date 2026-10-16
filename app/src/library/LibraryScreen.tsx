@@ -23,8 +23,10 @@ import { useLongPress } from "@/lib/useLongPress";
 import { Shared, useStaggerOnce } from "@/motion/motion";
 import { useHackBoxArt } from "@/patch-rom/hackBoxArt";
 import { dualScreens } from "@/screens";
+import type { ConflictSaveHost } from "@/sync/ConflictSheet";
 import { useTileSync } from "@/sync/gameStatus";
 import { useSync } from "@/sync/sync";
+import { useConflictSheet } from "@/sync/useConflictSheet";
 import { systemColors, systemNames, type System } from "@/systems";
 import { useLibrary, type LastPlay, type OpenedFrom } from "./library";
 import type { Game } from "./scan";
@@ -178,12 +180,14 @@ function GameTile({
   from,
   onOpen,
   onChangeBoxArt,
+  onResolve,
   className,
 }: {
   game: Game;
   from: "recent" | "grid";
   onOpen(game: Game, from: OpenedFrom): void;
   onChangeBoxArt(game: Game): void;
+  onResolve(game: Game): void;
   className?: string;
 }) {
   const longPress = useLongPress(game.cloudOnly ? undefined : () => onChangeBoxArt(game));
@@ -194,45 +198,45 @@ function GameTile({
   const badge = useTileSync(game.path, !!game.cloudOnly);
   const { dark, light } = systemColors[game.system];
   return (
-    <button
-      ref={ref}
-      type="button"
-      data-game={game.path}
-      data-tile={sharedArt}
-      onClick={() => onOpen(game, { tile: sharedArt, screenshot })}
-      {...longPress}
-      className={cn(
-        "motion-press relative isolate flex aspect-[4/3] select-none [-webkit-touch-callout:none] scroll-mt-18 flex-col items-start justify-between overflow-hidden rounded-tile bg-card p-3 text-left text-card-foreground ring-1 ring-foreground/10 outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50",
-        className,
-      )}
-    >
-      {!screenshot && (
-        <div
-          style={{ "--pattern": light.pattern, "--pattern-dark": dark.pattern } as CSSProperties}
-          className="absolute inset-0 -z-10 dot-grid mask-[linear-gradient(135deg,#000,transparent_62%)]"
-        />
-      )}
-      {/* Even without art, so a game page played for the first time has a tile to shrink into before the tile reads its new screen. */}
-      <Shared name={sharedArt}>
-        <div className="absolute inset-0 -z-10 overflow-hidden rounded-tile">
-          {boxArt && <FadedBoxArt src={boxArt} className="p-2" />}
-          {screenshot && (
-            <>
-              <LastScreen src={screenshot} system={game.system} />
-              <div className="absolute inset-0 bg-gradient-to-t from-overlay/80 via-overlay/20 to-transparent" />
-            </>
-          )}
-        </div>
-      </Shared>
-      <SystemChip system={game.system} />
-      <span className={cn("line-clamp-3 text-sm font-medium break-words", boxArt && "sr-only", screenshot && "text-white")}>
-        {game.name}
-      </span>
-      <span className="absolute top-2 right-2 flex gap-1">
-        <SyncBadge badge={badge} />
+    <div className={cn("relative", className)}>
+      <button
+        ref={ref}
+        type="button"
+        data-game={game.path}
+        data-tile={sharedArt}
+        onClick={() => onOpen(game, { tile: sharedArt, screenshot })}
+        {...longPress}
+        className="motion-press relative isolate flex aspect-[4/3] w-full select-none [-webkit-touch-callout:none] scroll-mt-18 flex-col items-start justify-between overflow-hidden rounded-tile bg-card p-3 text-left text-card-foreground ring-1 ring-foreground/10 outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50"
+      >
+        {!screenshot && (
+          <div
+            style={{ "--pattern": light.pattern, "--pattern-dark": dark.pattern } as CSSProperties}
+            className="absolute inset-0 -z-10 dot-grid mask-[linear-gradient(135deg,#000,transparent_62%)]"
+          />
+        )}
+        {/* Even without art, so a game page played for the first time has a tile to shrink into before the tile reads its new screen. */}
+        <Shared name={sharedArt}>
+          <div className="absolute inset-0 -z-10 overflow-hidden rounded-tile">
+            {boxArt && <FadedBoxArt src={boxArt} className="p-2" />}
+            {screenshot && (
+              <>
+                <LastScreen src={screenshot} system={game.system} />
+                <div className="absolute inset-0 bg-gradient-to-t from-overlay/80 via-overlay/20 to-transparent" />
+              </>
+            )}
+          </div>
+        </Shared>
+        <SystemChip system={game.system} />
+        <span className={cn("line-clamp-3 text-sm font-medium break-words", boxArt && "sr-only", screenshot && "text-white")}>
+          {game.name}
+        </span>
+      </button>
+      {/* A button can't hold the conflict badge's button, so the badges sit beside the tile and pass any other tap or long press on to it. */}
+      <span className="absolute top-2 right-2 flex gap-1" onClick={() => ref.current?.click()} {...longPress}>
+        <SyncBadge badge={badge} onResolve={() => onResolve(game)} />
         {game.cloudOnly && <CloudPill />}
       </span>
-    </button>
+    </div>
   );
 }
 
@@ -333,11 +337,15 @@ function EmptyLibrary({
 }
 
 export function LibraryScreen({
+  host,
+  folder,
   systems,
   onSettings,
   onOpenFolder,
   onImportFolder,
 }: {
+  host: ConflictSaveHost;
+  folder: string;
   systems: readonly System[];
   onSettings(): void;
   onOpenFolder?(): Promise<void>;
@@ -356,6 +364,8 @@ export function LibraryScreen({
   );
   const changeBoxArt = (game: Game) => setChangingBoxArt((was) => ({ game, open: true, opens: (was?.opens ?? 0) + 1 }));
   const stopChangingBoxArt = () => setChangingBoxArt((was) => was && { ...was, open: false });
+  const conflictSheet = useConflictSheet(host, folder);
+  const resolve = (game: Game) => void conflictSheet.open(game.path);
 
   return (
     <div className="min-h-screen pb-safe">
@@ -405,6 +415,7 @@ export function LibraryScreen({
                   from="recent"
                   onOpen={open}
                   onChangeBoxArt={changeBoxArt}
+                  onResolve={resolve}
                   className="w-36 shrink-0"
                 />
               ))}
@@ -422,7 +433,14 @@ export function LibraryScreen({
             >
               <div className={cn("grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6", stagger)}>
                 {section.games.map((game) => (
-                  <GameTile key={game.path} game={game} from="grid" onOpen={open} onChangeBoxArt={changeBoxArt} />
+                  <GameTile
+                    key={game.path}
+                    game={game}
+                    from="grid"
+                    onOpen={open}
+                    onChangeBoxArt={changeBoxArt}
+                    onResolve={resolve}
+                  />
                 ))}
               </div>
             </Section>
@@ -446,6 +464,7 @@ export function LibraryScreen({
           }}
         />
       )}
+      {conflictSheet.sheet}
       {hackBoxArt.sheet}
       {importDialogs}
       <Toast>{toast}</Toast>

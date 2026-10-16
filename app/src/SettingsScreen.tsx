@@ -1,16 +1,19 @@
-import { useId, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { ChevronRight, FolderOpen, RefreshCw, Scale } from "lucide-react";
 import { useAppUpdate } from "@/app-update/appUpdate";
 import { useAudioSession } from "@/audio-session/audioSession";
 import { ScreenHeader } from "@/components/ScreenHeader";
 import { NumberInput } from "@/components/NumberInput";
+import { SettingRow, SwitchRow } from "@/components/SettingsRow";
 import { TitledCard } from "@/components/TitledCard";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
-import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { CoffeeCard } from "./coffee/coffee";
+import { sideloadBuild } from "./coffee/sideloadBuild";
+import { tauriCoffeeHost } from "./coffee/tauriHost";
 import { ControlsSettings } from "./controllers/ControlsSettings";
 import { useGameArt, useGameArtProgress } from "./game-art/gameArt";
 import { useRenderer, type Renderer } from "./game-surface/gameSurface";
@@ -19,6 +22,7 @@ import { ago } from "./game-page/details";
 import { useGamesFolder } from "./games-folder/gamesFolder";
 import { useCanTilt } from "./gravity/gravity";
 import { useOpenFolder } from "./games-folder/useOpenFolder";
+import { JitSettings } from "./jit/JitSettings";
 import { LabSettings } from "./lab/LabSettings";
 import { navigate, Screen } from "./motion/motion";
 import {
@@ -33,6 +37,8 @@ import {
   usePreferences,
 } from "./preferences/preferences";
 import { usePlus, type PlusStatus } from "./plus/plus";
+import { useRetroAchievements } from "./retro-achievements/retroAchievements";
+import { RetroAchievementsScreen, RetroAchievementsSettings } from "./retro-achievements/RetroAchievementsSettings";
 import { useAsyncShadersOffered } from "./shaders/shaders";
 import { SkinsScreen } from "./skin-picker/SkinsScreen";
 import { tauriPreviewFrameHost } from "./skin-picker/tauriHost";
@@ -140,9 +146,6 @@ function SyncSettings() {
   const sync = useSync();
   const plusStatus = usePlus().status;
   const now = useMinute();
-  const gamesId = useId();
-  const mobileDataId = useId();
-  const romsId = useId();
   const [busy, setBusy] = useState<Cloud | "signing out">();
   const [error, setError] = useState<string>();
   if (!sync.available) return null;
@@ -210,10 +213,11 @@ function SyncSettings() {
         Sync now
       </Button>
       <div className="grid gap-1">
-        <div className="flex items-center justify-between gap-3">
-          <label htmlFor={gamesId}>Sync games</label>
-          <Switch id={gamesId} checked={sync.syncGames.on} onCheckedChange={(on) => void sync.setSyncGames(on).catch((reason) => setError(String(reason)))} />
-        </div>
+        <SwitchRow
+          label="Sync games"
+          checked={sync.syncGames.on}
+          onCheckedChange={(on) => void sync.setSyncGames(on).catch((reason) => setError(String(reason)))}
+        />
         <p className="text-muted-foreground">
           {sync.syncGames.on
             ? "Your ROMs upload too, so your other devices can download them."
@@ -222,24 +226,18 @@ function SyncSettings() {
       </div>
       {mobileData && (
         <div className="grid gap-1">
-          <div className="flex items-center justify-between gap-3">
-            <label htmlFor={mobileDataId}>Sync on mobile data</label>
-            <Switch id={mobileDataId} checked={mobileData.on} onCheckedChange={(on) => setMobileData({ ...mobileData, on })} />
-          </div>
+          <SwitchRow label="Sync on mobile data" checked={mobileData.on} onCheckedChange={(on) => setMobileData({ ...mobileData, on })} />
           <p className="text-muted-foreground">{mobileData.on ? "Saves and states sync on mobile data too." : "Nothing syncs until you're on Wi-Fi."}</p>
         </div>
       )}
       {mobileData && sync.syncGames.on && (
         <div className="grid gap-1">
-          <div className="flex items-center justify-between gap-3">
-            <label htmlFor={romsId}>Include ROMs</label>
-            <Switch
-              id={romsId}
-              checked={mobileData.roms}
-              disabled={!mobileData.on}
-              onCheckedChange={(roms) => setMobileData({ ...mobileData, roms })}
-            />
-          </div>
+          <SwitchRow
+            label="Include ROMs"
+            checked={mobileData.roms}
+            disabled={!mobileData.on}
+            onCheckedChange={(roms) => setMobileData({ ...mobileData, roms })}
+          />
           <p className="text-muted-foreground">{mobileData.on && mobileData.roms ? "ROMs upload on mobile data too." : "ROMs wait for Wi-Fi."}</p>
         </div>
       )}
@@ -255,79 +253,69 @@ function PlayingSettings({ system }: { system?: System }) {
   const { renderers, automatic } = useRenderer();
   const shaders = useAsyncShadersOffered();
   const rendererLabels = { automatic: `Automatic: ${rendererNames[automatic]}`, ...rendererNames };
-  const silentId = useId();
-  const speedId = useId();
-  const fpsId = useId();
-  const rendererId = useId();
-  const shadersId = useId();
 
   return (
     <SettingsCard title="Playing">
       {silentSwitch && (
-        <div className="flex items-center justify-between gap-3">
-          <label htmlFor={silentId}>Play sound in silent mode</label>
-          <Switch
-            id={silentId}
-            checked={preferences.playInSilentMode}
-            onCheckedChange={(playInSilentMode) => void change({ playInSilentMode })}
-          />
-        </div>
+        <SwitchRow
+          label="Play sound in silent mode"
+          checked={preferences.playInSilentMode}
+          onCheckedChange={(playInSilentMode) => void change({ playInSilentMode })}
+        />
       )}
-      <div className="flex items-center justify-between gap-3">
-        <span id={speedId}>Fast-forward speed</span>
-        <ToggleGroup
-          type="single"
-          variant="outline"
-          aria-labelledby={speedId}
-          value={String(preferences.fastForwardSpeed)}
-          onValueChange={(value) => {
-            const fastForwardSpeed = Number(value);
-            if (isFastForwardSpeed(fastForwardSpeed)) void change({ fastForwardSpeed });
-          }}
-        >
-          {fastForwardSpeeds.map((speed) => (
-            <ToggleGroupItem key={speed} value={String(speed)}>
-              {speed}×
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-      </div>
-      <div className="flex items-center justify-between gap-3">
-        <label htmlFor={fpsId}>Show FPS</label>
-        <Switch id={fpsId} checked={preferences.showFps} onCheckedChange={(showFps) => void change({ showFps })} />
-      </div>
-      {renderers.length > 1 && (
-        <div className="flex items-center justify-between gap-3">
-          <span id={rendererId}>Renderer</span>
-          <Select
-            value={preferences.renderer}
-            onValueChange={(renderer) => {
-              if (isRendererChoice(renderer)) void change({ renderer });
+      <SettingRow label="Fast-forward speed">
+        {(labelId) => (
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            aria-labelledby={labelId}
+            value={String(preferences.fastForwardSpeed)}
+            onValueChange={(value) => {
+              const fastForwardSpeed = Number(value);
+              if (isFastForwardSpeed(fastForwardSpeed)) void change({ fastForwardSpeed });
             }}
           >
-            <SelectTrigger aria-labelledby={rendererId}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {rendererChoices.map((choice) => (
-                <SelectItem key={choice} value={choice}>
-                  {rendererLabels[choice]}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+            {fastForwardSpeeds.map((speed) => (
+              <ToggleGroupItem key={speed} value={String(speed)}>
+                {speed}×
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        )}
+      </SettingRow>
+      <SwitchRow label="Show FPS" checked={preferences.showFps} onCheckedChange={(showFps) => void change({ showFps })} />
+      {renderers.length > 1 && (
+        <SettingRow label="Renderer">
+          {(labelId) => (
+            <Select
+              value={preferences.renderer}
+              onValueChange={(renderer) => {
+                if (isRendererChoice(renderer)) void change({ renderer });
+              }}
+            >
+              <SelectTrigger aria-labelledby={labelId} className="min-w-0 max-w-full">
+                <SelectValue>
+                  <span className="min-w-0 truncate">{rendererLabels[preferences.renderer]}</span>
+                </SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {rendererChoices.map((choice) => (
+                  <SelectItem key={choice} value={choice}>
+                    {rendererLabels[choice]}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </SettingRow>
       )}
       {shaders.offered && (
         <div className="grid gap-1">
-          <div className="flex items-center justify-between gap-3">
-            <label htmlFor={shadersId}>Fewer 3DS freezes</label>
-            <Switch
-              id={shadersId}
-              checked={preferences.asyncShaders}
-              onCheckedChange={(asyncShaders) => void change({ asyncShaders })}
-            />
-          </div>
+          <SwitchRow
+            label="Fewer 3DS freezes"
+            checked={preferences.asyncShaders}
+            onCheckedChange={(asyncShaders) => void change({ asyncShaders })}
+          />
           <p className="text-muted-foreground">
             {preferences.asyncShaders
               ? shaders.onLine
@@ -347,30 +335,28 @@ const themeLabels = { system: "System", light: "Light", dark: "Dark" };
 function AppearanceSettings({ onSkins }: { onSkins(): void }) {
   const { preferences, error, change } = usePreferences();
   const canTilt = useCanTilt();
-  const themeId = useId();
-  const depthId = useId();
-  const glassId = useId();
 
   return (
     <SettingsCard title="Appearance">
-      <div className="flex items-center justify-between gap-3">
-        <span id={themeId}>Theme</span>
-        <ToggleGroup
-          type="single"
-          variant="outline"
-          aria-labelledby={themeId}
-          value={preferences.theme}
-          onValueChange={(theme) => {
-            if (isTheme(theme)) void change({ theme });
-          }}
-        >
-          {themes.map((theme) => (
-            <ToggleGroupItem key={theme} value={theme}>
-              {themeLabels[theme]}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
-      </div>
+      <SettingRow label="Theme">
+        {(labelId) => (
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            aria-labelledby={labelId}
+            value={preferences.theme}
+            onValueChange={(theme) => {
+              if (isTheme(theme)) void change({ theme });
+            }}
+          >
+            {themes.map((theme) => (
+              <ToggleGroupItem key={theme} value={theme}>
+                {themeLabels[theme]}
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        )}
+      </SettingRow>
       {preferences.touchControls && (
         <Button
           variant="ghost"
@@ -383,20 +369,14 @@ function AppearanceSettings({ onSkins }: { onSkins(): void }) {
       )}
       {canTilt && (
         <div className="grid gap-1">
-          <div className="flex items-center justify-between gap-3">
-            <label htmlFor={depthId}>Screen depth</label>
-            <Switch id={depthId} checked={preferences.screenDepth} onCheckedChange={(screenDepth) => void change({ screenDepth })} />
-          </div>
+          <SwitchRow label="Screen depth" checked={preferences.screenDepth} onCheckedChange={(screenDepth) => void change({ screenDepth })} />
           <p className="text-muted-foreground">
             In portrait, the game screen sits below the shell. Tilt the phone and the edge of the opening passes over it.
           </p>
         </div>
       )}
       <div className="grid gap-1">
-        <div className="flex items-center justify-between gap-3">
-          <label htmlFor={glassId}>Screen glass</label>
-          <Switch id={glassId} checked={preferences.screenGlass} onCheckedChange={(screenGlass) => void change({ screenGlass })} />
-        </div>
+        <SwitchRow label="Screen glass" checked={preferences.screenGlass} onCheckedChange={(screenGlass) => void change({ screenGlass })} />
         <p className="text-muted-foreground">
           In portrait, glass covers the game screen, with a lit top edge and a sheen that moves as you tilt the phone.
         </p>
@@ -417,17 +397,18 @@ function BackupsSettings() {
     <SettingsCard title="Backups">
       <p className="text-muted-foreground">Each game keeps its backups in a folder beside its ROM:</p>
       <p className="font-mono text-xs break-all">{gamesFolder.label}/…/&lt;game&gt;/backups</p>
-      <div className="flex items-center justify-between gap-3">
-        <span>Backups before a restore</span>
-        <NumberInput
-          label="Backups before a restore"
-          unit="kept"
-          value={preferences.restoreBackupsKept}
-          min={minRestoreBackupsKept}
-          max={maxRestoreBackupsKept}
-          onChange={(restoreBackupsKept) => void change({ restoreBackupsKept })}
-        />
-      </div>
+      <SettingRow label="Backups before a restore">
+        {() => (
+          <NumberInput
+            label="Backups before a restore"
+            unit="kept"
+            value={preferences.restoreBackupsKept}
+            min={minRestoreBackupsKept}
+            max={maxRestoreBackupsKept}
+            onChange={(restoreBackupsKept) => void change({ restoreBackupsKept })}
+          />
+        )}
+      </SettingRow>
       {error && <p className="text-destructive">{error}</p>}
       {preferencesError && <p className="text-destructive">{preferencesError}</p>}
       {openFolder && (
@@ -515,14 +496,25 @@ export function SettingsScreen({
   onLicences(): void;
 }) {
   const [skins, setSkins] = useState(false);
+  const [retroAchievements, setRetroAchievements] = useState(false);
+  const { account } = useRetroAchievements();
+  const retroAchievementsCards = (
+    <>
+      <RetroAchievementsSettings onOpen={() => navigate("forward", () => setRetroAchievements(true))} />
+      {sideloadBuild && <CoffeeCard host={tauriCoffeeHost} />}
+    </>
+  );
 
   return (
     <div className="min-h-screen pb-safe">
       <ScreenHeader title="Settings" onBack={onBack} />
       <main className="grid justify-items-center gap-4 p-4">
+        {account && retroAchievementsCards}
         <GamesFolderSettings />
         <SyncSettings />
+        {!account && retroAchievementsCards}
         <PlayingSettings system={system} />
+        {sideloadBuild && <JitSettings />}
         <ControlsSettings />
         <AppearanceSettings onSkins={() => navigate("forward", () => setSkins(true))} />
         <BackupsSettings />
@@ -533,6 +525,11 @@ export function SettingsScreen({
       {skins && (
         <Screen>
           <SkinsScreen systems={systems} host={tauriPreviewFrameHost} onBack={() => navigate("back", () => setSkins(false))} />
+        </Screen>
+      )}
+      {retroAchievements && (
+        <Screen>
+          <RetroAchievementsScreen onBack={() => navigate("back", () => setRetroAchievements(false))} />
         </Screen>
       )}
     </div>

@@ -17,13 +17,15 @@ export function ExportProvider({ host, children }: { host: ExportHost; children:
   return <ExportContext.Provider value={host}>{children}</ExportContext.Provider>;
 }
 
-export function ExportMenu({ file }: { file: () => Promise<ExportedFile | ExportedFile[]> }) {
+type FilesToExport = () => Promise<ExportedFile | ExportedFile[]>;
+
+export function useExportFile() {
   const host = useContext(ExportContext);
-  if (!host) throw new Error("ExportMenu needs an ExportProvider");
   const [toast, setToast] = useToast();
 
-  const exportFile = async () => {
+  const exportFile = async (file: FilesToExport) => {
     try {
+      if (!host) throw new Error("Exporting a file needs an ExportProvider");
       const files = [await file()].flat();
       const saved = await (files.length === 1 ? host.saveFile(files[0]) : host.saveFiles(files));
       if (saved) setToast(`Saved ${saved}`);
@@ -31,6 +33,12 @@ export function ExportMenu({ file }: { file: () => Promise<ExportedFile | Export
       setToast(error instanceof Error ? error.message : String(error));
     }
   };
+
+  return [exportFile, toast] as const;
+}
+
+export function ExportMenu({ file }: { file: FilesToExport }) {
+  const [exportFile, toast] = useExportFile();
 
   return (
     <>
@@ -41,7 +49,7 @@ export function ExportMenu({ file }: { file: () => Promise<ExportedFile | Export
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem onSelect={() => void exportFile()}>Export file</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => void exportFile(file)}>Export file</DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
       <Toast>{toast}</Toast>

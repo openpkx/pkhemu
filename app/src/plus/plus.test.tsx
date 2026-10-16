@@ -1,7 +1,7 @@
 import { act, cleanup, render } from "@testing-library/react";
 import { afterEach, expect, it, vi } from "vitest";
 import { fakePlus } from "./fakePlus";
-import { PlusProvider, usePlus, type Plus, type PlusStatus } from "./plus";
+import { PlusProvider, usePlus, useSideloadBuild, type Plus, type PlusStatus } from "./plus";
 
 function setVisibility(state: DocumentVisibilityState) {
   Object.defineProperty(document, "visibilityState", { configurable: true, get: () => state });
@@ -37,6 +37,26 @@ it.each<PlusStatus>([
   const { current } = await start(fakePlus({ status }));
 
   expect(current.plus!.status).toEqual(status);
+});
+
+it.each<[PlusStatus, boolean]>([
+  [{ state: "unlocked", sideload: true }, true],
+  [{ state: "unlocked", sideload: false }, false],
+  [{ state: "owned" }, false],
+])("tells a sideload build apart from %j", async (status, sideload) => {
+  const seen: { sideload?: boolean } = {};
+  function Probe() {
+    seen.sideload = useSideloadBuild();
+    return null;
+  }
+  render(
+    <PlusProvider host={fakePlus({ status }).host}>
+      <Probe />
+    </PlusProvider>,
+  );
+  await act(async () => {});
+
+  expect(seen.sideload).toBe(sideload);
 });
 
 it("is unlocked without a host", async () => {

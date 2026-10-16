@@ -1,8 +1,10 @@
+import type { ReactNode } from "react";
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { PokemonId, PokemonSummary } from "@pkhex-everywhere/engine";
 import { EngineProvider } from "@pkhex-everywhere/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { BackProvider } from "@/back/back";
+import { BackProvider, type BackHost } from "@/back/back";
+import { fakeBackHost } from "@/back/fakeBackHost";
 import { BoxArtProvider } from "@/box-art/boxArt";
 import { fakeBoxArt } from "@/box-art/fakeBoxArt";
 import { ExportProvider } from "@/editor/exportFile";
@@ -25,6 +27,9 @@ import { fakeFolder } from "@/library/fakeFolder";
 import { LibraryProvider, type LibraryHost } from "@/library/library";
 import { fakeSync } from "@/sync/fakeSync";
 import { SyncProvider } from "@/sync/sync";
+import { fakePlus } from "@/plus/fakePlus";
+import { PlusProvider } from "@/plus/plus";
+import { RetroAchievementsProvider, type Achievement, type RetroAchievementsHost } from "@/retro-achievements/retroAchievements";
 import type { TransferPak } from "@/transfer-pak/setting";
 import { GamePage, type GamePageHost } from "./GamePage";
 import { summaryRevision, type SaveSummary } from "./saveSummary";
@@ -176,6 +181,15 @@ const gamesFolder: GamesFolderHost = {
   device: "phone",
 };
 
+function WithRetroAchievements({ host, children }: { host?: RetroAchievementsHost; children: ReactNode }) {
+  if (!host) return children;
+  return (
+    <PlusProvider host={fakePlus({ status: { state: "unlocked" } }).host}>
+      <RetroAchievementsProvider host={host}>{children}</RetroAchievementsProvider>
+    </PlusProvider>
+  );
+}
+
 async function launch(
   host: GamePageHost = fakeHost(),
   { engine } = fakeEngine({ trainer: may, party: mayParty }),
@@ -190,6 +204,8 @@ async function launch(
     sync = fakeSync({ available: false }),
     unsupported = undefined as "device" | "platform" | undefined,
     importHost = fakeImport() as ImportHost,
+    retroAchievements = undefined as RetroAchievementsHost | undefined,
+    back = undefined as BackHost | undefined,
   } = {},
 ) {
   const props = { onPlay: vi.fn(), onDelete: vi.fn(), onBack: vi.fn() };
@@ -224,13 +240,15 @@ async function launch(
           <EngineProvider engine={engine}>
             <FakeGameArt art={gameArt} path={game.path}>
               <BoxArtProvider host={boxArt.host}>
-                <BackProvider>
+                <BackProvider host={back}>
                   <ExportProvider host={exportHost}>
                     <PatchRomProvider host={patchRomHost}>
                       <LibraryProvider host={library} folder="/games" onOpen={() => {}} onPlay={() => {}}>
                         <ImportProvider host={importHost}>
                           <PadNavigation input={createInput(pads.gamepads)} />
-                          <GamePage host={host} folder="/games" game={game} games={games} cover={cover} unsupported={unsupported} {...props} />
+                          <WithRetroAchievements host={retroAchievements}>
+                            <GamePage host={host} folder="/games" game={game} games={games} cover={cover} unsupported={unsupported} {...props} />
+                          </WithRetroAchievements>
                         </ImportProvider>
                       </LibraryProvider>
                     </PatchRomProvider>
@@ -361,6 +379,17 @@ it.each<{ game: Game; cropped: boolean }>([
 
   const shot = screen.getByRole("img", { name: "Where you left off" });
   expect(shot.style.height === "200%").toBe(cropped);
+});
+
+it.each<{ game: Game; cropped: boolean }>([
+  { game: { system: "nds", name: "Platinum", path: "nds/Platinum.nds" }, cropped: true },
+  { game: { system: "3ds", name: "PKSM", path: "3ds/PKSM.3dsx" }, cropped: true },
+  { game: emerald, cropped: false },
+])("crops the Resume thumbnail of $game.system to the top screen: $cropped", async ({ game, cropped }) => {
+  await launch(fakeHost(), undefined, { game });
+
+  const thumbnail = button("Resume")!.querySelector("img")!;
+  expect(thumbnail.style.height === "200%").toBe(cropped);
 });
 
 const boxArtPng = new Uint8Array([137, 80, 78, 71, 13, 10, 26, 10, 1]);
@@ -522,18 +551,18 @@ it("closes the save in the engine once it's summed up", async () => {
   expect(engine.loaded()).toBeUndefined();
 });
 
-it("says when there's no save yet", async () => {
+it("hides the save card when there's no save yet", async () => {
   await launch();
 
-  expect(screen.getByRole("region", { name: "Save" }).textContent).toMatch(/No save yet/);
+  expect(screen.queryByRole("region", { name: "Save" })).toBeNull();
 });
 
-it("shows a fallback for a save the engine can't read, and still plays", async () => {
+it("hides the save card for a save the engine can't read, and still plays", async () => {
   const engine = fakeEngine({ trainer: may, party: mayParty });
   vi.spyOn(engine.engine.game, "load").mockRejectedValue(new Error("invalid-save"));
   const { onPlay } = await launch(fakeHost({ save: true }), engine);
 
-  expect(screen.getByRole("region", { name: "Save" }).textContent).toMatch(/Can't read this save/);
+  expect(screen.queryByRole("region", { name: "Save" })).toBeNull();
   fireEvent.click(button("Resume")!);
   fireEvent.click(button("Start")!);
   expect(onPlay.mock.calls).toEqual([["resume", undefined, cover], ["new"]]);
@@ -725,17 +754,26 @@ it("exports a save the engine can't read", async () => {
   vi.spyOn(engine.engine.game, "load").mockRejectedValue(new Error("invalid-save"));
   const { exportHost } = await launch(fakeHost({ save: true }), engine);
 
-  await exportFrom(screen.getByRole("region", { name: "Save" }));
+  fireEvent.click(within(await openGameMenu()).getByRole("menuitem", { name: "Export save" }));
 
   await waitFor(() =>
     expect(exportHost.saveFile).toHaveBeenCalledWith({ bytes: new Uint8Array([1, 2, 3]), fileName: `${emerald.name}.sav` }),
   );
+  expect((await screen.findByRole("status")).textContent).toContain(`${emerald.name}.sav`);
 });
 
 it("offers no export when there's no save", async () => {
   await launch(fakeHost({ backups: [{ name: "start.sav", at: "2026-10-05T14:00", reason: "start", sha256: "may", bytes: [7] }] }));
 
-  expect(within(screen.getByRole("region", { name: "Save" })).queryByRole("button", { name: "More" })).toBeNull();
+  expect(within(await openGameMenu()).queryByRole("menuitem", { name: "Export save" })).toBeNull();
+});
+
+it("leaves export and backups out of the game menu for a save it can read", async () => {
+  await launch(backupsHost());
+
+  const menu = await openGameMenu();
+  expect(within(menu).queryByRole("menuitem", { name: "Export save" })).toBeNull();
+  expect(within(menu).queryByRole("menuitem", { name: "Backups" })).toBeNull();
 });
 
 async function openGameMenu(name = /Emerald/) {
@@ -1077,7 +1115,7 @@ const brendan: SaveSummary = {
   version: "Emerald",
   formatId: null,
   generation: 3,
-  trainer: { name: "BRENDAN", gender: "male", money: 500 },
+  trainer: { id: "12345", name: "BRENDAN", gender: "male", money: 500 },
   party: [
     {
       speciesId: 258,
@@ -1119,14 +1157,27 @@ async function openBackups() {
   await act(async () => {});
 }
 
+async function openBackupsFromMenu() {
+  fireEvent.click(within(await openGameMenu()).getByRole("menuitem", { name: "Backups" }));
+  await act(async () => {});
+}
+
 const rows = () => within(screen.getByRole("main")).getAllByRole<HTMLButtonElement>("button");
 
-it("offers backups even when there's no save", async () => {
+it("offers backups from the game menu when there's no save", async () => {
   await launch(fakeHost({ backups: [started] }));
 
-  const card = screen.getByRole("region", { name: "Save" });
-  expect(card.textContent).toMatch(/No save yet/);
-  expect(within(card).getByRole("button", { name: "Backups" })).toBeTruthy();
+  await openBackupsFromMenu();
+
+  expect(rows()[0].textContent).toMatch(/ · Game start/);
+});
+
+it("leaves export and backups out of the game menu with no save and no backups", async () => {
+  await launch();
+
+  const menu = await openGameMenu();
+  expect(within(menu).queryByRole("menuitem", { name: "Export save" })).toBeNull();
+  expect(within(menu).queryByRole("menuitem", { name: "Backups" })).toBeNull();
 });
 
 it("hides Backups when the game has none", async () => {
@@ -1197,7 +1248,7 @@ it("says when a backup can't be read", async () => {
   vi.spyOn(engine.engine.game, "load").mockRejectedValue(new Error("invalid-save"));
   await launch(backupsHost(), engine);
 
-  await openBackups();
+  await openBackupsFromMenu();
 
   expect(rows()[1].textContent).toMatch(/Can't read this backup/);
 });
@@ -1239,7 +1290,7 @@ it("offers to restore a backup it can't read", async () => {
   const engine = fakeEngine({ trainer: may, party: mayParty });
   vi.spyOn(engine.engine.game, "load").mockRejectedValue(new Error("invalid-save"));
   await launch(backupsHost({ resume: false }), engine);
-  await openBackups();
+  await openBackupsFromMenu();
 
   fireEvent.click(rows()[1]);
   await act(async () => {});
@@ -1703,6 +1754,49 @@ it("doesn't say it's updating while a game opened for the first time reads its s
   expect(screen.queryByText("Updating…")).toBeNull();
 });
 
+it("offers to choose a version of a game that changed on another device", async () => {
+  const conflict = {
+    file: "save",
+    device: { savedOn: "Pixel 10", modified: 1_000, cheats: false },
+    cloud: { savedOn: "MacBook Air", modified: 2_000, cheats: false },
+  };
+  const sync = fakeSync({ account: "player@example.com", conflicts: [conflict] });
+  await launch(undefined, undefined, { sync });
+  await act(async () => sync.game({ path: emerald.path, state: "conflict" }));
+
+  await act(async () => fireEvent.click(button("Choose version")!));
+
+  expect(sync.host.conflicts).toHaveBeenCalledWith("/games", emerald.path);
+  expect(screen.getByRole("dialog")).toBeTruthy();
+});
+
+it("closes the conflict sheet on back and stays on the game page", async () => {
+  const conflict = {
+    file: "save",
+    device: { savedOn: "Pixel 10", modified: 1_000, cheats: false },
+    cloud: { savedOn: "MacBook Air", modified: 2_000, cheats: false },
+  };
+  const sync = fakeSync({ account: "player@example.com", conflicts: [conflict] });
+  const back = fakeBackHost();
+  const { onBack } = await launch(undefined, undefined, { sync, back: back.host });
+  await act(async () => sync.game({ path: emerald.path, state: "conflict" }));
+  await act(async () => fireEvent.click(button("Choose version")!));
+
+  back.press();
+
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(onBack).not.toHaveBeenCalled();
+});
+
+it("offers no version to choose on a game in sync", async () => {
+  const sync = fakeSync({ account: "player@example.com" });
+  await launch(undefined, undefined, { sync });
+
+  await act(async () => sync.game({ path: emerald.path, state: "synced", lastSynced: Date.now() }));
+
+  expect(button("Choose version")).toBeNull();
+});
+
 it("says what sync is doing with the game, and when it last synced once idle", async () => {
   const sync = fakeSync({ account: "player@example.com", gamesLastSynced: { [emerald.path]: Date.now() - 5 * 60_000 } });
   await launch(undefined, undefined, { sync });
@@ -1722,4 +1816,82 @@ it("says nothing about sync while signed out", async () => {
   await launch(undefined, undefined, { sync: fakeSync() });
 
   expect(screen.queryByText(/synced|sync/i)).toBeNull();
+});
+
+function retroAchievementsHost(game: RetroAchievementsHost["game"]): RetroAchievementsHost {
+  return {
+    turn: async () => {},
+    account: async () => "Player",
+    signIn: async (user) => user,
+    signOut: async () => {},
+    createAccount: async () => {},
+    openProfile: async () => {},
+    onEvent: () => () => {},
+    badge: async () => undefined,
+    playing: async () => null,
+    game,
+    summary: async () => null,
+    hardcore: async () => false,
+    setHardcore: async () => {},
+    leaveHardcore: async () => {},
+    edited: async () => false,
+    settleEdited: async () => false,
+  };
+}
+
+const boulder: Achievement = {
+  id: 1,
+  title: "Boulder Badge",
+  description: "Defeat Brock in Pewter City",
+  points: 10,
+  badge: "00001",
+  earned: { at: null, hardcore: true },
+  progress: null,
+  rarity: 0.42,
+};
+
+it("shows the game's achievements in a card that opens the list, and a row's details", async () => {
+  const game = vi.fn(async () => [{ ...boulder, id: 2, title: "Cascade Badge", earned: null }, boulder]);
+  await launch(fakeHost(), undefined, { retroAchievements: retroAchievementsHost(game) });
+  await act(async () => {});
+
+  expect(game).toHaveBeenCalledWith("/games", "gba/Emerald.gba");
+  const card = screen.getByRole("region", { name: "Achievements" });
+  expect(within(card).getByText("1/2 · 10 pts")).toBeTruthy();
+  fireEvent.click(within(card).getByRole("button", { name: "All achievements" }));
+  await act(async () => {});
+  fireEvent.click(screen.getByRole("button", { name: /Boulder Badge/ }));
+  await act(async () => {});
+
+  const sheet = screen.getByRole("dialog", { name: /Boulder Badge/ });
+  expect(within(sheet).getByText("Hardcore")).toBeTruthy();
+  expect(within(sheet).getByText("0.4%")).toBeTruthy();
+  expect(within(sheet).queryByRole("button", { name: "Resume" })).toBeNull();
+});
+
+it("links the Achievements card to the RetroAchievements page", async () => {
+  await launch(fakeHost(), undefined, { retroAchievements: retroAchievementsHost(async () => [boulder]) });
+  await act(async () => {});
+
+  const card = screen.getByRole("region", { name: "Achievements" });
+  fireEvent.click(within(card).getByRole("button", { name: "Player" }));
+  await act(async () => {});
+
+  expect(screen.getByRole("heading", { name: "RetroAchievements" })).toBeTruthy();
+  expect(screen.getByRole("button", { name: "Sign out" })).toBeTruthy();
+});
+
+it("leaves the Achievements card out for a game without a set", async () => {
+  await launch(fakeHost(), undefined, { retroAchievements: retroAchievementsHost(async () => null) });
+  await act(async () => {});
+
+  expect(screen.queryByRole("region", { name: "Achievements" })).toBeNull();
+});
+
+it("hands the trainer the engine reads from the save to the edited mark", async () => {
+  const host = { ...retroAchievementsHost(async () => null), settleEdited: vi.fn(async () => true) };
+  await launch(fakeHost({ save: true }), undefined, { retroAchievements: host });
+  await act(async () => {});
+
+  expect(host.settleEdited).toHaveBeenCalledWith("/games", "gba/Emerald.gba", { trainer: "12345/54321 MAY", sha256: expect.any(String) });
 });

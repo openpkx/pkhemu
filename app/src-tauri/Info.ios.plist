@@ -279,6 +279,27 @@
 		</dict>
 		<dict>
 			<key>UTTypeIdentifier</key>
+			<string>public.aoshuang.game.3ds</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>3DS Game</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>3ds</string>
+					<string>3dsx</string>
+					<string>cci</string>
+					<string>cxi</string>
+					<string>cia</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
 			<string>public.aoshuang.gamesave</string>
 			<key>UTTypeConformsTo</key>
 			<array>

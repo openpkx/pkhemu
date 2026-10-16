@@ -1,5 +1,6 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { BackProvider } from "@/back/back";
 import { createInput } from "@/input/input";
 import { PauseMenu } from "./PauseMenu";
 
@@ -45,6 +46,7 @@ function launch({
   pokemonInfo = undefined as boolean | undefined,
   randomized = undefined as boolean | undefined,
   skin = undefined as string | undefined,
+  achievements = undefined as string | undefined,
   onSwapScreens = undefined as (() => void) | undefined,
   held = [] as number[],
 } = {}) {
@@ -67,13 +69,19 @@ function launch({
     onLoadState: vi.fn(),
     onUndoLoad: vi.fn(),
     onCheats: vi.fn(),
+    achievements,
+    onAchievements: vi.fn(),
     skin,
     onSkin: vi.fn(),
     onSettings: vi.fn(),
     onQuit: vi.fn(),
     onSwapScreens,
   };
-  render(<PauseMenu {...props} />);
+  render(
+    <BackProvider>
+      <PauseMenu {...props} />
+    </BackProvider>,
+  );
   pad(...held);
   return props;
 }
@@ -121,6 +129,21 @@ it("puts Swap screens below Fast-forward when the game has two screens", () => {
   expect(names[names.indexOf("Swap screens") - 1]).toMatch(/^Fast-forward/);
   fireEvent.click(item("Swap screens"));
   expect(onSwapScreens).toHaveBeenCalled();
+});
+
+it("puts Achievements below Cheats with the tally on its right", () => {
+  const props = launch({ achievements: "34/72 · 410 pts" });
+  const names = screen.getAllByRole("button").map((button) => button.textContent);
+
+  expect(names[names.indexOf("Cheats") + 1]).toBe("Achievements34/72 · 410 pts");
+  fireEvent.click(screen.getByRole("button", { name: "Achievements" }));
+  expect(props.onAchievements).toHaveBeenCalled();
+});
+
+it("leaves Achievements out without a set", () => {
+  launch();
+
+  expect(screen.queryByRole("button", { name: "Achievements" })).toBeNull();
 });
 
 it("leaves Swap screens out for a game with one screen", () => {

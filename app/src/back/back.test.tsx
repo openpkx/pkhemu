@@ -2,29 +2,12 @@ import { useState, type ReactNode } from "react";
 import { act, cleanup, fireEvent, render } from "@testing-library/react";
 import { afterEach, expect, it } from "vitest";
 import type { OnBackGesture } from "@/backGesture";
-import { BackProvider, useBack, useBackGesture, useGoBack, type BackHost } from "./back";
+import { BackProvider, useBack, useBackGesture, useGoBack } from "./back";
 import { desktopBackHost } from "./desktopHost";
+import { fakeBackHost } from "./fakeBackHost";
 import { iosBackHost } from "./iosHost";
 
 afterEach(cleanup);
-
-function fakeHost() {
-  let press: (() => void) | undefined;
-  let exits = 0;
-  const host: BackHost = {
-    listen(handler) {
-      press = handler;
-      return () => (press = undefined);
-    },
-    exit: () => void exits++,
-  };
-  return {
-    host,
-    press: () => act(() => press?.()),
-    exits: () => exits,
-    listening: () => press !== undefined,
-  };
-}
 
 function Screen({ onBack, children }: { onBack: (() => void) | undefined; children?: ReactNode }) {
   useBack(onBack);
@@ -32,7 +15,7 @@ function Screen({ onBack, children }: { onBack: (() => void) | undefined; childr
 }
 
 it("exits when no screen handles back", () => {
-  const back = fakeHost();
+  const back = fakeBackHost();
   render(<BackProvider host={back.host}>library</BackProvider>);
 
   back.press();
@@ -41,7 +24,7 @@ it("exits when no screen handles back", () => {
 });
 
 it("sends back to the screen that handles it instead of exiting", () => {
-  const back = fakeHost();
+  const back = fakeBackHost();
   const presses: string[] = [];
   render(
     <BackProvider host={back.host}>
@@ -56,7 +39,7 @@ it("sends back to the screen that handles it instead of exiting", () => {
 });
 
 it("sends back to the innermost screen only", () => {
-  const back = fakeHost();
+  const back = fakeBackHost();
   const presses: string[] = [];
   render(
     <BackProvider host={back.host}>
@@ -72,7 +55,7 @@ it("sends back to the innermost screen only", () => {
 });
 
 it("goes back to the outer screen once the inner one closes", () => {
-  const back = fakeHost();
+  const back = fakeBackHost();
   const presses: string[] = [];
   function Game() {
     const [paused, setPaused] = useState(false);
@@ -96,7 +79,7 @@ it("goes back to the outer screen once the inner one closes", () => {
 });
 
 it("exits again once the screen that handled back is gone", () => {
-  const back = fakeHost();
+  const back = fakeBackHost();
   const { rerender } = render(
     <BackProvider host={back.host}>
       <Screen onBack={() => {}} />
@@ -110,7 +93,7 @@ it("exits again once the screen that handled back is gone", () => {
 });
 
 it("calls the latest handler a screen gave", () => {
-  const back = fakeHost();
+  const back = fakeBackHost();
   const presses: number[] = [];
   const { rerender } = render(
     <BackProvider host={back.host}>
@@ -129,7 +112,7 @@ it("calls the latest handler a screen gave", () => {
 });
 
 it("stops listening when the app closes", () => {
-  const back = fakeHost();
+  const back = fakeBackHost();
   const { unmount } = render(<BackProvider host={back.host}>library</BackProvider>);
 
   unmount();
@@ -146,7 +129,7 @@ it("does nothing without a host, as on macOS", () => {
 });
 
 it("passes back on from a screen that doesn't handle it right now", () => {
-  const back = fakeHost();
+  const back = fakeBackHost();
   const presses: string[] = [];
   render(
     <BackProvider host={back.host}>
@@ -162,7 +145,7 @@ it("passes back on from a screen that doesn't handle it right now", () => {
 });
 
 it("sends back to a handler registered after the screens, like an overlay", () => {
-  const back = fakeHost();
+  const back = fakeBackHost();
   const presses: string[] = [];
   let register: OnBackGesture | undefined;
   function Overlay() {
@@ -187,7 +170,7 @@ it("sends back to a handler registered after the screens, like an overlay", () =
 });
 
 it("goes back from inside the app without exiting when no screen handles it", () => {
-  const back = fakeHost();
+  const back = fakeBackHost();
   const presses: string[] = [];
   let goBack = () => {};
   function Library({ children }: { children?: ReactNode }) {
@@ -254,4 +237,31 @@ it("goes back with a swipe from the left edge on iOS", () => {
   fireEvent.touchEnd(document.body, { touches: [], changedTouches: at(120) });
 
   expect(presses).toEqual(["settings"]);
+});
+
+it("sends back to a handler that turns on after another screen mounted", () => {
+  const back = fakeBackHost();
+  const presses: string[] = [];
+  function Library({ sheetOpen }: { sheetOpen: boolean }) {
+    return (
+      <>
+        <Screen onBack={sheetOpen ? () => presses.push("sheet") : undefined} />
+        <Screen onBack={() => presses.push("settings")} />
+      </>
+    );
+  }
+  const { rerender } = render(
+    <BackProvider host={back.host}>
+      <Library sheetOpen={false} />
+    </BackProvider>,
+  );
+
+  rerender(
+    <BackProvider host={back.host}>
+      <Library sheetOpen />
+    </BackProvider>,
+  );
+  back.press();
+
+  expect(presses).toEqual(["sheet"]);
 });

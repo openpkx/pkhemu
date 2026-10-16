@@ -6,7 +6,7 @@ mod fake_drive;
 #[cfg(test)]
 mod fake_dropbox;
 #[cfg(test)]
-mod fake_http;
+pub(crate) mod fake_http;
 mod google;
 mod in_use;
 mod kept;
@@ -44,7 +44,7 @@ use crate::index::{self, FileHash, Index, PendingUpload, SyncedFile, SyncedGame}
 use crate::plus::Plus;
 use crate::save;
 use crate::three_ds::update;
-use crate::{box_art, cheats, game_art, keep_alive, rom};
+use crate::{box_art, cheats, edited, game_art, keep_alive, rom};
 use queue::{KeepAlive, Queue, Request};
 use record::{Blob, Entry, Record, Unit};
 use serde::{Deserialize, Serialize};
@@ -1367,6 +1367,9 @@ impl<R: Runtime> Engine<'_, R> {
                     self.tracker.begin(&path, Stage::DownloadingSaves, entry.size);
                     self.retry(|| self.download(entry)).await?;
                     self.finish_file();
+                    if record::is_save(&rom, &path) {
+                        edited::put(self.games, &rom, entry.edited.as_ref()).await?;
+                    }
                     self.index.keep_synced_file(&game.id, &SyncedFile::from(entry))?;
                 }
                 Step::DeleteLocal(path) => {
@@ -1386,6 +1389,10 @@ impl<R: Runtime> Engine<'_, R> {
                         modified: file.mtime,
                         device: self.device.into(),
                         cheats: self.index.save_had_cheats(&rom, &file.sha1)?,
+                        edited: match record::is_save(&rom, &path) {
+                            true => edited::read(self.games, &rom).await,
+                            false => None,
+                        },
                     };
                     stale_blobs.extend(record.put(entry).map(|old| old.blob));
                     uploaded.push(SyncedFile { path, sha1: file.sha1.clone(), blob });
@@ -1870,6 +1877,9 @@ impl<R: Runtime> Engine<'_, R> {
                     if in_unit(&path) && !entries.iter().any(|entry| entry.path == path) {
                         self.games.remove_unlogged(&path).await.map_err(|e| format!("{path}: {e}"))?;
                     }
+                }
+                if let Some(save) = entries.iter().find(|entry| record::is_save(rom, &entry.path)) {
+                    edited::put(self.games, rom, save.edited.as_ref()).await?;
                 }
                 let mut entries = entries.clone();
                 entries.sort_by_key(|entry| entry.path.ends_with(".state"));

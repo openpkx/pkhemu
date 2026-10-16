@@ -147,6 +147,15 @@ it("runs every experiment as stored in a build that isn't a store build", async 
   expect(result.current.shown).toEqual(registry);
 });
 
+it("runs only the player experiments in a sideload build", async () => {
+  const { launch } = fakeStore({ blend: "on", pacing: "drop" });
+
+  const { result } = launch(reporting({ state: "unlocked", sideload: true }));
+
+  await waitFor(() => expect(result.current.values).toEqual({ blend: "on", pacing: "catch-up" }));
+  expect(result.current.shown.map(({ id }) => id)).toEqual(["blend"]);
+});
+
 it("falls back to the first values when the store can't be read", async () => {
   const { host, launch } = fakeStore();
   host.load = async () => {

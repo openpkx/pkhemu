@@ -1,8 +1,12 @@
 use crate::games_folder::GamesFolder;
 use crate::retro::{CoreInfo, Frame};
 use crate::rom;
+use crate::save::Slot;
+use crate::states;
 use serde::{Deserialize, Serialize};
 use tauri::Runtime;
+
+pub const EVERY_SLOT_FULL: &str = "Your resume point is from a different version of pkhemu, and every save-state slot is full. Delete a slot to keep it, or keep playing on the device that made it.";
 
 pub struct Resume {
     pub state: Vec<u8>,
@@ -90,6 +94,36 @@ pub async fn read<R: Runtime>(
     let path = rom::resume_path(rom);
     let state = folder.read(&path).await.map_err(|e| format!("{path}: {e}"))?;
     Ok(Some((state, info.and_then(|info| info.slot))))
+}
+
+pub async fn keep_in_slot<R: Runtime>(
+    folder: &GamesFolder<'_, R>,
+    rom: &str,
+    save_slot: &Slot,
+    save: &[u8],
+) -> Result<u8, String> {
+    let mut empty = None;
+    for slot in 1..=rom::STATE_SLOTS {
+        if !folder.has_file(&rom::state_path(rom, slot)).await {
+            empty = Some(slot);
+            break;
+        }
+    }
+    let slot = empty.ok_or(EVERY_SLOT_FULL)?;
+    let path = rom::resume_path(rom);
+    let state = folder.read(&path).await.map_err(|e| format!("{path}: {e}"))?;
+    let resume = info(folder, rom).await.unwrap_or_default();
+    let info = states::Info {
+        saved_at: crate::emu::epoch_ms(),
+        play_since_save: resume.play_since_save,
+        slot: None,
+        core: resume.core,
+        core_version: resume.core_version,
+    };
+    let saved = states::Saved { state, screenshot: screenshot_file(folder, rom).await, save: save.to_vec(), info };
+    states::write(folder, rom, save_slot, slot, saved).await?;
+    remove(folder, rom).await?;
+    Ok(slot)
 }
 
 pub async fn forget_slot<R: Runtime>(folder: &GamesFolder<'_, R>, rom: &str, slot: u8) -> Result<(), String> {
@@ -318,6 +352,71 @@ mod tests {
         block_on(folder.write("gba/Emerald/states/resume.state", b"state")).unwrap();
 
         assert_eq!(block_on(read(&folder, "gba/Emerald.gba", &mgba())), Ok(Some((b"state".to_vec(), None))));
+    }
+
+    fn sav() -> Slot {
+        Slot::new("gba/Emerald.sav".into(), Vec::new()).0
+    }
+
+    fn from_another_version() -> Resume {
+        let resume = written_by(&CoreInfo { version: "0.11.0".into(), ..mgba() });
+        let info = Info { play_since_save: Some(42.0), ..resume.info };
+        Resume { screenshot: Some(b"png".to_vec()), info, ..resume }
+    }
+
+    fn fill(folder: &GamesFolder<'_, tauri::Wry>, slot: u8) {
+        let saved = states::Saved {
+            state: b"mine".to_vec(),
+            screenshot: None,
+            save: b"my save".to_vec(),
+            info: states::Info::default(),
+        };
+        block_on(states::write(folder, "gba/Emerald.gba", &sav(), slot, saved)).unwrap();
+    }
+
+    #[test]
+    fn keeps_a_resume_point_from_another_version_in_the_first_slot() {
+        let folder = temp_folder("keep");
+        block_on(write(&folder, "gba/Emerald.gba", from_another_version()));
+
+        assert_eq!(block_on(keep_in_slot(&folder, "gba/Emerald.gba", &sav(), b"save")), Ok(1));
+
+        let newer = CoreInfo { version: "0.11.0".into(), ..mgba() };
+        let kept = block_on(states::read(&folder, "gba/Emerald.gba", 1, &newer)).unwrap();
+        assert_eq!((kept.state, kept.save), (b"state".to_vec(), b"save".to_vec()));
+        assert_eq!(block_on(states::screenshot(&folder, "gba/Emerald.gba", 1)), Some(b"png".to_vec()));
+        assert_eq!(
+            (kept.info.core, kept.info.core_version, kept.info.play_since_save, kept.info.slot),
+            (Some("mGBA".into()), Some("0.11.0".into()), Some(42.0), None)
+        );
+        assert!(kept.info.saved_at > 0.0);
+        for file in ["resume.state", "resume.png", "resume.json"] {
+            assert!(!block_on(folder.has_file(&format!("gba/Emerald/states/{file}"))), "{file}");
+        }
+    }
+
+    #[test]
+    fn keeps_a_resume_point_in_the_next_empty_slot() {
+        let folder = temp_folder("keep-next");
+        block_on(write(&folder, "gba/Emerald.gba", from_another_version()));
+        fill(&folder, 1);
+
+        assert_eq!(block_on(keep_in_slot(&folder, "gba/Emerald.gba", &sav(), b"save")), Ok(2));
+    }
+
+    #[test]
+    fn leaves_the_resume_point_when_every_slot_is_full() {
+        let folder = temp_folder("keep-full");
+        block_on(write(&folder, "gba/Emerald.gba", from_another_version()));
+        for slot in 1..=rom::STATE_SLOTS {
+            fill(&folder, slot);
+        }
+
+        assert_eq!(block_on(keep_in_slot(&folder, "gba/Emerald.gba", &sav(), b"save")), Err(EVERY_SLOT_FULL.into()));
+
+        for file in ["resume.state", "resume.png", "resume.json"] {
+            assert!(block_on(folder.has_file(&format!("gba/Emerald/states/{file}"))), "{file}");
+        }
     }
 
     #[test]

@@ -11,6 +11,7 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 [build-dependencies]
 cc = "1.2"
 cmake = "0.1.58"
+core-cache = { path = "../../crates/core-cache" }
 # naga 30 builds its GLSL front end only alongside the WGSL or SPIR-V one.
 naga = { version = "30", features = ["glsl-in", "wgsl-in", "spv-out"] }
 tauri-build = { version = "2.7.2", features = [] }
@@ -25,6 +26,7 @@ tauri-plugin-persisted-scope = "2.4.1"
 tauri-plugin-store = "2.5.0"
 zip = { version = "8.6.0", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 sevenz-rust2 = { version = "0.23.0", default-features = false, features = ["bzip2", "ppmd"] }
+plist = "1.10"
 tokio = { version = "1.53.2", features = ["sync", "time", "net", "io-util"] }
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 cpal = "0.18.2"
@@ -68,7 +70,10 @@ tauri-plugin-pkhemu-ios = { path = "../../crates/tauri-plugin-pkhemu-ios" }
 tauri-plugin-haptics = "2.4.2"
 objc2-ui-kit = { version = "0.3.2", default-features = false, features = ["std", "objc2-core-foundation", "UIApplication", "UIGeometry", "UIResponder", "UIScene", "UIScrollView", "UIView", "UIViewController", "UIWindow", "UIWindowScene"] }
 dispatch2 = "0.3.1"
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "block2", "NSArray", "NSBundle", "NSData", "NSDictionary", "NSError", "NSExtensionItem", "NSNotification", "NSObject", "NSOperation", "NSProcessInfo", "NSString", "NSValue"] }
+block2 = "0.6"
 objc2-quartz-core = { version = "0.3.2", default-features = false, features = ["std", "CAFrameRateRange"] }
+objc2-game-controller = { version = "0.3.2", default-features = false, features = ["std", "GCController", "GCControllerButtonInput", "GCControllerElement", "GCPhysicalInputProfile"] }
 
 [target.'cfg(any(target_os = "ios", target_os = "macos"))'.dependencies]
 objc2 = "0.6"

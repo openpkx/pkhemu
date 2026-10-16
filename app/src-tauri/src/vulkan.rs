@@ -2,6 +2,8 @@ use ash::vk;
 use std::cell::Cell;
 use std::ffi::{c_char, c_uint, c_void, CStr};
 use std::path::Path;
+#[cfg(test)]
+use std::sync::atomic::Ordering;
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, OnceLock};
 
 #[cfg(target_os = "ios")]
@@ -79,6 +81,7 @@ struct Handoff {
     waits: Vec<vk::Semaphore>,
     commands: Vec<vk::CommandBuffer>,
     signal: vk::Semaphore,
+    generation: u64,
 }
 
 thread_local! {
@@ -306,6 +309,13 @@ pub struct Frame {
     pub src_queue_family: u32,
     pub width: u32,
     pub height: u32,
+    generation: u64,
+}
+
+impl Frame {
+    pub fn current(&self) -> bool {
+        self.gpu.shared.handoff().generation == self.generation
+    }
 }
 
 struct Device {
@@ -318,6 +328,17 @@ struct Device {
 
 // Boolean settings turned on when the instance is made, each named by the layer or driver that reads it.
 pub type Settings = &'static [(&'static CStr, &'static CStr)];
+
+// Shader harness: time spent waiting for the GPU in the readback, and the last frame in 8 bits.
+#[cfg(test)]
+pub mod harness {
+    use std::sync::atomic::{AtomicBool, AtomicU64};
+    use std::sync::Mutex;
+
+    pub static READBACK_WAIT_NS: AtomicU64 = AtomicU64::new(0);
+    pub static KEEP_RGB8: AtomicBool = AtomicBool::new(false);
+    pub static LAST_RGB8: Mutex<(u32, u32, Vec<u8>)> = Mutex::new((0, 0, Vec::new()));
+}
 
 pub struct Renderer {
     entry: ash::Entry,
@@ -401,8 +422,19 @@ impl Renderer {
 
     pub fn frame(&self, width: u32, height: u32) -> Option<Frame> {
         let gpu = &self.device.as_ref()?.gpu;
-        let (image, src_queue_family) = gpu.shared.handoff().image?;
-        Some(Frame { gpu: gpu.clone(), image, src_queue_family, width, height })
+        let handoff = gpu.shared.handoff();
+        let (image, src_queue_family) = handoff.image?;
+        Some(Frame { gpu: gpu.clone(), image, src_queue_family, width, height, generation: handoff.generation })
+    }
+
+    // Azahar frees its image, commands and semaphores on a reset or a state load, and hands new ones over only on its
+    // next present.
+    pub fn forget(&self) {
+        if let Some(device) = &self.device {
+            let mut handoff = device.gpu.shared.handoff();
+            let generation = handoff.generation + 1;
+            *handoff = Handoff { generation, ..Handoff::default() };
+        }
     }
 
     pub fn read(&mut self, width: u32, height: u32, out: &mut Vec<u16>) -> Result<(u32, u32), String> {
@@ -419,6 +451,19 @@ impl Renderer {
             device.copy(&frame, size)?;
             self.rgba.clear();
             self.rgba.extend_from_slice(std::slice::from_raw_parts(device.readback_ptr(), size as usize));
+        }
+        #[cfg(test)]
+        if harness::KEEP_RGB8.load(Ordering::Relaxed) {
+            let mut last = harness::LAST_RGB8.lock().unwrap();
+            last.2.clear();
+            last.2.extend(self.rgba.chunks_exact(4).flat_map(|p| {
+                if swap {
+                    [p[2], p[1], p[0]]
+                } else {
+                    [p[0], p[1], p[2]]
+                }
+            }));
+            (last.0, last.1) = (width, height);
         }
         out.clear();
         out.extend(self.rgba.chunks_exact(4).map(|p| match swap {
@@ -742,7 +787,11 @@ impl Device {
             });
         recorded.map_err(|e| format!("recording the frame's readback: {e}"))?;
         self.gpu.submit(commands, None, vk::Semaphore::null(), self.fence)?;
+        #[cfg(test)]
+        let waiting = std::time::Instant::now();
         device.wait_for_fences(&[self.fence], true, u64::MAX).map_err(|e| format!("vkWaitForFences: {e}"))?;
+        #[cfg(test)]
+        harness::READBACK_WAIT_NS.fetch_add(waiting.elapsed().as_nanos() as u64, Ordering::Relaxed);
         device.reset_fences(&[self.fence]).map_err(|e| format!("vkResetFences: {e}"))
     }
 }

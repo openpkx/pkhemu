@@ -15,6 +15,7 @@
 		468E1AD6E95C96F277F90B63 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 1FBD8E62304ADD56B43852B6 /* PrivacyInfo.xcprivacy */; };
 		5A8323A1E20996FC45FFBD8B /* QuartzCore.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0E86883B79CF531E35DFB46C /* QuartzCore.framework */; };
 		6C90F43BC188BB33F1784042 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 5947787E38275609BF1D9A3B /* Metal.framework */; };
+		A1B2C3D4E5F6A7B8C9D0E1F2 /* GameController.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = F2E1D0C9B8A7F6E5D4C3B2A1 /* GameController.framework */; };
 		9D5CE039D36B6F2E37621508 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0F06C7708EF3B099F5B1B640 /* Security.framework */; };
 		9EA3C39A94652582BC9B2FF4 /* MetalKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 0333932DC10D776606CB4C88 /* MetalKit.framework */; };
 		C71E23AFD1107BABC0514EA1 /* CoreGraphics.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7E33D3A3D66800D9CE747F1C /* CoreGraphics.framework */; };
@@ -74,6 +75,7 @@
 		5472353E5A1BE95C66F7D9FE /* network.rs */ = {isa = PBXFileReference; path = network.rs; sourceTree = "<group>"; };
 		581C5456014FF236EFB562B2 /* desktop.rs */ = {isa = PBXFileReference; path = desktop.rs; sourceTree = "<group>"; };
 		5947787E38275609BF1D9A3B /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
+		F2E1D0C9B8A7F6E5D4C3B2A1 /* GameController.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = GameController.framework; path = System/Library/Frameworks/GameController.framework; sourceTree = SDKROOT; };
 		5AAF1E9EB3743AEECCF14008 /* states.rs */ = {isa = PBXFileReference; path = states.rs; sourceTree = "<group>"; };
 		5C5926E6220729ECBD84A473 /* desktop.rs */ = {isa = PBXFileReference; path = desktop.rs; sourceTree = "<group>"; };
 		5ECCC433A558F49A1B0748CB /* tests.rs */ = {isa = PBXFileReference; path = tests.rs; sourceTree = "<group>"; };
@@ -172,6 +174,7 @@
 				DF7B5F13A9E406F0FB0F1681 /* libapp.a in Frameworks */,
 				C71E23AFD1107BABC0514EA1 /* CoreGraphics.framework in Frameworks */,
 				6C90F43BC188BB33F1784042 /* Metal.framework in Frameworks */,
+				A1B2C3D4E5F6A7B8C9D0E1F2 /* GameController.framework in Frameworks */,
 				9EA3C39A94652582BC9B2FF4 /* MetalKit.framework in Frameworks */,
 				5A8323A1E20996FC45FFBD8B /* QuartzCore.framework in Frameworks */,
 				9D5CE039D36B6F2E37621508 /* Security.framework in Frameworks */,
@@ -447,6 +450,7 @@
 				8BFADD77E28886C0ECFF6391 /* libapp.a */,
 				A2A77A8C241334981EABA55E /* libsqlite3.tbd */,
 				5947787E38275609BF1D9A3B /* Metal.framework */,
+				F2E1D0C9B8A7F6E5D4C3B2A1 /* GameController.framework */,
 				0333932DC10D776606CB4C88 /* MetalKit.framework */,
 				0E86883B79CF531E35DFB46C /* QuartzCore.framework */,
 				0F06C7708EF3B099F5B1B640 /* Security.framework */,

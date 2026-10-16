@@ -70,15 +70,34 @@ const storeIcon = `<svg width="100" height="100" viewBox="0 0 100 100" xmlns="ht
   ${glyph}
 </svg>`;
 
+// resvg loads no fonts here, so the sideload build's badge spells JIT in 3×5 pixel letters.
+const JIT = ["001 111 111", "001 010 010", "001 010 010", "101 010 010", "111 111 010"];
+const JIT_PIXEL = 2.2;
+const jitPixels = JIT.flatMap((row, y) =>
+  [...row.replaceAll(" ", "0")].map((on, x) =>
+    on === "1" ? `M${37.9 + x * JIT_PIXEL} ${76.5 + y * JIT_PIXEL}h${JIT_PIXEL}v${JIT_PIXEL}h-${JIT_PIXEL}z` : "",
+  ),
+).join("");
+const sideloadIcon = storeIcon.replace(
+  "</svg>",
+  `  <rect x="31" y="74" width="38" height="16" rx="8" fill="#ffffff" />
+  <path d="${jitPixels}" fill="${PRIMARY}" />
+</svg>`,
+);
+
 // iOS applies its own mask and App Store validation rejects icons with an alpha channel.
 const ios = new URL("ios/", icons);
 const appIconSet = new URL("src-tauri/gen/apple/Assets.xcassets/AppIcon.appiconset/", app);
+const iosSideload = new URL("ios-sideload/", icons);
+mkdirSync(iosSideload, { recursive: true });
 for (const name of readdirSync(ios)) {
   const size = name.match(/^AppIcon-([\d.]+)(?:x[\d.]+)?@(\d)x(?:-\d+)?\.png$/);
   if (!size) continue;
-  const png = opaquePng(render(storeIcon, Number(size[1]) * Number(size[2])));
+  const pixels = Number(size[1]) * Number(size[2]);
+  const png = opaquePng(render(storeIcon, pixels));
   writeFileSync(new URL(name, ios), png);
   writeFileSync(new URL(name, appIconSet), png);
+  writeFileSync(new URL(name, iosSideload), opaquePng(render(sideloadIcon, pixels)));
 }
 
 mkdirSync(out, { recursive: true });

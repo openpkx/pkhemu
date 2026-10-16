@@ -21,10 +21,14 @@ import type { CalibrationsHost } from "@/input/calibrations";
 import { tauriCalibrationsHost } from "@/input/tauriHost";
 import type { ExperimentsHost } from "@/lab/lab";
 import { tauriExperimentsHost } from "@/lab/tauriHost";
+import type { JitHost } from "@/jit/jit";
+import { tauriJitHost } from "@/jit/tauriHost";
 import type { LibraryHost } from "@/library/library";
 import type { PatchRomHost } from "@/patch-rom/patchRom";
 import type { PlusHost } from "@/plus/plus";
 import { tauriPlusHost } from "@/plus/tauriHost";
+import type { RetroAchievementsHost } from "@/retro-achievements/retroAchievements";
+import { tauriRetroAchievementsHost } from "@/retro-achievements/tauriHost";
 import type { Preferences, PreferencesHost } from "@/preferences/preferences";
 import { tauriPreferencesHost } from "@/preferences/tauriHost";
 import type { ShadersHost } from "@/shaders/shaders";
@@ -40,9 +44,11 @@ export type Hosts = {
   preferences: PreferencesHost;
   gamesFolder: GamesFolderHost;
   plus: PlusHost;
+  jit: JitHost;
   appUpdate: AppUpdateHost;
   experiments: ExperimentsHost;
   sync: SyncHost;
+  retroAchievements: RetroAchievementsHost;
   back: BackHost;
   boxArt: BoxArtHost;
   export: ExportHost;
@@ -82,9 +88,11 @@ export const sharedPreferences: Omit<Preferences, "touchControls" | "asyncShader
 export const sharedHosts = {
   preferences: tauriPreferencesHost,
   plus: tauriPlusHost,
+  jit: tauriJitHost,
   appUpdate: tauriAppUpdateHost,
   experiments: tauriExperimentsHost,
   sync: tauriSyncHost,
+  retroAchievements: tauriRetroAchievementsHost,
   boxArt: tauriBoxArtHost,
   clipboard: tauriClipboardHost,
   calibrations: tauriCalibrationsHost,

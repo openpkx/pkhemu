@@ -160,7 +160,7 @@
     {
       "name": "Open-source system archives",
       "licence": "GPL-2.0-only",
-      "source": "https://github.com/pkhex-web/azahar/tree/f3381e6e2ec2682d9461f3789911bc05a1c25381/externals/open_source_archives"
+      "source": "https://github.com/pkhex-web/azahar/tree/1c0a269efd302a461dde717204c15d0560bf015f/externals/open_source_archives"
     },
     {
       "name": "Montserrat",
@@ -185,8 +185,9 @@
     },
     {
       "name": "dynarmic",
+      "version": "modified",
       "licence": "0BSD",
-      "source": "https://github.com/azahar-emu/dynarmic/tree/a46601580d5512d324104f985b5f0209dc980ddc"
+      "source": "https://github.com/pkhex-web/dynarmic/tree/ad6ccb58950eb2dbe4192aa4fe18e04d621e73df"
     },
     {
       "name": "mcl",
@@ -226,7 +227,7 @@
     {
       "name": "glad",
       "licence": "MIT",
-      "source": "https://github.com/pkhex-web/azahar/tree/f3381e6e2ec2682d9461f3789911bc05a1c25381/externals/glad"
+      "source": "https://github.com/pkhex-web/azahar/tree/1c0a269efd302a461dde717204c15d0560bf015f/externals/glad"
     },
     {
       "name": "LibreSSL",
@@ -251,7 +252,7 @@
     {
       "name": "JSON for Modern C++",
       "licence": "MIT",
-      "source": "https://github.com/pkhex-web/azahar/tree/f3381e6e2ec2682d9461f3789911bc05a1c25381/externals/json"
+      "source": "https://github.com/pkhex-web/azahar/tree/1c0a269efd302a461dde717204c15d0560bf015f/externals/json"
     },
     {
       "name": "sirit",
@@ -323,6 +324,17 @@
       "name": "cereal",
       "licence": "BSD-3-Clause",
       "source": "https://github.com/KhronosGroup/MoltenVK/tree/v1.4.2/ExternalRevisions"
+    },
+    {
+      "name": "rcheevos",
+      "version": "12.5.0",
+      "licence": "MIT",
+      "source": "https://github.com/RetroAchievements/rcheevos/tree/v12.5.0"
+    },
+    {
+      "name": "md5 (rcheevos)",
+      "licence": "Zlib",
+      "source": "https://github.com/RetroAchievements/rcheevos/tree/v12.5.0/src/rhash"
     }
   ],
   "engine": [

@@ -74,6 +74,11 @@ export function usePresence<T>(value: T | undefined) {
   return { ref, shown, state: leaving ? "closed" : "open" } as const;
 }
 
+export async function settled(element: Element | null) {
+  const animations = element?.getAnimations?.({ subtree: true }) ?? [];
+  await Promise.allSettled(animations.map((animation) => animation.finished));
+}
+
 const staggered = new Set<string>();
 
 export function useStaggerOnce(key: string, ready: boolean) {

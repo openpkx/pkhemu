@@ -1,0 +1,23 @@
+[package]
+name = "jit-helper"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+description = "The sideload build's app extension that attaches to the app through debugserver to turn its JIT on."
+
+[[bin]]
+name = "JITHelper"
+path = "src/main.rs"
+
+[dependencies]
+idevice = { version = "=0.1.68", default-features = false, features = ["ring", "remote_pairing", "rsd", "tunnel_tcp_stack", "debug_proxy", "mobile_image_mounter", "cryptexd"] }
+plist = "1"
+tokio = { version = "1", features = ["rt", "net", "time", "io-util", "macros"] }
+
+[target.'cfg(target_os = "ios")'.dependencies]
+objc2 = "0.6"
+objc2-foundation = { version = "0.3.2", default-features = false, features = ["std", "block2", "NSArray", "NSData", "NSDictionary", "NSError", "NSExtensionContext", "NSExtensionItem", "NSExtensionRequestHandling", "NSFileManager", "NSObject", "NSString", "NSURL", "NSValue"] }
+block2 = "0.6"
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt", "net", "time", "io-util", "macros", "test-util"] }

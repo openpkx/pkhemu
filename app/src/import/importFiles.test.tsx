@@ -7,6 +7,7 @@ import { GamesFolderProvider, type GamesFolderHost } from "@/games-folder/gamesF
 import { fakeFolder } from "@/library/fakeFolder";
 import { LibraryProvider, type LibraryHost } from "@/library/library";
 import { LibraryScreen } from "@/library/LibraryScreen";
+import type { ConflictSaveHost } from "@/sync/ConflictSheet";
 import { fakeSync } from "@/sync/fakeSync";
 import { SyncProvider } from "@/sync/sync";
 import { systems } from "@/systems";
@@ -79,6 +80,13 @@ function renderImport(
   },
 ) {
   const list = fakeFolder(paths);
+  const saveHost: ConflictSaveHost = {
+    readSave: async () => null,
+    saveSummary: async () => null,
+    keepSaveSummary: async () => {},
+    saveFormat: async () => null,
+    stateScreenshot: async () => null,
+  };
   const library: LibraryHost = {
     listDir: (_folder, path) => list(path),
     recentlyPlayed: async () => [],
@@ -97,7 +105,7 @@ function renderImport(
             <LibraryProvider host={library} folder="/games" onOpen={() => {}} onPlay={() => {}}>
               <ImportProvider host={host}>
                 <PatchRomProvider host={patchHost}>
-                  <LibraryScreen systems={systems} onSettings={() => {}} />
+                  <LibraryScreen host={saveHost} folder="/games" systems={systems} onSettings={() => {}} />
                 </PatchRomProvider>
               </ImportProvider>
             </LibraryProvider>

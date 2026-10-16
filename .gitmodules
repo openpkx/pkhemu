@@ -48,3 +48,6 @@
 	path = vendor/azahar
 	url = https://github.com/pkhex-web/azahar
 	branch = pkh-emu
+[submodule "vendor/rcheevos"]
+	path = vendor/rcheevos
+	url = https://github.com/RetroAchievements/rcheevos

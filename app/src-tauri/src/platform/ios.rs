@@ -7,6 +7,7 @@ use tokio::sync::oneshot;
 use crate::emu::{Command, Emu, Playing};
 use crate::sync;
 
+mod ios_controller_buttons;
 mod ios_first_responder;
 mod ios_safe_area;
 
@@ -19,6 +20,7 @@ pub fn plugins<R: Runtime>(builder: Builder<R>) -> Builder<R> {
         .plugin(tauri_plugin_haptics::init())
         .plugin(ios_safe_area::init())
         .plugin(ios_first_responder::init())
+        .plugin(ios_controller_buttons::init())
         .plugin(crate::system_bars::platform::init())
 }
 

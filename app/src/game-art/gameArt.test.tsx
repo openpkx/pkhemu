@@ -99,6 +99,26 @@ it("falls back to whichever of the menu icon and front sprite exists", async () 
   await waitFor(() => expect(screen.getByRole("img", { name: "Large" }).getAttribute("src")).toBe(dataUrl(2)));
 });
 
+it("uses form 0's menu icon when the form has none of its own", async () => {
+  const art = fakeGameArt({ games: { "game.gba": sha1 }, art: { [sha1]: { "icon-664-0": png(1) } } });
+
+  show(art, <PokemonArt pokemon={{ speciesId: 664, form: 7, species: "Scatterbug" }} size={12} />);
+
+  await waitFor(async () =>
+    expect((await screen.findByRole("img", { name: "Scatterbug" })).getAttribute("src")).toBe(dataUrl(1)),
+  );
+});
+
+it("uses a form's own menu icon over form 0's", async () => {
+  const art = fakeGameArt({ games: { "game.gba": sha1 }, art: { [sha1]: { "icon-666-0": png(1), "icon-666-7": png(2) } } });
+
+  show(art, <PokemonArt pokemon={{ speciesId: 666, form: 7, species: "Vivillon" }} size={12} />);
+
+  await waitFor(async () =>
+    expect((await screen.findByRole("img", { name: "Vivillon" })).getAttribute("src")).toBe(dataUrl(2)),
+  );
+});
+
 function reducedMotion(reduce: boolean) {
   const listeners = new Set<() => void>();
   const query = {
@@ -529,6 +549,37 @@ it("borrows a sprite for each Pokémon a 3DS game has none for above icon size",
 
 it("shows a 3DS game's own icon over a lent one at icon size", async () => {
   showX(withX(), <PokemonArt pokemon={pikachu} size={8} />);
+
+  await waitFor(async () => expect((await image()).getAttribute("src")).toBe(dataUrl(6)));
+});
+
+it("borrows an older generation's form icon over a newer one's form 0 icon", async () => {
+  const art = library([
+    { sha1: x, generation: 6, art: { "icon-25-3": png(6) } },
+    { sha1: "7".repeat(40), generation: 7, art: { "icon-25-0": png(7) } },
+  ]);
+
+  showStadium(art, <PokemonArt pokemon={{ ...pikachu, form: 3 }} size={8} />);
+
+  await waitFor(async () => expect((await image()).getAttribute("src")).toBe(dataUrl(6)));
+});
+
+it("borrows a form's own icon over a 3DS game's form 0 icon", async () => {
+  const art = library(
+    [
+      { sha1: x, generation: 6, art: { "icon-25-0": png(6) } },
+      { sha1: black, generation: 5, art: { "icon-25-3": png(5) } },
+    ],
+    { games: { "3ds/X.cxi": x }, statuses: { "3ds/X.cxi": "done" } },
+  );
+
+  showX(art, <PokemonArt pokemon={{ ...pikachu, form: 3 }} size={8} />);
+
+  await waitFor(async () => expect((await image()).getAttribute("src")).toBe(dataUrl(5)));
+});
+
+it("shows a 3DS game's own form 0 icon when no lent game has the form's icon", async () => {
+  showX(withX(), <PokemonArt pokemon={{ ...pikachu, form: 3 }} size={8} />);
 
   await waitFor(async () => expect((await image()).getAttribute("src")).toBe(dataUrl(6)));
 });

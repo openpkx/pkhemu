@@ -78,7 +78,7 @@ Without art, the hero's ground is the system's hero ground, `#1e1247` for GBA, w
 
 ### Touch controls
 
-In portrait the game screen wears the system's chosen skin (`skins.ts`): a photo of console plastic drawn once behind the header, the screens and the controls, anchored to the top and scaled to cover, over the skin's base colour. It covers the safe areas too, and ignores the app's light or dark theme. The header goes transparent over it, with text and icons in the skin's tone, and the system bars' icons follow that tone while the game is open. Each game screen sits on a plate below an opening in the shell, the wall colour at 30% brightness, with a shadow under the shell's lip that's darkest along the top. The walls take the skin's screen border colour in Moulded when it has one, and its base colour otherwise. The WebGL pass in `screen.ts` draws the opening, its walls when the tilt shows them, and the glass when Screen glass is on, so CSS layers never cover it, and leaves the canvas clear outside the opening's rounded corners so the plastic shows through. With the native renderer the plastic has a rounded hole over each window, a device pixel inside its edge, and the native surface draws the opening under it. Each system's `handheld` entry in `systems.ts` sets the opening: a 4dp margin around the game, reserved first so `fit.ts` scales the game into the space left by its usual rules, and a depth per window. DS and 3DS get one window per screen, with an 8dp strip of plastic between them when stacked, and a touchscreen at half depth. A system without an entry, and landscape, keep the game area black. The screen sits at the top of the game area, 24px in from the sides and the top, with "pkhemu" printed under it in Pixelify Sans and the print colour, except on DS and 3DS.
+In portrait the game screen wears the system's chosen skin (`skins.ts`): a photo of console plastic drawn once behind the header, the screens and the controls, anchored to the top and scaled to cover, over the skin's base colour. The photo stops growing at 960px tall, about the largest phone, so on a tablet its pattern keeps phone scale and stays sharp. Mirrored copies beside and below it cover the rest, so every seam lines up. It covers the safe areas too, and ignores the app's light or dark theme. The header goes transparent over it, with text and icons in the skin's tone, and the system bars' icons follow that tone while the game is open. Each game screen sits on a plate below an opening in the shell, the wall colour at 30% brightness, with a shadow under the shell's lip that's darkest along the top. The walls take the skin's screen border colour in Moulded when it has one, and its base colour otherwise. The WebGL pass in `screen.ts` draws the opening, its walls when the tilt shows them, and the glass when Screen glass is on, so CSS layers never cover it, and leaves the canvas clear outside the opening's rounded corners so the plastic shows through. With the native renderer the plastic has a rounded hole over each window, a device pixel inside its edge, and the native surface draws the opening under it. Each system's `handheld` entry in `systems.ts` sets the opening: a 4dp margin around the game, reserved first so `fit.ts` scales the game into the space left by its usual rules, and a depth per window. DS and 3DS get one window per screen, with an 8dp strip of plastic between them when stacked, and a touchscreen at half depth. A system without an entry, and landscape, keep the game area black. The screen sits at the top of the game area, 24px in from the sides and the top, with "pkhemu" printed under it in Pixelify Sans and the print colour, except on DS and 3DS.
 
 Over a skin the controls take one of two looks (`skin-look/`). Every colour, shadow, blur, inset and rotation they use is a `--skin-` variable that `lookVariables` sets from the skin and look, and `blendLooks` mixes two sets for the picker's animations, with colours premultiplied so a fade to transparent never darkens. Both looks share the layout and the hit areas, so switching looks moves nothing. `TouchControls.tsx` marks each part with `data-part`, which `skinLook.css` styles under `[data-skin]`.
 
@@ -87,7 +87,11 @@ Over a skin the controls take one of two looks (`skin-look/`). Every colour, sha
 
 A pressed button darkens, and a pressed D-pad arm lightens on a dark D-pad. In Frosted both lighten.
 
-Without a skin, as in landscape, buttons and the D-pad use the `--pad` tokens, `#1f1c33` with an `#3a3652` outline in dark. A and B, X and Y on DS and 3DS, and Z on N64 use the `--pad-face` tokens, `#2a2152` with a `#5b45c4` outline. A pressed button takes the next step lighter, or darker in light theme. Labels use Pixelify Sans. A mode toggle that's on, such as Fast-forward, fills with the primary. In landscape the controls lie over the game at 70% opacity.
+Without a skin, as in landscape, buttons and the D-pad use the `--pad` tokens, `#1f1c33` with an `#3a3652` outline in dark. A and B, X and Y on DS and 3DS, and Z on N64 use the `--pad-face` tokens, `#2a2152` with a `#5b45c4` outline. A pressed button takes the next step lighter, or darker in light theme. Labels use Pixelify Sans. A mode toggle that's on, such as Fast-forward, fills with the primary. In landscape the controls lie over the game at 70% opacity. On a phone they mostly sit on black beside it. In a landscape window closer to square than 5:3, like an iPad or a small Stage Manager window, the game shrinks to stay clear of both sides, unless that would take it below its own size.
+
+A portrait window shorter than a phone, under 640pt tall like a small Stage Manager window, takes the landscape layout too: no skin, no header while the controls show, and the controls over the game, which fills the window's width under them. Below the game they'd leave it a stamp. A DS keeps portrait in one at least 432pt wide and 580pt tall, where keeping its touch screen clear of the controls at the sides would shrink it more (`portraitLayout.ts`). Everywhere else on this page, portrait and landscape mean these two layouts.
+
+In a portrait window bigger than a phone's, the controls grow with it. Every size in them scales by the window's width over 600px or its height over 880px, whichever is smaller, never below 1 and at most 1.4 (`padScale.ts`). Phones keep the sizes on this page, Split View at half width gets about 1.14×, the 11" iPad Pro 1.375× and the 13" 1.4×. Labels, printed letters and the pills' rubber scale with them. Shadows and outlines don't. Both sides stay in the bottom corners, under the thumbs, and the game takes the rest of the height. Landscape keeps phone sizes, since the controls lie over the game or take room from it there.
 
 In landscape the game screen drops its header while the touch controls show, so the game starts at the top edge. A game that fails to load keeps it. The ☰ in the controls opens the pause menu, which ends with Quit. When a gamepad or keyboard takes over, the controls hide and the header comes back.
 
@@ -97,7 +101,7 @@ The app is pkhemu: one word, lowercase, also at the start of a sentence. Players
 
 ### Screenshots
 
-`app/screenshots/` renders screens with the test fakes and captures them at 390px and 1280px in both themes, with a touch pointer and a mouse. The playing screens are shot with touch only, at 390×844 and 844×390. Its README says how to run it. A change to the look adds the screens it touches and attaches before and after shots to its PR.
+`app/screenshots/` renders screens with the test fakes and captures them at 390px and 1280px in both themes, with a touch pointer and a mouse. The playing screens are shot with touch only, at 390×844 and 844×390. `--ipad` shoots every screen at iPad sizes, in Split View and in small Stage Manager windows. Its README says how to run it. A change to the look adds the screens it touches and attaches before and after shots to its PR.
 
 ### Icon
 
@@ -153,6 +157,8 @@ A menu's first line can be a short muted note about the item, as in the game pag
 
 A 3DS game's ⋯ menu has "Install update…", which opens the import picker. An installed update shows as "Update v5232" in a muted hero line under the version line, with the title version from its TMD.
 
+A game with no save, or a save the engine can't read, has no Save card. Its actions move to the game's ⋯ menu, after "Re-extract game art": "Export save" for a save it can't read, then "Backups" when the game has any.
+
 Actions that take the item away go last, below a separator: the game page's "Remove from this device", shown only while Sync games is on, and a destructive "Delete…". Delete asks first in an alert dialog that says where the game is removed from: all devices while signed in to sync, this device otherwise. Both return to the library with a toast like "Deleted Ruby". Delete goes back as soon as it's confirmed and hides the game while it deletes. If that fails, the game comes back with a toast like "Couldn't delete Ruby. {reason}".
 
 ## Dialogs that make something
@@ -165,7 +171,7 @@ Before an action that starts from the save, warn when play isn't in it yet. The 
 
 ## Box art and screenshots
 
-Show box art or a screenshot over a blurred, darkened copy of itself that fills the space, so art of any shape fits. Draw screenshots with pixelated scaling and box art smooth. A library tile prefers box art, then the game's last screen. On library tiles and the Continue card, box art fades in from transparent at the top-left corner to opaque 20% along the diagonal, over the system's dot grid, with the system chip in that corner and the name hidden. The game page hero and the pause menu show box art unfaded. The last screen fills the tile, with the system chip top left and the name in white over a dark gradient from the bottom. A DS or 3DS last screen shows its top screen only, filling the tile from its top edge. A tile with neither shows the chip top left and the name bottom left over the system's dot grid, fading out from the top-left corner. Without art, the game page uses the system's hero ground and dot grid.
+Show box art or a screenshot over a blurred, darkened copy of itself that fills the space, so art of any shape fits. Draw screenshots with pixelated scaling and box art smooth. A library tile prefers box art, then the game's last screen. On library tiles and the Continue card, box art fades in from transparent at the top-left corner to opaque 20% along the diagonal, over the system's dot grid, with the system chip in that corner and the name hidden. The game page hero and the pause menu show box art unfaded. The last screen fills the tile, with the system chip top left and the name in white over a dark gradient from the bottom. A DS or 3DS last screen shows its top screen only, on tiles, the game page hero and the Resume button, filling the tile from its top edge. A tile with neither shows the chip top left and the name bottom left over the system's dot grid, fading out from the top-left corner. Without art, the game page uses the system's hero ground and dot grid.
 
 ## Choosing box art
 
@@ -201,9 +207,9 @@ A library tile shows what sync is doing with its game in a small dark round pill
 
 A cloud-only game keeps its cloud pill and shows the ring left of it only while its ROM downloads.
 
-On a computer, hovering the badge shows a Tooltip with the stage, such as "Uploading ROM · 46%", "Downloading update · 12%" or "Waiting for Wi-Fi". The badge's accessible label is the same text. On a phone, tapping the badge opens the game like the rest of the tile.
+On a computer, hovering the badge shows a Tooltip with the stage, such as "Uploading ROM · 46%", "Downloading update · 12%" or "Waiting for Wi-Fi". The badge's accessible label is the same text. Tapping the badge opens the game like the rest of the tile, except a conflict's. That one is a button labelled "Changed on another device. Choose a version to keep", and it opens the conflict sheet (see Sync conflicts) over the library. The badges sit beside the tile's button, not inside it, so the conflict badge isn't a button in a button.
 
-The game page's hero shows the same text in a muted line under the play history, or "Last synced 5 minutes ago" when the game is idle, and "Not synced yet" before its first sync. Signed out of sync, the line is hidden.
+The game page's hero shows the same text in a muted line under the play history, or "Last synced 5 minutes ago" when the game is idle, and "Not synced yet" before its first sync. A conflict's line, "Changed on another device", is amber (`text-overlay-warning`) with the alert icon, over a small secondary "Choose version" button that opens the same sheet. Once every version is picked, the sheet closes and the game syncs again. Signed out of sync, the line is hidden.
 
 The ring fills in `medium2` with standard easing, and the tick draws in `medium2` with emphasized decelerate. The badge fades in and out in `short4`. With reduced motion, the ring jumps to its new fill and the tick appears without drawing.
 
@@ -219,9 +225,9 @@ When game art has no image for a Pokémon, show a neutral tile with its national
 
 ## Two screens
 
-DS and 3DS games show both screens at one scale, picked like a single screen's. They stack or sit side by side, top screen first, whichever makes them bigger. For DS that means stacking when the space is less than 4:3 wide. The 3DS's narrower bottom screen sits centred under the top one, or beside it at its own width. The Swap screens button in the game's header exchanges them, as does the pause menu's Swap screens entry below Fast-forward. Only the bottom screen takes touch or clicks, wherever it sits.
+DS and 3DS games show both screens at one scale, picked like a single screen's. They stack or sit side by side, top screen first, whichever makes them bigger. For DS that means stacking when the space is less than 4:3 wide. The 3DS's narrower bottom screen sits centred under the top one, or beside it at its own width. In a landscape window the 3DS shows the top screen large with the bottom one beside it at half its scale. Where the controls on both sides leave the space no wider than tall, as at 1376×1032, the screens stack instead. A portrait window keeps both at one scale, even where the controls below leave the space wider than tall. The Swap screens button in the game's header exchanges them, as does the pause menu's Swap screens entry below Fast-forward. Only the bottom screen takes touch or clicks, wherever it sits.
 
-With touch controls showing, the two screens stay clear of them, since the bottom one takes touches. In portrait the controls sit below. In landscape the touch screen stays clear of the controls on its side, with 0.5rem to spare beside the 9rem side, and the other screen may lie under the far side's controls at their 70%. At 844×390 they sit side by side. DS face buttons form a diamond with X on top and Y on the left.
+With touch controls showing, the two screens stay clear of them, since the bottom one takes touches. In portrait the controls sit below. In landscape the touch screen stays clear of the controls on its side, with 0.5rem to spare beside the 9rem side, and the other screen may lie under the far side's controls at their 70%. In a window closer to square than 5:3 both screens stay clear of both sides. Where staying clear would take them below their own size, they lie under the controls like a single screen. At 844×390 they sit side by side. DS face buttons form a diamond with X on top and Y on the left.
 
 ## 3DS controls
 
@@ -305,13 +311,57 @@ Toasts sit at the top of the screen as dark pills, as in "Sent 3 to Platinum" af
 
 On Android, an update from Google Play gets a toast on the library, never over a game. "New version available · Update" shows at most once per launch. Once it times out, it stays away until Play has a newer version. Once the update downloads, "Update downloaded · Restart" shows on every launch until the player restarts.
 
+## Achievement unlocks
+
+An unlock shows as a 34px pill at the top of the game's toast stack: the badge at 24px in a 2px ring, then "Boulder Badge · 10 pts", the title 12px semibold and the points 11px muted. It's at most the game screen's width minus 12px, and the title ends in an ellipsis. A badge that isn't downloaded yet shows the pkhemu glyph. The pill is a `role="status"` labelled with the title, points and description. Build it with `UnlockNotifications`.
+
+It's coloured from the system's chosen skin, in every orientation: the skin's `base` fills it, `moulded.face` rings the badge, and `tone` picks white or `#16131f` text. The points are the text at 74% over the fill. Where that reads under 4.5:1, the fill moves toward black on dark skins, or white on light ones, in 4% steps until it passes. `theme/contrast.test.ts` checks every skin.
+
+It drops in at badge size, grows to full width and holds 5s, then shrinks back and rises out. A swipe up or sideways past 70px, or a flick, flings it out, a drag down rubber-bands, and a short drag springs back. A finger on it, a mouse over it or a paused game holds the timer. With a mouse, hovering shows a Dismiss text button at the right over a fade into the fill. Gamepads and keys don't touch it.
+
+Unlocks play one at a time and wait while the game is paused. When 4 or more are waiting, the first plays and the rest fold into one "+4 more achievements" pill. One already showing counts as the first.
+
+Completing a set plays in the same queue as a 40px pill with a 30px badge: "Mastered Emerald · 1,240 pts" in hardcore, "Completed Emerald · 1,240 pts" in softcore, with the game's badge and the set's points. It holds 7s, and one shine crosses it once it has grown. It never folds into "+N more".
+
+A tap on an unlock dismisses it, pauses the game and opens its details sheet. A tap on "+4 more achievements" or on a completed set opens the list instead.
+
+## Achievement indicators
+
+While playing, rcheevos' indicators sit 6px inside the bottom-right of the game's screens, in the unlock notification's colours. A measured achievement that moves forward shows a 22px pill with its 16px badge and "47/100" for 2s, then fades. A newer update replaces it and starts the 2s again, and a paused game holds it. A live challenge shows its 16px badge in a 24px circle ringed in `moulded.face` until rcheevos ends it, to the right of the progress pill. A running leaderboard, hardcore only, shows its tracker ("1:23.45") in a text-only 22px pill between the progress pill and the challenges until rcheevos hides it. Leaderboard messages show in a text-only 22px pill above that row, cut with an ellipsis at 240px: "Leaderboard started · Fastest Elite Four" for 2s, "Submitted 1:23.45" for 3s and "Leaderboard failed" for 2s. A newer message replaces the one showing, and a paused game holds it. Each is a `role="status"`. Build them with `AchievementIndicators`, passed to `Player` as its `corner`.
+
+## Achievement list
+
+Signed in to RetroAchievements, a game with a set gets an Achievements entry in the pause menu, below Cheats, with the tally in muted text on its right, and an Achievements card on its game page, below the Save card. The card shows the tally, a progress bar and an outline "All achievements" button. Its heading row ends with the player's username and a chevron, which open the RetroAchievements page. The tally reads "34/72 · 410 pts", the unlocked count over the set's, then the unlocked points. 3DS games, cloud-only games and games without a set show neither.
+
+Both open a full-screen list headed "Achievements" with the tally on the header's right. Locked achievements come first, then unlocked ones, each in the set's order. A row has the 40px badge, greyed while locked, the title with its points on the right, the description, and a muted line: when it unlocked and in which mode, as in "Today 14:32 · Softcore", or a measured one's progress, as in "47/100". The page lists a game from RetroAchievements and keeps the last list for when it's offline. The game's list comes from rcheevos while it runs, with the progress.
+
+A tap on a row opens the details sheet, a bottom sheet that a wide screen centres. It shows the 64px badge, in a primary ring once unlocked, beside a small uppercase kicker, "Achievement unlocked · 25 pts" or "Locked · 25 pts", and the title. Below are the description, then rows for Points, Unlocked or Progress, and "Players who have it". Over the game it ends with an outline "All achievements" and a primary Resume. Resume, or closing a sheet the notification opened, resumes the game, and unlocks wait until then. A sheet opened from the list closes back to it. On the game page it ends with Close.
+
+## Hardcore
+
+The RetroAchievements page has a Hardcore switch above Sign out, off by default and kept on this device. Its muted line says what it locks, and a smaller line says it applies from the next launch. Turning it off while a game runs in hardcore drops that game to softcore.
+
+A game with a set launches in hardcore while the switch is on. A launch that would resume from a state, the resume point or a slot, first asks "Resume in softcore?" with an outline "Restart (hardcore)" and a primary "Resume (softcore)". Restart boots from the save in game. A save pkhemu changed then warns in an "Edited save" dialog, with an outline "Play hardcore anyway" and a primary "Play in softcore". The back gesture in either quits the game.
+
+In hardcore, the pause menu's Edit save, Undo last edit, Load state, Undo load state and Cheats stay enabled but ask first in an alert dialog titled with what ends hardcore, as in "Cheats end hardcore until you restart the game", with Cancel and a primary "Switch to softcore". Cancel returns to the pause menu. Fast-forward and Save state don't ask.
+
+## Before a game boots
+
+A question about how a game starts, such as the hardcore ones, holds the game on its loading screen until it's answered. Each asks in turn after sync has checked the other devices. The back gesture and Escape quit the game.
+
+When the sideload build was signed without extended virtual addressing or the increased memory limit, a 3DS game first warns "Nintendo 3DS games may crash". It names what's missing and says how to get it: a paid Apple developer account gets both, and AltStore on a free account gets the memory limit. Back is secondary and "Play anyway" primary. It asks at every boot, since the signature doesn't change until the app is installed again.
+
 ## Settings rows
 
 Settings sit in titled cards. Each row puts its label on the left and its control on the right. An on/off setting uses a Switch. A choice between a few values, such as fast-forward speed or theme, uses a single-select outline ToggleGroup with one item per value. When the values' names are too long for a ToggleGroup, as with the renderer, use a Select. A number uses `NumberInput`, a short InputGroup with its unit as an inline-end addon; a setting made of several numbers puts one per unit side by side. A line of muted text under the row says what the setting does now, with an outline Reset button on its right while the setting is off its default. A small muted line under that holds any caveat. A card that saves settings shows the save error below its last row.
 
+On a narrow screen, a switch stays on the right and its label wraps. A wider control, such as a toggle group, a number or a select, drops below its label, at the left. A card never grows past its width.
+
 Settings shows background work, such as extracting game art, as a muted line like "Extracting · 3 of 12 games" over a Progress bar. When the work is idle, both are hidden. An outline button below starts the work again.
 
-Playing has Fewer 3DS freezes after Renderer, on by default where the core can draw while shaders compile.
+Playing has Fewer 3DS freezes after Renderer, on by default.
+
+The sideload build has a JIT card after Playing. While JIT is off, a muted line says StikDebug can turn it on until the app closes, over an outline "Enable JIT" button that opens StikDebug. Beside it, an outline "Import pairing file" opens the document picker for a `.mobiledevicepairing` or `.plist` file. A rejected file shows why in destructive text, naming the keys it's missing. An older file without the RemotePairing keys gets a line asking for a new one from iloader. Once JIT is on, the line says so and the buttons go. With a pairing file set, a row reads "Pairing file set" with an outline Remove button on its right, whether JIT is on or off, and importing another replaces it. Store builds leave the card out of their bundle. Other builds have no JIT card.
 
 Appearance has Screen depth and Screen glass after Skins. Screen depth shows only where the device can read tilt.
 
@@ -327,9 +377,15 @@ In a store build, signing in to sync needs Plus. Without it, the signed-out card
 
 While the player is signed in to sync, the app fetches a game's changes before it starts. The starting screen shows "Checking your other devices…" for up to 5s, and when the check fails or runs out of time, the game starts anyway with a toast saying it couldn't check.
 
+A RetroAchievements card follows Sync. Once the player signs in, it moves to the top of Settings, above Games folder, and acts as their profile. Its one row opens the RetroAchievements page and reads "Sign in to earn achievements", or, once the player signs in, their 32px avatar, username, and a muted line like "1,240 hardcore · 85 softcore points". Signed out, the page has Username and Password fields, a primary Sign in, an outline "Create an account" that opens retroachievements.org, and a muted line saying pkhemu doesn't store the password. Signed in, it shows the 64px avatar beside the username, then Hardcore points and Softcore points side by side. Below are "Recent unlocks", the last 5 across games in the achievement list's rows with the game before the time, each opening its details sheet with Close. Then an outline "View profile on RetroAchievements", the page's switches, and an outline Sign out last, below a separator. The page fetches the summary each time it opens. Offline, it shows the last one it fetched, with a muted line saying so, and a dash for points it has never fetched. RetroAchievements has no list of unlocks across games, so the recent ones come from the games' lists pkhemu keeps. An unlock shows over the game as an unlock notification (see Achievement unlocks).
+
+## Coffee
+
+Only the sideload build asks for a coffee, and a coffee unlocks nothing. A "Buy me a coffee" card follows the RetroAchievements card wherever that sits. A muted line says Sync is free in this build and a coffee helps keep pkhemu going, over an outline "Open Ko-fi" button. After 2 hours of play across all games, the library asks once in a dialog, "Enjoying pkhemu?". It says Sync is part of Plus on the App Store and stays free here, and offers a primary "Buy me a coffee", which opens Ko-fi, beside "Already did" and "No thanks". Any button, Escape or the back gesture closes it for good. Store builds leave out the card, the dialog and the link, and their build scripts fail when the bundle has the Ko-fi link.
+
 ## Sync conflicts
 
-When the check finds a sync conflict, a sheet titled "This game changed on another device" opens before the game starts. A phone shows it as a bottom sheet, and a wide screen centres it. A conflicted save gets two cards side by side, "This device" and "Cloud". Each card shows the device it was saved on and when, then play time, badges and Pokédex from `ProgressStats` when the engine reads that version. A version written with cheat codes on gets an outline "Cheats on" badge. Each conflicted slot gets a row headed "Slot 2" with the same two cards, each with the slot's screenshot above it. Tapping a card keeps that version, and the game starts once every row has a pick. Closing the sheet returns to the game page and keeps the conflict for next time.
+When the check finds a sync conflict, a sheet titled "This game changed on another device" opens before the game starts. A phone shows it as a bottom sheet, and a wide screen centres it. A conflicted save gets two cards side by side, "This device" and "Cloud". Each card shows the device it was saved on and when, then play time, badges and Pokédex from `ProgressStats` when the engine reads that version. A version written with cheat codes on gets an outline "Cheats on" badge. Each conflicted slot gets a row headed "Slot 2" with the same two cards, each with the slot's screenshot above it. Tapping a card keeps that version, and the game starts once every row has a pick. Closing the sheet returns to the game page and keeps the conflict for next time. The same sheet opens from a tile's conflict badge or the game page's Choose version button. There the last pick closes it instead of starting the game.
 
 ## Capturing input
 
@@ -344,6 +400,8 @@ The Controls settings card starts with the Touch controls switch and, while it's
 ## Going back
 
 Every screen with a Back button also goes back with the back gesture on Android, a swipe from the left edge on iOS, and Escape, Cmd+Left, Cmd+[ or Alt+Left on a keyboard. Cmd+Left and Alt+Left leave text fields alone, where they move the cursor. In a game, going back opens the pause menu. On iOS a swipe that starts on the game or its header does nothing. Sheets and screens over the game still go back with it. Mark any other play area with `data-no-back-swipe`. On the library, going back does nothing.
+
+Back closes the topmost sheet or dialog before it leaves a screen. `Dialog` and `AlertDialog` do this for every surface built on them. A dialog that needs other behaviour, like the hardcore prompts that quit the game, leaves out `onOpenChange` and handles back itself.
 
 ## Loading
 
@@ -369,7 +427,7 @@ The relationship between two screens picks the transition, and the call that cha
 
 Back plays the forward transition in reverse. Screens enter in `medium4` with emphasized decelerate and leave in `short4` with emphasized accelerate. A container transform takes `long2` with emphasized easing. No animation blocks input, and Back during a transition skips to its end and starts the next one.
 
-Surfaces enter from the edge they're attached to and leave the same way. Bottom sheets slide up, side panels slide in from their side, and centered dialogs fade in and scale up from 95%, all entering in `medium2` with emphasized decelerate and leaving in `short3` with emphasized accelerate. Toasts drop from the top. Menus, comboboxes and tooltips grow from the element that opened them. Menus, toasts and the bottom bar enter in `short4` and leave in `short2`. Every modal surface has a dimmed scrim with an 8px backdrop blur.
+Surfaces enter from the edge they're attached to and leave the same way. Bottom sheets slide up, side panels slide in from their side, and centered dialogs fade in and scale up from 95%, all entering in `medium2` with emphasized decelerate and leaving in `short3` with emphasized accelerate. Toasts drop from the top. Menus, comboboxes and tooltips grow from the element that opened them. Menus, toasts and the bottom bar enter in `short4` and leave in `short2`. Every modal surface has a dimmed scrim with an 8px backdrop blur. An achievement unlock (`motion-unlock`) drops in over `medium4` with emphasized decelerate, then grows from its badge to full width over `long2` with emphasized easing, its text fading in over `short4` from 260ms into the growth. Leaving, its text fades in `short2`, it shrinks to the badge in `medium2` and rises out in `short4`, both with emphasized accelerate. A fling leaves in `short4` and a spring back takes `short4` with emphasized easing. A completed set's shine crosses it in `extra-long3` with emphasized easing. The progress indicator and the leaderboard pills (`motion-indicator`) rise 6px and fade in over `short4` with emphasized decelerate, and fade out in `short3`.
 
 Build the bottom bar with `BottomBar`. To let a surface play its exit, keep it mounted and close it through its prop: `open` on `BottomBar`, `BottomSheet` and `MenuDialog`, and an empty message on `Toast`.
 
@@ -379,6 +437,6 @@ Tappable tiles and cards scale to 97% while pressed. Give them the `motion-press
 
 A Skeleton crossfades into its content. Wrap both in `WithSkeleton` from `components/`, passing the Skeleton as `skeleton` and the content as children. An "Updating…" refresh crossfades only the values that changed: wrap each value's element in `<Crossfade value>`, which fades the element in when `value` changes but not when it first appears or goes from undefined to a value. Crossfades take `short4` with standard easing.
 
-D-pad focus moves instantly. Nothing animates while a game is running and unpaused, apart from toasts, touch-control press feedback and the portrait screen recess following device tilt, so a screen that closes back into the running game uses a plain state update, not `navigate`.
+D-pad focus moves instantly. Nothing animates while a game is running and unpaused, apart from toasts, achievement unlocks and indicators, touch-control press feedback and the portrait screen recess following device tilt, so a screen that closes back into the running game uses a plain state update, not `navigate`.
 
-With `prefers-reduced-motion`, transitions turn into a short crossfade and stagger turns off. The app has no setting of its own for this.
+With `prefers-reduced-motion`, transitions turn into a short crossfade and stagger turns off. An achievement unlock fades in and out in `short3` with no shine, and the progress indicator only fades. The app has no setting of its own for this.

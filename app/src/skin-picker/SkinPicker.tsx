@@ -15,8 +15,10 @@ import { rgb } from "@/recess";
 import type { Frame, Rgb } from "@/screen";
 import { dualScreens } from "@/screens";
 import { blendLooks, lookVariables, mixColour, type LookVariables } from "@/skin-look/skinLook";
+import { PlasticPhoto } from "@/skin-plastic/SkinPlastic";
 import { chosenSkin, lookNames, offeredSkins, skinLocked, skinLooks, wallColour, type Skin, type SkinLook } from "@/skins";
 import { handheld, systemNames, type System } from "@/systems";
+import { padScale } from "@/touch-controls/padScale";
 import { StillTouchControls } from "@/touch-controls/TouchControls";
 import { dragged, lands, step, tapped, type Direction } from "./carousel";
 import { darkFrame } from "./previewFrame";
@@ -63,9 +65,11 @@ function Plastic({ skin, style, incoming }: { skin: Skin; style?: CSSProperties;
     <div
       aria-hidden
       data-incoming={incoming ? skin.id : undefined}
-      className="pointer-events-none absolute inset-0 -z-10 bg-cover bg-top bg-no-repeat"
-      style={{ backgroundImage: `url(${skin.image})`, backgroundColor: skin.base, ...style }}
-    />
+      className="pointer-events-none absolute inset-0 -z-10"
+      style={{ backgroundColor: skin.base, ...style }}
+    >
+      <PlasticPhoto image={skin.image} />
+    </div>
   );
 }
 
@@ -396,7 +400,7 @@ function Picker({
                     </span>
                   )}
                 </PreviewScreen>
-                <StillTouchControls system={system} />
+                <StillTouchControls system={system} scale={padScale(stage.width, stage.height)} />
               </div>
             </div>
             {revealed?.light && (

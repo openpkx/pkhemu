@@ -15,12 +15,14 @@ import { HapticsProvider } from "./haptics/haptics";
 import { Home } from "./Home";
 import { ImportProvider } from "./import/importFiles";
 import { CalibrationsProvider } from "./input/calibrations";
+import { JitProvider } from "./jit/jit";
 import { experiments } from "./lab/experiments";
 import { ExperimentsProvider } from "./lab/lab";
 import { PatchRomProvider } from "./patch-rom/patchRom";
 import { hosts } from "./platform/platform";
 import { PlusProvider } from "./plus/plus";
 import { PreferencesProvider } from "./preferences/preferences";
+import { RetroAchievementsProvider } from "./retro-achievements/retroAchievements";
 import { ShadersProvider } from "./shaders/shaders";
 import { SyncProvider } from "./sync/sync";
 import { SystemBarsProvider } from "./system-bars/systemBars";
@@ -48,27 +50,31 @@ export function App() {
                       <PlusProvider host={hosts.plus}>
                         <AppUpdateProvider host={hosts.appUpdate}>
                           <ExperimentsProvider host={hosts.experiments} registry={experiments}>
-                            <SyncProvider host={hosts.sync}>
-                              <BackProvider host={hosts.back}>
-                                <BoxArtProvider host={hosts.boxArt}>
-                                  <ExportProvider host={hosts.export}>
-                                    <PokemonFileProvider host={hosts.pokemonFile}>
-                                      <ClipboardProvider host={hosts.clipboard}>
-                                        <CalibrationsProvider host={hosts.calibrations}>
-                                          <GameArtProvider host={hosts.gameArt}>
-                                            <PatchRomProvider host={hosts.patchRom}>
-                                              <ImportProvider host={hosts.import}>
-                                                <Home libraryHost={hosts.library} gamePageHost={hosts.gamePage} systems={hosts.systems} />
-                                              </ImportProvider>
-                                            </PatchRomProvider>
-                                          </GameArtProvider>
-                                        </CalibrationsProvider>
-                                      </ClipboardProvider>
-                                    </PokemonFileProvider>
-                                  </ExportProvider>
-                                </BoxArtProvider>
-                              </BackProvider>
-                            </SyncProvider>
+                            <RetroAchievementsProvider host={hosts.retroAchievements}>
+                              <SyncProvider host={hosts.sync}>
+                                <BackProvider host={hosts.back}>
+                                  <BoxArtProvider host={hosts.boxArt}>
+                                    <ExportProvider host={hosts.export}>
+                                      <PokemonFileProvider host={hosts.pokemonFile}>
+                                        <ClipboardProvider host={hosts.clipboard}>
+                                          <CalibrationsProvider host={hosts.calibrations}>
+                                            <GameArtProvider host={hosts.gameArt}>
+                                              <PatchRomProvider host={hosts.patchRom}>
+                                                <ImportProvider host={hosts.import}>
+                                                  <JitProvider host={hosts.jit}>
+                                                    <Home libraryHost={hosts.library} gamePageHost={hosts.gamePage} systems={hosts.systems} />
+                                                  </JitProvider>
+                                                </ImportProvider>
+                                              </PatchRomProvider>
+                                            </GameArtProvider>
+                                          </CalibrationsProvider>
+                                        </ClipboardProvider>
+                                      </PokemonFileProvider>
+                                    </ExportProvider>
+                                  </BoxArtProvider>
+                                </BackProvider>
+                              </SyncProvider>
+                            </RetroAchievementsProvider>
                           </ExperimentsProvider>
                         </AppUpdateProvider>
                       </PlusProvider>

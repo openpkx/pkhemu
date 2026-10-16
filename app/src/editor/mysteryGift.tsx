@@ -195,7 +195,7 @@ function PreviewDetails({ preview }: { preview: WonderCardPreview }) {
 function PreviewDialog({ preview, onReview, onCancel }: { preview?: WonderCardPreview; onReview(): void; onCancel(): void }) {
   return (
     <AlertDialog open={!!preview} onOpenChange={(isOpen) => !isOpen && onCancel()}>
-      <AlertDialogContent onOverlayClick={onCancel} onEscapeKeyDown={(event) => event.stopPropagation()}>
+      <AlertDialogContent onOverlayClick={onCancel}>
         <AlertDialogHeader>
           <AlertDialogTitle>{preview?.title}</AlertDialogTitle>
           <AlertDialogDescription>The card goes in the album, and you collect its gift in the game.</AlertDialogDescription>

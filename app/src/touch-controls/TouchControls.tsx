@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useSyncExternalStore, type PointerEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties, type PointerEvent, type ReactNode } from "react";
 import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, FastForward as FastForwardIcon, Lock, Menu } from "lucide-react";
 import { cn } from "cn";
 import type { FastForward } from "@/fast-forward/fastForward";
@@ -8,6 +8,7 @@ import { tilt } from "@/input/stick";
 import { usePreferences } from "@/preferences/preferences";
 import type { System } from "@/systems";
 import { dpadDirection } from "./dpad";
+import { usePadScale } from "./padScale";
 
 type Press = (pointerId: number, mask: number) => void;
 
@@ -182,7 +183,7 @@ function Dpad({ press, hold, className = "size-36" }: { press: Press; hold: Hold
       data-pressed={!!((direction || hold.held) & bit(button))}
       data-part="arm"
       data-side={side}
-      className={cn("absolute flex size-1/3 items-center justify-center ring-1 ring-pad-border", padSurface, className)}
+      className={cn("absolute flex size-1/3 items-center justify-center ring-1 ring-pad-border [&_svg]:size-6", padSurface, className)}
     >
       {icon}
     </div>
@@ -306,6 +307,9 @@ export function useTouchControlsShown(input: Input) {
 
 const shoulder = "h-11 w-21 rounded-lg";
 const small = "h-11 w-14 rounded-full text-sm landscape:h-9";
+// Tailwind's spacing and text sizes derive from these, so the controls' sizes follow --pad-scale.
+const scaled =
+  "[--spacing:calc(0.25rem*var(--pad-scale))] [--text-base:calc(var(--spacing)*4)] [--text-sm:calc(var(--spacing)*3.5)] [--text-xl:calc(var(--spacing)*5)]";
 const controlsBody =
   "flex touch-none items-end justify-between px-6 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] select-none landscape:pointer-events-none landscape:absolute landscape:inset-0 landscape:items-center landscape:opacity-70";
 
@@ -330,7 +334,11 @@ function ModeButtons({ hold, fastForward }: { hold: Hold; fastForward: FastForwa
   );
 }
 
-function N64Controls({ input, fastForward }: { input: Input; fastForward: FastForward }) {
+type ControlsProps = { input: Input; system: System; fastForward: FastForward; scale: number };
+
+const padScaleStyle = (scale: number) => ({ "--pad-scale": scale }) as CSSProperties;
+
+function N64Controls({ input, fastForward, scale }: ControlsProps) {
   const press = usePress(input);
   const hold = useHold(input);
   const n64Shoulder = cn(shoulder, "landscape:h-9");
@@ -344,7 +352,7 @@ function N64Controls({ input, fastForward }: { input: Input; fastForward: FastFo
   ] as const;
 
   return (
-    <div className={cn(controlsBody, "relative")} onContextMenu={(event) => event.preventDefault()}>
+    <div className={cn(controlsBody, scaled, "relative")} style={padScaleStyle(scale)} onContextMenu={(event) => event.preventDefault()}>
       <Side className="landscape:gap-2">
         <GameButton label="L" button={buttons.l} press={press} hold={hold} part="shoulder" className={n64Shoulder} />
         <Stick input={input} />
@@ -376,7 +384,7 @@ function N64Controls({ input, fastForward }: { input: Input; fastForward: FastFo
   );
 }
 
-function Controls({ input, system, fastForward }: { input: Input; system: System; fastForward: FastForward }) {
+function Controls({ input, system, fastForward, scale }: ControlsProps) {
   const press = usePress(input);
   const hold = useHold(input);
   const faceShape = "size-16 rounded-full text-xl";
@@ -388,7 +396,7 @@ function Controls({ input, system, fastForward }: { input: Input; system: System
   const side = cn(circlePad && "justify-between self-stretch landscape:gap-2");
 
   return (
-    <div className={controlsBody} onContextMenu={(event) => event.preventDefault()}>
+    <div className={cn(controlsBody, scaled)} style={padScaleStyle(scale)} onContextMenu={(event) => event.preventDefault()}>
       <Side className={side}>
         {shoulders && <GameButton label="L" button={buttons.l} press={press} hold={hold} part="shoulder" className={shoulderShape} />}
         {circlePad && <Stick input={input} />}
@@ -422,17 +430,19 @@ function Controls({ input, system, fastForward }: { input: Input; system: System
   );
 }
 
-export function TouchControls(props: { input: Input; system: System; fastForward: FastForward }) {
-  if (!useTouchControlsShown(props.input)) return null;
-  return props.system === "n64" ? <N64Controls {...props} /> : <Controls {...props} />;
+export function TouchControls({ input, system, fastForward }: { input: Input; system: System; fastForward: FastForward }) {
+  const scale = usePadScale();
+  if (!useTouchControlsShown(input)) return null;
+  const props = { input, system, fastForward, scale };
+  return system === "n64" ? <N64Controls {...props} /> : <Controls {...props} />;
 }
 
 const stillFastForward: FastForward = { on: false, speed: 1, toggle() {} };
 const noGamepads = () => [];
 
-export function StillTouchControls({ system }: { system: System }) {
+export function StillTouchControls({ system, scale = 1 }: { system: System; scale?: number }) {
   const [input] = useState(() => createInput(noGamepads, undefined, system));
-  const props = { input, system, fastForward: stillFastForward };
+  const props = { input, system, fastForward: stillFastForward, scale };
   return (
     <div inert className="contents">
       {system === "n64" ? <N64Controls {...props} /> : <Controls {...props} />}

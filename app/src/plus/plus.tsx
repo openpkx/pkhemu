@@ -1,7 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 
 export type PlusStatus =
-  { state: "unlocked" } | { state: "owned" } | { state: "notOwned"; price: string } | { state: "unavailable" };
+  | { state: "unlocked"; sideload?: boolean }
+  | { state: "owned" }
+  | { state: "notOwned"; price: string }
+  | { state: "unavailable" };
 
 export type PlusState = PlusStatus["state"];
 
@@ -74,4 +77,9 @@ export function PlusProvider({ host, children }: { host: PlusHost; children: Rea
 
 export function usePlus() {
   return useContext(PlusContext);
+}
+
+export function useSideloadBuild() {
+  const status = usePlus().status;
+  return status?.state === "unlocked" && status.sideload === true;
 }

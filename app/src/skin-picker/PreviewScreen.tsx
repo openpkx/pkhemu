@@ -7,7 +7,7 @@ import { tilt, type Tilt } from "@/motion/tilt";
 import { usePreferences } from "@/preferences/preferences";
 import { parallax, shellIn, shellLook } from "@/recess";
 import { createScreen, type Frame, type Rgb } from "@/screen";
-import { dualScreen, dualScreens, singleScreen, type Layout } from "@/screens";
+import { dualScreen, dualScreens, inPortrait, singleScreen, type Layout } from "@/screens";
 import { handheld, type System } from "@/systems";
 
 export function PreviewScreen({
@@ -50,7 +50,7 @@ export function PreviewScreen({
         width: Math.round(entry.contentRect.width * devicePixelRatio),
         height: Math.round(entry.contentRect.height * devicePixelRatio),
       };
-      layout = screens ? dualScreen(frame, screens, space, false, shellIn(display)) : singleScreen(frame, space, shellIn(display));
+      layout = screens ? dualScreen(frame, inPortrait(screens), space, false, shellIn(display)) : singleScreen(frame, space, shellIn(display));
       canvas.current!.width = layout.canvas.width;
       canvas.current!.height = layout.canvas.height;
       canvas.current!.style.width = `${layout.canvas.width / devicePixelRatio}px`;

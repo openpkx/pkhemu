@@ -293,6 +293,13 @@ function speciesKeys(base: string, shiny: string, female: boolean) {
   };
 }
 
+// X and Y give Scatterbug and Spewpa a Vivillon pattern as their form, but have icons only for form 0.
+function formFallback(pokemon: ArtPokemon) {
+  return pokemon.form && !pokemon.isEgg && !pokemon.isUnknown && pokemon.speciesId !== null
+    ? `icon-${pokemon.speciesId}-0`
+    : undefined;
+}
+
 export function pokemonKeys(pokemon: ArtPokemon, size: number) {
   let sprites: string[];
   let icons: string[];
@@ -309,6 +316,8 @@ export function pokemonKeys(pokemon: ArtPokemon, size: number) {
     ];
     sprites = candidates.flatMap((keys) => keys.sprites);
     icons = candidates.flatMap((keys) => keys.icons);
+    const fallback = formFallback(pokemon);
+    if (fallback) icons.push(fallback);
   }
   return size <= ICON_MAX_SIZE ? [...icons, ...sprites] : [...sprites, ...icons];
 }
@@ -407,6 +416,7 @@ const byOrder = (a: number[], b: number[]) => a.reduce((found, value, at) => fou
 // A species index is the game's own and means nothing in another ROM.
 function lentArt(pokemon: ArtPokemon, size: number, animated: boolean, lent: LentArt[]) {
   const wanted = pokemonKeys({ ...pokemon, speciesIndex: undefined }, size);
+  const fallback = formFallback(pokemon);
   const icons = size <= ICON_MAX_SIZE;
   const [best] = lent
     .flatMap(({ sha1, generation, keys }) => {
@@ -414,7 +424,13 @@ function lentArt(pokemon: ArtPokemon, size: number, animated: boolean, lent: Len
       if (match < 0) return [];
       const still = wanted[match];
       const key = animated ? animatedKey(still, keys) : still;
-      const order = [Number(still.startsWith("icon-") !== icons), -generation, match, Number(key === still)];
+      const order = [
+        Number(still.startsWith("icon-") !== icons),
+        Number(still === fallback),
+        -generation,
+        match,
+        Number(key === still),
+      ];
       return [{ sha1, key, order }];
     })
     .sort((a, b) => byOrder(a.order, b.order));
@@ -424,11 +440,14 @@ function lentArt(pokemon: ArtPokemon, size: number, animated: boolean, lent: Len
 function filledArt(pokemon: ArtPokemon, size: number, animated: boolean, own: GameKeys, lent: LentArt[] | undefined) {
   if (!own.keys) return undefined;
   const fits = (key: string | undefined) => !!key && key.startsWith("icon-") === size <= ICON_MAX_SIZE;
+  const fallback = formFallback(pokemon);
+  const exact = (key: string | undefined) => fits(key) && key !== fallback;
   const mine = { sha1: own.sha1, key: ownKey(pokemon, size, animated, own.keys) };
-  if (fits(mine.key)) return mine;
+  if (exact(mine.key)) return mine;
   if (!lent) return undefined;
   const borrowed = lentArt(pokemon, size, animated, lent);
-  return fits(borrowed.key) || !mine.key ? borrowed : mine;
+  if (exact(borrowed.key)) return borrowed;
+  return !fits(mine.key) && (fits(borrowed.key) || !mine.key) ? borrowed : mine;
 }
 
 export function PokemonArt({

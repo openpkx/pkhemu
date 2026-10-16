@@ -240,7 +240,7 @@ export const skins: Record<System, Skin[]> = {
       image: image("n64-charcoal"),
       free: true,
       tone: "dark",
-      base: "#49484a",
+      base: "#464548",
       moulded: n64Black,
     },
     {
@@ -249,7 +249,7 @@ export const skins: Record<System, Skin[]> = {
       image: image("n64-gold"),
       free: false,
       tone: "light",
-      base: "#b59245",
+      base: "#b7954a",
       moulded: { ...n64Black, dpad: "#3a3a3e", rubber: "#4a4a50", print: "#2a2410cc" },
     },
     {
@@ -262,7 +262,52 @@ export const skins: Record<System, Skin[]> = {
       moulded: n64Black,
     },
   ],
-  "3ds": ds,
+  // 3DS stays out of Plus, so every 3DS skin is free.
+  "3ds": [
+    {
+      id: "pkhemu",
+      name: "pkhemu",
+      image: image("3ds-pkhemu"),
+      free: true,
+      tone: "dark",
+      base: "#221e44",
+      moulded: { ...violet, border: null },
+    },
+    {
+      id: "cosmo-black",
+      name: "Cosmo Black",
+      image: image("3ds-cosmo-black"),
+      free: true,
+      tone: "dark",
+      base: "#23262b",
+      moulded: { ...black, border: null },
+    },
+    {
+      id: "aqua-blue",
+      name: "Aqua Blue",
+      image: image("3ds-aqua-blue"),
+      free: true,
+      tone: "dark",
+      base: "#1a7da4",
+      moulded: {
+        dpad: "#155f7a",
+        face: "#1a6f8e",
+        faceLabel: "#a8dcef",
+        rubber: "#1a6a86",
+        print: "#ffffffcc",
+        border: null,
+      },
+    },
+    {
+      id: "flame-red",
+      name: "Flame Red",
+      image: image("3ds-flame-red"),
+      free: true,
+      tone: "dark",
+      base: "#9b1820",
+      moulded: { ...black, border: null },
+    },
+  ],
 };
 
 export function isSkinChoice(system: System, value: unknown): value is SkinChoice {

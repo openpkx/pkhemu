@@ -16,7 +16,7 @@ struct Started {
 }
 
 fn start(dir: &PathBuf, store: Option<Arc<dyn Purchases>>) -> Started {
-    let build = if store.is_some() { Build::Store { plus: true } } else { Build::Unlocked };
+    let build = if store.is_some() { Build::Store { plus: true } } else { Build::Unlocked { sideload: false } };
     start_build(dir, build, store)
 }
 
@@ -40,7 +40,16 @@ fn not_owned() -> Status {
 fn a_build_that_isnt_a_store_build_is_unlocked() {
     let started = start(&data_dir("unlocked"), None);
 
-    assert_eq!(tauri::async_runtime::block_on(started.plus.check()), Status::Unlocked);
+    assert_eq!(tauri::async_runtime::block_on(started.plus.check()), Status::Unlocked { sideload: false });
+}
+
+#[test]
+fn a_sideload_build_is_unlocked_and_says_so() {
+    let started = start_build(&data_dir("sideload"), Build::Unlocked { sideload: true }, None);
+
+    assert_eq!(tauri::async_runtime::block_on(started.plus.check()), Status::Unlocked { sideload: true });
+    assert_eq!(started.plus.cached(), Some(Status::Unlocked { sideload: true }));
+    assert!(started.plus.syncs());
 }
 
 #[test]
@@ -137,7 +146,11 @@ fn sends_the_status_in_the_shape_the_frontend_reads() {
     let json = |status: Status| serde_json::to_value(status).unwrap();
 
     assert_eq!(json(not_owned()), serde_json::json!({ "state": "notOwned", "price": "$3.99" }));
-    assert_eq!(json(Status::Unlocked), serde_json::json!({ "state": "unlocked" }));
+    assert_eq!(
+        json(Status::Unlocked { sideload: false }),
+        serde_json::json!({ "state": "unlocked", "sideload": false })
+    );
+    assert_eq!(json(Status::Unlocked { sideload: true }), serde_json::json!({ "state": "unlocked", "sideload": true }));
 }
 
 #[test]
@@ -153,16 +166,18 @@ fn keeps_an_owned_plus_while_the_store_is_unavailable() {
 
 #[test]
 fn reads_the_build_from_the_store_and_plus_keys() {
-    assert_eq!(Build::from_keys("", ""), Build::Unlocked);
-    assert_eq!(Build::from_keys("", "on"), Build::Unlocked);
+    assert_eq!(Build::from_keys("", ""), Build::Unlocked { sideload: false });
+    assert_eq!(Build::from_keys("", "on"), Build::Unlocked { sideload: false });
     assert_eq!(Build::from_keys("play", ""), Build::Store { plus: false });
     assert_eq!(Build::from_keys("play", "on"), Build::Store { plus: true });
     assert_eq!(Build::from_keys("appstore", "on"), Build::Store { plus: true });
+    assert_eq!(Build::from_keys("sideload", ""), Build::Unlocked { sideload: true });
 }
 
 #[test]
 fn only_a_store_build_without_plus_leaves_out_sync() {
-    assert!(Build::Unlocked.offers_sync());
+    assert!(Build::Unlocked { sideload: false }.offers_sync());
+    assert!(Build::Unlocked { sideload: true }.offers_sync());
     assert!(Build::Store { plus: true }.offers_sync());
     assert!(!Build::Store { plus: false }.offers_sync());
 }

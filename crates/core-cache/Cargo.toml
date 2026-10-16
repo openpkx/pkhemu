@@ -1,0 +1,12 @@
+[package]
+name = "core-cache"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-3.0-or-later"
+description = "Keeps the app's built libretro cores in one machine-wide cache, so a fresh target directory reuses them."
+
+[dependencies]
+sha2 = "0.10"
+
+[dev-dependencies]
+tempfile = "3"

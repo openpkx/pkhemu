@@ -1,15 +1,19 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { BackProvider } from "@/back/back";
+import { EngineProvider } from "@pkhex-everywhere/react";
+import { BackProvider, type BackHost } from "@/back/back";
+import { fakeBackHost } from "@/back/fakeBackHost";
 import { BoxArtProvider } from "@/box-art/boxArt";
 import { fakeBoxArt } from "@/box-art/fakeBoxArt";
+import { fakeEngine } from "@/editor/fakeEngine";
 import { fakePads, padButtons } from "@/input/fakePads";
 import { GamesFolderProvider, type GamesFolderHost } from "@/games-folder/gamesFolder";
 import { createInput } from "@/input/input";
 import { PadNavigation } from "@/pad-navigation/PadNavigation";
+import type { ConflictSaveHost } from "@/sync/ConflictSheet";
 import { fakeSync } from "@/sync/fakeSync";
 import { TICK_MS } from "@/sync/gameStatus";
-import { SyncProvider } from "@/sync/sync";
+import { SyncProvider, type Conflict } from "@/sync/sync";
 import { fakeFolder } from "./fakeFolder";
 import type { Start } from "@/game-page/GamePage";
 import { systems } from "@/systems";
@@ -60,6 +64,7 @@ function renderLibrary(
     sync = fakeSync({ available: false }),
     resumes = [],
     lastPlayed = {},
+    back,
   }: {
     pads?: () => (Gamepad | null)[];
     boxArt?: ReturnType<typeof fakeBoxArt>;
@@ -68,6 +73,7 @@ function renderLibrary(
     sync?: ReturnType<typeof fakeSync>;
     resumes?: string[];
     lastPlayed?: Record<string, number>;
+    back?: BackHost;
   } = {},
 ) {
   const list = fakeFolder(paths);
@@ -79,26 +85,38 @@ function renderLibrary(
     hasResumeState: async (_folder, path) => resumes.includes(path),
     playHistory: async (path) => ({ lastPlayed: lastPlayed[path] ?? null, playTime: 0 }),
   };
+  const saveHost = {
+    readSave: vi.fn(async () => null),
+    saveSummary: vi.fn(async () => null),
+    keepSaveSummary: vi.fn(async () => {}),
+    saveFormat: vi.fn(async () => null),
+    stateScreenshot: vi.fn(async () => null),
+  } satisfies ConflictSaveHost;
+  const { engine } = fakeEngine();
   const onOpen = vi.fn<(game: Game, from?: OpenedFrom) => void>();
   const onPlay = vi.fn<(game: Game, start: Start, from: OpenedFrom) => void>();
   const onSettings = vi.fn();
   const tree = (key: number) => (
-    <GamesFolderProvider host={gamesFolder}>
-      <SyncProvider host={sync.host}>
-        <BoxArtProvider host={boxArt.host}>
-          <BackProvider>
-            <LibraryProvider host={host} folder="/games" onOpen={onOpen} onPlay={onPlay}>
-              <PadNavigation input={createInput(pads)} />
-              <LibraryScreen key={key} systems={systems} onSettings={onSettings} />
-            </LibraryProvider>
-          </BackProvider>
-        </BoxArtProvider>
-      </SyncProvider>
-    </GamesFolderProvider>
+    <EngineProvider engine={engine}>
+      <GamesFolderProvider host={gamesFolder}>
+        <SyncProvider host={sync.host}>
+          <BoxArtProvider host={boxArt.host}>
+            <BackProvider host={back}>
+              <LibraryProvider host={host} folder="/games" onOpen={onOpen} onPlay={onPlay}>
+                <PadNavigation input={createInput(pads)} />
+                <LibraryScreen key={key} host={saveHost} folder="/games" systems={systems} onSettings={onSettings} />
+              </LibraryProvider>
+            </BackProvider>
+          </BoxArtProvider>
+        </SyncProvider>
+      </GamesFolderProvider>
+    </EngineProvider>
   );
   const { rerender } = render(tree(0));
   return { onOpen, onPlay, onSettings, host, remount: () => rerender(tree(1)) };
 }
+
+const tileOf = (button: HTMLElement) => button.parentElement!;
 
 const continueCard = () => within(screen.getByRole("region", { name: "Continue" })).getAllByRole("button")[0];
 const continueButton = () => within(screen.getByRole("region", { name: "Continue" })).getAllByRole("button")[1];
@@ -287,10 +305,10 @@ it("marks a game that's only in the cloud", async () => {
   const sync = fakeSync({ account: "player@example.com", syncGames: true, cloudGames: ["gba/Ruby.gba"] });
   renderLibrary(["gba/Emerald.gba"], { sync });
 
-  const ruby = await screen.findByRole("button", { name: /Ruby/ });
+  const ruby = tileOf(await screen.findByRole("button", { name: /Ruby/ }));
 
   expect(within(ruby).getByRole("img", { name: "In the cloud" })).toBeTruthy();
-  expect(within(screen.getByRole("button", { name: /Emerald/ })).queryByRole("img", { name: "In the cloud" })).toBeNull();
+  expect(within(tileOf(screen.getByRole("button", { name: /Emerald/ }))).queryByRole("img", { name: "In the cloud" })).toBeNull();
 });
 
 it("shows a cloud-only game's chosen box art and follows a change sync brings down", async () => {
@@ -314,12 +332,12 @@ it.each([
   [{ state: "waiting", reason: "mobileData" }, "img", "Waiting for Wi-Fi"],
   [{ state: "waiting", reason: "offline" }, "img", "Waiting for a connection"],
   [{ state: "waiting", reason: "stopped" }, "img", "Sync stopped"],
-  [{ state: "conflict" }, "img", "Changed on another device. Open the game to choose a version"],
+  [{ state: "conflict" }, "button", "Changed on another device. Choose a version to keep"],
   [{ state: "error", message: "Your Google Drive is full" }, "img", "Your Google Drive is full"],
 ] as const)("badges a tile while its game syncs: %o", async (game, role, label) => {
   const sync = signedIn();
   renderLibrary(["gba/Emerald.gba"], { sync });
-  const emerald = await screen.findByRole("button", { name: /Emerald/ });
+  const emerald = tileOf(await screen.findByRole("button", { name: /Emerald/ }));
 
   await act(async () => sync.game({ path: "gba/Emerald.gba", ...game }));
 
@@ -329,7 +347,7 @@ it.each([
 it("shows no badge on a game in sync", async () => {
   const sync = signedIn();
   renderLibrary(["gba/Emerald.gba"], { sync });
-  const emerald = await screen.findByRole("button", { name: /Emerald/ });
+  const emerald = tileOf(await screen.findByRole("button", { name: /Emerald/ }));
 
   await act(async () => sync.game({ path: "gba/Emerald.gba", state: "synced", lastSynced: 1_000 }));
 
@@ -340,7 +358,7 @@ it("shows no badge on a game in sync", async () => {
 it("fills the ring by bytes, then ticks and goes away once the game is in sync", async () => {
   const sync = signedIn();
   renderLibrary(["gba/Emerald.gba"], { sync });
-  const emerald = await screen.findByRole("button", { name: /Emerald/ });
+  const emerald = tileOf(await screen.findByRole("button", { name: /Emerald/ }));
 
   await act(async () => sync.game({ path: "gba/Emerald.gba", state: "transferring", done: 1, total: 4, stage: "uploadingSaves" }));
   expect(within(emerald).getByRole("progressbar").getAttribute("aria-valuenow")).toBe("25");
@@ -359,7 +377,7 @@ it("fills the ring by bytes, then ticks and goes away once the game is in sync",
 it("shows no tick when a transfer ends in an error", async () => {
   const sync = signedIn();
   renderLibrary(["gba/Emerald.gba"], { sync });
-  const emerald = await screen.findByRole("button", { name: /Emerald/ });
+  const emerald = tileOf(await screen.findByRole("button", { name: /Emerald/ }));
 
   await act(async () => sync.game({ path: "gba/Emerald.gba", state: "transferring", done: 1, total: 4, stage: "uploadingSaves" }));
   await act(async () => sync.game({ path: "gba/Emerald.gba", state: "error", message: "No connection" }));
@@ -371,7 +389,7 @@ it("shows no tick when a transfer ends in an error", async () => {
 it("keeps a cloud-only game's cloud and rings it only while its ROM downloads", async () => {
   const sync = signedIn({ syncGames: true, cloudGames: ["gba/Ruby.gba"] });
   renderLibrary(["gba/Emerald.gba"], { sync });
-  const ruby = await screen.findByRole("button", { name: /Ruby/ });
+  const ruby = tileOf(await screen.findByRole("button", { name: /Ruby/ }));
 
   await act(async () => sync.game({ path: "gba/Ruby.gba", state: "queued" }));
   expect(within(ruby).getByRole("img", { name: "In the cloud" })).toBeTruthy();
@@ -380,6 +398,65 @@ it("keeps a cloud-only game's cloud and rings it only while its ROM downloads", 
   await act(async () => sync.progress({ path: "gba/Ruby.gba", done: 4, total: 16 }));
   expect(within(ruby).getByRole("img", { name: "In the cloud" })).toBeTruthy();
   expect(within(ruby).getByRole("progressbar", { name: "Downloading ROM · 25%" })).toBeTruthy();
+});
+
+const saveConflict: Conflict = {
+  file: "save",
+  device: { savedOn: "Pixel 10", modified: 1_000, cheats: false },
+  cloud: { savedOn: "MacBook Air", modified: 2_000, cheats: false },
+};
+
+async function conflictedTile(back?: BackHost) {
+  const sync = signedIn({ conflicts: [saveConflict] });
+  const library = renderLibrary(["gba/Emerald.gba"], { sync, back });
+  const emerald = tileOf(await screen.findByRole("button", { name: /Emerald/ }));
+  await act(async () => sync.game({ path: "gba/Emerald.gba", state: "conflict" }));
+  const badge = within(emerald).getAllByRole("button").find((button) => !button.dataset.game)!;
+  return { ...library, sync, badge };
+}
+
+it("opens the conflict sheet from a tile's conflict badge, and not the game", async () => {
+  const { onOpen, badge } = await conflictedTile();
+
+  await act(async () => fireEvent.click(badge));
+
+  expect(screen.getByRole("dialog")).toBeTruthy();
+  expect(onOpen).not.toHaveBeenCalled();
+});
+
+it("closes the conflict sheet on back instead of leaving the app", async () => {
+  const back = fakeBackHost();
+  const { badge } = await conflictedTile(back.host);
+  await act(async () => fireEvent.click(badge));
+
+  back.press();
+
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  expect(back.exits()).toBe(0);
+});
+
+it("syncs the game again once a version is picked from the tile, and closes the sheet", async () => {
+  const { sync, badge } = await conflictedTile();
+  await act(async () => fireEvent.click(badge));
+  const [device] = within(screen.getByRole("group")).getAllByRole("button");
+
+  await act(async () => fireEvent.click(device));
+
+  expect(sync.host.resolve).toHaveBeenCalledExactlyOnceWith("/games", "gba/Emerald.gba", "save", "device");
+  expect(sync.host.syncGame).toHaveBeenCalledExactlyOnceWith("/games", "gba/Emerald.gba");
+  expect(sync.host.resolve.mock.invocationCallOrder[0]).toBeLessThan(sync.host.syncGame.mock.invocationCallOrder[0]);
+  await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+});
+
+it("opens the game from a tile's badge that isn't a conflict", async () => {
+  const sync = signedIn();
+  const { onOpen } = renderLibrary(["gba/Emerald.gba"], { sync });
+  const emerald = tileOf(await screen.findByRole("button", { name: /Emerald/ }));
+  await act(async () => sync.game({ path: "gba/Emerald.gba", state: "waiting", reason: "offline" }));
+
+  act(() => fireEvent.click(within(emerald).getByRole("img")));
+
+  expect(onOpen).toHaveBeenCalledWith(expect.objectContaining({ path: "gba/Emerald.gba" }), expect.anything());
 });
 
 const syncRing = () => screen.queryByRole("button", { name: /^(Checking|Syncing)/ });
@@ -576,6 +653,18 @@ it("opens the box art sheet on a long press without opening the game", async () 
   const tile = await screen.findByRole("button", { name: /Emerald/ });
 
   await longPress(tile);
+
+  expect(await screen.findByRole("dialog", { name: "Box art" })).toBeTruthy();
+  expect(onOpen).not.toHaveBeenCalled();
+});
+
+it("opens the box art sheet on a long press on a tile's badge", async () => {
+  const sync = signedIn();
+  const { onOpen } = renderLibrary(["gba/Emerald.gba"], { sync });
+  const emerald = tileOf(await screen.findByRole("button", { name: /Emerald/ }));
+  await act(async () => sync.game({ path: "gba/Emerald.gba", state: "waiting", reason: "offline" }));
+
+  await longPress(within(emerald).getByRole("img"));
 
   expect(await screen.findByRole("dialog", { name: "Box art" })).toBeTruthy();
   expect(onOpen).not.toHaveBeenCalled();

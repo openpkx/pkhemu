@@ -851,7 +851,7 @@ it("finds box art for cloud-only games", async () => {
   await waitFor(() => expect(tile.querySelector("img")?.src).toBe(boxArtUrl));
 });
 
-const cloudMark = (tile: HTMLElement) => within(tile).queryByRole("img", { name: "In the cloud" });
+const cloudMark = (tile: HTMLElement) => within(tile.parentElement!).queryByRole("img", { name: "In the cloud" });
 
 async function openCloudGame(sync: ReturnType<typeof fakeSync>, name: string) {
   await makeFolder();

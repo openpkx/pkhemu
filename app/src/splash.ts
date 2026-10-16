@@ -52,14 +52,23 @@ function timeline(piece: (name: string) => Element): Animation[] {
     ),
   ];
   const hidden = [100, ...letterEdges.map((edge) => 100 * (1 - edge / wordmarkWidth))];
+  const revealMs = 360 * pace;
   return [
     slideIn("vertical", `translateY(${-1.35 * size}px)`, 120),
     slideIn("horizontal", `translateX(${-1.35 * size}px)`, 200),
     ...drop("upper", 500, 1),
     ...drop("lower", 620, -1),
+    // WebKit never resolves `finished` for an animation with an endDelay, so the hold is part of the duration.
     piece("wordmark").animate(
-      hidden.map((right) => ({ clipPath: `inset(0 ${right}% 0 0)`, easing: "step-end" })),
-      { delay: startMs + 940 * pace, duration: 360 * pace, endDelay: wordmarkHoldMs, fill: "both" },
+      [
+        ...hidden.map((right, i) => ({
+          clipPath: `inset(0 ${right}% 0 0)`,
+          offset: ((i / (hidden.length - 1)) * revealMs) / (revealMs + wordmarkHoldMs),
+          easing: "step-end",
+        })),
+        { clipPath: "inset(0 0% 0 0)", offset: 1 },
+      ],
+      { delay: startMs + 940 * pace, duration: revealMs + wordmarkHoldMs, fill: "both" },
     ),
   ];
 }

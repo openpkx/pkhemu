@@ -8,12 +8,15 @@
 @import "./skin-look/skinLook.css";
 
 @custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
-/* The skin picker draws the portrait game screen while the phone lies on its side. */
+/* The skin picker draws the portrait game screen while the phone lies on its side. A short portrait window lays the game out as landscape with [data-landscape]. */
 @custom-variant landscape {
   @media (orientation: landscape) {
     &:not(:where([data-portrait], [data-portrait] *)) {
       @slot;
     }
+  }
+  &:where([data-landscape], [data-landscape] *) {
+    @slot;
   }
 }
 

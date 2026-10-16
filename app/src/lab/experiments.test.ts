@@ -19,3 +19,7 @@ it("leaves 3DS async shaders to Settings", () => {
 it("has no 3DS experiment", () => {
   expect(experiment("threeDs")).toBeUndefined();
 });
+
+it("leaves RetroAchievements to Settings", () => {
+  expect(experiment("retroAchievements")).toBeUndefined();
+});

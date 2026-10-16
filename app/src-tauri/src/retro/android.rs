@@ -1,7 +1,7 @@
-use super::{HwRenderCallback, HW_CONTEXT_OPENGLES3};
+use super::{ExecMem, HwRenderCallback, HW_CONTEXT_OPENGLES3};
 use crate::vulkan::Settings;
 use ash::vk;
-use std::ffi::CStr;
+use std::ffi::{c_void, CStr};
 use std::path::PathBuf;
 use std::sync::OnceLock;
 
@@ -26,6 +26,25 @@ pub fn azahar_renderer() -> &'static CStr {
     } else {
         c"OpenGL"
     }
+}
+
+// Cores map their own executable memory here.
+pub fn exec_mem_alloc(_size: usize) -> Option<ExecMem> {
+    None
+}
+
+pub fn exec_mem_free(_rx: *mut c_void) -> bool {
+    false
+}
+
+pub fn release_exec_mem() {}
+
+pub fn jit_on() -> bool {
+    JIT
+}
+
+pub fn enable_jit_url() -> Option<String> {
+    None
 }
 
 pub fn core_path(name: &str) -> Option<PathBuf> {

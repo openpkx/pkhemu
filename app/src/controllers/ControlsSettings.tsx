@@ -1,8 +1,8 @@
-import { useEffect, useId, useState } from "react";
+import { useEffect, useState } from "react";
+import { SettingRow, SwitchRow } from "@/components/SettingsRow";
 import { TitledCard } from "@/components/TitledCard";
 import { Toast, useToast } from "@/components/Toast";
 import { Button } from "@/components/ui/button";
-import { Switch } from "@/components/ui/switch";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { withPad, type Calibrations, type KeyboardCalibration } from "@/input/calibration";
 import { useCalibrations } from "@/input/calibrations";
@@ -70,40 +70,36 @@ const stickSensitivityLines = {
 
 function TouchControlsSettings() {
   const { preferences, change } = usePreferences();
-  const touchId = useId();
-  const stickId = useId();
 
   return (
     <>
-      <div className="flex items-center justify-between gap-3">
-        <label htmlFor={touchId}>Touch controls</label>
-        <Switch
-          id={touchId}
-          checked={preferences.touchControls}
-          onCheckedChange={(touchControls) => void change({ touchControls })}
-        />
-      </div>
+      <SwitchRow
+        label="Touch controls"
+        checked={preferences.touchControls}
+        onCheckedChange={(touchControls) => void change({ touchControls })}
+      />
       {preferences.touchControls && (
         <div className="grid gap-1">
-          <div className="flex items-center justify-between gap-3">
-            <span id={stickId}>Stick sensitivity</span>
-            <ToggleGroup
-              type="single"
-              variant="outline"
-              aria-labelledby={stickId}
-              value={String(preferences.stickSensitivity)}
-              onValueChange={(value) => {
-                const stickSensitivity = Number(value);
-                if (isStickSensitivity(stickSensitivity)) void change({ stickSensitivity });
-              }}
-            >
-              {stickSensitivities.map((sensitivity) => (
-                <ToggleGroupItem key={sensitivity} value={String(sensitivity)}>
-                  {stickSensitivityLabels[sensitivity]}
-                </ToggleGroupItem>
-              ))}
-            </ToggleGroup>
-          </div>
+          <SettingRow label="Stick sensitivity">
+            {(labelId) => (
+              <ToggleGroup
+                type="single"
+                variant="outline"
+                aria-labelledby={labelId}
+                value={String(preferences.stickSensitivity)}
+                onValueChange={(value) => {
+                  const stickSensitivity = Number(value);
+                  if (isStickSensitivity(stickSensitivity)) void change({ stickSensitivity });
+                }}
+              >
+                {stickSensitivities.map((sensitivity) => (
+                  <ToggleGroupItem key={sensitivity} value={String(sensitivity)}>
+                    {stickSensitivityLabels[sensitivity]}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+            )}
+          </SettingRow>
           <p className="text-muted-foreground">{stickSensitivityLines[preferences.stickSensitivity]}</p>
         </div>
       )}

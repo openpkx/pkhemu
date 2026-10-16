@@ -139,8 +139,8 @@
 }
 
 [data-skin] [data-part="face"][data-printed]::after {
-  top: calc(100% + 10px);
-  font-size: 13px;
+  top: calc(100% + 10px * var(--pad-scale, 1));
+  font-size: calc(13px * var(--pad-scale, 1));
 }
 
 /* The letters are printed on the plastic, so they stay put while the button goes down. */
@@ -160,7 +160,7 @@
   content: "";
   position: absolute;
   z-index: -1;
-  inset: var(--skin-pill-y) var(--skin-pill-x);
+  inset: calc(var(--skin-pill-y) * var(--pad-scale, 1)) calc(var(--skin-pill-x) * var(--pad-scale, 1));
   border: 1px solid var(--skin-hairline);
   border-radius: 999px;
   rotate: var(--skin-pill-rotate);
@@ -173,8 +173,8 @@
 }
 
 [data-skin] [data-part="pill"]::after {
-  top: calc(100% - 4px);
-  font-size: 9px;
+  top: calc(100% - 4px * var(--pad-scale, 1));
+  font-size: calc(9px * var(--pad-scale, 1));
   text-transform: uppercase;
 }
 

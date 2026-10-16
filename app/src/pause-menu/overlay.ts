@@ -4,7 +4,19 @@ import type { Input } from "@/input/input";
 import { capturingPads } from "@/input/padPresses";
 import { navigate } from "@/motion/motion";
 
-export type Overlay = "menu" | "editor" | "settings" | "licences" | "saveState" | "loadState" | "cheats" | "transferPak" | "skin" | "pokemonInfo";
+export type Overlay =
+  | "menu"
+  | "editor"
+  | "settings"
+  | "licences"
+  | "saveState"
+  | "loadState"
+  | "cheats"
+  | "transferPak"
+  | "skin"
+  | "pokemonInfo"
+  | "achievements"
+  | "achievement";
 
 const backFrom: Record<Exclude<Overlay, "editor">, Overlay | undefined> = {
   menu: undefined,
@@ -16,6 +28,8 @@ const backFrom: Record<Exclude<Overlay, "editor">, Overlay | undefined> = {
   transferPak: "menu",
   skin: "menu",
   pokemonInfo: undefined,
+  achievements: "menu",
+  achievement: undefined,
 };
 
 export function useOverlay(input: Input, onBackGesture: OnBackGesture) {

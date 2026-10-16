@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { usePlus, type PlusStatus } from "@/plus/plus";
+import { usePlus, useSideloadBuild, type PlusState } from "@/plus/plus";
 import { experiments, type Experiment } from "./experiments";
 
 export type Lab = "off" | "players" | "all";
@@ -35,8 +35,8 @@ function withDefaults(stored: unknown, registry: readonly Experiment[]): Experim
   return values;
 }
 
-function labFor(plus: PlusStatus["state"] | undefined): Lab {
-  if (plus === "unlocked") return "all";
+function labFor(plus: PlusState | undefined, sideload: boolean): Lab {
+  if (plus === "unlocked") return sideload ? "players" : "all";
   if (plus === "owned") return "players";
   return "off";
 }
@@ -59,7 +59,7 @@ export function ExperimentsProvider({
   registry: readonly Experiment[];
   children: ReactNode;
 }) {
-  const lab = labFor(usePlus().status?.state);
+  const lab = labFor(usePlus().status?.state, useSideloadBuild());
   const [stored, setStored] = useState<ExperimentValues>();
   const [hidden, setHidden] = useState<readonly string[]>([]);
   const [error, setError] = useState<string>();

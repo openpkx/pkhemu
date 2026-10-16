@@ -2,6 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import { EngineProvider } from "@pkhex-everywhere/react";
 import type { PokemonHandle, PokemonId, PokemonSummary } from "@pkhex-everywhere/engine";
 import { afterEach, expect, it } from "vitest";
+import { BackProvider } from "@/back/back";
 import { FakeGameArt, fakeGameArt } from "@/game-art/fakeGameArt";
 import { EditorScreen } from "./EditorScreen";
 import { ExportProvider } from "./exportFile";
@@ -39,13 +40,15 @@ function launch(save: FakeEngineSave) {
   const fake = fakeEngine(save);
   const host = { read: async () => new Uint8Array([1]), apply: async () => {}, playTimeSinceSave: async () => 0 };
   render(
-    <EngineProvider engine={fake.engine}>
-      <FakeGameArt art={fakeGameArt()}>
-        <ExportProvider host={{ saveFile: async () => undefined, saveFiles: async () => undefined }}>
-          <EditorScreen host={host} home={saveHome} onBackGesture={() => () => {}} onClose={() => {}} onSaveFirst={() => {}} />
-        </ExportProvider>
-      </FakeGameArt>
-    </EngineProvider>,
+    <BackProvider>
+      <EngineProvider engine={fake.engine}>
+        <FakeGameArt art={fakeGameArt()}>
+          <ExportProvider host={{ saveFile: async () => undefined, saveFiles: async () => undefined }}>
+            <EditorScreen host={host} home={saveHome} onBackGesture={() => () => {}} onClose={() => {}} onSaveFirst={() => {}} />
+          </ExportProvider>
+        </FakeGameArt>
+      </EngineProvider>
+    </BackProvider>,
   );
   return fake;
 }

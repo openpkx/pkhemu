@@ -16,7 +16,7 @@ export function BottomSheet({
   children,
 }: {
   open?: boolean;
-  title: string;
+  title: ReactNode;
   input?: Input;
   onClose(): void;
   onPadPress?(button: number): void;
@@ -35,8 +35,6 @@ export function BottomSheet({
         showCloseButton={false}
         aria-describedby={undefined}
         motion={centeredFromSm ? "sheet-dialog" : "sheet"}
-        // Closing can re-attach the game's keyboard on window before this Esc bubbles up to it and reopens the menu.
-        onEscapeKeyDown={(event) => event.stopPropagation()}
         className={cn(
           "top-auto bottom-0 left-0 max-h-[calc(100%-env(safe-area-inset-top))] max-w-none translate-x-0 translate-y-0 overflow-y-auto rounded-b-none pr-[max(1rem,env(safe-area-inset-right))] pb-[max(1rem,env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))]",
           centeredFromSm &&

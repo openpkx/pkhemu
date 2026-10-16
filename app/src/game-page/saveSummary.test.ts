@@ -48,7 +48,7 @@ it("summarises again a save cached without a revision, and caches the fresh summ
   const cached = {
     version: "SoulSilver",
     formatId: null,
-    trainer: { name: "RED", gender: "male", money: 0 },
+    trainer: { id: "12345", name: "RED", gender: "male", money: 0 },
     party: [],
     progress: { playTime: null, badges: null, pokedex: null },
   } as unknown as SaveSummary;
@@ -68,7 +68,7 @@ it("reuses a summary cached at the current revision without reading the save", a
     version: "Ruby",
     formatId: null,
     generation: 3,
-    trainer: { name: "RED", gender: "male", money: 0 },
+    trainer: { id: "12345", name: "RED", gender: "male", money: 0 },
     party: [],
     progress: { playTime: null, badges: null, pokedex: null },
   };
@@ -89,7 +89,7 @@ it("summarises a Stadium save again when its summary is cached under an older re
     version: "Stadium",
     formatId: null,
     generation: 1,
-    trainer: { name: "PKHeXWeb", gender: null, money: 0 },
+    trainer: { id: "12345", name: "PKHeXWeb", gender: null, money: 0 },
     party: [],
     progress: { playTime: null, badges: null, pokedex: null },
   };

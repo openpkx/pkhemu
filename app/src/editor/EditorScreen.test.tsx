@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { EngineProvider } from "@pkhex-everywhere/react";
 import { afterEach, expect, it, vi } from "vitest";
+import { BackProvider } from "@/back/back";
 import { ApplyBar, EditorScreen, useEditorNav, type Page } from "./EditorScreen";
 import type { SaveHost } from "./editSession";
 import { fakeEngine } from "./fakeEngine";
@@ -51,18 +52,20 @@ function launch({
   const onClose = vi.fn();
   const onSaveFirst = vi.fn();
   render(
-    <EngineProvider engine={engine}>
-      <EditorScreen
-        host={host}
-        home={home}
-        onBackGesture={onBackGesture}
-        onClose={onClose}
-        onSaveFirst={onSaveFirst}
-        afterApply={afterApply}
-        onApplied={onApplied}
-        confirmApply={confirmApply}
-      />
-    </EngineProvider>,
+    <BackProvider>
+      <EngineProvider engine={engine}>
+        <EditorScreen
+          host={host}
+          home={home}
+          onBackGesture={onBackGesture}
+          onClose={onClose}
+          onSaveFirst={onSaveFirst}
+          afterApply={afterApply}
+          onApplied={onApplied}
+          confirmApply={confirmApply}
+        />
+      </EngineProvider>
+    </BackProvider>,
   );
   return { engine, loaded, host, onClose, onSaveFirst, backGesture: () => backGesture?.() };
 }

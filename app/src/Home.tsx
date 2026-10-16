@@ -3,6 +3,9 @@ import { flushSync } from "react-dom";
 import { Toast, useToast } from "./components/Toast";
 import { useBack } from "./back/back";
 import { useFindAllBoxArt } from "./box-art/boxArt";
+import { CoffeeAsk } from "./coffee/coffee";
+import { sideloadBuild } from "./coffee/sideloadBuild";
+import { tauriCoffeeHost } from "./coffee/tauriHost";
 import { PadSetupPrompt } from "./controllers/PadSetupPrompt";
 import { GameArtFor } from "./game-art/gameArt";
 import { CloudGamePage } from "./game-page/CloudGamePage";
@@ -263,6 +266,8 @@ export function Home({
       {screen.name === "library" && (
         <MotionScreen>
           <LibraryScreen
+            host={syncedGamePageHost}
+            folder={gamesFolder.folder}
             systems={systems}
             onSettings={leaveForSettings}
             onOpenFolder={gamesFolder.openFolder}
@@ -329,6 +334,7 @@ export function Home({
         </GameArtFor>
       )}
       {hackBoxArt.sheet}
+      {sideloadBuild && <CoffeeAsk host={tauriCoffeeHost} playing={!!playing} canAsk={screen.name === "library"} />}
       <Toast>{toast}</Toast>
     </LibraryProvider>
   );

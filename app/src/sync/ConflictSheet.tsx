@@ -136,7 +136,7 @@ export function ConflictSheet({
   folder: string;
   path: string;
   conflicts: Conflict[];
-  input: Input;
+  input?: Input;
   onResolved(): void;
   onClose(): void;
 }) {

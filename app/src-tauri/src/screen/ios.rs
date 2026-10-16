@@ -37,6 +37,9 @@ struct Layers {
 
 impl Layers {
     fn draw(&mut self) -> Result<(), String> {
+        if self.last.as_ref().is_some_and(|frame| !frame.current()) {
+            self.last = None;
+        }
         let (Some(frame), Some(layout), Some(window)) = (&self.last, &self.layout, &self.window) else { return Ok(()) };
         if !self.presenter.as_ref().is_some_and(|presenter| presenter.draws_with(&frame.gpu)) {
             // A layer takes one Vulkan surface at a time.

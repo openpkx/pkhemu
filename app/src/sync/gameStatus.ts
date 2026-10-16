@@ -7,6 +7,7 @@ export type SyncBadgeState =
   | { kind: "ring"; percent: number; label: string }
   | { kind: "done"; label: string }
   | { kind: "waiting"; label: string }
+  | { kind: "conflict"; label: string }
   | { kind: "attention"; label: string };
 
 export const TICK_MS = 1500;
@@ -44,7 +45,7 @@ function liveBadge(game: GameSync | undefined, download: Download | undefined): 
     case "waiting":
       return { kind: "waiting", label: waits[game.reason] };
     case "conflict":
-      return { kind: "attention", label: "Changed on another device. Open the game to choose a version" };
+      return { kind: "conflict", label: "Changed on another device" };
     case "error":
       return { kind: "attention", label: game.message };
   }

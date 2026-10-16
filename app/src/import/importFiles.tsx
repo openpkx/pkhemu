@@ -1,5 +1,4 @@
 import { createContext, useContext, useEffect, useId, useRef, useState, type ReactNode } from "react";
-import { useBack } from "@/back/back";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -105,10 +104,9 @@ export type ImportQuestion =
 export function WhichGameDialog({ question, open }: { question: Extract<ImportQuestion, { kind: "game" }>; open: boolean }) {
   const [game, setGame] = useState<Game | null>(null);
   const labelId = useId();
-  useBack(open ? () => question.answer(null) : undefined);
   return (
     <Dialog open={open} onOpenChange={(open) => !open && question.answer(null)}>
-      <DialogContent showCloseButton={false} onEscapeKeyDown={(event) => event.stopPropagation()}>
+      <DialogContent showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>Which game is this save for?</DialogTitle>
           <DialogDescription id={labelId} className="break-words">
@@ -131,10 +129,9 @@ export function WhichGameDialog({ question, open }: { question: Extract<ImportQu
 
 export function ReplaceSaveDialog({ question, open }: { question: Extract<ImportQuestion, { kind: "replace" }>; open: boolean }) {
   const title = gameTitle(question.game.name);
-  useBack(open ? () => question.answer(false) : undefined);
   return (
     <AlertDialog open={open} onOpenChange={(open) => !open && question.answer(false)}>
-      <AlertDialogContent onEscapeKeyDown={(event) => event.stopPropagation()}>
+      <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Replace {title}'s save?</AlertDialogTitle>
           <AlertDialogDescription>
@@ -154,10 +151,9 @@ export function ReplaceSaveDialog({ question, open }: { question: Extract<Import
 export function WhichPatchDialog({ question, open }: { question: Extract<ImportQuestion, { kind: "whichPatch" }>; open: boolean }) {
   const [patch, setPatch] = useState<PatchImport | null>(null);
   const labelId = useId();
-  useBack(open ? () => question.answer(null) : undefined);
   return (
     <Dialog open={open} onOpenChange={(open) => !open && question.answer(null)}>
-      <DialogContent showCloseButton={false} onEscapeKeyDown={(event) => event.stopPropagation()}>
+      <DialogContent showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>Which patch?</DialogTitle>
           <DialogDescription className="break-words">

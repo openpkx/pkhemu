@@ -14,7 +14,7 @@ import { tilt, type Tilt } from "./motion/tilt";
 import { usePreferences } from "./preferences/preferences";
 import { parallax, rgb, shellIn, shellLook } from "./recess";
 import { createScreen, type Frame, type Look, type Parallax, type Rgb } from "./screen";
-import { dualScreen, pointerAt, singleScreen, type Layout, type Rect, type Screens } from "./screens";
+import { closeToSquare, dualScreen, inPortrait, pointerAt, singleScreen, type Layout, type Rect, type Screens } from "./screens";
 import { useAsyncShaders } from "./shaders/shaders";
 import type { HandheldDisplay } from "./systems";
 import { useVisible } from "./visible";
@@ -77,6 +77,7 @@ export function Player({
   folder,
   path,
   resume,
+  hardcore = false,
   speed,
   input,
   paused,
@@ -87,6 +88,7 @@ export function Player({
   clockOffset,
   renderer,
   onStacked,
+  onScreenWidth,
   onWindows,
   onStarted,
   onFps,
@@ -96,11 +98,15 @@ export function Player({
   holdMessage,
   className,
   clearance,
+  portrait = false,
+  corner,
   children,
 }: {
   folder: string;
   path: string;
   resume: boolean;
+  /** Whether the game starts in RetroAchievements' hardcore. Changing it later doesn't restart the game. */
+  hardcore?: boolean;
   input: Input;
   speed: Speed;
   paused: boolean;
@@ -112,6 +118,8 @@ export function Player({
   clockOffset: number;
   renderer: Renderer;
   onStacked?(stacked: boolean): void;
+  /** The widest screen's width, in CSS pixels. */
+  onScreenWidth?(width: number): void;
   /** Where the page has to leave the native surface showing, in CSS pixels on the page. */
   onWindows?(windows: Rect[] | undefined): void;
   onStarted?(): Promise<void>;
@@ -123,8 +131,12 @@ export function Player({
   className?: string;
   /** Padding that keeps the screens clear of controls at the sides. Two screens side by side only need it on one side. */
   clearance?: string;
+  /** Whether the game screen uses the portrait layout, with the controls below. */
+  portrait?: boolean;
   /** Drawn under the screen, such as the skin's printing. */
   children?: ReactNode;
+  /** Shown inside the screens' bottom-right corner. */
+  corner?: ReactNode;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const screenBox = useRef<HTMLDivElement>(null);
@@ -152,8 +164,12 @@ export function Player({
   currentlySwapped.current = swapped;
   const currentClearance = useRef(clearance);
   currentClearance.current = clearance;
+  const currentPortrait = useRef(portrait);
+  currentPortrait.current = portrait;
   const currentOnStacked = useRef(onStacked);
   currentOnStacked.current = onStacked;
+  const currentOnScreenWidth = useRef(onScreenWidth);
+  currentOnScreenWidth.current = onScreenWidth;
   const currentOnWindows = useRef(onWindows);
   currentOnWindows.current = onWindows;
   const currentOnStarted = useRef(onStarted);
@@ -164,6 +180,8 @@ export function Player({
   currentOnError.current = onError;
   const currentClockOffset = useRef(clockOffset);
   currentClockOffset.current = clockOffset;
+  const currentHardcore = useRef(hardcore);
+  currentHardcore.current = hardcore;
   const currentOnNativeFailed = useRef(onNativeFailed);
   currentOnNativeFailed.current = onNativeFailed;
   const [nativeAsked] = useState(renderer === "native");
@@ -171,6 +189,7 @@ export function Player({
   const touching = useRef<number>(undefined);
   const [started, setStarted] = useState(false);
   const [recessed, setRecessed] = useState(false);
+  const [cornerAt, setCornerAt] = useState<{ x: number; y: number }>();
   const [native, setNative] = useState(false);
   const [step, setStep] = useState<Step>();
   const shownStep = step === undefined ? undefined : STEPS[step];
@@ -205,6 +224,7 @@ export function Player({
     let wasPaused = false;
     let shownSwapped = currentlySwapped.current;
     let shownClearance = currentClearance.current;
+    let shownPortrait = currentPortrait.current;
     let shownGlass = currentGlass.current;
     let shownWall = currentWall.current;
     let shownTilt: Point | undefined;
@@ -227,11 +247,13 @@ export function Player({
       const changed =
         shownSwapped !== currentlySwapped.current ||
         shownClearance !== currentClearance.current ||
+        shownPortrait !== currentPortrait.current ||
         shownGlass !== currentGlass.current ||
         shownWall !== currentWall.current;
       if (latest && (resized || changed)) {
         shownSwapped = currentlySwapped.current;
         shownClearance = currentClearance.current;
+        shownPortrait = currentPortrait.current;
         shownGlass = currentGlass.current;
         shownWall = currentWall.current;
         const shell = display && shownWall ? shellIn(display) : undefined;
@@ -239,17 +261,33 @@ export function Player({
         const padding = getComputedStyle(screenBox.current!);
         const clear = (Math.max(parseFloat(padding.paddingLeft), parseFloat(padding.paddingRight)) || 0) * devicePixelRatio;
         layout.current = screens
-          ? dualScreen(latest, screens, space, shownSwapped, shell, clear)
-          : singleScreen(latest, space, shell);
+          ? dualScreen(
+              latest,
+              shownPortrait ? inPortrait(screens) : screens,
+              space,
+              shownSwapped,
+              shell,
+              clear,
+              matchMedia(closeToSquare).matches,
+            )
+          : singleScreen(latest, space, shell, clear);
         look = display && shownWall ? shellLook(display, rgb(shownWall), shownGlass) : undefined;
         lean(tiltState?.shift ?? origin);
         setRecessed(!!look);
         const size = layout.current.canvas;
         currentOnStacked.current?.(size.height > size.width);
+        currentOnScreenWidth.current?.(Math.max(...layout.current.views.map(({ target }) => target.width)) / devicePixelRatio);
         canvas.current!.width = size.width;
         canvas.current!.height = size.height;
         canvas.current!.style.width = `${size.width / devicePixelRatio}px`;
         canvas.current!.style.height = `${size.height / devicePixelRatio}px`;
+        const corner = layout.current.views
+          .map(({ target }) => ({ x: target.x + target.width, y: target.y + target.height }))
+          .reduce((furthest, at) => (at.x + at.y > furthest.x + furthest.y ? at : furthest));
+        setCornerAt({
+          x: canvas.current!.offsetLeft + corner.x / devicePixelRatio,
+          y: canvas.current!.offsetTop + corner.y / devicePixelRatio,
+        });
         resized = false;
         if (drawnNatively) {
           const surface = onSurface(layout.current, look, canvas.current!, container.current!);
@@ -304,6 +342,7 @@ export function Player({
         folder,
         path,
         resume,
+        hardcore: currentHardcore.current,
         clockOffset: currentClockOffset.current,
         asyncShaders: await currentAsyncShaders.current,
         onFrame: frames,
@@ -410,6 +449,14 @@ export function Player({
           onContextMenu={(event) => event.preventDefault()}
         />
         {children}
+        {corner && cornerAt && (
+          <div
+            className="pointer-events-none absolute -translate-x-full -translate-y-full p-1.5"
+            style={{ left: cornerAt.x, top: cornerAt.y }}
+          >
+            {corner}
+          </div>
+        )}
       </div>
       {!started && (
         <>

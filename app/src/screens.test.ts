@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { fit, origin } from "./fit";
-import { dualScreen, dualScreens, pointerAt, singleScreen } from "./screens";
+import { dualScreen, dualScreens, inPortrait, pointerAt, singleScreen } from "./screens";
 
 const ds = { width: 256, height: 384 };
 const gba = { width: 240, height: 160 };
@@ -26,6 +26,20 @@ describe("single screen", () => {
     expect(layout.border).toBe(24);
     expect(layout.canvas).toEqual({ width: 1000, height: 683 });
     expect(layout.views[0].target).toEqual({ x: 24, y: 24, width: 952, height: 635 });
+  });
+
+  it("gives up the clearance on both sides", () => {
+    const layout = singleScreen(gba, { width: 1210, height: 834 }, undefined, 176);
+
+    expect(layout.canvas).toEqual({ width: 858, height: 572 });
+  });
+
+  it("keeps its size when the clearance leaves room enough", () => {
+    expect(singleScreen(gba, { width: 844, height: 160 }, undefined, 176).canvas).toEqual({ width: 240, height: 160 });
+  });
+
+  it("lies under the controls rather than shrink below its own size", () => {
+    expect(singleScreen(gba, { width: 312, height: 480 }, undefined, 176).canvas).toEqual({ width: 312, height: 208 });
   });
 
   it("takes no pointer", () => {
@@ -145,12 +159,28 @@ describe("two screens", () => {
     expect(layout.canvas.width).toBeLessThanOrEqual(space.width - 176);
   });
 
+  it("clears both sides beside each other when asked", () => {
+    const space = { width: 1210, height: 834 };
+    const layout = dualScreen(threeDs, dualScreens["3ds"]!, space, false, undefined, 176, true);
+
+    expect(layout.canvas.width).toBeLessThanOrEqual(space.width - 2 * 176);
+  });
+
   it("clears both sides when stacked", () => {
     const space = { width: 700, height: 900 };
     const layout = dualScreen(ds, nds, space, false, undefined, 176);
 
     expect(layout.views.map((view) => view.target.x)).toEqual([0, 0]);
     expect(layout.canvas.width).toBeLessThanOrEqual(space.width - 2 * 176);
+  });
+
+  it("lies under the controls rather than shrink below its own size", () => {
+    const space = { width: 750, height: 972 };
+
+    expect(dualScreen(ds, nds, space, false, undefined, 352, true)).toEqual(dualScreen(ds, nds, space, false));
+    expect(dualScreen(threeDs, dualScreens["3ds"]!, space, false, undefined, 352, true)).toEqual(
+      dualScreen(threeDs, dualScreens["3ds"]!, space, false),
+    );
   });
 
   it("keeps each screen's window when swapped", () => {
@@ -257,10 +287,82 @@ describe("3DS screens in a landscape space", () => {
     expect(bottom).toEqual({ ...top, x: top.width });
   });
 
+  it("stacks the screens in a portrait window, even where the space is wider than tall", () => {
+    const layout = dualScreen(threeDs, inPortrait(screens), { width: 984, height: 720 }, false);
+
+    expect(layout.views.map((view) => view.target.y)).toEqual([0, layout.views[0].target.height]);
+  });
+
   it("still stacks the screens in a space taller than wide", () => {
     const layout = dualScreen(threeDs, screens, { width: 950, height: 1425 }, false);
 
     expect(layout.views.map((view) => view.target.y)).toEqual([0, layout.views[0].target.height]);
+  });
+});
+
+describe("3DS screens on phones and iPads", () => {
+  const screens = dualScreens["3ds"]!;
+
+  it.each([
+    { window: "13-inch iPad portrait", space: { width: 1968, height: 1441 }, top: { width: 1200, height: 720 } },
+    { window: "11-inch iPad portrait", space: { width: 1572, height: 1128 }, top: { width: 940, height: 564 } },
+    { window: "phone portrait", space: { width: 1026, height: 1017 }, top: { width: 800, height: 480 } },
+  ])("stacks both screens at one scale in $window", ({ space, top }) => {
+    const layout = dualScreen(threeDs, inPortrait(screens), space, false);
+
+    expect(layout.views.map((view) => view.target)).toEqual([
+      { x: 0, y: 0, ...top },
+      { x: top.width / 10, y: top.height, width: (top.width * 4) / 5, height: top.height },
+    ]);
+  });
+
+  it.each([
+    {
+      window: "phone landscape",
+      space: { width: 2532, height: 1170 },
+      clearance: 528,
+      bothSides: false,
+      targets: [
+        { x: 0, y: 0, width: 1431, height: 859 },
+        { x: 1431, y: 215, width: 573, height: 429 },
+      ],
+    },
+  ])("shows large and small in $window", ({ space, clearance, bothSides, targets }) => {
+    const layout = dualScreen(threeDs, screens, space, false, undefined, clearance, bothSides);
+
+    expect(layout.views.map((view) => view.target)).toEqual(targets);
+  });
+
+  it.each([
+    {
+      window: "13-inch iPad landscape",
+      space: { width: 2752, height: 2064 },
+      targets: [
+        { x: 0, y: 0, width: 1600, height: 960 },
+        { x: 160, y: 960, width: 1280, height: 960 },
+      ],
+    },
+    {
+      window: "11-inch iPad landscape",
+      space: { width: 2420, height: 1668 },
+      targets: [
+        { x: 0, y: 0, width: 1390, height: 834 },
+        { x: 139, y: 834, width: 1112, height: 834 },
+      ],
+    },
+  ])("stacks the screens in $window, where stacking makes them bigger than large and small", ({ space, targets }) => {
+    const layout = dualScreen(threeDs, screens, space, false, undefined, 352, true);
+
+    expect(layout.views.map((view) => view.target)).toEqual(targets);
+  });
+
+  it("stacks swapped screens in 11-inch iPad landscape", () => {
+    const layout = dualScreen(threeDs, screens, { width: 2420, height: 1668 }, true, undefined, 352, true);
+
+    expect(layout.views.map((view) => view.target)).toEqual([
+      { x: 139, y: 0, width: 1112, height: 834 },
+      { x: 0, y: 834, width: 1390, height: 834 },
+    ]);
   });
 });
 

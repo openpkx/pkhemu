@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import { useBack } from "@/back/back";
 import { Toast, useToast } from "@/components/Toast";
 import {
   AlertDialog,
@@ -21,7 +20,6 @@ import { padDriver, type SetupPad } from "./setupDrivers";
 
 function SetupNotice({ pad, onSetUp, onDismiss }: { pad: SetupPad; onSetUp(): void; onDismiss(): void }) {
   useCapturePads();
-  useBack(onDismiss);
   return (
     <AlertDialog open onOpenChange={(open) => !open && onDismiss()}>
       <AlertDialogContent>

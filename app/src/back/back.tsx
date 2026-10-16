@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import type { OnBackGesture } from "@/backGesture";
 
 export type BackHost = {
@@ -47,11 +47,12 @@ function useHandlers() {
 export function useBack(onBack: (() => void) | undefined) {
   const handlers = useHandlers();
   // Taken during render, which runs parents before children, so the innermost screen has the highest order.
-  const [order] = useState(() => nextOrder++);
-  const handler = useRef<Handler>({ order, current: onBack });
-  handler.current.current = onBack;
+  // Taken again when the handler turns on, so an overlay mounted closed ranks above screens mounted before it opened.
+  const [handler] = useState<Handler>(() => ({ order: nextOrder++, current: onBack }));
+  if (onBack && !handler.current) handler.order = nextOrder++;
+  handler.current = onBack;
 
-  useEffect(() => add(handlers, handler.current), [handlers]);
+  useEffect(() => add(handlers, handler), [handlers, handler]);
 }
 
 export function useBackGesture(): OnBackGesture {

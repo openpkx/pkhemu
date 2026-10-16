@@ -25,9 +25,9 @@ fn sign_in(syncer: &Syncer) {
 
 #[test]
 fn a_build_without_a_store_key_is_unlocked_and_syncs() {
-    let syncer = syncer("unlocked", Build::Unlocked, None);
+    let syncer = syncer("unlocked", Build::Unlocked { sideload: false }, None);
 
-    assert_eq!(block_on(syncer.plus.check()), Status::Unlocked);
+    assert_eq!(block_on(syncer.plus.check()), Status::Unlocked { sideload: false });
     assert_eq!(syncer.available(keyed), [Cloud::Google, Cloud::Dropbox]);
     sign_in(&syncer);
     assert!(syncer.provider().is_ok());

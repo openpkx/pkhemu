@@ -18,6 +18,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
+import { CoffeeAsk } from "@/coffee/coffee";
 import { EditorScreen } from "@/editor/EditorScreen";
 import { ExportProvider } from "@/editor/exportFile";
 import { fakeEngine, type FakeEventEncounter } from "@/editor/fakeEngine";
@@ -42,11 +43,19 @@ import { Copying, FolderSummaryScreen, SaveConflicts, Scanning, WhereAreYourGame
 import { createInput } from "@/input/input";
 import { NewFolder, PreviousFolder } from "@/onboarding/Welcome";
 import { fakeFolder } from "@/library/fakeFolder";
+import { fakeJit } from "@/jit/fakeJit";
+import { JitProvider } from "@/jit/jit";
 import { LibraryProvider, type LibraryHost } from "@/library/library";
 import type { Game } from "@/library/scan";
 import { PatchRomDialog, PatchRomProvider, type PatchRomHost } from "@/patch-rom/patchRom";
 import { OpponentPill } from "@/pokemon-info/OpponentPill";
+import { fakePlus } from "@/plus/fakePlus";
+import { PlusProvider } from "@/plus/plus";
 import { PreferencesProvider, type Preferences } from "@/preferences/preferences";
+import { RetroAchievementsProvider, type RetroAchievementsHost } from "@/retro-achievements/retroAchievements";
+import type { Achievement } from "@/retro-achievements/retroAchievements";
+import { AchievementsScreen } from "@/retro-achievements/AchievementsScreen";
+import { RetroAchievementsScreen } from "@/retro-achievements/RetroAchievementsSettings";
 import { SettingsScreen } from "@/SettingsScreen";
 import { fakeSync } from "@/sync/fakeSync";
 import type { SyncBadgeState } from "@/sync/gameStatus";
@@ -107,6 +116,7 @@ async function playingCommand(command: string, args: Record<string, unknown>) {
   }
   if (command === "list_states") return { current: null, slots: [], canUndoLoad: false };
   if (command === "can_undo_edit") return false;
+  if (command === "missing_memory_entitlements") return [];
   return undefined;
 }
 
@@ -138,7 +148,7 @@ const games = [
 ];
 
 const preferences: Preferences = {
-  touchControls: playing || params.get("screen") === "settings-skins",
+  touchControls: (playing && params.get("touch") !== "off") || params.get("screen") === "settings-skins",
   fastForwardSpeed: 2,
   showFps: false,
   theme,
@@ -466,7 +476,7 @@ const badges: SyncBadgeState[] = [
   { kind: "ring", percent: 60, label: "Uploading saves · 60%" },
   { kind: "done", label: "Synced" },
   { kind: "waiting", label: "Waiting to sync" },
-  { kind: "attention", label: "Changed on another device" },
+  { kind: "conflict", label: "Changed on another device" },
 ];
 const screenshotUrl = URL.createObjectURL(new Blob([lastScreen], { type: "image/png" }));
 
@@ -489,7 +499,7 @@ function Overlays() {
           <div key={badge.kind} className="relative aspect-square overflow-hidden rounded-tile bg-card">
             <img src={screenshotUrl} alt="" className="absolute inset-0 size-full object-cover [image-rendering:pixelated]" />
             <span className="absolute top-2 right-2">
-              <SyncBadge badge={badge} />
+              <SyncBadge badge={badge} onResolve={() => {}} />
             </span>
           </div>
         ))}
@@ -561,7 +571,7 @@ const screens: Record<string, () => ReactNode> = {
       return [
         [`game-page-${system}`, page(false)],
         [`game-page-${system}-art`, page(true)],
-        ...(system === "gba" ? [[`game-page-${system}-menu`, page(false)]] : []),
+        ...(system === "gba" ? [[`game-page-${system}-menu`, page(false)], [`game-page-${system}-achievements`, page(false)]] : []),
       ];
     }),
   ),
@@ -586,6 +596,35 @@ const screens: Record<string, () => ReactNode> = {
         ),
       ];
     }),
+  ),
+  achievements: () => <AchievementsScreen achievements={achievementList} onBack={() => {}} />,
+  "achievements-sheet": () => <AchievementsScreen achievements={achievementList} onBack={() => {}} />,
+  "retro-achievements": () => <RetroAchievementsScreen onBack={() => {}} />,
+  "settings-retro-achievements": () => <SettingsScreen onBack={() => {}} onLicences={() => {}} />,
+  "settings-sideload": () => <SettingsScreen onBack={() => {}} onLicences={() => {}} />,
+  "coffee-ask": () => (
+    <>
+      <Home libraryHost={libraryHost()} gamePageHost={gamePageHost()} />
+      <CoffeeAsk
+        host={{ load: async () => ({ secondsPlayed: 3 * 60 * 60 }), save: async () => {}, openKoFi: async () => {} }}
+        playing={false}
+        canAsk
+      />
+    </>
+  ),
+  "settings-jit": () => (
+    <PlusProvider host={fakePlus({ status: { state: "unlocked", sideload: true } }).host}>
+      <JitProvider host={fakeJit().host}>
+        <SettingsScreen onBack={() => {}} onLicences={() => {}} />
+      </JitProvider>
+    </PlusProvider>
+  ),
+  "settings-jit-pairing-file": () => (
+    <PlusProvider host={fakePlus({ status: { state: "unlocked", sideload: true } }).host}>
+      <JitProvider host={fakeJit({ pairingFile: true }).host}>
+        <SettingsScreen onBack={() => {}} onLicences={() => {}} />
+      </JitProvider>
+    </PlusProvider>
   ),
   "transfer-pak": () => (
     <TransferPakScreen games={Object.values(pageGames)} chosen={pageGames.gb.path} input={input} onRestart={() => {}} onBack={() => {}} />
@@ -749,6 +788,77 @@ const screens: Record<string, () => ReactNode> = {
   "editor-mystery-gift-review": () => <FakeEditor engine={platinum} home={saveHome} />,
 };
 
+const unlocks = Number(params.get("unlocks") ?? 0);
+const achievementsShown = unlocks > 0 || (params.get("screen") ?? "").includes("achievements") || ["completed", "progress", "challenge", "leaderboard"].some((name) => params.has(name));
+const hoursAgo = (hours: number) => Math.floor(Date.now() / 1000) - hours * 3600;
+const achievementList: Achievement[] = [
+  { id: 1, title: "Pallet Town Dropout", description: "Catch your first Pokémon", points: 5, badge: "1", earned: null, progress: null, rarity: 91 },
+  { id: 2, title: "Gotta Catch 'Em", description: "Register 100 Pokémon in the Pokédex", points: 25, badge: "2", earned: null, progress: "47/100", rarity: 18 },
+  { id: 3, title: "The Long Way Round Through Victory Road", description: "Reach the Indigo Plateau without using a Repel or a Max Repel on the way", points: 50, badge: "3", earned: null, progress: null, rarity: 0.4 },
+  { id: 0, title: "Boulder Badge", description: "Defeat Brock in Pewter City", points: 10, badge: "0", earned: { at: hoursAgo(2), hardcore: false }, progress: null, rarity: 62 },
+  { id: 4, title: "Cascade Badge", description: "Defeat Misty in Cerulean City", points: 10, badge: "4", earned: { at: hoursAgo(30), hardcore: true }, progress: null, rarity: 48 },
+];
+const unlockTitles = ["Boulder Badge", "The Long Way Round Through Victory Road", "Gotta Catch 'Em", "Cascade Badge", "Thunder Badge"];
+
+function retroAchievementsHost(): RetroAchievementsHost {
+  const badge = png(64, 64, (context) => {
+    context.fillStyle = "#4a3f36";
+    context.fillRect(0, 0, 64, 64);
+    context.fillStyle = "#b8b8c4";
+    context.fillRect(8, 24, 48, 16);
+    context.fillRect(16, 16, 32, 32);
+    context.fillStyle = "#e4e4ee";
+    context.fillRect(20, 24, 12, 8);
+  });
+  return {
+    turn: async () => {},
+    account: async () => "Player",
+    signIn: async (user) => user,
+    signOut: async () => {},
+    createAccount: async () => {},
+    openProfile: async () => {},
+    onEvent: (listener) => {
+      const timer = setTimeout(() => {
+        for (let i = 0; i < unlocks; i++) {
+          const title = unlockTitles[(i + Number(params.get("unlockFrom") ?? 0)) % unlockTitles.length];
+          listener({ kind: "unlocked", id: i, title, description: "Defeat Brock in Pewter City", points: 10, badge: `${i}` });
+        }
+        if (params.has("completed")) listener({ kind: "completed", game: "Emerald", points: 1240, badge: "0", hardcore: true });
+        if (params.has("challenge")) listener({ kind: "challengeShown", id: 7, title: "Thunder Badge", badge: "0" });
+        if (params.has("progress")) {
+          listener({ kind: "progress", id: 8, title: "Gotta Catch 'Em", badge: "0", progress: "47/100" });
+        }
+        if (params.has("leaderboard")) {
+          listener({ kind: "tracker", id: 1, value: "1:23.45" });
+          listener({ kind: "leaderboardStarted", id: 9, title: "Fastest Elite Four" });
+        }
+      }, Number(params.get("unlockAfter") ?? 1000));
+      return () => clearTimeout(timer);
+    },
+    badge: async (name) => (name === "0" || params.has("badges") ? badge : undefined),
+    playing: async () => achievementList,
+    game: async () => achievementList,
+    summary: async () => ({
+      user: "Player",
+      profile: { avatar: "0", hardcore: 1240, softcore: 85 },
+      recent: achievementList.filter(({ earned }) => earned).map((achievement) => ({ game: "Pokémon FireRed", achievement })),
+      offline: params.has("offline"),
+    }),
+    hardcore: async () => params.has("hardcore"),
+    setHardcore: async () => {},
+    leaveHardcore: async () => {},
+    edited: async () => params.has("edited"),
+    settleEdited: async () => params.has("edited"),
+  };
+}
+
+function WithUnlocks({ children }: { children: ReactNode }) {
+  if (!achievementsShown) return children;
+  return (
+    <RetroAchievementsProvider host={retroAchievementsHost()}>{children}</RetroAchievementsProvider>
+  );
+}
+
 const screen = screens[params.get("screen") ?? ""] ?? screens.library;
 const sync =
   params.get("screen") === "library-cloud"
@@ -766,7 +876,9 @@ createRoot(document.getElementById("root")!).render(
                 <BoxArtProvider host={boxArt.host}>
                   <GameArtProvider host={fakeGameArt().host}>
                     <PatchRomProvider host={patchRomHost}>
-                      <ExportProvider host={{ saveFile: async () => undefined, saveFiles: async () => undefined }}>{screen()}</ExportProvider>
+                      <ExportProvider host={{ saveFile: async () => undefined, saveFiles: async () => undefined }}>
+                        <WithUnlocks>{screen()}</WithUnlocks>
+                      </ExportProvider>
                     </PatchRomProvider>
                   </GameArtProvider>
                 </BoxArtProvider>

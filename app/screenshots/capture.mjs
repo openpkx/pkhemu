@@ -7,7 +7,8 @@ import { chromium } from "playwright";
 import { createServer } from "vite";
 
 const here = import.meta.dirname;
-const out = path.join(here, "out");
+const ipad = process.argv.includes("--ipad");
+const out = path.join(here, "out", ipad ? "ipad" : "");
 const screens = [
   "library",
   "library-3ds",
@@ -34,6 +35,8 @@ const screens = [
   "import-folder-conflicts",
   "settings",
   "settings-skins",
+  "settings-sideload",
+  "coffee-ask",
   "welcome",
   "welcome-folder",
   "welcome-mac",
@@ -45,6 +48,13 @@ const screens = [
   "welcome-previous-warning",
   ...["gb", "gbc", "gba", "nds", "n64", "3ds"].flatMap((system) => [`game-page-${system}`, `game-page-${system}-art`]),
   "game-page-gba-menu",
+  "game-page-gba-achievements",
+  "achievements",
+  "achievements-sheet",
+  "retro-achievements",
+  "settings-retro-achievements",
+  "settings-jit",
+  "settings-jit-pairing-file",
   "patch-rom",
   "box-art-sheet",
   "editor",
@@ -72,15 +82,28 @@ const screens = [
   "transfer",
   "transfer-pak",
 ];
-const themes = ["dark", "light"];
+const themes = ipad ? ["dark"] : ["dark", "light"];
 const shownOnPhone = (screen) => screen.startsWith("playing-") || screen.startsWith("skin-picker-");
+const ipadViewports = [
+  { name: "11-portrait", width: 834, height: 1210 },
+  { name: "11-landscape", width: 1210, height: 834 },
+  { name: "13-portrait", width: 1032, height: 1376 },
+  { name: "13-landscape", width: 1376, height: 1032 },
+  { name: "split-half", width: 683, height: 1032 },
+  { name: "split-third", width: 375, height: 1032 },
+  { name: "stage-manager", width: 600, height: 480 },
+  { name: "stage-manager-portrait", width: 375, height: 486 },
+];
+const narrowScreens = new Set(["settings", "settings-skins", "settings-sideload"]);
 const viewports = (screen) =>
-  shownOnPhone(screen)
+  ipad
+    ? ipadViewports
+    : shownOnPhone(screen)
     ? [
         { name: "portrait", width: 390, height: 844 },
         { name: "landscape", width: 844, height: 390 },
       ]
-    : [390, 1280].map((width) => ({ name: width, width, height: 844 }));
+    : [...(narrowScreens.has(screen) ? [320] : []), 390, 1280].map((width) => ({ name: width, width, height: 844 }));
 // A full-page shot stretches the viewport, which moves a sheet sized to it.
 const sheets = new Set(["box-art-sheet", "settings-skins"]);
 const lightSkins = {
@@ -105,6 +128,17 @@ const skinShots = (screen) =>
       { name: `-skin-${skin}`, query: `&skin=${skin}` },
       ...(skin === freeSkins[screen] ? [{ name: `-skin-${skin}-frosted`, query: `&skin=${skin}&look=frosted` }] : []),
     ]);
+const ipadVariants = (screen, skin = lightSkins[screen] ?? freeSkins[screen]) => [
+  { name: "", query: screen.startsWith("skin-picker-") ? "&hinted" : "" },
+  ...(screen.startsWith("playing-")
+    ? [
+        { name: "-paused", query: `&skin=${freeSkins[screen]}`, pause: true },
+        { name: "-frosted", query: "&look=frosted" },
+        { name: `-skin-${skin}`, query: `&skin=${skin}` },
+        { name: "-controller", query: "&touch=off" },
+      ]
+    : []),
+];
 const variants = (screen, viewport) => [
   { name: "", query: screen.startsWith("skin-picker-") ? "&hinted" : "" },
   ...(screen.startsWith("skin-picker-") && viewport === "portrait"
@@ -115,6 +149,16 @@ const variants = (screen, viewport) => [
       ]
     : []),
   ...(screen.startsWith("playing-") ? [{ name: "-paused", query: `&skin=${freeSkins[screen]}`, pause: true }] : []),
+  ...(screen.startsWith("playing-")
+    ? [
+        { name: "-unlock", query: `&skin=${freeSkins[screen]}&unlocks=1`, unlock: true },
+        { name: "-unlock-long", query: "&unlocks=1&unlockFrom=1&badges", unlock: true },
+        { name: "-mastery", query: `&skin=${freeSkins[screen]}&completed`, mastery: true },
+        { name: "-indicators", query: `&skin=${freeSkins[screen]}&progress&challenge`, indicators: true },
+        { name: "-leaderboard", query: `&skin=${freeSkins[screen]}&leaderboard&progress`, leaderboard: true },
+      ]
+    : []),
+  ...(screen === "playing-gba" && viewport === "portrait" ? [{ name: "-unlock-tapped", query: "&unlocks=2&badges", unlock: true, tap: true }] : []),
   ...(screen.startsWith("playing-") && viewport === "portrait"
     ? [{ name: "-frosted", query: "&look=frosted" }, ...skinShots(screen)]
     : []),
@@ -127,8 +171,8 @@ const variants = (screen, viewport) => [
       ]
     : []),
 ];
-const pointers = (screen) => (shownOnPhone(screen) ? ["touch"] : ["touch", "mouse"]);
-const only = process.argv.slice(2);
+const pointers = (screen) => (ipad || shownOnPhone(screen) ? ["touch"] : ["touch", "mouse"]);
+const only = process.argv.slice(2).filter((arg) => arg !== "--ipad");
 
 const placeholder = (url) => {
   const name = decodeURIComponent(url.split("/").at(-1)).replace(/\.png$/, "");
@@ -149,6 +193,7 @@ const server = await createServer({
       // The test fakes call vi.fn, and vitest doesn't load in a browser.
       { find: /^vitest$/, replacement: path.join(here, "vitest.ts") },
       { find: /^\.\/motion\/tilt$/, replacement: path.join(here, "tilt.ts") },
+      { find: /^\.\/coffee\/sideloadBuild$/, replacement: path.join(here, "sideloadBuild.ts") },
     ],
   },
   server: { port: 0 },
@@ -162,11 +207,11 @@ try {
   for (const screen of screens.filter((screen) => !only.length || only.some((name) => screen.startsWith(name)))) {
     for (const theme of themes) {
       for (const { name, width, height } of viewports(screen)) {
-        for (const [pointer, variant] of pointers(screen).flatMap((pointer) => variants(screen, name).map((variant) => [pointer, variant]))) {
+        for (const [pointer, variant] of pointers(screen).flatMap((pointer) => (ipad ? ipadVariants(screen) : variants(screen, name)).map((variant) => [pointer, variant]))) {
           const shot = `${screen}-${theme}-${name}${variant.name}-${pointer}`;
           const page = await browser.newPage({
             viewport: { width, height },
-            deviceScaleFactor: shownOnPhone(screen) ? 3 : 1,
+            deviceScaleFactor: ipad ? 2 : shownOnPhone(screen) ? 3 : 1,
             colorScheme: theme,
             hasTouch: pointer === "touch",
           });
@@ -210,6 +255,32 @@ try {
               await page.getByRole("button", { name: "Review" }).click();
               await page.getByRole("article").waitFor();
             }
+            await page.waitForTimeout(800);
+          }
+          if (variant.unlock) {
+            await page.getByRole("status", { name: /^Achievement unlocked/ }).waitFor();
+            await page.waitForTimeout(1200);
+          }
+          if (variant.mastery) {
+            await page.getByRole("status", { name: /^Mastered/ }).waitFor();
+            await page.waitForTimeout(1300);
+          }
+          if (variant.leaderboard) {
+            await page.getByRole("status", { name: /^Leaderboard started/ }).waitFor();
+            await page.waitForTimeout(400);
+          }
+          if (variant.indicators) {
+            await page.getByRole("status", { name: /47\/100$/ }).waitFor();
+            await page.waitForTimeout(400);
+          }
+          if (variant.tap) {
+            await page.getByRole("status", { name: /^Achievement unlocked/ }).click();
+            await page.getByRole("dialog").waitFor();
+            await page.waitForTimeout(800);
+          }
+          if (screen === "achievements-sheet") {
+            await page.getByRole("button", { name: /Gotta Catch/ }).click();
+            await page.getByRole("dialog").waitFor();
             await page.waitForTimeout(800);
           }
           if (variant.pause) {

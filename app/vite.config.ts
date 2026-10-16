@@ -8,6 +8,7 @@ export default defineConfig({
   plugins: [react(), tailwindcss(), pkhexEngine()],
   resolve: { alias: { "@": path.resolve(import.meta.dirname, "src") } },
   clearScreen: false,
+  envPrefix: ["VITE_", "PKH_EMU_STORE"],
   server: {
     port: 1420,
     strictPort: true,

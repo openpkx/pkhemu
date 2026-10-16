@@ -2,12 +2,15 @@ import * as React from "react"
 import { cn } from "cn"
 import { Dialog as DialogPrimitive } from "radix-ui"
 
+import { useBack } from "@/back/back"
 import { Button } from "@/components/ui/button"
 import { XIcon } from "lucide-react"
 
 function Dialog({
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Root>) {
+  const { open, onOpenChange } = props
+  useBack(open && onOpenChange ? () => onOpenChange(false) : undefined)
   return <DialogPrimitive.Root data-slot="dialog" {...props} />
 }
 
@@ -50,6 +53,7 @@ function DialogContent({
   children,
   showCloseButton = true,
   motion = "dialog",
+  onEscapeKeyDown,
   ...props
 }: React.ComponentProps<typeof DialogPrimitive.Content> & {
   showCloseButton?: boolean
@@ -64,6 +68,11 @@ function DialogContent({
           `motion-${motion} fixed top-1/2 left-1/2 z-50 grid w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 outline-none sm:max-w-sm`,
           className
         )}
+        onEscapeKeyDown={(event) => {
+          // Escape closes one layer: the desktop back host and the game's keyboard also listen on window.
+          event.stopPropagation()
+          onEscapeKeyDown?.(event)
+        }}
         {...props}
       >
         {children}
