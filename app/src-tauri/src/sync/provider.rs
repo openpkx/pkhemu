@@ -1,3 +1,4 @@
+use super::{Cloud, PRESS};
 use std::future::Future;
 use std::io::{Read, Write};
 use std::pin::Pin;
@@ -16,8 +17,10 @@ pub enum Error {
     Offline,
     /// On mobile data with Sync on mobile data off, so the game's changes wait for Wi-Fi.
     MobileData,
-    /// Every game waits until the player fixes the account, as with an expired sign-in or a full drive.
+    /// Every game waits until the player fixes the account, as with an expired sign-in.
     Account(String),
+    /// The cloud has no space left, so the run stops and automatic runs hold back ROMs until Sync now gets through.
+    Full(Cloud),
     Failed(String),
 }
 
@@ -28,6 +31,7 @@ impl std::fmt::Display for Error {
             Error::Stale => write!(f, "another device changed the game at the same time"),
             Error::Offline => write!(f, "No connection. pkhemu will try again"),
             Error::MobileData => write!(f, "Sync on mobile data is off"),
+            Error::Full(cloud) => write!(f, "Your {} is full. Free up space, then {PRESS} Sync now.", cloud.name()),
             Error::Account(reason) | Error::Failed(reason) => write!(f, "{reason}"),
         }
     }

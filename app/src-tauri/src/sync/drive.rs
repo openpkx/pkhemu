@@ -1,5 +1,6 @@
 use super::oauth::{offline, Tokens};
 use super::provider::{BoxFuture, Changes, Error, Provider, Sent, Versioned};
+use super::Cloud;
 use reqwest::header::{CONTENT_LENGTH, CONTENT_RANGE, CONTENT_TYPE, LOCATION, RANGE};
 use reqwest::{Client, RequestBuilder, Response, StatusCode};
 use serde_json::{json, Value};
@@ -28,7 +29,7 @@ fn refusal(status: StatusCode, body: &str) -> Error {
     match status.as_u16() {
         429 | 500..=599 => Error::SlowDown(None),
         403 if said("rateLimitExceeded") || said("userRateLimitExceeded") => Error::SlowDown(None),
-        403 if said("storageQuotaExceeded") => Error::Account("Your Google Drive is full".into()),
+        403 if said("storageQuotaExceeded") => Error::Full(Cloud::Google),
         403 if said("insufficientPermissions") || detailed("ACCESS_TOKEN_SCOPE_INSUFFICIENT") => {
             Error::Account("Sign in to Google Drive again".into())
         }
@@ -656,7 +657,7 @@ mod tests {
             assert_eq!(block_on(cloud.drive.changes(None)), Err(Error::SlowDown(None)), "{status} {reason:?}");
         }
         cloud.fail(1, 403, Some("storageQuotaExceeded"));
-        assert_eq!(block_on(cloud.drive.changes(None)), Err(Error::Account("Your Google Drive is full".into())));
+        assert_eq!(block_on(cloud.drive.changes(None)), Err(Error::Full(Cloud::Google)));
         assert!(block_on(cloud.drive.changes(None)).is_ok());
     }
 

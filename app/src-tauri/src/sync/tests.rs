@@ -20,6 +20,7 @@ enum Event {
     Run(RunProgress),
     BoxArt(String),
     Skins(crate::skins::Skins),
+    Catalog,
 }
 
 #[derive(Default)]
@@ -40,6 +41,10 @@ impl Events for Recorded {
 
     fn skins(&self, skins: &crate::skins::Skins) {
         self.0.lock().unwrap().push(Event::Skins(skins.clone()));
+    }
+
+    fn catalog(&self) {
+        self.0.lock().unwrap().push(Event::Catalog);
     }
 }
 
@@ -115,10 +120,9 @@ struct Device {
     games: GamesFolder<'static, tauri::Wry>,
     index: Arc<Index>,
     in_use: Arc<InUse>,
-    sync_games: AtomicBool,
     metered: AtomicBool,
     mobile_data: AtomicBool,
-    mobile_roms: AtomicBool,
+    cloud_full: AtomicBool,
 }
 
 fn device(test: &str, name: &'static str) -> Device {
@@ -136,10 +140,9 @@ fn device(test: &str, name: &'static str) -> Device {
         root,
         index,
         in_use: Arc::default(),
-        sync_games: AtomicBool::new(false),
         metered: AtomicBool::new(false),
         mobile_data: AtomicBool::new(true),
-        mobile_roms: AtomicBool::new(false),
+        cloud_full: AtomicBool::new(false),
     }
 }
 
@@ -217,15 +220,19 @@ impl Device {
             sleep,
             events: &NoEvents,
             in_use: &self.in_use,
-            sync_games: &self.sync_games,
             metered: &self.metered,
             mobile_data: &self.mobile_data,
-            mobile_roms: &self.mobile_roms,
             others_waiting: &|| false,
             stopping: &NOT_STOPPING,
             tracker: Tracker::default(),
             stopped_early: AtomicBool::new(false),
+            cloud_full: &self.cloud_full,
+            sync_now: false,
         }
+    }
+
+    fn sync_now(&self, cloud: &impl Cloud) -> Result<Report, Error> {
+        block_on(Engine { sync_now: true, ..self.engine(cloud, &no_wait) }.sync_all())
     }
 
     fn sync(&self, cloud: &impl Cloud) -> Report {
@@ -257,10 +264,6 @@ impl Device {
 
     fn resolve(&self, cloud: &impl Cloud, rom: &str, file: &str, choice: Choice) {
         block_on(self.engine(cloud, &no_wait).resolve(rom, file, choice)).unwrap()
-    }
-
-    fn sync_games(&self, on: bool) {
-        self.sync_games.store(on, Ordering::Relaxed);
     }
 
     fn cloud_games(&self, cloud: &impl Cloud) -> Vec<String> {
@@ -413,9 +416,6 @@ fn leaves_the_cart_in_the_transfer_pak_alone_until_its_game_stops() {
 #[test]
 fn tells_the_library_when_sync_changes_box_art() {
     let (a, b, cloud) = (device("box-art-event", "A"), device("box-art-event", "B"), Memory::new());
-    for device in [&a, &b] {
-        device.sync_games(true);
-    }
     a.write(EMERALD, b"emerald rom");
     a.write(RUBY, b"ruby rom");
     b.write(EMERALD, b"emerald rom");
@@ -535,10 +535,57 @@ fn plans_a_file_missing_here_from_what_the_app_logged_deleting() {
 
 fn syncing_games(test: &str) -> (Device, Device, Memory) {
     let (a, b) = (device(test, "A"), device(test, "B"));
-    a.sync_games(true);
-    b.sync_games(true);
     a.write(EMERALD, b"emerald rom");
     (a, b, Memory::new())
+}
+
+#[test]
+fn a_full_sync_reads_the_catalog_before_the_first_file_moves() {
+    let (a, b, cloud) = syncing_games("catalog-first");
+    a.write("gba/Emerald.sav", b"save from A");
+    a.sync_ok(&cloud);
+    b.write(RUBY, b"ruby rom");
+    b.write("gba/Ruby.sav", b"save from B");
+
+    let (report, events) = b.sync_recorded(&cloud);
+
+    report.unwrap();
+    let events = events.events();
+    let catalog = events.iter().position(|event| *event == Event::Catalog).expect("no catalog event");
+    let first_transfer = events
+        .iter()
+        .position(|event| matches!(event, Event::Game(_, GameState::Transferring { .. })))
+        .expect("no transfer");
+    assert!(catalog < first_transfer, "{events:?}");
+}
+
+struct MobileDataAfterCatalog<'a> {
+    metered: &'a AtomicBool,
+}
+
+impl Events for MobileDataAfterCatalog<'_> {
+    fn game(&self, _: &str, _: &GameState) {}
+    fn run(&self, _: &RunProgress) {}
+
+    fn catalog(&self) {
+        self.metered.store(true, Ordering::Relaxed);
+    }
+}
+
+#[test]
+fn a_full_sync_stopped_for_mobile_data_after_the_catalog_keeps_cloud_only_games_listed() {
+    let (a, b, cloud) = syncing_games("catalog-then-mobile-data");
+    a.write("gba/Emerald.sav", b"save from A");
+    a.sync_ok(&cloud);
+    b.mobile_data.store(false, Ordering::Relaxed);
+    b.write(RUBY, b"ruby rom");
+    b.write("gba/Ruby.sav", b"save from B");
+    let events = MobileDataAfterCatalog { metered: &b.metered };
+
+    let report = block_on(Engine { events: &events, ..b.engine(&cloud, &no_wait) }.sync_all()).unwrap();
+
+    assert!(report.is_empty(), "{report:?}");
+    assert_eq!(b.cloud_games(&cloud), [EMERALD]);
 }
 
 #[test]
@@ -597,15 +644,31 @@ fn a_cloud_only_games_size_comes_from_its_record() {
 }
 
 #[test]
-fn with_include_roms_on_roms_upload_on_mobile_data() {
-    let (a, b, cloud) = syncing_games("mobile-roms");
-    a.metered.store(true, Ordering::Relaxed);
-    a.mobile_roms.store(true, Ordering::Relaxed);
+fn a_rom_uploads_with_no_switch_set() {
+    let (a, b, cloud) = (device("rom-no-switch", "A"), device("rom-no-switch", "B"), Memory::new());
+    a.write(EMERALD, b"emerald rom");
 
     a.sync_ok(&cloud);
     b.sync_ok(&cloud);
 
+    assert_eq!(cloud.blobs(), [b"emerald rom".to_vec()]);
     assert_eq!(b.cloud_games(&cloud), [EMERALD]);
+}
+
+#[test]
+fn with_sync_on_mobile_data_on_a_rom_still_waits_for_wifi() {
+    let (a, b, cloud) = syncing_games("mobile-roms");
+    a.write("gba/Emerald.sav", b"save");
+    a.metered.store(true, Ordering::Relaxed);
+
+    let (report, events) = a.sync_recorded(&cloud);
+    b.sync_ok(&cloud);
+
+    report.unwrap();
+    assert_eq!(cloud.blobs(), [b"save".to_vec()]);
+    assert!(b.cloud_games(&cloud).is_empty());
+    let Some(RunProgress::Transferring { waiting_roms, .. }) = events.last_run() else { panic!() };
+    assert_eq!(waiting_roms, [EMERALD]);
 }
 
 #[test]
@@ -639,33 +702,46 @@ fn with_sync_on_mobile_data_off_wifi_still_syncs() {
 
     a.sync_ok(&cloud);
 
-    assert_eq!(cloud.uploaded_bytes(), 4);
+    assert_eq!(cloud.uploaded_bytes(), 15);
 }
 
 fn unlocked(dir: &Path) -> Arc<crate::plus::Plus> {
     Arc::new(crate::plus::Plus::new(dir, crate::plus::Build::Unlocked { sideload: false }, None, Box::new(|_| {})))
 }
 
-#[test]
-fn the_mobile_data_switches_survive_a_restart() {
-    let dir = std::env::temp_dir().join(format!("pkh-emu-sync-settings-{}", std::process::id()));
+fn settings_dir(test: &str) -> PathBuf {
+    let dir = std::env::temp_dir().join(format!("pkh-emu-sync-settings-{test}-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
-    let syncer = Syncer::new(&dir, Arc::default(), unlocked(&dir));
-    assert_eq!(syncer.mobile_data(), MobileData { on: true, roms: false });
+    dir
+}
 
-    syncer.set_games(true).unwrap();
-    syncer.set_mobile_data(MobileData { on: false, roms: true }).unwrap();
+#[test]
+fn the_mobile_data_switch_survives_a_restart() {
+    let dir = settings_dir("restart");
+    let syncer = Syncer::new(&dir, Arc::default(), unlocked(&dir));
+    assert!(syncer.mobile_data());
+
+    syncer.set_mobile_data(false).unwrap();
 
     let restarted = Syncer::new(&dir, Arc::default(), unlocked(&dir));
-    assert!(restarted.sync_games.load(Ordering::Relaxed));
-    assert_eq!(restarted.mobile_data(), MobileData { on: false, roms: true });
+    assert!(!restarted.mobile_data());
+}
+
+#[test]
+fn an_old_settings_file_keeps_its_mobile_data_switch() {
+    let dir = settings_dir("old");
+    let old = r#"{"syncGames":false,"mobileData":false,"mobileRoms":true}"#;
+    std::fs::write(dir.join("sync-settings.json"), old).unwrap();
+
+    let syncer = Syncer::new(&dir, Arc::default(), unlocked(&dir));
+
+    assert!(!syncer.mobile_data());
 }
 
 #[test]
 fn signing_in_after_a_reinstall_deletes_nothing_from_the_cloud() {
     let (a, cloud) = (device("reinstall", "A"), Arc::new(Memory::new()));
-    a.sync_games(true);
     a.write(EMERALD, b"emerald rom");
     a.write("gba/Emerald.sav", b"save");
     a.write("gba/Emerald/states/slot-1.state", b"slot");
@@ -725,15 +801,11 @@ fn a_games_update_goes_up_and_comes_down_with_its_rom() {
 }
 
 #[test]
-fn an_update_moves_only_while_sync_games_is_on_and_waits_for_wifi() {
+fn an_update_waits_for_wifi() {
     let (a, cloud) = (device("update-gated", "A"), Memory::new());
     with_x(&a, 5232);
     a.write("3ds/X.sav", b"save");
 
-    a.sync_ok(&cloud);
-    assert_eq!(cloud.blobs(), [b"save".to_vec()]);
-
-    a.sync_games(true);
     a.metered.store(true, Ordering::Relaxed);
     a.sync_ok(&cloud);
     assert!(!cloud.blobs().contains(&x_update(5232)));
@@ -767,7 +839,6 @@ fn an_update_moves_with_its_renamed_game_on_every_device() {
 #[test]
 fn an_update_the_app_cant_read_holds_back_none_of_the_games_files() {
     let (a, cloud) = (device("update-unreadable", "A"), Memory::new());
-    a.sync_games(true);
     a.write(X, &crate::three_ds::tests::ncch(0x0004000000055D00, true, true));
     let id = 0x0004000E00055D00;
     let encrypted = crate::three_ds::tests::cia_of(id, 5232, &[(0, 1, crate::three_ds::tests::ncch(id, true, true))]);
@@ -782,7 +853,6 @@ fn an_update_the_app_cant_read_holds_back_none_of_the_games_files() {
 #[test]
 fn a_replaced_save_stays_in_the_cloud_retired_but_a_replaced_rom_goes_at_once() {
     let (a, cloud) = (device("retired", "A"), Memory::new());
-    a.sync_games(true);
     a.write(EMERALD, b"emerald rom");
     a.write("gba/Emerald.sav", b"save 1");
     a.sync_ok(&cloud);
@@ -800,7 +870,6 @@ fn a_replaced_save_stays_in_the_cloud_retired_but_a_replaced_rom_goes_at_once() 
 #[test]
 fn deleting_a_game_retires_its_files_and_deletes_its_rom() {
     let (a, cloud) = (device("delete-retires", "A"), Memory::new());
-    a.sync_games(true);
     a.write(EMERALD, b"emerald rom");
     a.write("gba/Emerald.sav", b"save");
     a.sync_ok(&cloud);
@@ -852,7 +921,6 @@ fn a_rom_upload_stops_for_a_sync_that_waits_and_resumes_later() {
 #[test]
 fn a_rom_upload_stopped_partway_for_a_waiting_sync_queues_another_full_sync() {
     let (a, cloud) = (device("rom-stops-partway", "A"), FakeDrive::new());
-    a.sync_games(true);
     let rom: Vec<u8> = (0..super::drive::CHUNK * 2 + 1000).map(|i| (i % 251) as u8).collect();
     a.write(EMERALD, &rom);
     let others_waiting = || cloud.uploaded_bytes() >= super::drive::CHUNK;
@@ -868,7 +936,6 @@ fn a_rom_upload_stopped_partway_for_a_waiting_sync_queues_another_full_sync() {
 #[test]
 fn a_stopped_full_sync_pauses_its_rom_upload_partway() {
     let (a, cloud) = (device("rom-stopped-partway", "A"), FakeDrive::new());
-    a.sync_games(true);
     let rom: Vec<u8> = (0..super::drive::CHUNK * 2 + 1000).map(|i| (i % 251) as u8).collect();
     a.write(EMERALD, &rom);
     let stopping = AtomicBool::new(false);
@@ -914,6 +981,7 @@ fn a_stopped_full_sync_leaves_the_games_it_hasnt_reached() {
     for rom in [EMERALD, RUBY] {
         a.write(rom, rom.as_bytes());
     }
+    a.sync_ok(&cloud);
     a.write("gba/Emerald.sav", b"emerald save");
     a.write("gba/Ruby.sav", b"ruby save");
     let stopping = AtomicBool::new(false);
@@ -926,7 +994,7 @@ fn a_stopped_full_sync_leaves_the_games_it_hasnt_reached() {
     assert!(!engine.stopped_early.load(Ordering::Relaxed));
     let left = if report.contains_key(EMERALD) { RUBY } else { EMERALD };
     assert_eq!(events.recorded.states(left).last(), Some(&GameState::Waiting { reason: Wait::Stopped }));
-    assert_eq!(cloud.records().len(), 1);
+    assert_eq!(cloud.blobs().len(), 3);
 }
 
 #[test]
@@ -1057,8 +1125,6 @@ fn a_rom_upload_stops_when_a_game_starts_and_finishes_in_the_full_sync_after_it_
 ) {
     let test = format!("{}-rom-stops-for-a-game", C::NAME);
     let (a, b, cloud) = (device(&test, "A"), device(&test, "B"), C::new());
-    a.sync_games(true);
-    b.sync_games(true);
     let rom: Vec<u8> = (0..chunk * 2 + 1000).map(|i| (i % 251) as u8).collect();
     a.write(EMERALD, &rom);
     // The upload checks whether to stop before each read, so this starts a game partway through it.
@@ -1212,7 +1278,6 @@ fn transferring(event: &Event) -> bool {
 #[test]
 fn checks_every_game_before_moving_a_byte_and_plans_the_whole_transfer() {
     let (a, cloud) = (device("check-first", "A"), Memory::new());
-    a.sync_games(true);
     a.write(EMERALD, b"emerald rom");
     a.write(RUBY, b"ruby rom");
     a.write("gba/Emerald.sav", b"save");
@@ -1249,7 +1314,6 @@ fn checks_every_game_before_moving_a_byte_and_plans_the_whole_transfer() {
 fn upload_progress_rises_chunk_by_chunk<C: Cloud>(chunk: u64) {
     let test = format!("{}-rom-progress", C::NAME);
     let (a, cloud) = (device(&test, "A"), C::new());
-    a.sync_games(true);
     let rom: Vec<u8> = (0..chunk * 2 + 1000).map(|i| (i % 251) as u8).collect();
     a.write(EMERALD, &rom);
 
@@ -1391,6 +1455,8 @@ fn offline_is_not_an_account_error() {
     assert_eq!(account_error(&report), None);
 }
 
+const FULL: Error = Error::Full(super::Cloud::Google);
+
 #[test]
 fn a_full_cloud_is_an_account_error() {
     let (a, cloud) = (device("full", "A"), Memory::new());
@@ -1400,7 +1466,117 @@ fn a_full_cloud_is_an_account_error() {
 
     let (report, _) = a.sync_recorded(&cloud);
 
-    assert_eq!(account_error(&report).as_deref(), Some("Your cloud is full"));
+    assert_eq!(account_error(&report), Some(FULL.to_string()));
+}
+
+#[test]
+fn a_full_cloud_stops_the_run_before_the_next_game() {
+    let (a, cloud) = (device("full-stops", "A"), Memory::new());
+    a.write(EMERALD, b"emerald rom");
+    a.write("gba/Emerald.sav", b"emerald save");
+    a.write(RUBY, b"ruby rom");
+    a.write("gba/Ruby.sav", b"ruby save");
+    cloud.full(true);
+
+    let (report, _) = a.sync_recorded(&cloud);
+
+    assert_eq!(report, Err(FULL));
+    assert_eq!(cloud.started_uploads(), 1);
+}
+
+#[test]
+fn a_full_cloud_stops_syncing_the_games_asked_for() {
+    let (a, cloud) = (device("full-stops-games", "A"), Memory::new());
+    a.write(EMERALD, b"emerald rom");
+    a.write("gba/Emerald.sav", b"emerald save");
+    a.write(RUBY, b"ruby rom");
+    a.write("gba/Ruby.sav", b"ruby save");
+    cloud.full(true);
+
+    let report = block_on(a.engine(&cloud, &no_wait).sync(&[EMERALD.into(), RUBY.into()]));
+
+    assert_eq!(report, Err(FULL));
+    assert_eq!(cloud.started_uploads(), 1);
+}
+
+#[test]
+fn a_rom_that_fills_the_cloud_stops_the_run_before_the_next_rom() {
+    let (a, cloud) = (device("full-rom-stops", "A"), Memory::new());
+    a.write(EMERALD, b"emerald rom");
+    a.write("gba/Emerald.sav", b"save");
+    a.write(RUBY, b"ruby rom");
+    a.write("gba/Ruby.sav", b"save");
+    cloud.space(8);
+
+    let (report, _) = a.sync_recorded(&cloud);
+
+    assert_eq!(report, Err(FULL));
+    assert_eq!(cloud.blobs(), [b"save".to_vec(), b"save".to_vec()]);
+    assert_eq!(cloud.started_uploads(), 3);
+}
+
+#[test]
+fn after_a_full_cloud_automatic_runs_send_saves_and_hold_back_roms() {
+    let (a, cloud) = (device("full-holds-roms", "A"), Memory::new());
+    a.write(EMERALD, b"emerald rom");
+    a.write("gba/Emerald.sav", b"save");
+    cloud.full(true);
+    assert_eq!(a.sync_recorded(&cloud).0, Err(FULL));
+    cloud.full(false);
+
+    a.sync_ok(&cloud);
+
+    assert_eq!(cloud.blobs(), [b"save".to_vec()]);
+    assert_eq!(cloud.started_uploads(), 2);
+}
+
+#[test]
+fn sync_now_sends_roms_again_after_a_full_cloud() {
+    let (a, cloud) = (device("full-sync-now", "A"), Memory::new());
+    a.write(EMERALD, b"emerald rom");
+    a.write("gba/Emerald.sav", b"save");
+    cloud.full(true);
+    assert_eq!(a.sync_recorded(&cloud).0, Err(FULL));
+    cloud.full(false);
+
+    a.sync_now(&cloud).unwrap();
+    a.write(RUBY, b"ruby rom");
+    a.sync_ok(&cloud);
+
+    let mut blobs = cloud.blobs();
+    blobs.sort();
+    assert_eq!(blobs, [b"emerald rom".to_vec(), b"ruby rom".to_vec(), b"save".to_vec()]);
+}
+
+#[test]
+fn a_sync_now_on_mobile_data_keeps_holding_roms() {
+    let (a, cloud) = (device("full-sync-now-metered", "A"), Memory::new());
+    a.write(EMERALD, b"emerald rom");
+    a.write("gba/Emerald.sav", b"save");
+    cloud.full(true);
+    assert_eq!(a.sync_recorded(&cloud).0, Err(FULL));
+    cloud.full(false);
+
+    a.metered.store(true, Ordering::Relaxed);
+    a.sync_now(&cloud).unwrap();
+    a.metered.store(false, Ordering::Relaxed);
+    a.sync_ok(&cloud);
+
+    assert_eq!(cloud.blobs(), [b"save".to_vec()]);
+}
+
+#[test]
+fn a_sync_now_that_finds_the_cloud_full_keeps_holding_roms() {
+    let (a, cloud) = (device("full-sync-now-full", "A"), Memory::new());
+    a.write(EMERALD, b"emerald rom");
+    a.write("gba/Emerald.sav", b"save");
+    cloud.full(true);
+
+    assert_eq!(a.sync_now(&cloud), Err(FULL));
+    cloud.space(4);
+    a.sync_ok(&cloud);
+
+    assert_eq!(cloud.blobs(), [b"save".to_vec()]);
 }
 
 #[test]
@@ -1419,7 +1595,6 @@ fn a_game_that_fails_alone_is_not_an_account_error() {
 #[test]
 fn a_game_whose_only_transfer_is_a_rom_held_back_is_synced_and_its_rom_waits() {
     let (a, cloud) = (device("rom-held", "A"), Memory::new());
-    a.sync_games(true);
     a.metered.store(true, Ordering::Relaxed);
     a.write(EMERALD, b"emerald rom");
 

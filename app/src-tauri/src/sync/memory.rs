@@ -25,7 +25,8 @@ struct Cloud {
     uploaded_bytes: u64,
     record_writes: usize,
     offline: bool,
-    full: bool,
+    space: Option<u64>,
+    started_uploads: usize,
 }
 
 #[derive(Default)]
@@ -76,7 +77,15 @@ impl Memory {
     }
 
     pub fn full(&self, full: bool) {
-        self.cloud().full = full;
+        self.cloud().space = full.then_some(0);
+    }
+
+    pub fn space(&self, bytes: u64) {
+        self.cloud().space = Some(bytes);
+    }
+
+    pub fn started_uploads(&self) -> usize {
+        self.cloud().started_uploads
     }
 
     pub fn uploaded_bytes(&self) -> u64 {
@@ -152,8 +161,11 @@ impl Provider for Memory {
 
     fn start_upload<'a>(&'a self, blob: &'a str, size: u64, _: &'a str) -> BoxFuture<'a, Result<String, Error>> {
         ready(self.call().and_then(|mut cloud| {
-            if cloud.full {
-                return Err(Error::Account("Your cloud is full".into()));
+            cloud.started_uploads += 1;
+            match cloud.space {
+                Some(space) if size > space => return Err(Error::Full(super::Cloud::Google)),
+                Some(space) => cloud.space = Some(space - size),
+                None => {}
             }
             let session = format!("session-{blob}");
             cloud.uploads.insert(session.clone(), Upload { blob: blob.into(), size, received: Vec::new() });

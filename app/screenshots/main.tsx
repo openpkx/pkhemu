@@ -31,13 +31,14 @@ import { GamePage, type GamePageHost } from "@/game-page/GamePage";
 import { openGameMemory } from "@/game-memory/gameMemory";
 import emeraldWild from "@/game-memory/snapshots/emerald-wild.json";
 import { snapshotMemory } from "@/game-memory/snapshots/snapshotMemory";
-import { GamesFolderProvider, type GamesFolderHost } from "@/games-folder/gamesFolder";
+import { GamesFolderProvider, useGamesFolder, type GamesFolderHost } from "@/games-folder/gamesFolder";
 import { GravityProvider, type GravityHost } from "@/gravity/gravity";
 import { GameScreen } from "@/GameScreen";
 import { Home } from "@/Home";
 import { androidImportHost } from "@/import/androidHost";
 import { desktopImportHost } from "@/import/desktopHost";
-import { ImportProvider, ReplaceSaveDialog, WhichGameDialog } from "@/import/importFiles";
+import { fakeImport } from "@/import/fakeImport";
+import { ImportProvider, ReplaceSaveDialog, useImportFiles, WhichGameDialog } from "@/import/importFiles";
 import { iosEmulatorHint, iosImportHost } from "@/import/iosHost";
 import { Copying, FolderSummaryScreen, SaveConflicts, Scanning, WhereAreYourGames } from "@/import/ImportFolder";
 import { createInput } from "@/input/input";
@@ -60,6 +61,7 @@ import { SettingsScreen } from "@/SettingsScreen";
 import { fakeSync } from "@/sync/fakeSync";
 import type { SyncBadgeState } from "@/sync/gameStatus";
 import { SyncProvider } from "@/sync/sync";
+import { SyncDetailsProvider } from "@/sync/SyncDetailsSheet";
 import { systems, type System } from "@/systems";
 import { TransferScreen, type TransferHost } from "@/transfer/TransferScreen";
 import { SkinPicker } from "@/skin-picker/SkinPicker";
@@ -473,10 +475,10 @@ const transferPartners = [fireRed, pageGames.gbc, pageGames.gb, pageGames.nds].m
 const wildMemory = await openGameMemory("gba", snapshotMemory(emeraldWild));
 const input = createInput(() => []);
 const badges: SyncBadgeState[] = [
-  { kind: "ring", percent: 60, label: "Uploading saves · 60%" },
-  { kind: "done", label: "Synced" },
-  { kind: "waiting", label: "Waiting to sync" },
+  { kind: "ring", percent: 60, label: "Downloading ROM · 60%" },
+  { kind: "wifi", label: "Waiting for Wi-Fi" },
   { kind: "conflict", label: "Changed on another device" },
+  { kind: "attention", label: "Your Google Drive is full" },
 ];
 const screenshotUrl = URL.createObjectURL(new Blob([lastScreen], { type: "image/png" }));
 
@@ -539,15 +541,65 @@ function FolderSummaryExample() {
   );
 }
 
+function AddingGames() {
+  const { importFiles } = useImportFiles(() => {}, { takesOpened: false });
+  const ready = useGamesFolder().status === "ready";
+  useEffect(() => {
+    if (ready) void importFiles();
+  }, [ready]);
+  return null;
+}
+
+function useSyncRun(transferring = "gba/Pokémon Emerald.gba", conflict = "gbc/Pokémon Crystal.gbc") {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      sync.report({ syncing: true });
+      sync.game({ path: transferring, state: "transferring", done: 1, total: 4, stage: "uploadingSaves" });
+      sync.game({ path: conflict, state: "conflict" });
+      sync.runProgress({ phase: "transferring", done: 42, total: 100, waitingRoms: ["3ds/Pokémon X.3ds"] });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [transferring, conflict]);
+}
+
+const pickedRoms = ["Pokemon Ruby.gba", "Pokemon Sapphire.gba"].map((name) => ({ file: `/picked/${name}`, name, modified: 0 }));
+const addingHost = fakeImport({ picked: pickedRoms, onCopy: () => new Promise(() => {}) });
+
+function SyncingSettings() {
+  useSyncRun();
+  return (
+    <LibraryProvider host={libraryHost()} folder="/games" onOpen={() => {}} onPlay={() => {}}>
+      <ImportProvider host={addingHost}>
+        <SyncDetailsProvider host={gamePageHost()} folder="/games">
+          {params.get("screen") === "settings-sync-details" && <AddingGames />}
+          <SettingsScreen onBack={() => {}} onLicences={() => {}} />
+        </SyncDetailsProvider>
+      </ImportProvider>
+    </LibraryProvider>
+  );
+}
+
+function SyncingLibrary() {
+  useSyncRun("gba/Emerald.gba", "gbc/Crystal.gbc");
+  return (
+    <ImportProvider host={addingHost}>
+      <Home libraryHost={libraryHost()} gamePageHost={gamePageHost()} />
+    </ImportProvider>
+  );
+}
+
 const screens: Record<string, () => ReactNode> = {
   library: () => <Home libraryHost={libraryHost()} gamePageHost={gamePageHost()} />,
   "library-3ds": () => <Home libraryHost={libraryHost({ recent: ["3ds/PKSM.3dsx", "nds/Platinum.nds"] })} gamePageHost={gamePageHost()} />,
   "library-no-resume": () => <Home libraryHost={libraryHost({ resume: false })} gamePageHost={gamePageHost()} />,
   "library-cloud": () => <Home libraryHost={libraryHost({ recent: ["gba/Sapphire.gba", "gba/Emerald.gba"] })} gamePageHost={gamePageHost()} />,
   "library-unplayed": () => <Home libraryHost={libraryHost({ recent: [] })} gamePageHost={gamePageHost()} />,
+  "library-syncing": () => <SyncingLibrary />,
   "library-box-art": () => <Home libraryHost={libraryHost({ recent: ["gba/FireRed.gba", "gba/Emerald.gba"] })} gamePageHost={gamePageHost()} />,
   settings: () => <SettingsScreen onBack={() => {}} onLicences={() => {}} />,
   "settings-skins": () => <SettingsScreen onBack={() => {}} onLicences={() => {}} />,
+  "settings-sync": () => <SyncingSettings />,
+  "settings-sync-details": () => <SyncingSettings />,
   welcome: () => <Home libraryHost={libraryHost()} gamePageHost={gamePageHost()} />,
   "welcome-folder": () => <NewFolder onBack={() => {}} onReady={() => {}} />,
   "welcome-mac": () => <Home libraryHost={libraryHost()} gamePageHost={gamePageHost()} />,
@@ -862,8 +914,10 @@ function WithUnlocks({ children }: { children: ReactNode }) {
 const screen = screens[params.get("screen") ?? ""] ?? screens.library;
 const sync =
   params.get("screen") === "library-cloud"
-    ? fakeSync({ account: "player@example.com", syncGames: true, cloudGames: ["gba/Sapphire.gba"] })
-    : fakeSync({ available: false });
+    ? fakeSync({ account: "player@example.com", cloudGames: ["gba/Sapphire.gba"] })
+    : params.get("screen")?.startsWith("settings-sync") || params.get("screen") === "library-syncing"
+      ? fakeSync({ account: "arley@example.com", lastSynced: Date.now() - 120_000, mobileData: true })
+      : fakeSync({ available: false });
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

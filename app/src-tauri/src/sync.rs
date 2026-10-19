@@ -129,7 +129,7 @@ impl Synced {
 
     fn fail(&mut self, e: &Error) {
         self.error = Some(e.to_string());
-        self.account_error = matches!(e, Error::Account(_));
+        self.account_error = matches!(e, Error::Account(_) | Error::Full(_));
     }
 }
 
@@ -425,40 +425,43 @@ pub struct Engine<'a, R: Runtime> {
     pub sleep: &'a Sleep,
     pub events: &'a dyn Events,
     pub in_use: &'a InUse,
-    pub sync_games: &'a AtomicBool,
     pub metered: &'a AtomicBool,
     pub mobile_data: &'a AtomicBool,
-    pub mobile_roms: &'a AtomicBool,
     pub others_waiting: &'a (dyn Fn() -> bool + Sync),
     pub stopping: &'a AtomicBool,
     pub tracker: Tracker,
     pub stopped_early: AtomicBool,
+    pub cloud_full: &'a AtomicBool,
+    pub sync_now: bool,
 }
 
 impl<R: Runtime> Engine<'_, R> {
-    fn syncs_games(&self) -> bool {
-        self.sync_games.load(Ordering::Relaxed)
-    }
-
     fn mobile_data_holds_everything(&self) -> bool {
-        self.metered.load(Ordering::Relaxed) && !self.mobile_data.load(Ordering::Relaxed)
+        self.metered() && !self.mobile_data.load(Ordering::Relaxed)
     }
 
-    fn mobile_data_holds_roms(&self) -> bool {
+    fn metered(&self) -> bool {
         self.metered.load(Ordering::Relaxed)
-            && !(self.mobile_data.load(Ordering::Relaxed) && self.mobile_roms.load(Ordering::Relaxed))
     }
 
     fn stopping(&self) -> bool {
         self.stopping.load(Ordering::Relaxed)
     }
 
+    // A full cloud holds back ROMs and updates, the biggest uploads, so saves still fit in what space comes free.
+    fn uploads_held(&self) -> bool {
+        !self.sync_now && self.cloud_full.load(Ordering::Relaxed)
+    }
+
+    fn noting_full<T>(&self, result: Result<T, Error>) -> Result<T, Error> {
+        if let Err(Error::Full(_)) = result {
+            self.cloud_full.store(true, Ordering::Relaxed);
+        }
+        result
+    }
+
     fn roms_wait(&self) -> bool {
-        self.stopping()
-            || !self.syncs_games()
-            || self.mobile_data_holds_roms()
-            || (self.others_waiting)()
-            || self.in_use.any_playing()
+        self.stopping() || self.metered() || (self.others_waiting)() || self.in_use.any_playing()
     }
 
     // A full sync stops between games for one waiting to open, and leaves the rest for a sync after it.
@@ -472,6 +475,15 @@ impl<R: Runtime> Engine<'_, R> {
 
     // Only a full sync sends ROMs, so syncing one game, as before it opens, never waits on an upload.
     pub async fn sync_all(&self) -> Result<Report, Error> {
+        let report = self.noting_full(self.sync_everything().await);
+        // A Sync now that held ROMs back for anything else hasn't shown the cloud has room for them.
+        if report.is_ok() && self.sync_now && !self.roms_wait() && !self.stopped_early.load(Ordering::Relaxed) {
+            self.cloud_full.store(false, Ordering::Relaxed);
+        }
+        report
+    }
+
+    async fn sync_everything(&self) -> Result<Report, Error> {
         self.games.remove_half_written(&SYSTEMS).await;
         let roms = scan(self.games).await;
         let (mut report, pending, on_mobile_data) = self.check_and_sync(&roms, true).await?;
@@ -483,14 +495,29 @@ impl<R: Runtime> Engine<'_, R> {
         if let Err(e) = self.retry(|| self.provider.purge_retired(RETIRED_FOR)).await {
             eprintln!("purging retired blobs: {e}");
         }
+        let extras = self.sync_extras().await;
+        if let Err(e @ Error::Full(_)) = extras {
+            self.hold_roms(pending.into_iter());
+            return Err(e);
+        }
+        self.sync_roms(pending, &mut report).await?;
+        extras.map(|_| report)
+    }
+
+    async fn sync_extras(&self) -> Result<(), Error> {
         let kept = self.sync_kept_copies().await;
-        let skins = self.sync_skins().await;
-        self.sync_roms(pending, &mut report).await;
-        kept.and(skins).map(|_| report)
+        if let Err(Error::Full(_)) = kept {
+            return kept;
+        }
+        match self.sync_skins().await {
+            Err(e @ Error::Full(_)) => Err(e),
+            skins => kept.and(skins),
+        }
     }
 
     pub async fn sync(&self, roms: &[String]) -> Result<Report, Error> {
-        Ok(self.check_and_sync(roms, false).await?.0)
+        let report = self.check_and_sync(roms, false).await;
+        self.noting_full(report.map(|(report, ..)| report))
     }
 
     async fn check_and_sync(&self, roms: &[String], full: bool) -> Result<(Report, Vec<PendingRom>, bool), Error> {
@@ -508,6 +535,7 @@ impl<R: Runtime> Engine<'_, R> {
             }
             deleted => deleted?,
         };
+        self.events.catalog();
         let mut report = Report::new();
         let checked = self.check(roms, &deleted, full, &mut report).await;
         for game in &checked {
@@ -566,6 +594,11 @@ impl<R: Runtime> Engine<'_, R> {
                 Err(e) => {
                     self.failed(&rom, &e);
                     self.emit_run();
+                    if let Error::Full(_) = e {
+                        self.settle_untried(checked);
+                        self.hold_roms(pending.into_iter());
+                        return Err(e);
+                    }
                     report.insert(rom.clone(), Synced::failed(&rom, &e));
                 }
             }
@@ -581,6 +614,13 @@ impl<R: Runtime> Engine<'_, R> {
                 self.tracker.wait_for_wifi(&game.rom);
             }
             self.events.game(&game.rom, &GameState::Waiting { reason: Wait::MobileData });
+        }
+        self.emit_run();
+    }
+
+    fn settle_untried(&self, untried: impl Iterator<Item = Checked>) {
+        for game in untried {
+            self.tracker.settle(&game.rom, 0);
         }
         self.emit_run();
     }
@@ -685,7 +725,7 @@ impl<R: Runtime> Engine<'_, R> {
                 _ => 0,
             };
         }
-        let rom_size = match with_roms && self.syncs_games() {
+        let rom_size = match with_roms {
             true => self.rom_transfers(rom, &game, record.as_ref()).await?,
             false => None,
         };
@@ -695,12 +735,18 @@ impl<R: Runtime> Engine<'_, R> {
     // A ROM or update held back for mobile data is listed as waiting. One held back for anything else is planned,
     // and drops out of the run if it still waits at its turn.
     async fn rom_transfers(&self, rom: &str, game: &Game, record: Option<&Record>) -> Result<Option<u64>, Error> {
-        let rom_upload = self.rom_upload(rom, game, record).await?;
-        let update = self.update_transfer(rom, record.and_then(|record| record.update.as_ref())).await?;
+        let rom_upload = match self.uploads_held() {
+            true => None,
+            false => self.rom_upload(rom, game, record).await?,
+        };
+        let update = self
+            .update_transfer(rom, record.and_then(|record| record.update.as_ref()))
+            .await?
+            .filter(|update| !self.uploads_held() || matches!(update, UpdateTransfer::Down(_)));
         if rom_upload.is_none() && update.is_none() {
             return Ok(None);
         }
-        if self.mobile_data_holds_roms() {
+        if self.metered() {
             self.tracker.wait_for_wifi(rom);
             return Ok(None);
         }
@@ -755,7 +801,7 @@ impl<R: Runtime> Engine<'_, R> {
     }
 
     // Outside the games' locks, so a long upload holds back no game from starting.
-    async fn sync_roms(&self, pending: Vec<PendingRom>, report: &mut Report) {
+    async fn sync_roms(&self, pending: Vec<PendingRom>, report: &mut Report) -> Result<(), Error> {
         let mut pending = pending.into_iter().peekable();
         while let Some(next) = pending.peek() {
             if self.stops_for_others() || self.roms_wait() {
@@ -768,6 +814,12 @@ impl<R: Runtime> Engine<'_, R> {
                     self.rom_synced(next);
                 }
                 Err(_) if self.stops_for_others() || self.roms_wait() => break,
+                Err(e @ Error::Full(_)) => {
+                    self.failed(&next.rom, &e);
+                    pending.next();
+                    self.hold_roms(pending);
+                    return Err(e);
+                }
                 Err(e) => {
                     self.failed(&next.rom, &e);
                     self.emit_run();
@@ -779,11 +831,12 @@ impl<R: Runtime> Engine<'_, R> {
             pending.next();
         }
         self.hold_roms(pending);
+        Ok(())
     }
 
     // A game whose only transfer left is a ROM held back counts as synced, unless a stop held it.
     fn hold_roms(&self, held: impl Iterator<Item = PendingRom>) {
-        let for_wifi = self.mobile_data_holds_roms() && self.syncs_games();
+        let for_wifi = self.metered();
         let stopped = self.stopping();
         for rom in held {
             self.tracker.settle(&rom.rom, 0);
@@ -842,7 +895,9 @@ impl<R: Runtime> Engine<'_, R> {
 
     async fn sync_rom(&self, rom: &str) -> Result<(), Error> {
         let Some(game) = self.synced_game(rom)? else { return Ok(()) };
-        self.send_rom(rom, &game).await?;
+        if !self.uploads_held() {
+            self.send_rom(rom, &game).await?;
+        }
         self.sync_update(rom, &game).await
     }
 
@@ -891,6 +946,7 @@ impl<R: Runtime> Engine<'_, R> {
                     self.finish_file();
                     return Ok(());
                 }
+                Some(UpdateTransfer::Up(_)) if self.uploads_held() => return Ok(()),
                 Some(UpdateTransfer::Up(local)) => local,
             };
             self.tracker.begin(&path, Stage::UploadingUpdate, local.size);
@@ -2068,30 +2124,22 @@ pub struct Syncer {
     skins: PathBuf,
     removed: PathBuf,
     signed_in: PathBuf,
-    sync_games: AtomicBool,
     mobile_data: AtomicBool,
-    mobile_roms: AtomicBool,
     settings_file: PathBuf,
+    cloud_full: AtomicBool,
+    sync_now: AtomicBool,
 }
 
 #[derive(Serialize, Deserialize)]
 #[serde(rename_all = "camelCase", default)]
 struct Settings {
-    sync_games: bool,
     mobile_data: bool,
-    mobile_roms: bool,
 }
 
 impl Default for Settings {
     fn default() -> Settings {
-        Settings { sync_games: false, mobile_data: true, mobile_roms: false }
+        Settings { mobile_data: true }
     }
-}
-
-#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
-pub struct MobileData {
-    on: bool,
-    roms: bool,
 }
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
@@ -2106,6 +2154,13 @@ impl Cloud {
         match self {
             Cloud::Google => google::available(google::CLIENT_ID),
             Cloud::Dropbox => dropbox_sign_in::available(dropbox_sign_in::APP_KEY),
+        }
+    }
+
+    fn name(self) -> &'static str {
+        match self {
+            Cloud::Google => "Google Drive",
+            Cloud::Dropbox => "Dropbox",
         }
     }
 }
@@ -2133,37 +2188,22 @@ impl Syncer {
             skins: crate::skins::file(data_dir),
             removed: data_dir.join("removed"),
             signed_in: data_dir.join("sync-account.json"),
-            sync_games: AtomicBool::new(settings.sync_games),
             mobile_data: AtomicBool::new(settings.mobile_data),
-            mobile_roms: AtomicBool::new(settings.mobile_roms),
             settings_file,
+            cloud_full: AtomicBool::new(false),
+            sync_now: AtomicBool::new(false),
         }
     }
 
-    fn mobile_data(&self) -> MobileData {
-        MobileData { on: self.mobile_data.load(Ordering::Relaxed), roms: self.mobile_roms.load(Ordering::Relaxed) }
+    fn mobile_data(&self) -> bool {
+        self.mobile_data.load(Ordering::Relaxed)
     }
 
-    fn save_settings(&self, settings: Settings) -> Result<(), String> {
-        let json = serde_json::to_vec(&settings).map_err(|e| e.to_string())?;
+    fn set_mobile_data(&self, on: bool) -> Result<(), String> {
+        let json = serde_json::to_vec(&Settings { mobile_data: on }).map_err(|e| e.to_string())?;
         std::fs::write(&self.settings_file, json).map_err(|e| e.to_string())?;
-        self.sync_games.store(settings.sync_games, Ordering::Relaxed);
-        self.mobile_data.store(settings.mobile_data, Ordering::Relaxed);
-        self.mobile_roms.store(settings.mobile_roms, Ordering::Relaxed);
+        self.mobile_data.store(on, Ordering::Relaxed);
         Ok(())
-    }
-
-    fn settings(&self) -> Settings {
-        let MobileData { on: mobile_data, roms: mobile_roms } = self.mobile_data();
-        Settings { sync_games: self.sync_games.load(Ordering::Relaxed), mobile_data, mobile_roms }
-    }
-
-    fn set_games(&self, on: bool) -> Result<(), String> {
-        self.save_settings(Settings { sync_games: on, ..self.settings() })
-    }
-
-    fn set_mobile_data(&self, mobile_data: MobileData) -> Result<(), String> {
-        self.save_settings(Settings { mobile_data: mobile_data.on, mobile_roms: mobile_data.roms, ..self.settings() })
     }
 
     fn connected(&self) -> Option<(Cloud, Arc<dyn Provider>)> {
@@ -2229,6 +2269,8 @@ impl Syncer {
     }
 
     fn connect(&self, connected: Option<(Cloud, Arc<dyn Provider>)>) {
+        self.cloud_full.store(false, Ordering::Relaxed);
+        self.sync_now.store(false, Ordering::Relaxed);
         *self.connected.lock().unwrap_or_else(|e| e.into_inner()) = connected;
     }
 }
@@ -2339,7 +2381,7 @@ struct Status {
 pub fn account_error(report: &Result<Report, Error>) -> Option<String> {
     match report {
         Ok(report) => report.values().find(|synced| synced.account_error).and_then(|synced| synced.error.clone()),
-        Err(e @ Error::Account(_)) => Some(e.to_string()),
+        Err(e @ (Error::Account(_) | Error::Full(_))) => Some(e.to_string()),
         Err(_) => None,
     }
 }
@@ -2370,6 +2412,10 @@ impl<R: Runtime> Events for AppEvents<R> {
     fn skins(&self, skins: &crate::skins::Skins) {
         let _ = self.0.emit("skins-changed", skins);
     }
+
+    fn catalog(&self) {
+        let _ = self.0.emit("sync-catalog", ());
+    }
 }
 
 impl<R: Runtime> KeepAlive for AppHandle<R> {
@@ -2392,6 +2438,7 @@ async fn run<R: Runtime>(app: AppHandle<R>, folder: String, request: Request) ->
     // Taken before the provider, so a sign-out that clears the provider first waits for this sync or stops it starting.
     let _running = state.running.lock().await;
     STOPPING.store(false, Ordering::Relaxed);
+    let sync_now = request == Request::All && state.sync_now.swap(false, Ordering::Relaxed);
     let provider = state.provider()?;
     let _ = app.emit("sync-status", Status { syncing: true, error: None, account_error: None, last_synced: None });
     let games = GamesFolder::open(&app, &folder);
@@ -2412,6 +2459,7 @@ async fn run<R: Runtime>(app: AppHandle<R>, folder: String, request: Request) ->
     let engine = Engine {
         metered: &metered,
         others_waiting: &others_waiting,
+        sync_now,
         ..engine_for(&games, &index, provider.as_ref(), &state, &device, &events)
     };
     let report = match request {
@@ -2426,6 +2474,7 @@ async fn run<R: Runtime>(app: AppHandle<R>, folder: String, request: Request) ->
     };
     if STOPPING.load(Ordering::Relaxed) {
         state.queue.drop_waiting();
+        state.sync_now.store(false, Ordering::Relaxed);
     }
     watching.abort();
     let error = match &report {
@@ -2433,7 +2482,13 @@ async fn run<R: Runtime>(app: AppHandle<R>, folder: String, request: Request) ->
         Err(Error::MobileData) => None,
         Err(e) => Some(e.to_string()),
     };
-    let account_error = account_error(&report);
+    // The ROMs a full cloud holds back keep the warning up until Sync now gets them through.
+    let full = state
+        .connected()
+        .filter(|_| state.cloud_full.load(Ordering::Relaxed))
+        .map(|(cloud, _)| Error::Full(cloud).to_string());
+    let error = error.or(full.clone());
+    let account_error = account_error(&report).or(full);
     let last_synced = index.last_synced().ok().flatten();
     let _ = app.emit("sync-status", Status { syncing: false, error, account_error, last_synced });
     report.map_err(|e| e.to_string())
@@ -2468,7 +2523,10 @@ pub async fn queue_game<R: Runtime>(app: AppHandle<R>, game: crate::emu::Playing
 }
 
 #[tauri::command]
-pub async fn sync_all<R: Runtime>(app: AppHandle<R>, folder: String) -> Result<Report, String> {
+pub async fn sync_all<R: Runtime>(app: AppHandle<R>, folder: String, now: bool) -> Result<Report, String> {
+    if now {
+        app.state::<Syncer>().sync_now.store(true, Ordering::Relaxed);
+    }
     queue(app, folder, Request::All).await
 }
 
@@ -2493,14 +2551,14 @@ fn engine_for<'a, R: Runtime>(
         sleep: &sleep,
         events,
         in_use: &state.in_use,
-        sync_games: &state.sync_games,
         metered: &NOT_METERED,
         mobile_data: &state.mobile_data,
-        mobile_roms: &state.mobile_roms,
         others_waiting: &|| false,
         stopping: &STOPPING,
         tracker: Tracker::default(),
         stopped_early: AtomicBool::new(false),
+        cloud_full: &state.cloud_full,
+        sync_now: false,
     }
 }
 
@@ -2557,29 +2615,14 @@ pub async fn sync_resolve<R: Runtime>(
     engine_for(&games, &index, provider.as_ref(), &state, &device, &events).resolve(&path, &file, choice).await.map_err(|e| e.to_string())
 }
 
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct SyncGames {
-    on: bool,
-    // Only Android tells mobile data from Wi-Fi.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    mobile_data: Option<MobileData>,
+#[tauri::command]
+pub fn sync_mobile_data(state: State<'_, Syncer>) -> Option<bool> {
+    TELLS_MOBILE_DATA.then(|| state.mobile_data())
 }
 
 #[tauri::command]
-pub fn sync_games(state: State<'_, Syncer>) -> SyncGames {
-    let mobile_data = TELLS_MOBILE_DATA.then(|| state.mobile_data());
-    SyncGames { on: state.sync_games.load(Ordering::Relaxed), mobile_data }
-}
-
-#[tauri::command]
-pub fn sync_set_games(state: State<'_, Syncer>, on: bool) -> Result<(), String> {
-    state.set_games(on)
-}
-
-#[tauri::command]
-pub fn sync_set_mobile_data(state: State<'_, Syncer>, mobile_data: MobileData) -> Result<(), String> {
-    state.set_mobile_data(mobile_data)
+pub fn sync_set_mobile_data(state: State<'_, Syncer>, on: bool) -> Result<(), String> {
+    state.set_mobile_data(on)
 }
 
 #[tauri::command]

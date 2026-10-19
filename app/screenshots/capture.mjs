@@ -19,6 +19,7 @@ const screens = [
   "library-empty",
   "library-empty-android",
   "library-import-menu",
+  "library-syncing",
   "import-which-game",
   "import-replace",
   "import-folder-where",
@@ -35,6 +36,8 @@ const screens = [
   "import-folder-conflicts",
   "settings",
   "settings-skins",
+  "settings-sync",
+  "settings-sync-details",
   "settings-sideload",
   "coffee-ask",
   "welcome",
@@ -94,7 +97,7 @@ const ipadViewports = [
   { name: "stage-manager", width: 600, height: 480 },
   { name: "stage-manager-portrait", width: 375, height: 486 },
 ];
-const narrowScreens = new Set(["settings", "settings-skins", "settings-sideload"]);
+const narrowScreens = new Set(["settings", "settings-skins", "settings-sync", "settings-sync-details", "settings-sideload"]);
 const viewports = (screen) =>
   ipad
     ? ipadViewports
@@ -105,7 +108,7 @@ const viewports = (screen) =>
       ]
     : [...(narrowScreens.has(screen) ? [320] : []), 390, 1280].map((width) => ({ name: width, width, height: 844 }));
 // A full-page shot stretches the viewport, which moves a sheet sized to it.
-const sheets = new Set(["box-art-sheet", "settings-skins"]);
+const sheets = new Set(["box-art-sheet", "settings-skins", "settings-sync-details"]);
 const lightSkins = {
   "playing-gb": "classic-grey",
   "playing-gba": "glacier",
@@ -288,6 +291,18 @@ try {
             await page.getByRole("dialog").waitFor();
             await page.getByRole("button", { name: /^Skin/ }).scrollIntoViewIfNeeded();
             await page.waitForTimeout(500);
+          }
+          if (screen.startsWith("settings-sync")) await page.getByText("Syncing · 42%").waitFor();
+          if (screen === "library-syncing") {
+            await page.getByRole("button", { name: "Import" }).click();
+            await page.getByRole("menuitem", { name: "Import files" }).click();
+            await page.getByRole("button", { name: "Syncing · 42%" }).waitFor();
+            await page.waitForTimeout(800);
+          }
+          if (screen === "settings-sync-details") {
+            await page.getByRole("button", { name: "Syncing · 42%" }).click();
+            await page.getByRole("dialog", { name: "Sync" }).getByText("Adding 2 games").waitFor();
+            await page.waitForTimeout(800);
           }
           if (screen === "settings-skins") {
             await page.getByRole("button", { name: "Skins" }).click();

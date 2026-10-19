@@ -1,4 +1,4 @@
-import { ArrowUpDown, CircleAlert } from "lucide-react";
+import { CircleAlert, Wifi } from "lucide-react";
 import { cn } from "cn";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { usePresence } from "@/motion/motion";
@@ -22,18 +22,9 @@ export function Ring({ percent, className }: { percent: number; className?: stri
   );
 }
 
-function Tick() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" className="size-3.5">
-      <path d="M20 6 9 17l-5-5" pathLength={1} strokeDasharray={1} className="motion-tick stroke-white" />
-    </svg>
-  );
-}
-
 function Icon({ badge }: { badge: SyncBadgeState }) {
   if (badge.kind === "ring") return <Ring percent={badge.percent} />;
-  if (badge.kind === "done") return <Tick />;
-  if (badge.kind === "waiting") return <ArrowUpDown className="size-3.5" />;
+  if (badge.kind === "wifi") return <Wifi className="size-3.5" />;
   return <CircleAlert className="size-3.5 text-overlay-warning" />;
 }
 

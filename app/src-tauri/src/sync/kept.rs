@@ -39,8 +39,12 @@ impl<R: Runtime> Engine<'_, R> {
         let keys: BTreeSet<String> = local.keys().cloned().chain(cloud).collect();
         let mut failed = None;
         for key in keys {
-            if let Err(e) = self.sync_kept_copy(&key, local.get(&key), bases.get(&key)).await {
-                failed.get_or_insert(e);
+            match self.sync_kept_copy(&key, local.get(&key), bases.get(&key)).await {
+                Err(e @ Error::Full(_)) => return Err(e),
+                Err(e) => {
+                    failed.get_or_insert(e);
+                }
+                Ok(()) => {}
             }
         }
         failed.map_or(Ok(()), Err)

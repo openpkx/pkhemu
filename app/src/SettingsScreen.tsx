@@ -18,7 +18,6 @@ import { ControlsSettings } from "./controllers/ControlsSettings";
 import { useGameArt, useGameArtProgress } from "./game-art/gameArt";
 import { useRenderer, type Renderer } from "./game-surface/gameSurface";
 import { GameClockSetting, useMinute } from "./game-clock/GameClockSetting";
-import { ago } from "./game-page/details";
 import { useGamesFolder } from "./games-folder/gamesFolder";
 import { useCanTilt } from "./gravity/gravity";
 import { useOpenFolder } from "./games-folder/useOpenFolder";
@@ -42,8 +41,9 @@ import { RetroAchievementsScreen, RetroAchievementsSettings } from "./retro-achi
 import { useAsyncShadersOffered } from "./shaders/shaders";
 import { SkinsScreen } from "./skin-picker/SkinsScreen";
 import { tauriPreviewFrameHost } from "./skin-picker/tauriHost";
-import { runGames, runProgress } from "./sync/gameStatus";
-import { useSync, type Cloud, type MobileData } from "./sync/sync";
+import { syncStatus } from "./sync/gameStatus";
+import { useSync, type Cloud } from "./sync/sync";
+import { useOpenSyncDetails } from "./sync/SyncDetailsSheet";
 import { systems as allSystems, type System } from "./systems";
 
 const CLOUD_NAMES: Record<Cloud, string> = { google: "Google Drive", dropbox: "Dropbox" };
@@ -69,30 +69,6 @@ function GamesFolderSettings() {
         </Button>
       )}
     </SettingsCard>
-  );
-}
-
-function SyncRunProgress() {
-  const { run, gameSync } = useSync();
-  const { line, percent } = runProgress(run);
-  const games = runGames(gameSync, run);
-  return (
-    <>
-      <div className="grid gap-1.5">
-        <p className="text-muted-foreground">{line}</p>
-        {percent !== undefined && <Progress aria-label="Sync progress" value={percent} />}
-      </div>
-      {games.length > 0 && (
-        <ul aria-label="Games syncing" className="grid min-w-0 gap-1">
-          {games.map(({ path, name, stage }) => (
-            <li key={path} className="flex min-w-0 items-center justify-between gap-3">
-              <span className="min-w-0 flex-1 truncate">{name}</span>
-              <span className="min-w-0 max-w-[60%] text-right text-muted-foreground [overflow-wrap:anywhere]">{stage}</span>
-            </li>
-          ))}
-        </ul>
-      )}
-    </>
   );
 }
 
@@ -147,6 +123,7 @@ function SyncSettings() {
   const sync = useSync();
   const plusStatus = usePlus().status;
   const now = useMinute();
+  const openDetails = useOpenSyncDetails();
   const [busy, setBusy] = useState<Cloud | "signing out">();
   const [error, setError] = useState<string>();
   if (!sync.available) return null;
@@ -193,11 +170,7 @@ function SyncSettings() {
       </SettingsCard>
     );
 
-  const { mobileData } = sync.syncGames;
-  const setMobileData = (next: MobileData) =>
-    void sync.setMobileData(next).catch((reason) => setError(String(reason)));
-  const lastSynced =
-    sync.lastSynced === undefined ? "Not synced yet" : `Last synced ${ago(Math.max(0, now - sync.lastSynced) / 1000)}`;
+  const status = syncStatus(sync.syncing, sync.run, sync.lastSynced, now).line;
   return (
     <SettingsCard title="Sync">
       <div className="flex items-center justify-between gap-3">
@@ -207,39 +180,37 @@ function SyncSettings() {
           Sign out
         </Button>
       </div>
-      {sync.syncing ? <SyncRunProgress /> : <p className="text-muted-foreground">{lastSynced}</p>}
-      {(error ?? sync.error) && <p className="text-destructive">{error ?? sync.error}</p>}
-      <Button variant="outline" className="justify-self-start" disabled={busy !== undefined || sync.syncing} onClick={sync.syncNow}>
-        <RefreshCw />
-        Sync now
-      </Button>
-      <div className="grid gap-1">
-        <SwitchRow
-          label="Sync games"
-          checked={sync.syncGames.on}
-          onCheckedChange={(on) => void sync.setSyncGames(on).catch((reason) => setError(String(reason)))}
-        />
-        <p className="text-muted-foreground">
-          {sync.syncGames.on
-            ? "Your ROMs upload too, so your other devices can download them."
-            : "Your ROMs stay on this device. Games already in your cloud still show and download when you open them."}
-        </p>
+      <div className="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          className="-ml-3 h-11 min-w-0 flex-1 justify-between rounded-lg px-3 font-normal text-muted-foreground pointer-coarse:text-base"
+          onClick={openDetails}
+        >
+          <span className="truncate">{status}</span>
+          <ChevronRight />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="-mr-2 pointer-coarse:size-11"
+          aria-label="Sync now"
+          disabled={busy !== undefined || sync.syncing}
+          onClick={sync.syncNow}
+        >
+          <RefreshCw />
+        </Button>
       </div>
-      {mobileData && (
-        <div className="grid gap-1">
-          <SwitchRow label="Sync on mobile data" checked={mobileData.on} onCheckedChange={(on) => setMobileData({ ...mobileData, on })} />
-          <p className="text-muted-foreground">{mobileData.on ? "Saves and states sync on mobile data too." : "Nothing syncs until you're on Wi-Fi."}</p>
-        </div>
-      )}
-      {mobileData && sync.syncGames.on && (
+      {(error ?? sync.error) && <p className="text-destructive">{error ?? sync.error}</p>}
+      {sync.mobileData !== undefined && (
         <div className="grid gap-1">
           <SwitchRow
-            label="Include ROMs"
-            checked={mobileData.roms}
-            disabled={!mobileData.on}
-            onCheckedChange={(roms) => setMobileData({ ...mobileData, roms })}
+            label="Sync on mobile data"
+            checked={sync.mobileData}
+            onCheckedChange={(on) => void sync.setMobileData(on).catch((reason) => setError(String(reason)))}
           />
-          <p className="text-muted-foreground">{mobileData.on && mobileData.roms ? "ROMs upload on mobile data too." : "ROMs wait for Wi-Fi."}</p>
+          <p className="text-muted-foreground">
+            {sync.mobileData ? "Saves and states sync on mobile data too. ROMs wait for Wi-Fi." : "Nothing syncs until you're on Wi-Fi."}
+          </p>
         </div>
       )}
     </SettingsCard>

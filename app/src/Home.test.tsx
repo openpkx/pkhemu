@@ -27,7 +27,7 @@ import type { PatchedFrom } from "./preferences/gameSettings";
 import { PreferencesProvider } from "./preferences/preferences";
 import { hideSplash } from "./splash";
 import { fakeSync } from "./sync/fakeSync";
-import { SyncProvider } from "./sync/sync";
+import { FULL_SYNC_COOLDOWN_MS, SyncProvider } from "./sync/sync";
 import type { System } from "./systems";
 import { defaultSkins } from "./skins";
 
@@ -721,10 +721,12 @@ it("syncs the game after quitting without waiting for it", async () => {
 });
 
 it("syncs every game once the one quit has synced, so a ROM upload held while it ran goes on", async () => {
+  vi.useFakeTimers({ toFake: ["Date"] });
   const sync = fakeSync({ account: "player@example.com" });
   const { paths } = launch({ sync });
   await openGame(paths, "Ruby");
   fireEvent.click(await screen.findByRole("button", { name: "Resume" }));
+  vi.setSystemTime(Date.now() + FULL_SYNC_COOLDOWN_MS);
   sync.host.syncGame.mockClear();
   sync.host.syncAll.mockClear();
   let gameSynced = () => {};
@@ -738,7 +740,7 @@ it("syncs every game once the one quit has synced, so a ROM upload held while it
   await screen.findByRole("button", { name: "Resume" });
   expect(sync.host.syncAll).not.toHaveBeenCalled();
   gameSynced();
-  await waitFor(() => expect(sync.host.syncAll).toHaveBeenCalledExactlyOnceWith("/games"));
+  await waitFor(() => expect(sync.host.syncAll).toHaveBeenCalledExactlyOnceWith("/games", false));
 });
 
 it("syncs nothing on quit when signed out", async () => {
@@ -842,7 +844,7 @@ it("finds box art for a game a scan adds and shows it on the game's tile", async
 
 it("finds box art for cloud-only games", async () => {
   const boxArt = fakeBoxArt({ "Nintendo - Game Boy Advance/Named_Boxarts/Pokemon - Sapphire Version (USA, Europe).png": boxArtPng });
-  const sync = fakeSync({ account: "player@example.com", syncGames: true, cloudGames: ["gba/Pokemon Sapphire.gba"] });
+  const sync = fakeSync({ account: "player@example.com", cloudGames: ["gba/Pokemon Sapphire.gba"] });
   launch({ boxArt, sync });
   await makeFolder();
 
@@ -862,7 +864,7 @@ async function openCloudGame(sync: ReturnType<typeof fakeSync>, name: string) {
   await waitFor(() => expect(sync.host.downloadRom).toHaveBeenCalledWith("/games", `gba/${name}.gba`));
 }
 
-it("shows cloud-only games while Sync games is off", async () => {
+it("marks cloud-only games as in the cloud", async () => {
   launch({ sync: fakeSync({ account: "player@example.com", cloudGames: ["gba/Sapphire.gba"] }) });
   await makeFolder();
 
@@ -870,7 +872,7 @@ it("shows cloud-only games while Sync games is off", async () => {
 });
 
 it("downloads a cloud-only game when it opens, with progress, then shows its page", async () => {
-  const sync = fakeSync({ account: "player@example.com", syncGames: true, cloudGames: ["gba/Sapphire.gba"] });
+  const sync = fakeSync({ account: "player@example.com", cloudGames: ["gba/Sapphire.gba"] });
   const { paths } = launch({ sync });
   await openCloudGame(sync, "Sapphire");
   expect(screen.queryByRole("alertdialog")).toBeNull();
@@ -886,7 +888,7 @@ it("downloads a cloud-only game when it opens, with progress, then shows its pag
 });
 
 it("keeps a game cloud-only and says why when its download fails", async () => {
-  const sync = fakeSync({ account: "player@example.com", syncGames: true, cloudGames: ["gba/Sapphire.gba"] });
+  const sync = fakeSync({ account: "player@example.com", cloudGames: ["gba/Sapphire.gba"] });
   const { back } = launch({ sync });
   await openCloudGame(sync, "Sapphire");
 
@@ -903,7 +905,6 @@ it("keeps a game cloud-only and says why when its download fails", async () => {
 it("asks before downloading a cloud-only game on mobile data, and Cancel downloads nothing", async () => {
   const sync = fakeSync({
     account: "player@example.com",
-    syncGames: true,
     cloudGames: ["gba/Sapphire.gba"],
     metered: true,
     cloudSizes: { "gba/Sapphire.gba": 16 * 1024 * 1024 },
@@ -923,7 +924,6 @@ it("asks before downloading a cloud-only game on mobile data, and Cancel downloa
 it("downloads a cloud-only game on mobile data once the player says so", async () => {
   const sync = fakeSync({
     account: "player@example.com",
-    syncGames: true,
     cloudGames: ["gba/Sapphire.gba"],
     metered: true,
     cloudSizes: { "gba/Sapphire.gba": 16 * 1024 * 1024 },
@@ -944,7 +944,7 @@ async function openMenuItem(name: string) {
 }
 
 it("removes a game from this device and shows it as cloud-only", async () => {
-  const sync = fakeSync({ account: "player@example.com", syncGames: true });
+  const sync = fakeSync({ account: "player@example.com" });
   const { paths } = launch({ sync });
   await openGame(paths, "Ruby");
   sync.host.removeFromDevice.mockImplementationOnce(async (_folder, path) => {
@@ -959,8 +959,8 @@ it("removes a game from this device and shows it as cloud-only", async () => {
   await waitFor(() => expect(screen.getAllByRole("button", { name: /Ruby/ }).every(cloudMark)).toBe(true));
 });
 
-it("offers Remove from this device only while Sync games is on", async () => {
-  const { paths } = launch({ sync: fakeSync({ account: "player@example.com" }) });
+it("offers Remove from this device only while signed in", async () => {
+  const { paths } = launch({ sync: fakeSync() });
   await openGame(paths, "Ruby");
 
   fireEvent.keyDown(screen.getByRole("button", { name: "More" }), { key: "Enter" });

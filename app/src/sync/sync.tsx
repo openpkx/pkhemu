@@ -18,8 +18,6 @@ export type ConflictsHost = {
   cloudScreenshot(folder: string, path: string, file: string): Promise<number[] | null>;
 };
 
-export type MobileData = { on: boolean; roms: boolean };
-export type SyncGames = { on: boolean; mobileData?: MobileData };
 export type Download = { path: string; done: number; total: number };
 
 export type SyncStage = "uploadingSaves" | "downloadingSaves" | "uploadingRom" | "uploadingUpdate" | "downloadingUpdate";
@@ -43,15 +41,15 @@ export type SyncHost = {
   gamesLastSynced(): Promise<Record<string, number>>;
   signIn(cloud: Cloud): Promise<string>;
   signOut(): Promise<void>;
-  syncAll(folder: string): Promise<unknown>;
+  syncAll(folder: string, now: boolean): Promise<unknown>;
   syncGame(folder: string, path: string): Promise<{ conflicts: string[] }>;
   conflicts(folder: string, path: string): Promise<Conflict[]>;
   onStatus(listener: (status: SyncStatus) => void): () => void;
   onGame(listener: (game: GameSyncEvent) => void): () => void;
   onRun(listener: (run: SyncRun) => void): () => void;
-  syncGames(): Promise<SyncGames>;
-  setSyncGames(on: boolean): Promise<void>;
-  setMobileData(mobileData: MobileData): Promise<void>;
+  onCatalog(listener: () => void): () => void;
+  mobileData(): Promise<boolean | null>;
+  setMobileData(on: boolean): Promise<void>;
   cloudGames(folder: string): Promise<string[]>;
   mobileDownloadSize(folder: string, path: string): Promise<number | null>;
   downloadRom(folder: string, path: string): Promise<void>;
@@ -62,6 +60,7 @@ export type SyncHost = {
 export type Checked = { checked: boolean; conflicts: Conflict[] };
 
 export const OPEN_WAIT_MS = 5000;
+export const FULL_SYNC_COOLDOWN_MS = 10 * 60_000;
 
 export type Sync = {
   available: boolean;
@@ -79,11 +78,11 @@ export type Sync = {
   syncNow(): void;
   beforeOpen(folder: string, path: string): Promise<Checked>;
   synced(folder: string, paths: string[]): Promise<void>;
+  played(folder: string, path: string): Promise<void>;
   conflicts(folder: string, path: string): Promise<Conflict[]>;
   conflictHost: ConflictsHost;
-  syncGames: SyncGames;
-  setSyncGames(on: boolean): Promise<void>;
-  setMobileData(mobileData: MobileData): Promise<void>;
+  mobileData?: boolean;
+  setMobileData(on: boolean): Promise<void>;
   cloudGames: string[];
   mobileDownloadSize(folder: string, path: string): Promise<number | null>;
   downloads: Record<string, Download>;
@@ -103,14 +102,13 @@ const off: Sync = {
   syncNow: () => {},
   beforeOpen: async () => ({ checked: true, conflicts: [] }),
   synced: async () => {},
+  played: async () => {},
   conflicts: async () => [],
   conflictHost: {
     resolve: async () => {},
     cloudSave: async () => null,
     cloudScreenshot: async () => null,
   },
-  syncGames: { on: false },
-  setSyncGames: async () => {},
   setMobileData: async () => {},
   cloudGames: [],
   mobileDownloadSize: async () => null,
@@ -161,7 +159,12 @@ export function SyncProvider({ host, children }: { host: SyncHost; children: Rea
   const currentFolder = useRef(folder);
   currentFolder.current = folder;
   const startedFor = useRef<string>(undefined);
-  const [syncGames, setSyncGamesState] = useState<SyncGames>({ on: false });
+  const lastFullSync = useRef<number>(undefined);
+  // A run that left a game waiting, or ran while a game was open and so held back every ROM upload, doesn't start the
+  // cooldown.
+  const heldBack = useRef(false);
+  const playing = useRef(false);
+  const [mobileData, setMobileDataState] = useState<boolean>();
   const [cloudGames, setCloudGames] = useState<string[]>(noGames);
   const [downloads, setDownloads] = useState<Record<string, Download>>({});
   const [downloading] = useState(() => new Map<string, Promise<void>>());
@@ -200,12 +203,22 @@ export function SyncProvider({ host, children }: { host: SyncHost; children: Rea
     () =>
       host.onGame(({ path, ...game }) => {
         setGameSync((games) => ({ ...games, [path]: nextGameSync(games[path], game) }));
+        if (game.state === "waiting" || game.state === "error") heldBack.current = true;
         if (game.state === "synced") setGameLastSynced((times) => ({ ...times, [path]: game.lastSynced }));
       }),
     [host],
   );
 
-  useEffect(() => host.onRun(setRun), [host]);
+  useEffect(
+    () =>
+      host.onRun((run) => {
+        setRun(run);
+        if (run.phase === "transferring" && run.waitingRoms.length > 0) heldBack.current = true;
+      }),
+    [host],
+  );
+
+  useEffect(() => host.onCatalog(() => void readCloudGames()), [host, readCloudGames]);
 
   useEffect(
     () => host.onDownload((download) => setDownloads((downloads) => ({ ...downloads, [download.path]: download }))),
@@ -219,14 +232,14 @@ export function SyncProvider({ host, children }: { host: SyncHost; children: Rea
       const account = clouds.length > 0 ? await host.account() : null;
       const lastSynced = account ? await host.lastSynced() : null;
       const gameLastSynced = account ? await host.gamesLastSynced() : noTimes;
-      const syncGames = clouds.length > 0 ? await host.syncGames() : undefined;
+      const mobileData = clouds.length > 0 ? await host.mobileData() : null;
       if (!current) return;
       setClouds(clouds);
       signedInAs(account);
       if (!account) startedFor.current = undefined;
       setLastSynced(lastSynced ?? undefined);
       setGameLastSynced(gameLastSynced);
-      if (syncGames) setSyncGamesState(syncGames);
+      setMobileDataState(mobileData ?? undefined);
     })()
       .catch(logError)
       .finally(() => current && loaded.resolve());
@@ -235,26 +248,48 @@ export function SyncProvider({ host, children }: { host: SyncHost; children: Rea
     };
   }, [host, loaded, signedInAs, plus]);
 
-  const syncAll = useCallback(() => {
-    const folder = currentFolder.current;
-    if (folder && signedIn.current) host.syncAll(folder).catch(logError);
-  }, [host]);
+  const syncAll = useCallback(
+    (now: boolean) => {
+      const folder = currentFolder.current;
+      if (!folder || !signedIn.current) return;
+      heldBack.current = playing.current;
+      host.syncAll(folder, now).then(
+        () => {
+          lastFullSync.current = heldBack.current ? undefined : Date.now();
+        },
+        (reason) => {
+          lastFullSync.current = undefined;
+          logError(reason);
+        },
+      );
+    },
+    [host],
+  );
+
+  const syncNow = useCallback(() => syncAll(true), [syncAll]);
+
+  const syncAllIfDue = useCallback(() => {
+    const last = lastFullSync.current;
+    if (last === undefined || Date.now() - last >= FULL_SYNC_COOLDOWN_MS) syncAll(false);
+  }, [syncAll]);
 
   useEffect(() => {
     void readCloudGames();
     if (!folder || !account || startedFor.current === `${account}\n${folder}`) return;
     startedFor.current = `${account}\n${folder}`;
-    syncAll();
+    syncAll(false);
   }, [folder, account, syncAll, readCloudGames]);
 
   useEffect(() => {
-    const returned = () => document.visibilityState === "visible" && syncAll();
+    const returned = () => document.visibilityState === "visible" && syncAllIfDue();
     document.addEventListener("visibilitychange", returned);
     return () => document.removeEventListener("visibilitychange", returned);
-  }, [syncAll]);
+  }, [syncAllIfDue]);
 
   const beforeOpen = useCallback(
     async (folder: string, path: string) => {
+      playing.current = true;
+      heldBack.current = true;
       await loaded.promise;
       if (!signedIn.current) return { checked: true, conflicts: [] };
       let timer: ReturnType<typeof setTimeout> | undefined;
@@ -281,6 +316,16 @@ export function SyncProvider({ host, children }: { host: SyncHost; children: Rea
     [host],
   );
 
+  // The game's sync stops the game, so the full sync after it is the first that can send the ROMs held while it ran.
+  const played = useCallback(
+    (folder: string, path: string) =>
+      synced(folder, [path]).then(() => {
+        playing.current = false;
+        syncAllIfDue();
+      }),
+    [synced, syncAllIfDue],
+  );
+
   const conflicts = useCallback(
     async (folder: string, path: string) => (signedIn.current ? host.conflicts(folder, path) : []),
     [host],
@@ -288,21 +333,11 @@ export function SyncProvider({ host, children }: { host: SyncHost; children: Rea
 
   const connect = useCallback(async (cloud: Cloud) => signedInAs(await host.signIn(cloud)), [host, signedInAs]);
 
-  const setSyncGames = useCallback(
-    async (on: boolean) => {
-      await host.setSyncGames(on);
-      setSyncGamesState((syncGames) => ({ ...syncGames, on }));
-      await readCloudGames();
-      if (on) syncAll();
-    },
-    [host, readCloudGames, syncAll],
-  );
-
   const setMobileData = useCallback(
-    async (mobileData: MobileData) => {
-      await host.setMobileData(mobileData);
-      setSyncGamesState((syncGames) => ({ ...syncGames, mobileData }));
-      if (mobileData.on) syncAll();
+    async (on: boolean) => {
+      await host.setMobileData(on);
+      setMobileDataState(on);
+      if (on) syncAll(false);
     },
     [host, syncAll],
   );
@@ -347,6 +382,7 @@ export function SyncProvider({ host, children }: { host: SyncHost; children: Rea
   const signOut = useCallback(async () => {
     await host.signOut();
     startedFor.current = undefined;
+    lastFullSync.current = undefined;
     signedInAs(null);
     setCloudGames(noGames);
     setLastSynced(undefined);
@@ -370,13 +406,13 @@ export function SyncProvider({ host, children }: { host: SyncHost; children: Rea
       run: account ? run : undefined,
       connect,
       signOut,
-      syncNow: syncAll,
+      syncNow,
       beforeOpen,
       synced,
+      played,
       conflicts,
       conflictHost: host,
-      syncGames,
-      setSyncGames,
+      mobileData,
       setMobileData,
       cloudGames: account ? cloudGames : noGames,
       mobileDownloadSize,
@@ -394,13 +430,13 @@ export function SyncProvider({ host, children }: { host: SyncHost; children: Rea
       run,
       connect,
       signOut,
-      syncAll,
+      syncNow,
       beforeOpen,
       synced,
+      played,
       conflicts,
       host,
-      syncGames,
-      setSyncGames,
+      mobileData,
       setMobileData,
       cloudGames,
       mobileDownloadSize,

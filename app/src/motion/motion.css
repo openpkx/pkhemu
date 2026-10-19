@@ -191,7 +191,6 @@
 @media (prefers-reduced-motion: no-preference) {
   .motion-press:active { scale: 0.97; }
   .motion-ring { transition: stroke-dashoffset var(--motion-duration-medium2) var(--motion-easing-standard); }
-  .motion-tick { animation: var(--motion-duration-medium2) var(--motion-easing-emphasized-decelerate) both motion-draw; }
   .motion-dialog[data-state="open"] { animation-name: motion-zoom-in; }
   .motion-dialog[data-state="closed"] { animation-name: motion-zoom-out; }
   .motion-sheet[data-state="open"],
@@ -237,10 +236,6 @@
 
 @keyframes motion-fade-through-in {
   from { opacity: 0; scale: 0.92; }
-}
-
-@keyframes motion-draw {
-  from { stroke-dashoffset: 1; }
 }
 
 @keyframes motion-fade-in {

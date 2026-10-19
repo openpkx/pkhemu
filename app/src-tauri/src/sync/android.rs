@@ -4,6 +4,7 @@ pub use super::google::plugin as google_sign_in;
 pub use super::network::plugin as network;
 pub use super::oauth::plugin as browser_sign_in;
 
+pub(super) const PRESS: &str = "tap";
 pub(super) const TELLS_MOBILE_DATA: bool = true;
 
 pub fn device_name() -> String {

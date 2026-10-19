@@ -28,6 +28,7 @@ import { SettingsScreen } from "./SettingsScreen";
 import { hideSplash } from "./splash";
 import { useSystemBars } from "./system-bars/systemBars";
 import { syncingWrites, useSync } from "./sync/sync";
+import { SyncDetailsProvider } from "./sync/SyncDetailsSheet";
 import { systems as allSystems, type System } from "./systems";
 
 type Screen =
@@ -124,7 +125,7 @@ export function Home({
   systems?: readonly System[];
 }) {
   const gamesFolder = useGamesFolder();
-  const { synced, syncNow } = useSync();
+  const { synced, played } = useSync();
   const syncedGamePageHost = useMemo(() => syncingWrites(gamePageHost, synced), [gamePageHost, synced]);
   const [screen, setScreen] = useState<Screen>({ name: "library" });
   const calibrations = useCalibrations();
@@ -260,82 +261,83 @@ export function Home({
 
   return (
     <LibraryProvider host={libraryHost} folder={gamesFolder.folder} onOpen={openGame} onPlay={playFromLibrary}>
-      <FindLibraryBoxArt />
-      <HideSplashOnceScanned />
-      {padNavigation}
-      {screen.name === "library" && (
-        <MotionScreen>
-          <LibraryScreen
-            host={syncedGamePageHost}
-            folder={gamesFolder.folder}
-            systems={systems}
-            onSettings={leaveForSettings}
-            onOpenFolder={gamesFolder.openFolder}
-            onImportFolder={() => void importFolder()}
-          />
-        </MotionScreen>
-      )}
-      {screen.name === "settings" && (
-        <MotionScreen>
-          <SettingsScreen systems={systems} onBack={backToLibrary} onLicences={showLicences} />
-        </MotionScreen>
-      )}
-      {screen.name === "licences" && (
-        <MotionScreen>
-          <LicencesScreen onBack={backToSettings} />
-        </MotionScreen>
-      )}
-      {screen.name === "game" && (
-        <GameArtFor path={screen.game.path}>
-          {screen.start ? (
-            <MotionScreen key="playing">
-              <LibraryGameScreen
-                folder={gamesFolder.folder}
-                game={screen.game}
-                systems={systems}
-                resume={screen.start === "resume" || (typeof screen.start === "object" && screen.start.resume)}
-                slot={typeof screen.start === "object" ? screen.start.slot : undefined}
-                cover={screen.cover}
-                dismissedPads={dismissedPads}
-                onQuit={() => {
-                  // The game's sync stops the game first. A full sync that started earlier would see it running and hold its ROM.
-                  void synced(gamesFolder.folder, [screen.game.path]).then(syncNow);
-                  navigate("play", () => setScreen({ name: "game", game: screen.game, tile: screen.tile }));
-                }}
-                onUnsupported={() =>
-                  navigate("play", () => {
-                    setUnsupported((systems) => new Set(systems).add(screen.game.system));
-                    setScreen({ name: "game", game: screen.game, tile: screen.tile });
-                  })
-                }
-              />
-            </MotionScreen>
-          ) : (
-            <MotionScreen key={`page:${screen.game.path}`}>
-              <LibraryGamePage
-                host={syncedGamePageHost}
-                folder={gamesFolder.folder}
-                game={screen.game}
-                sharedArt={screen.tile}
-                cover={screen.cover}
-                unsupported={unsupportedBy(screen.game.system)}
-                onPlay={(start, game = screen.game, cover) => play(game, start, cover)}
-                onCreated={(game) => setToast(hackBoxArt.withAddBoxArt(`Created ${game.name}`, game))}
-                onDownloaded={(game) => setScreen({ ...screen, game })}
-                onGone={(game) => {
-                  setToast(`Removed ${game.name} from this device`);
-                  closeGame();
-                }}
-                onDelete={(game, library) => void deleteGame(game, library)}
-                onBack={closeGame}
-              />
-            </MotionScreen>
-          )}
-        </GameArtFor>
-      )}
-      {hackBoxArt.sheet}
-      {sideloadBuild && <CoffeeAsk host={tauriCoffeeHost} playing={!!playing} canAsk={screen.name === "library"} />}
-      <Toast>{toast}</Toast>
+      <SyncDetailsProvider host={syncedGamePageHost} folder={gamesFolder.folder}>
+        <FindLibraryBoxArt />
+        <HideSplashOnceScanned />
+        {padNavigation}
+        {screen.name === "library" && (
+          <MotionScreen>
+            <LibraryScreen
+              host={syncedGamePageHost}
+              folder={gamesFolder.folder}
+              systems={systems}
+              onSettings={leaveForSettings}
+              onOpenFolder={gamesFolder.openFolder}
+              onImportFolder={() => void importFolder()}
+            />
+          </MotionScreen>
+        )}
+        {screen.name === "settings" && (
+          <MotionScreen>
+            <SettingsScreen systems={systems} onBack={backToLibrary} onLicences={showLicences} />
+          </MotionScreen>
+        )}
+        {screen.name === "licences" && (
+          <MotionScreen>
+            <LicencesScreen onBack={backToSettings} />
+          </MotionScreen>
+        )}
+        {screen.name === "game" && (
+          <GameArtFor path={screen.game.path}>
+            {screen.start ? (
+              <MotionScreen key="playing">
+                <LibraryGameScreen
+                  folder={gamesFolder.folder}
+                  game={screen.game}
+                  systems={systems}
+                  resume={screen.start === "resume" || (typeof screen.start === "object" && screen.start.resume)}
+                  slot={typeof screen.start === "object" ? screen.start.slot : undefined}
+                  cover={screen.cover}
+                  dismissedPads={dismissedPads}
+                  onQuit={() => {
+                    void played(gamesFolder.folder, screen.game.path);
+                    navigate("play", () => setScreen({ name: "game", game: screen.game, tile: screen.tile }));
+                  }}
+                  onUnsupported={() =>
+                    navigate("play", () => {
+                      setUnsupported((systems) => new Set(systems).add(screen.game.system));
+                      setScreen({ name: "game", game: screen.game, tile: screen.tile });
+                    })
+                  }
+                />
+              </MotionScreen>
+            ) : (
+              <MotionScreen key={`page:${screen.game.path}`}>
+                <LibraryGamePage
+                  host={syncedGamePageHost}
+                  folder={gamesFolder.folder}
+                  game={screen.game}
+                  sharedArt={screen.tile}
+                  cover={screen.cover}
+                  unsupported={unsupportedBy(screen.game.system)}
+                  onPlay={(start, game = screen.game, cover) => play(game, start, cover)}
+                  onCreated={(game) => setToast(hackBoxArt.withAddBoxArt(`Created ${game.name}`, game))}
+                  onDownloaded={(game) => setScreen({ ...screen, game })}
+                  onGone={(game) => {
+                    setToast(`Removed ${game.name} from this device`);
+                    closeGame();
+                  }}
+                  onDelete={(game, library) => void deleteGame(game, library)}
+                  onBack={closeGame}
+                />
+              </MotionScreen>
+            )}
+          </GameArtFor>
+        )}
+        {hackBoxArt.sheet}
+        {sideloadBuild && <CoffeeAsk host={tauriCoffeeHost} playing={!!playing} canAsk={screen.name === "library"} />}
+        <Toast>{toast}</Toast>
+      </SyncDetailsProvider>
     </LibraryProvider>
   );
 }

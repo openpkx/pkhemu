@@ -666,7 +666,7 @@ export function GamePage({
                   onPatched={onPatched}
                   onUpdated={() => setReload((reload) => reload + 1)}
                   onRemove={
-                    sync.account && sync.syncGames.on
+                    sync.account
                       ? async () => {
                           await sync.removeFromDevice(folder, game.path);
                           onGone?.(game, "removed");

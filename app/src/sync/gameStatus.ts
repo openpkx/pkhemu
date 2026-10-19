@@ -1,16 +1,13 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { ago } from "@/game-page/details";
 import { byName, gameName } from "@/library/scan";
 import { useSync, type Download, type GameSync, type SyncRun, type SyncStage, type WaitReason } from "./sync";
 
 export type SyncBadgeState =
   | { kind: "ring"; percent: number; label: string }
-  | { kind: "done"; label: string }
-  | { kind: "waiting"; label: string }
+  | { kind: "wifi"; label: string }
   | { kind: "conflict"; label: string }
   | { kind: "attention"; label: string };
-
-export const TICK_MS = 1500;
 
 const stages: Record<SyncStage, string> = {
   uploadingSaves: "Uploading saves",
@@ -30,73 +27,58 @@ const waits: Record<WaitReason, string> = {
 const percent = ({ done, total }: { done: number; total: number }) =>
   total > 0 ? Math.min(100, Math.floor((done / total) * 100)) : 0;
 
-const ring = (stage: string, progress: { done: number; total: number }): SyncBadgeState => {
-  const at = percent(progress);
-  return { kind: "ring", percent: at, label: `${stage} · ${at}%` };
-};
-
-function liveBadge(game: GameSync | undefined, download: Download | undefined): SyncBadgeState | undefined {
-  if (download) return ring("Downloading ROM", download);
-  switch (game?.state) {
+export function gameStage(game: GameSync) {
+  switch (game.state) {
     case "transferring":
-      return ring(stages[game.stage], game);
+      return `${stages[game.stage]} · ${percent(game)}%`;
     case "queued":
-      return { kind: "waiting", label: "Waiting to sync" };
+      return "Waiting to sync";
     case "waiting":
-      return { kind: "waiting", label: waits[game.reason] };
+      return waits[game.reason];
     case "conflict":
-      return { kind: "conflict", label: "Changed on another device" };
+      return "Changed on another device";
     case "error":
-      return { kind: "attention", label: game.message };
+      return game.message;
   }
 }
 
-export const gameStage = (game: GameSync) => liveBadge(game, undefined)?.label;
+const lastSyncedLine = (lastSynced: number | undefined, now: number) =>
+  lastSynced === undefined ? "Not synced yet" : `Last synced ${ago(Math.max(0, now - lastSynced) / 1000)}`;
 
 export function gameSyncLine(game: GameSync | undefined, lastSynced: number | undefined, now: number) {
-  const stage = game && gameStage(game);
-  if (stage) return stage;
-  return lastSynced === undefined ? "Not synced yet" : `Last synced ${ago(Math.max(0, now - lastSynced) / 1000)}`;
+  return (game && gameStage(game)) || lastSyncedLine(lastSynced, now);
 }
 
-const done: SyncBadgeState = { kind: "done", label: "Synced" };
+const waitingForWifi = (game: GameSync | undefined) => game?.state === "waiting" && game.reason === "mobileData";
+
+function tileBadge(game: GameSync | undefined, download: Download | undefined): SyncBadgeState | undefined {
+  if (download) {
+    const at = percent(download);
+    return { kind: "ring", percent: at, label: `Downloading ROM · ${at}%` };
+  }
+  if (!game) return;
+  if (game.state === "conflict") return { kind: "conflict", label: "Changed on another device" };
+  if (game.state === "error") return { kind: "attention", label: game.message };
+  if (waitingForWifi(game)) return { kind: "wifi", label: waits.mobileData };
+}
 
 // A cloud-only game shows only its ROM download, since its saves wait for the ROM.
 export function useTileSync(path: string, cloudOnly: boolean) {
   const sync = useSync();
   const download = cloudOnly ? sync.downloads[path] : undefined;
   const game = cloudOnly ? undefined : sync.gameSync[path];
-  const live = useMemo(() => liveBadge(game, download), [game, download]);
-  const transfer = download ?? (game?.state === "transferring" ? game : undefined);
-  const [moving, setMoving] = useState<Download | GameSync>();
-  const [ticking, setTicking] = useState(false);
-
-  if (transfer) {
-    if (moving !== transfer) setMoving(transfer);
-    if (ticking) setTicking(false);
-  } else if (moving) {
-    setMoving(undefined);
-    const finished = "path" in moving ? moving.done >= moving.total : game?.state === "synced";
-    if (finished) setTicking(true);
-  }
-
-  useEffect(() => {
-    if (!ticking) return;
-    const timer = setTimeout(() => setTicking(false), TICK_MS);
-    return () => clearTimeout(timer);
-  }, [ticking]);
-
-  return live ?? (ticking ? done : undefined);
+  return useMemo(() => tileBadge(game, download), [game, download]);
 }
 
 export type RunRingState =
   | { kind: "spinning"; label: string }
   | { kind: "ring"; percent: number; label: string }
+  | { kind: "wifi"; label: string }
   | { kind: "warning"; label: string };
 
 export type RunProgress = { line: string; percent?: number };
 
-export function runProgress(run: SyncRun | undefined): RunProgress {
+function runProgress(run: SyncRun | undefined): RunProgress {
   if (run?.phase === "checking")
     return { line: `Checking · ${run.done} of ${run.total} ${run.total === 1 ? "game" : "games"}`, percent: percent(run) };
   if (run && run.total > 0) {
@@ -106,11 +88,28 @@ export function runProgress(run: SyncRun | undefined): RunProgress {
   return { line: "Syncing…" };
 }
 
-function runRing(syncing: boolean, run: SyncRun | undefined, accountError: string | undefined): RunRingState | undefined {
-  if (!syncing) return accountError ? { kind: "warning", label: accountError } : undefined;
-  const { line, percent } = runProgress(run);
-  if (run?.phase === "transferring" && percent !== undefined) return { kind: "ring", percent, label: line };
-  return { kind: "spinning", label: line };
+export function syncStatus(syncing: boolean, run: SyncRun | undefined, lastSynced: number | undefined, now: number): RunProgress {
+  return syncing ? runProgress(run) : { line: lastSyncedLine(lastSynced, now) };
+}
+
+const wifiRing: RunRingState = { kind: "wifi", label: waits.mobileData };
+
+function runRing(
+  syncing: boolean,
+  run: SyncRun | undefined,
+  accountError: string | undefined,
+  wifi: boolean,
+  importing: boolean,
+): RunRingState | undefined {
+  if (syncing) {
+    const { line, percent } = runProgress(run);
+    if (run?.phase === "transferring" && percent !== undefined) return { kind: "ring", percent, label: line };
+    if (wifi && !importing) return wifiRing;
+    return { kind: "spinning", label: line };
+  }
+  if (accountError) return { kind: "warning", label: accountError };
+  if (importing) return { kind: "spinning", label: "Adding games" };
+  if (wifi) return wifiRing;
 }
 
 export function runGames(gameSync: Record<string, GameSync>, run: SyncRun | undefined) {
@@ -125,7 +124,11 @@ export function runGames(gameSync: Record<string, GameSync>, run: SyncRun | unde
   return games.sort((a, b) => byName.compare(a.name, b.name));
 }
 
-export function useRunRing() {
-  const { syncing, run, accountError } = useSync();
-  return useMemo(() => runRing(syncing, run, accountError), [syncing, run, accountError]);
+export function useRunRing(importing: boolean) {
+  const { syncing, run, accountError, gameSync } = useSync();
+  const wifi = useMemo(() => Object.values(gameSync).some(waitingForWifi), [gameSync]);
+  return useMemo(
+    () => runRing(syncing, run, accountError, wifi, importing),
+    [syncing, run, accountError, wifi, importing],
+  );
 }

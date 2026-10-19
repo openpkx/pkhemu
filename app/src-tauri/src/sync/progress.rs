@@ -7,6 +7,7 @@ pub trait Events: Send + Sync {
     fn run(&self, run: &RunProgress);
     fn box_art(&self, _rom: &str) {}
     fn skins(&self, _skins: &crate::skins::Skins) {}
+    fn catalog(&self) {}
 }
 
 #[derive(Serialize, Clone, Copy, Debug, Default, PartialEq)]

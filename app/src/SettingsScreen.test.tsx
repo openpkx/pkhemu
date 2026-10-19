@@ -20,8 +20,10 @@ import { fakeRetroAchievements } from "./retro-achievements/fakeRetroAchievement
 import { RetroAchievementsProvider } from "./retro-achievements/retroAchievements";
 import { SettingsScreen } from "./SettingsScreen";
 import { ShadersProvider, type ShadersHost } from "./shaders/shaders";
+import type { ConflictSaveHost } from "./sync/ConflictSheet";
 import { fakeSync } from "./sync/fakeSync";
 import { SyncProvider } from "./sync/sync";
+import { SyncDetailsProvider } from "./sync/SyncDetailsSheet";
 import type { System } from "./systems";
 import { defaultSkins } from "./skins";
 
@@ -45,6 +47,14 @@ const idleEngine: EngineHost = {
   onChange: () => {},
   onEvent: () => {},
   getAssemblyExports: () => new Promise(() => {}),
+};
+
+const saveHost: ConflictSaveHost = {
+  readSave: async () => null,
+  saveSummary: async () => null,
+  keepSaveSummary: async () => {},
+  saveFormat: async () => null,
+  stateScreenshot: async () => null,
 };
 
 function openSettings({
@@ -90,7 +100,9 @@ function openSettings({
         <ShadersProvider host={shaders}>
           <AppUpdateProvider host={update.host}>
             <RetroAchievementsProvider host={retroAchievements}>
-              <SettingsScreen system={system} systems={systems} onBack={() => {}} onLicences={onLicences} />
+              <SyncDetailsProvider host={saveHost} folder="/games">
+                <SettingsScreen system={system} systems={systems} onBack={() => {}} onLicences={onLicences} />
+              </SyncDetailsProvider>
             </RetroAchievementsProvider>
           </AppUpdateProvider>
         </ShadersProvider>
@@ -218,7 +230,7 @@ it("connects Google Drive, shows the account and signs out", async () => {
 
   expect(sync.host.signIn).toHaveBeenCalledWith("google");
   expect(within(section).getByText("player@example.com")).toBeTruthy();
-  expect(sync.host.syncAll).toHaveBeenCalledWith("/games");
+  expect(sync.host.syncAll).toHaveBeenCalledWith("/games", false);
 
   await act(async () => fireEvent.click(within(section).getByRole("button", { name: "Sign out" })));
 
@@ -259,57 +271,44 @@ it("syncs now and updates when it last synced", async () => {
 
   await act(async () => fireEvent.click(within(section).getByRole("button", { name: "Sync now" })));
 
-  expect(sync.host.syncAll).toHaveBeenCalledWith("/games");
+  expect(sync.host.syncAll).toHaveBeenCalledWith("/games", true);
   expect(within(section).getByText("Last synced just now")).toBeTruthy();
   vi.useRealTimers();
 });
 
-it("shows the run's phase and each game's stage while syncing", async () => {
-  const sync = fakeSync({ account: "player@example.com", syncGames: true });
+it("shows the run's phase on the card without a list of games", async () => {
+  const sync = fakeSync({ account: "player@example.com" });
   openSettings({ sync });
   const section = await screen.findByRole("region", { name: "Sync" });
   await within(section).findByText(/^Last synced/);
-
-  await act(async () => sync.report({ syncing: true }));
-  await act(async () => sync.runProgress({ phase: "checking", done: 4, total: 12 }));
-  expect(within(section).getByText("Checking · 4 of 12 games")).toBeTruthy();
-  expect(within(section).getByRole("progressbar", { name: "Sync progress" })).toBeTruthy();
-
-  await act(async () => {
-    sync.game({ path: "gba/Emerald.gba", state: "transferring", done: 1, total: 4, stage: "uploadingSaves" });
-    sync.game({ path: "gba/Ruby.gba", state: "queued" });
-    sync.game({ path: "gba/Sapphire.gba", state: "synced", lastSynced: 1_000 });
-    sync.runProgress({ phase: "transferring", done: 46, total: 100, waitingRoms: ["gba/FireRed.gba"] });
-  });
-  expect(within(section).getByText("Syncing · 46%")).toBeTruthy();
-  const games = within(within(section).getByRole("list", { name: "Games syncing" }));
-  expect(games.getAllByRole("listitem").map((item) => item.textContent)).toEqual([
-    "EmeraldUploading saves · 25%",
-    "FireRedROM waiting for Wi-Fi",
-    "RubyWaiting to sync",
-  ]);
-
-  await act(async () => sync.report({ syncing: false, lastSynced: Date.now() }));
-  expect(within(section).getByText("Last synced just now")).toBeTruthy();
-  expect(within(section).queryByRole("list", { name: "Games syncing" })).toBeNull();
-  expect(within(section).queryByRole("progressbar", { name: "Sync progress" })).toBeNull();
-});
-
-it("wraps a long game error instead of keeping it on one line", async () => {
-  const sync = fakeSync({ account: "player@example.com", syncGames: true });
-  openSettings({ sync });
-  const section = await screen.findByRole("region", { name: "Sync" });
-  await within(section).findByText(/^Last synced/);
-  const message = "Google Drive answered 411 Length Required. ".repeat(7).slice(0, 300);
 
   await act(async () => {
     sync.report({ syncing: true });
-    sync.game({ path: "gba/Emerald.gba", state: "error", message });
+    sync.game({ path: "gba/Emerald.gba", state: "transferring", done: 1, total: 4, stage: "uploadingSaves" });
+    sync.runProgress({ phase: "transferring", done: 46, total: 100, waitingRoms: ["gba/FireRed.gba"] });
+  });
+  expect(within(section).getByText("Syncing · 46%")).toBeTruthy();
+  expect(within(section).queryByRole("list", { name: "Games syncing" })).toBeNull();
+  expect(within(section).queryByRole("progressbar")).toBeNull();
+  expect(within(section).getByRole("button", { name: "Sync now" }).hasAttribute("disabled")).toBe(true);
+
+  await act(async () => sync.report({ syncing: false, lastSynced: Date.now() }));
+  expect(within(section).getByText("Last synced just now")).toBeTruthy();
+});
+
+it("opens the sync details from the status row", async () => {
+  const sync = fakeSync({ account: "player@example.com" });
+  openSettings({ sync });
+  const section = await screen.findByRole("region", { name: "Sync" });
+  await act(async () => {
+    sync.report({ syncing: true });
+    sync.game({ path: "gba/Emerald.gba", state: "transferring", done: 1, total: 4, stage: "uploadingSaves" });
   });
 
-  const stage = within(within(section).getByRole("list", { name: "Games syncing" })).getByText(message);
-  expect(message).toHaveLength(300);
-  expect(stage.classList).not.toContain("shrink-0");
+  await act(async () => fireEvent.click(within(section).getByRole("button", { name: "Syncing…" })));
+
+  const sheet = screen.getByRole("dialog", { name: "Sync" });
+  expect(within(within(sheet).getByRole("list", { name: "Games syncing" })).getByText("Emerald")).toBeTruthy();
 });
 
 it("shows a sync error in the section", async () => {
@@ -424,76 +423,48 @@ it("shows the Connect buttons and never Plus in an unlocked build", async () => 
   expect(within(section).queryByRole("button", { name: "Restore purchases" })).toBeNull();
 });
 
-it("turns Sync games on and syncs", async () => {
-  const sync = fakeSync({ account: "player@example.com" });
-  openSettings({ sync });
-  const toggle = await screen.findByRole("switch", { name: "Sync games" });
-  expect(toggle.getAttribute("aria-checked")).toBe("false");
-  sync.host.syncAll.mockClear();
+it("has no Sync games or Include ROMs switch", async () => {
+  openSettings({ sync: fakeSync({ account: "player@example.com", mobileData: true }) });
+  await screen.findByRole("switch", { name: "Sync on mobile data" });
 
-  await act(async () => fireEvent.click(toggle));
-
-  expect(sync.host.setSyncGames).toHaveBeenCalledWith(true);
-  expect(sync.host.syncAll).toHaveBeenCalledWith("/games");
-  expect(toggle.getAttribute("aria-checked")).toBe("true");
-});
-
-it("turns Sync games off without syncing", async () => {
-  const sync = fakeSync({ account: "player@example.com", syncGames: true });
-  openSettings({ sync });
-  const toggle = await screen.findByRole("switch", { name: "Sync games" });
-  await waitFor(() => expect(toggle.getAttribute("aria-checked")).toBe("true"));
-  sync.host.syncAll.mockClear();
-
-  await act(async () => fireEvent.click(toggle));
-
-  expect(sync.host.setSyncGames).toHaveBeenCalledWith(false);
-  expect(sync.host.syncAll).not.toHaveBeenCalled();
-});
-
-it("shows the mobile data switches on a phone, and Include ROMs only while Sync games is on", async () => {
-  const sync = fakeSync({ account: "player@example.com", mobileData: { on: false, roms: true } });
-  openSettings({ sync });
-  const mobileData = await screen.findByRole("switch", { name: "Sync on mobile data" });
-  await waitFor(() => expect(mobileData.getAttribute("aria-checked")).toBe("false"));
+  expect(screen.queryByRole("switch", { name: "Sync games" })).toBeNull();
   expect(screen.queryByRole("switch", { name: "Include ROMs" })).toBeNull();
-
-  await act(async () => fireEvent.click(screen.getByRole("switch", { name: "Sync games" })));
-
-  expect(screen.getByRole("switch", { name: "Include ROMs" }).getAttribute("aria-checked")).toBe("true");
 });
 
-it("turns Sync on mobile data on and syncs", async () => {
-  const sync = fakeSync({ account: "player@example.com", mobileData: { on: false, roms: false } });
+it("turns Sync on mobile data on and syncs, saying ROMs still wait for Wi-Fi", async () => {
+  const sync = fakeSync({ account: "player@example.com", mobileData: false });
   openSettings({ sync });
   const mobileData = await screen.findByRole("switch", { name: "Sync on mobile data" });
   await waitFor(() => expect(mobileData.getAttribute("aria-checked")).toBe("false"));
+  expect(screen.getByText("Nothing syncs until you're on Wi-Fi.")).toBeTruthy();
   sync.host.syncAll.mockClear();
 
   await act(async () => fireEvent.click(mobileData));
 
-  expect(sync.host.setMobileData).toHaveBeenCalledWith({ on: true, roms: false });
-  expect(sync.host.syncAll).toHaveBeenCalledWith("/games");
+  expect(sync.host.setMobileData).toHaveBeenCalledWith(true);
+  expect(sync.host.syncAll).toHaveBeenCalledWith("/games", false);
   expect(mobileData.getAttribute("aria-checked")).toBe("true");
+  expect(screen.getByText("Saves and states sync on mobile data too. ROMs wait for Wi-Fi.")).toBeTruthy();
 });
 
-it("turns Include ROMs on", async () => {
-  const sync = fakeSync({ account: "player@example.com", syncGames: true, mobileData: { on: true, roms: false } });
+it("turns Sync on mobile data off without syncing", async () => {
+  const sync = fakeSync({ account: "player@example.com", mobileData: true });
   openSettings({ sync });
-  const roms = await screen.findByRole("switch", { name: "Include ROMs" });
+  const mobileData = await screen.findByRole("switch", { name: "Sync on mobile data" });
+  await waitFor(() => expect(mobileData.getAttribute("aria-checked")).toBe("true"));
+  sync.host.syncAll.mockClear();
 
-  await act(async () => fireEvent.click(roms));
+  await act(async () => fireEvent.click(mobileData));
 
-  expect(sync.host.setMobileData).toHaveBeenCalledWith({ on: true, roms: true });
-  expect(roms.getAttribute("aria-checked")).toBe("true");
+  expect(sync.host.setMobileData).toHaveBeenCalledWith(false);
+  expect(sync.host.syncAll).not.toHaveBeenCalled();
 });
 
-it("has no mobile data switches on desktop", async () => {
-  openSettings({ sync: fakeSync({ account: "player@example.com", syncGames: true }) });
-  await screen.findByRole("switch", { name: "Sync games" });
+it("has no mobile data switch on desktop", async () => {
+  openSettings({ sync: fakeSync({ account: "player@example.com" }) });
+  await screen.findByRole("button", { name: "Sync now" });
 
   expect(screen.queryByRole("switch", { name: "Sync on mobile data" })).toBeNull();
-  expect(screen.queryByRole("switch", { name: "Include ROMs" })).toBeNull();
 });
 
 it("keeps the touch controls out of Playing", async () => {

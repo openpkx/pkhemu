@@ -26,6 +26,7 @@ import { dualScreens } from "@/screens";
 import type { ConflictSaveHost } from "@/sync/ConflictSheet";
 import { useTileSync } from "@/sync/gameStatus";
 import { useSync } from "@/sync/sync";
+import { useOpenSyncDetails } from "@/sync/SyncDetailsSheet";
 import { useConflictSheet } from "@/sync/useConflictSheet";
 import { systemColors, systemNames, type System } from "@/systems";
 import { useLibrary, type LastPlay, type OpenedFrom } from "./library";
@@ -366,6 +367,7 @@ export function LibraryScreen({
   const stopChangingBoxArt = () => setChangingBoxArt((was) => was && { ...was, open: false });
   const conflictSheet = useConflictSheet(host, folder);
   const resolve = (game: Game) => void conflictSheet.open(game.path);
+  const openSyncDetails = useOpenSyncDetails();
 
   return (
     <div className="min-h-screen pb-safe">
@@ -377,11 +379,11 @@ export function LibraryScreen({
           </span>
         }
       >
-        <SyncRing onOpen={onSettings} />
+        <SyncRing importing={importing && !empty} onOpen={openSyncDetails} />
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" aria-label="Import" disabled={importing}>
-              {importing ? <Spinner /> : <Plus />}
+              <Plus />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">

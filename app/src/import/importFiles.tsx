@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -67,12 +67,22 @@ const noHost: ImportHost = {
 };
 
 const ImportContext = createContext<ImportHost>(noHost);
+const AddingContext = createContext<{ adding: number; add(games: number): void }>({ adding: 0, add: () => {} });
 
 export function ImportProvider({ host, children }: { host: ImportHost; children: ReactNode }) {
-  return <ImportContext.Provider value={host}>{children}</ImportContext.Provider>;
+  const [adding, setAdding] = useState(0);
+  const add = useCallback((games: number) => setAdding((adding) => adding + games), []);
+  const value = useMemo(() => ({ adding, add }), [adding, add]);
+  return (
+    <ImportContext.Provider value={host}>
+      <AddingContext.Provider value={value}>{children}</AddingContext.Provider>
+    </ImportContext.Provider>
+  );
 }
 
 export const useImportHost = () => useContext(ImportContext);
+
+export const useAddingGames = () => useContext(AddingContext).adding;
 
 export function importSummary(
   games: number,
@@ -235,6 +245,7 @@ export function useImportFiles(onDone: (message: string, created?: Game | null) 
   const latest = useRef(library);
   latest.current = library;
   const { synced } = useSync();
+  const { add } = useContext(AddingContext);
   const [asked, setAsked] = useState<Asked>();
   const [busy, setBusy] = useState(false);
   const [openings, setOpenings] = useState(1);
@@ -283,8 +294,10 @@ export function useImportFiles(onDone: (message: string, created?: Game | null) 
       const files = picked.filter((file) => !file.error);
       const sha1s = files.some((file) => file.sha1) ? await host.sha1s(folder, local.map((game) => game.path)) : {};
       const plan = planImport(files, { games: [...games, ...copied.map(gameAt)], sha1s });
+      add(plan.roms.length);
       for (const rom of plan.roms) {
         const done = await tried(() => host.copyRom(folder, rom.file.file, rom.path));
+        add(-1);
         if (done?.value.length) updated.push(...done.value);
         else if (done) copied.push(rom.path);
       }

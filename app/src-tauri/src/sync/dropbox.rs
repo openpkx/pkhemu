@@ -1,5 +1,6 @@
 use super::oauth::{offline, Tokens};
 use super::provider::{BoxFuture, Changes, Error, Provider, Sent, Versioned};
+use super::Cloud;
 use super::removed::DATE_FORMAT;
 use bytes::Bytes;
 use chrono::{DateTime, NaiveDate, Utc};
@@ -111,7 +112,7 @@ impl Dropbox {
         let error: Value = serde_json::from_str(&body).unwrap_or_default();
         let summary = error["error_summary"].as_str().unwrap_or_default().to_string();
         match status.as_u16() {
-            409 if summary.contains("insufficient_space") => Err(Error::Account("Your Dropbox is full".into())),
+            409 if summary.contains("insufficient_space") => Err(Error::Full(Cloud::Dropbox)),
             409 => Ok(Err(Refused { summary, error: error["error"].clone() })),
             429 | 503 => {
                 let asked = header.or(error["error"]["retry_after"].as_u64());
@@ -628,7 +629,7 @@ mod tests {
         cloud.fill_up();
         assert_eq!(
             block_on(cloud.dropbox.write_record("game-1", b"{}", None)),
-            Err(Error::Account("Your Dropbox is full".into()))
+            Err(Error::Full(Cloud::Dropbox))
         );
         assert!(block_on(cloud.dropbox.changes(None)).is_ok());
     }

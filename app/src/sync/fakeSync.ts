@@ -1,6 +1,6 @@
 import { vi } from "vitest";
 import type { SaveFile } from "@/game-page/saveSummary";
-import type { Choice, Cloud, Conflict, Download, GameSyncEvent, MobileData, SyncHost, SyncRun, SyncStatus } from "./sync";
+import type { Choice, Cloud, Conflict, Download, GameSyncEvent, SyncHost, SyncRun, SyncStatus } from "./sync";
 
 export function fakeSync({
   available = true,
@@ -14,8 +14,7 @@ export function fakeSync({
   conflicts: initialConflicts = [] as Conflict[],
   cloudSave = null as SaveFile | null,
   cloudScreenshots = {} as Record<string, number[]>,
-  syncGames = false,
-  mobileData = undefined as MobileData | undefined,
+  mobileData = null as boolean | null,
   metered = false,
   cloudGames = [] as string[],
   cloudSizes = {} as Record<string, number>,
@@ -29,6 +28,8 @@ export function fakeSync({
   const game = (event: GameSyncEvent) => gameListeners.forEach((listener) => listener(event));
   const runListeners = new Set<(run: SyncRun) => void>();
   const runProgress = (run: SyncRun) => runListeners.forEach((listener) => listener(run));
+  const catalogListeners = new Set<() => void>();
+  const catalog = () => catalogListeners.forEach((listener) => listener());
   const downloads: { path: string; finish(): void; fail(reason: string): void }[] = [];
   const run = async () => {
     report({ syncing: true });
@@ -46,7 +47,7 @@ export function fakeSync({
       lastSynced = null;
       gamesLastSynced = {};
     }),
-    syncAll: vi.fn(async (_folder: string) => run()),
+    syncAll: vi.fn(async (_folder: string, _now: boolean) => run()),
     syncGame: vi.fn(async (_folder: string, _path: string) => {
       if (gameSync === "never") return new Promise<never>(() => {});
       if (gameSync === "fails") throw new Error("No connection. pkhemu will try again");
@@ -71,9 +72,12 @@ export function fakeSync({
       runListeners.add(listener);
       return () => void runListeners.delete(listener);
     },
-    syncGames: vi.fn(async () => ({ on: syncGames, mobileData })),
-    setSyncGames: vi.fn(async (on: boolean) => void (syncGames = on)),
-    setMobileData: vi.fn(async (next: MobileData) => void (mobileData = next)),
+    onCatalog: (listener: () => void) => {
+      catalogListeners.add(listener);
+      return () => void catalogListeners.delete(listener);
+    },
+    mobileData: vi.fn(async () => mobileData),
+    setMobileData: vi.fn(async (on: boolean) => void (mobileData = on)),
     mobileDownloadSize: vi.fn(async (_folder: string, path: string) => (metered ? (cloudSizes[path] ?? null) : null)),
     cloudGames: vi.fn(async (_folder: string) => cloudGames),
     downloadRom: vi.fn(
@@ -95,5 +99,5 @@ export function fakeSync({
     },
     removeFromDevice: vi.fn(async (_folder: string, path: string) => void (cloudGames = [...cloudGames, path])),
   } satisfies SyncHost;
-  return { host, report, progress, game, runProgress, downloads };
+  return { host, report, progress, game, runProgress, catalog, downloads };
 }

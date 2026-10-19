@@ -9,7 +9,7 @@ export const tauriSyncHost: SyncHost = {
   gamesLastSynced: () => invoke("sync_games_last_synced"),
   signIn: (cloud) => invoke("sync_sign_in", { cloud }),
   signOut: () => invoke("sync_sign_out"),
-  syncAll: (folder) => invoke("sync_all", { folder }),
+  syncAll: (folder, now) => invoke("sync_all", { folder, now }),
   syncGame: (folder, path) => invoke("sync_game", { folder, path }),
   conflicts: (folder, path) => invoke("sync_conflicts", { folder, path }),
   resolve: (folder, path, file, choice) => invoke("sync_resolve", { folder, path, file, choice }),
@@ -27,9 +27,12 @@ export const tauriSyncHost: SyncHost = {
     const unlisten = listen<SyncRun>("sync-run", (event) => listener(event.payload));
     return () => void unlisten.then((stop) => stop());
   },
-  syncGames: () => invoke("sync_games"),
-  setSyncGames: (on) => invoke("sync_set_games", { on }),
-  setMobileData: (mobileData) => invoke("sync_set_mobile_data", { mobileData }),
+  onCatalog: (listener) => {
+    const unlisten = listen("sync-catalog", () => listener());
+    return () => void unlisten.then((stop) => stop());
+  },
+  mobileData: () => invoke("sync_mobile_data"),
+  setMobileData: (on) => invoke("sync_set_mobile_data", { on }),
   cloudGames: (folder) => invoke("sync_cloud_games", { folder }),
   mobileDownloadSize: (folder, path) => invoke("sync_mobile_download_size", { folder, path }),
   downloadRom: (folder, path) => invoke("sync_download_rom", { folder, path }),
