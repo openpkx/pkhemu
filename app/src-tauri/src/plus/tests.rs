@@ -168,8 +168,8 @@ fn keeps_an_owned_plus_while_the_store_is_unavailable() {
 fn reads_the_build_from_the_store_and_plus_keys() {
     assert_eq!(Build::from_keys("", ""), Build::Unlocked { sideload: false });
     assert_eq!(Build::from_keys("", "on"), Build::Unlocked { sideload: false });
-    assert_eq!(Build::from_keys("play", ""), Build::Store { plus: false });
-    assert_eq!(Build::from_keys("play", "on"), Build::Store { plus: true });
+    assert_eq!(Build::from_keys("play", ""), Build::Store { plus: true });
+    assert_eq!(Build::from_keys("appstore", ""), Build::Store { plus: false });
     assert_eq!(Build::from_keys("appstore", "on"), Build::Store { plus: true });
     assert_eq!(Build::from_keys("sideload", ""), Build::Unlocked { sideload: true });
 }

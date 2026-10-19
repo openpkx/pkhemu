@@ -197,7 +197,7 @@ _Avoid_: JIT enabler, built-in StikDebug
 ## Lab
 
 **Lab**:
-The card in Settings that lists experiments. A store build shows it while the Plus switch is on and the player owns Plus, with only the experiments for players. The sideload build shows it with only the experiments for players, and a build from source with every experiment.
+The card in Settings that lists experiments. A store build shows it while the player owns Plus, with only the experiments for players. The sideload build shows it with only the experiments for players, and a build from source with every experiment.
 _Avoid_: Lab build
 
 **Experiment**:

@@ -5,6 +5,7 @@ export function fakePlus({
   status: initial = { state: "notOwned", price: "$3.99" } as PlusStatus,
   buys = "purchased" as Bought,
   owned = false,
+  offersRestore = true,
 } = {}) {
   let status = initial;
   const listeners = new Set<(status: PlusStatus) => void>();
@@ -23,6 +24,7 @@ export function fakePlus({
       listeners.add(listener);
       return () => void listeners.delete(listener);
     },
+    offersRestore,
   } satisfies PlusHost;
   return { host, report };
 }

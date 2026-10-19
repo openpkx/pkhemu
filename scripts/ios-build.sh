@@ -93,6 +93,8 @@ plutil -replace CFBundleIdentifier -string "$(plutil -extract CFBundleIdentifier
 codesign --force --sign - --timestamp=none "$helper"
 codesign --force --sign - --timestamp=none --entitlements "$work/sideload.entitlements" "$app"
 
+# StikDebug picks its JIT script for an app by name, since SideStore changes the bundle ID. Its universal.js list has
+# this build as "pkhemu", its CFBundleName, so renaming the app takes us off that list.
 ipa="$apple/build/pkhemu-sideload.ipa"
 rm -f "$ipa"
 (cd "$work" && zip -qry "$ipa" Payload)

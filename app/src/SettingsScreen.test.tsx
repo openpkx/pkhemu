@@ -332,7 +332,7 @@ it("shows why connecting failed", async () => {
 });
 
 it("offers Plus at the store's price in place of the Connect buttons, and connects once it's bought", async () => {
-  const plus = fakePlus({ status: { state: "notOwned", price: "€4,49" } });
+  const plus = fakePlus({ status: { state: "notOwned", price: "€4,49" }, offersRestore: true });
   openSettings({ sync: fakeSync(), plus });
   const section = await screen.findByRole("region", { name: "Sync" });
   const getPlus = await within(section).findByRole("button", { name: "Get Plus · €4,49" });
@@ -369,8 +369,33 @@ it("shows only a store error when buying fails", async () => {
   expect(within(section).getByRole("button", { name: /^Get Plus/ })).toBeTruthy();
 });
 
+it("puts Get Plus and Restore purchases side by side", async () => {
+  openSettings({ sync: fakeSync(), plus: fakePlus({ offersRestore: true }) });
+  const section = await screen.findByRole("region", { name: "Sync" });
+  const getPlus = await within(section).findByRole("button", { name: /^Get Plus/ });
+
+  const restore = within(section).getByRole("button", { name: "Restore purchases" });
+  expect([...getPlus.parentElement!.children]).toEqual([getPlus, restore]);
+});
+
+it("offers only Get Plus where the store has no restore", async () => {
+  openSettings({ sync: fakeSync(), plus: fakePlus({ offersRestore: false }) });
+  const section = await screen.findByRole("region", { name: "Sync" });
+
+  expect(await within(section).findByRole("button", { name: /^Get Plus/ })).toBeTruthy();
+  expect(within(section).queryByRole("button", { name: "Restore purchases" })).toBeNull();
+});
+
+it("shows no buttons where Plus can't be bought and the store has no restore", async () => {
+  openSettings({ sync: fakeSync(), plus: fakePlus({ status: { state: "unavailable" }, offersRestore: false }) });
+  const section = await screen.findByRole("region", { name: "Sync" });
+
+  expect(await within(section).findByText("Plus can't be bought on this device")).toBeTruthy();
+  expect(within(section).queryByRole("button")).toBeNull();
+});
+
 it("restores a Plus the player already owns", async () => {
-  const plus = fakePlus({ owned: true });
+  const plus = fakePlus({ owned: true, offersRestore: true });
   openSettings({ sync: fakeSync(), plus });
   const section = await screen.findByRole("region", { name: "Sync" });
 
@@ -381,7 +406,7 @@ it("restores a Plus the player already owns", async () => {
 });
 
 it("says when Plus can't be bought on this device and still offers Restore purchases", async () => {
-  openSettings({ sync: fakeSync(), plus: fakePlus({ status: { state: "unavailable" } }) });
+  openSettings({ sync: fakeSync(), plus: fakePlus({ status: { state: "unavailable" }, offersRestore: true }) });
   const section = await screen.findByRole("region", { name: "Sync" });
 
   expect(await within(section).findByText("Plus can't be bought on this device")).toBeTruthy();

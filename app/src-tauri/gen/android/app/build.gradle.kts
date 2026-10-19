@@ -14,20 +14,6 @@ val tauriProperties = Properties().apply {
     }
 }
 
-// The same keys as build.rs: the environment first, then sync.env.
-fun storeKey(key: String): String {
-    System.getenv(key)?.takeIf { it.isNotEmpty() }?.let { return it }
-    val env = rootProject.file("../../sync.env").takeIf { it.exists() } ?: return ""
-    return env.readLines()
-        .filterNot { it.trimStart().startsWith("#") }
-        .map { it.split("=", limit = 2) }
-        .firstOrNull { it.size == 2 && it[0].trim() == key }
-        ?.get(1)?.trim() ?: ""
-}
-
-// A store build without Plus never syncs, so it leaves out the sync service and the Play declaration it needs.
-val offersSync = storeKey("PKH_EMU_STORE").isEmpty() || storeKey("PKH_EMU_PLUS") == "on"
-
 android {
     compileSdk = 37
     namespace = "fyi.openpkx.pkhemu"
@@ -63,9 +49,6 @@ android {
                 }.files.toTypedArray()
             )
         }
-    }
-    if (!offersSync) {
-        sourceSets.getByName("release").manifest.srcFile("src/withoutSync/AndroidManifest.xml")
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8

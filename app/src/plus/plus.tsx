@@ -15,18 +15,21 @@ export type PlusHost = {
   buy(): Promise<Bought>;
   restore(): Promise<PlusStatus>;
   onStatus(listener: (status: PlusStatus) => void): () => void;
+  offersRestore: boolean;
 };
 
 export type Plus = {
   status?: PlusStatus;
   buy(): Promise<Bought>;
   restore(): Promise<void>;
+  offersRestore: boolean;
 };
 
 const unlocked: Plus = {
   status: { state: "unlocked" },
   buy: async () => "cancelled",
   restore: async () => {},
+  offersRestore: false,
 };
 
 const PlusContext = createContext<Plus>(unlocked);
@@ -70,7 +73,10 @@ export function PlusProvider({ host, children }: { host: PlusHost; children: Rea
 
   const restore = useCallback(async () => settle(await host.restore()), [host, settle]);
 
-  const plus = useMemo<Plus>(() => ({ status, buy, restore }), [status, buy, restore]);
+  const plus = useMemo<Plus>(
+    () => ({ status, buy, restore, offersRestore: host.offersRestore }),
+    [status, buy, restore, host.offersRestore],
+  );
 
   return <PlusContext.Provider value={plus}>{children}</PlusContext.Provider>;
 }

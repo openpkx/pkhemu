@@ -8,6 +8,7 @@ import { androidHapticsHost } from "@/haptics/androidHost";
 import { androidImportHost } from "@/import/androidHost";
 import { androidLibraryHost } from "@/library/androidHost";
 import { tauriPatchRomHost } from "@/patch-rom/tauriHost";
+import { androidPlusHost } from "@/plus/androidHost";
 import { androidShadersHost } from "@/shaders/androidHost";
 import { androidSystemBarsHost } from "@/system-bars/androidHost";
 import { systems } from "@/systems";
@@ -30,4 +31,5 @@ export const androidHosts: Hosts = {
   audioSession: noAudioSessionHost,
   gameSurface: androidGameSurfaceHost,
   shaders: androidShadersHost,
+  plus: androidPlusHost,
 };

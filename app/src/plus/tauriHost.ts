@@ -10,4 +10,5 @@ export const tauriPlusHost: PlusHost = {
     const unlisten = listen<PlusStatus>("plus-status", (event) => listener(event.payload));
     return () => void unlisten.then((stop) => stop());
   },
+  offersRestore: true,
 };

@@ -123,21 +123,22 @@ function GetPlus({ status }: { status: Extract<PlusStatus, { state: "notOwned" |
       {status.state === "unavailable" && <p>Plus can't be bought on this device</p>}
       {pending && <p className="text-muted-foreground">Waiting for the payment to finish</p>}
       {error && <p className="text-destructive">{error}</p>}
-      {status.state === "notOwned" && (
-        <Button className="justify-self-start" disabled={busy !== undefined} onClick={() => void run(buy, "buying")}>
-          {busy === "buying" && <Spinner />}
-          Get Plus · {status.price}
-        </Button>
+      {(status.state === "notOwned" || plus.offersRestore) && (
+        <div className="flex flex-wrap gap-2">
+          {status.state === "notOwned" && (
+            <Button disabled={busy !== undefined} onClick={() => void run(buy, "buying")}>
+              {busy === "buying" && <Spinner />}
+              Get Plus · {status.price}
+            </Button>
+          )}
+          {plus.offersRestore && (
+            <Button variant="outline" disabled={busy !== undefined} onClick={() => void run(plus.restore, "restoring")}>
+              {busy === "restoring" && <Spinner />}
+              Restore purchases
+            </Button>
+          )}
+        </div>
       )}
-      <Button
-        variant="outline"
-        className="justify-self-start"
-        disabled={busy !== undefined}
-        onClick={() => void run(plus.restore, "restoring")}
-      >
-        {busy === "restoring" && <Spinner />}
-        Restore purchases
-      </Button>
     </>
   );
 }

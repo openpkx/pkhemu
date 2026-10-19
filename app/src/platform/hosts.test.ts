@@ -46,6 +46,12 @@ it("offers the native renderer only on phones", () => {
   expect(desktopHosts.gameSurface.renderers).toEqual(["compatible"]);
 });
 
+it("offers Restore purchases everywhere but Android", () => {
+  expect(androidHosts.plus.offersRestore).toBe(false);
+  expect(iosHosts.plus.offersRestore).toBe(true);
+  expect(desktopHosts.plus.offersRestore).toBe(true);
+});
+
 it("picks the renderer automatically until the player chooses", () => {
   for (const hosts of Object.values(hostSets)) expect(hosts.defaultPreferences.renderer).toBe("automatic");
 });

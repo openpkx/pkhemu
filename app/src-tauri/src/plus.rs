@@ -13,7 +13,7 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use tauri::{AppHandle, Runtime, State};
 
-pub const PRODUCT: &str = "plus";
+pub const PRODUCT: &str = "pkhemu_plus";
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum Build {
@@ -30,6 +30,7 @@ impl Build {
         match store {
             "" => Build::Unlocked { sideload: false },
             "sideload" => Build::Unlocked { sideload: true },
+            "play" => Build::Store { plus: true },
             _ => Build::Store { plus: plus == "on" },
         }
     }
