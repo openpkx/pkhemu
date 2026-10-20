@@ -26,12 +26,12 @@ export function useStaleSave(host: SaveHost) {
   return stale;
 }
 
-export function useNextSave(host: SaveHost, waiting: boolean, onSaved: () => void) {
+export function useSavesWritten(host: Pick<SaveHost, "playTimeSinceSave">, watching: boolean, onSaved: (playTimeSince: number) => void) {
   const latestOnSaved = useRef(onSaved);
   latestOnSaved.current = onSaved;
 
   useEffect(() => {
-    if (!waiting) return;
+    if (!watching) return;
     let stopped = false;
     let timer: ReturnType<typeof setTimeout>;
     let previous: number | undefined;
@@ -43,7 +43,10 @@ export function useNextSave(host: SaveHost, waiting: boolean, onSaved: () => voi
       if (since !== null) {
         saved ||= previous !== undefined && since < previous;
         previous = since;
-        if (saved && since >= SETTLED_SECONDS) return latestOnSaved.current();
+        if (saved && since >= SETTLED_SECONDS) {
+          saved = false;
+          latestOnSaved.current(since);
+        }
       }
       timer = setTimeout(poll, POLL_MS);
     };
@@ -53,5 +56,5 @@ export function useNextSave(host: SaveHost, waiting: boolean, onSaved: () => voi
       stopped = true;
       clearTimeout(timer);
     };
-  }, [host, waiting]);
+  }, [host, watching]);
 }

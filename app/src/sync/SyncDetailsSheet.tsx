@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
 import { ChevronRight, RefreshCw } from "lucide-react";
 import { cn } from "cn";
-import { BottomSheet } from "@/components/BottomSheet";
+import { BottomSheet } from "@/plugin-kit/BottomSheet";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useMinute } from "@/game-clock/GameClockSetting";

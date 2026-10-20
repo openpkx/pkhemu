@@ -5,7 +5,7 @@ import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import type { Game } from "@/library/scan";
-import { Screen } from "@/motion/motion";
+import { Screen } from "@/plugin-kit/motion";
 import { useSync } from "@/sync/sync";
 import { GameMenu } from "./GameMenu";
 import { Hero } from "./GamePage";

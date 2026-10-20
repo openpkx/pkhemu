@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Crossfade } from "@/motion/motion";
+import { Crossfade } from "@/plugin-kit/motion";
 import { PokemonArt, summaryArt } from "@/game-art/gameArt";
 import { ProgressStats } from "./ProgressStats";
 import { genderSymbols, type SaveSummary } from "./saveSummary";

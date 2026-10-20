@@ -234,9 +234,22 @@ it("offers to restart once the update finishes downloading", async () => {
   await library();
   await timeOut();
 
+  act(() => fake.downloading(42, 100));
+  expect(update() ?? restart()).toBeNull();
+
   act(() => fake.download());
 
   expect(restart()).toBeTruthy();
+});
+
+it("hides the Update toast once the download starts", async () => {
+  const fake = device().launch(fakeAppUpdate({ check: available(7) }));
+  await library();
+  expect(update()).toBeTruthy();
+
+  act(() => fake.downloading(0, 0));
+
+  expect(update() ?? restart()).toBeNull();
 });
 
 it("shows no toast while a game is open", async () => {

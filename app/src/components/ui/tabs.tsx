@@ -2,7 +2,7 @@ import * as React from "react"
 import { cva, type VariantProps } from "class-variance-authority"
 import { cn } from "cn"
 import { Tabs as TabsPrimitive } from "radix-ui"
-import { navigate, Screen } from "@/motion/motion"
+import { navigate, Screen } from "@/plugin-kit/motion"
 
 const SelectedTab = React.createContext<string | undefined>(undefined)
 

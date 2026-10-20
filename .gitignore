@@ -8,6 +8,7 @@ target/
 *.gba
 *.nds
 *.sav
+!app/src/research/layouts/transforms/vectors/*.sav
 *.srm
 *.ss[0-9]
 *.state

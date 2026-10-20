@@ -85,6 +85,14 @@ const screens = [
   "overlays-dialog",
   "transfer",
   "transfer-pak",
+  "research-start",
+  "research-waiting",
+  "research-diff",
+  "research-hex",
+  "research-value",
+  "research-name",
+  "research-findings",
+  "research-export",
 ];
 const themes = ipad ? ["dark"] : ["dark", "light"];
 const shownOnPhone = (screen) => screen.startsWith("playing-") || screen.startsWith("skin-picker-");
@@ -248,6 +256,31 @@ try {
               await page.getByRole("alertdialog").waitFor();
             }
             await page.waitForTimeout(800);
+          }
+          if (screen === "research-hex") {
+            await page.getByRole("button", { name: /Money/ }).click();
+            await page.getByRole("grid").waitFor();
+            await page.waitForTimeout(500);
+          }
+          if (screen === "research-value") {
+            await page.getByRole("button", { name: /Item 368/ }).click();
+            await page.waitForTimeout(500);
+          }
+          if (screen === "research-name") {
+            await page.getByRole("button", { name: /^0x0C40/ }).click();
+            await page.getByRole("button", { name: "Name this" }).click();
+            await page.getByRole("dialog").waitFor();
+            await page.getByRole("textbox", { name: "Name" }).fill("Bike steps");
+            await page.waitForTimeout(500);
+          }
+          if (screen === "research-findings" || screen === "research-export") {
+            await page.getByRole("tab", { name: /Findings/ }).click();
+            await page.getByRole("region", { name: "Yours" }).waitFor();
+            if (screen === "research-export") {
+              await page.getByRole("button", { name: "Export findings" }).click();
+              await page.getByRole("dialog").waitFor();
+            }
+            await page.waitForTimeout(500);
           }
           if (screen.startsWith("editor-mystery-gift")) {
             await page.getByRole("button", { name: "Mystery Gift" }).click();

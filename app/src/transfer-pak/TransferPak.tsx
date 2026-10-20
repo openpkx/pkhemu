@@ -2,8 +2,8 @@ import { useId, useState } from "react";
 import { Check } from "lucide-react";
 import { useBack } from "@/back/back";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { ScreenHeader } from "@/components/ScreenHeader";
-import { sectionHeading } from "@/components/sectionHeading";
+import { ScreenHeader } from "@/plugin-kit/ScreenHeader";
+import { sectionHeading } from "@/plugin-kit/sectionHeading";
 import { Button } from "@/components/ui/button";
 import {
   Combobox,

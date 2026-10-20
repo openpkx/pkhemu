@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { BottomSheet } from "@/components/BottomSheet";
+import { PadBottomSheet } from "@/components/PadBottomSheet";
 import { Button } from "@/components/ui/button";
 import type { Input } from "@/input/input";
 import { Badge } from "./Badge";
@@ -41,7 +41,7 @@ export function AchievementSheet({
     ["Players who have it", rarityText(achievement.rarity)],
   ];
   return (
-    <BottomSheet
+    <PadBottomSheet
       open={open}
       input={input}
       onClose={onClose}
@@ -86,6 +86,6 @@ export function AchievementSheet({
           </Button>
         )}
       </div>
-    </BottomSheet>
+    </PadBottomSheet>
   );
 }

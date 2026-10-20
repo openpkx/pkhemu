@@ -1,7 +1,7 @@
 import { createContext, Suspense, useCallback, useContext, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { BottomBar } from "@/components/BottomBar";
-import { ScreenHeader } from "@/components/ScreenHeader";
+import { ScreenHeader } from "@/plugin-kit/ScreenHeader";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import type { OnBackGesture } from "@/backGesture";
-import { navigate, Screen } from "@/motion/motion";
+import { navigate, Screen } from "@/plugin-kit/motion";
 import { noSaveYet, useEditSession, type Drafts, type SaveHost } from "./editSession";
 import { useStaleSave } from "./saveFirst";
 

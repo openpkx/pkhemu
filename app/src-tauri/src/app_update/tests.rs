@@ -42,7 +42,7 @@ fn run(build: Build, cache: &PathBuf, now: SystemTime, current: &str, body: Resu
 fn a_newer_version_in_the_feed_is_available() {
     let (answer, _) = run(SIDELOAD, &cache("newer"), SystemTime::now(), "0.7.0", Ok(feed("0.8.1")));
 
-    assert_eq!(answer, Check { available: true, version_code: Some(8_001), downloaded: false });
+    assert_eq!(answer, Check { available: true, version_code: Some(8_001), downloaded: false, downloading: false });
 }
 
 #[test]

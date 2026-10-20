@@ -15,7 +15,7 @@ import {
   type BackupsHost,
 } from "@/backups/backups";
 import { useBoxArt } from "@/box-art/boxArt";
-import { sectionHeading } from "@/components/sectionHeading";
+import { sectionHeading } from "@/plugin-kit/sectionHeading";
 import { SystemChip } from "@/components/SystemChip";
 import { TopScreen } from "@/components/TopScreen";
 import { Toast } from "@/components/Toast";
@@ -28,7 +28,7 @@ import { saveHome } from "@/editor/saveHome";
 import type { Game } from "@/library/scan";
 import { storedFormatId } from "@/preferences/gameSettings";
 import { pngDataUrl } from "@/lib/utils";
-import { Crossfade, navigate, Screen, Shared } from "@/motion/motion";
+import { Crossfade, navigate, Screen, Shared } from "@/plugin-kit/motion";
 import { usePreferences } from "@/preferences/preferences";
 import { AchievementsCard } from "@/retro-achievements/AchievementsCard";
 import { AchievementsScreen } from "@/retro-achievements/AchievementsScreen";

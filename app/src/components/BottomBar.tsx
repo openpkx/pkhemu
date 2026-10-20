@@ -1,6 +1,6 @@
 import { useState, type ComponentProps, type ReactNode } from "react";
 import { cn } from "cn";
-import { usePresence } from "@/motion/motion";
+import { usePresence } from "@/plugin-kit/motion";
 
 export function BottomBar({
   open = true,

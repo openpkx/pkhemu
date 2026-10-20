@@ -2,7 +2,7 @@ import { useEffect, useRef, type ReactNode } from "react";
 import { cn } from "cn";
 import { origin, type Point, type Size } from "@/fit";
 import { useCanTilt, useGravity } from "@/gravity/gravity";
-import { useReducedMotion } from "@/motion/motion";
+import { useReducedMotion } from "@/plugin-kit/motion";
 import { tilt, type Tilt } from "@/motion/tilt";
 import { usePreferences } from "@/preferences/preferences";
 import { parallax, shellIn, shellLook } from "@/recess";

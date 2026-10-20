@@ -9,7 +9,7 @@ import { useGameSurface, type Renderer } from "./game-surface/gameSurface";
 import { useCanTilt, useGravity } from "./gravity/gravity";
 import type { Input } from "./input/input";
 import { useExperiment } from "./lab/lab";
-import { useReducedMotion } from "./motion/motion";
+import { useReducedMotion } from "./plugin-kit/motion";
 import { tilt, type Tilt } from "./motion/tilt";
 import { usePreferences } from "./preferences/preferences";
 import { parallax, rgb, shellIn, shellLook } from "./recess";

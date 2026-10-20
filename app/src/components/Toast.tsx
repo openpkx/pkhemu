@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { cn } from "@/lib/utils";
-import { usePresence } from "@/motion/motion";
+import { usePresence } from "@/plugin-kit/motion";
 
 export const TOAST_MS = 3000;
 

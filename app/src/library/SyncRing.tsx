@@ -2,7 +2,7 @@ import { CircleAlert, Wifi } from "lucide-react";
 import { Ring } from "@/components/SyncBadge";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { usePresence } from "@/motion/motion";
+import { usePresence } from "@/plugin-kit/motion";
 import { useRunRing } from "@/sync/gameStatus";
 
 export function SyncRing({ importing, onOpen }: { importing: boolean; onOpen(): void }) {

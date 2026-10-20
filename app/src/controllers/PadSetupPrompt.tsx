@@ -14,7 +14,7 @@ import { withPad } from "@/input/calibration";
 import { useCalibrations } from "@/input/calibrations";
 import type { Input } from "@/input/input";
 import { capturingPads, useCapturePads } from "@/input/padPresses";
-import { navigate } from "@/motion/motion";
+import { navigate } from "@/plugin-kit/motion";
 import { ControllerSetup } from "./ControllerSetup";
 import { padDriver, type SetupPad } from "./setupDrivers";
 

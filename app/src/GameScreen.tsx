@@ -6,13 +6,13 @@ import { useBackGesture, useGoBack } from "@/back/back";
 import { CheatsScreen } from "@/cheats/CheatsScreen";
 import { tauriCheatsHost } from "@/cheats/tauriHost";
 import { PadSetupPrompt } from "@/controllers/PadSetupPrompt";
-import { ScreenHeader } from "@/components/ScreenHeader";
+import { ScreenHeader } from "@/plugin-kit/ScreenHeader";
 import { CoreMessageToast } from "@/core-message/CoreMessage";
 import { tauriCoreMessages } from "@/core-message/tauriHost";
 import { Toast, useToast } from "@/components/Toast";
 import { Button } from "@/components/ui/button";
 import { EditorScreen } from "@/editor/EditorScreen";
-import { useNextSave } from "@/editor/saveFirst";
+import { useSavesWritten } from "@/editor/saveFirst";
 import { saveHome } from "@/editor/saveHome";
 import { tauriSaveHost } from "@/editor/tauriHost";
 import { UndoToast, useUndo } from "@/editor/undo";
@@ -29,13 +29,15 @@ import { useWideScreen } from "@/lib/useWideScreen";
 import { LicencesScreen } from "@/licences/LicencesScreen";
 import { useMemoryNotice } from "@/memory-notice/memoryNotice";
 import { tauriMemoryNoticeHost } from "@/memory-notice/tauriHost";
-import { navigate, Screen } from "@/motion/motion";
+import { navigate, Screen } from "@/plugin-kit/motion";
 import { Cover } from "@/pause-menu/Cover";
 import { useOverlay, type Overlay } from "@/pause-menu/overlay";
 import { PauseMenu } from "@/pause-menu/PauseMenu";
 import { tauriPauseRequests } from "@/pause-menu/tauriHost";
 import { saveFormats, storedFormatId, useGameSettings } from "@/preferences/gameSettings";
 import { tauriGameSettingsHost } from "@/preferences/gameSettingsTauriHost";
+import { Research } from "@/research/Research";
+import { useResearchHost } from "@/research-host/useResearchHost";
 import { offsetSeconds, usePreferences } from "@/preferences/preferences";
 import { OpponentPill } from "@/pokemon-info/OpponentPill";
 import { PokemonInfoPanel } from "@/pokemon-info/PokemonInfoPanel";
@@ -125,7 +127,7 @@ export function GameScreen({
   const swapScreens = () => setSwapped((swapped) => !swapped);
   const [stacked, setStacked] = useState(false);
   const touchControls = useTouchControlsShown(input);
-  useNextSave(tauriSaveHost, awaitingSave, () => show("editor"));
+  useSavesWritten(tauriSaveHost, awaitingSave, () => show("editor"));
   const undo = useUndo(tauriSaveHost);
   const editorHost = useMemo(
     () => ({ ...undo.host, formatId: () => storedFormatId(saveFormats(tauriGameSettingsHost), game.path) }),
@@ -152,7 +154,7 @@ export function GameScreen({
   );
   useBarsTone(skinned ? skin.tone === "light" : undefined);
   const [rates, setRates] = useState<Rates>();
-  const { lab } = useExperiments();
+  const { lab, values: experiments } = useExperiments();
   const [settingUpPad, setSettingUpPad] = useState(false);
   const [running, setRunning] = useState(false);
   const memory = useGameMemory(game.system, running, tauriReadMemory);
@@ -181,6 +183,18 @@ export function GameScreen({
   const engine = useEngine();
   const { playingHardcore } = useRetroAchievements();
   const lock = useHardcoreLock(input);
+  const [researchNotice, setResearchNotice] = useToast();
+  const research = useResearchHost({
+    folder,
+    game,
+    on: experiments.research === "on",
+    running,
+    build: readable?.build,
+    input,
+    overlay,
+    show,
+    notify: setResearchNotice,
+  });
 
   useEffect(() => {
     let current = true;
@@ -235,12 +249,19 @@ export function GameScreen({
 
   const onGameStarted = async () => {
     setRunning(true);
-    if (launch?.slot !== undefined && run.key === 0) setToast(await loadSlot(tauriStatesHost, folder, game.path, launch.slot));
+    if (launch?.slot !== undefined && run.key === 0) stateDone(await loadSlot(tauriStatesHost, folder, game.path, launch.slot));
+  };
+
+  const stateDone = (toast: StateMessage) => {
+    if (toast.undoable) research.stateLoaded();
+    setToast(toast);
   };
 
   const undoLoadState = async () => {
     setToast(undefined);
-    setToast(await undoLoad(tauriStatesHost, folder, game.path));
+    const failed = await undoLoad(tauriStatesHost, folder, game.path);
+    if (!failed) research.stateLoaded();
+    setToast(failed);
   };
 
   const forwardTo = (to: Overlay) => () => navigate("forward", () => show(to));
@@ -364,6 +385,7 @@ export function GameScreen({
                 <Toast inline>{awaitingSave && "Save in game to open the editor"}</Toast>
                 <Toast inline>{syncNotice}</Toast>
                 <Toast inline>{rendererNotice}</Toast>
+                <Toast inline>{researchNotice}</Toast>
                 <UndoToast onUndo={lock.guard("undoEdit", () => void undo.undo())}>{undo.undoable && "Save edited"}</UndoToast>
                 <StateToast toast={toast} onUndo={lock.guard("undoLoad", () => void undoLoadState())} />
                 <CoreMessageToast messages={tauriCoreMessages} />
@@ -426,6 +448,8 @@ export function GameScreen({
         onAchievements={forwardTo("achievements")}
         skin={touchControlsOn ? skinLine(skin, skinChoice.look) : undefined}
         onSkin={() => void openSkinPicker()}
+        research={research.status}
+        onResearch={research.open}
         onSettings={forwardTo("settings")}
         onQuit={onQuit}
       />
@@ -438,7 +462,7 @@ export function GameScreen({
             path={game.path}
             input={input}
             onDone={(toast) => {
-              setToast(toast);
+              stateDone(toast);
               show(undefined);
             }}
             onBack={backTo("menu")}
@@ -494,6 +518,7 @@ export function GameScreen({
           </Cover>
         </Screen>
       )}
+      {research.host && <Research host={research.host} />}
       {overlay === "settings" && (
         <Screen>
           <Cover input={input} onBack={goBack}>

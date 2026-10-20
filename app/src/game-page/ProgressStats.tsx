@@ -1,6 +1,6 @@
 import { BookOpen, Clock, Medal } from "lucide-react";
 import type { GameProgress } from "@pkhex-everywhere/engine";
-import { Crossfade } from "@/motion/motion";
+import { Crossfade } from "@/plugin-kit/motion";
 
 export function ProgressStats({
   progress: { playTime, badges, pokedex },

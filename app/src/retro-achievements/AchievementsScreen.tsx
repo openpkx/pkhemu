@@ -1,5 +1,5 @@
 import { useBack } from "@/back/back";
-import { ScreenHeader } from "@/components/ScreenHeader";
+import { ScreenHeader } from "@/plugin-kit/ScreenHeader";
 import type { Input } from "@/input/input";
 import { moveFocusWithArrows, PadNavigation } from "@/pad-navigation/PadNavigation";
 import { AchievementRow } from "./AchievementRow";

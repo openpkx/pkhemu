@@ -1,9 +1,9 @@
 import { useEffect, useId, useState, type FormEvent } from "react";
 import { ChevronRight, ExternalLink } from "lucide-react";
 import { useBack } from "@/back/back";
-import { ScreenHeader } from "@/components/ScreenHeader";
-import { sectionHeading } from "@/components/sectionHeading";
-import { TitledCard } from "@/components/TitledCard";
+import { ScreenHeader } from "@/plugin-kit/ScreenHeader";
+import { sectionHeading } from "@/plugin-kit/sectionHeading";
+import { TitledCard } from "@/plugin-kit/TitledCard";
 import { WithSkeleton } from "@/components/WithSkeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

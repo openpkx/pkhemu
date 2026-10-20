@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { usePresence } from "@/motion/motion";
+import { usePresence } from "@/plugin-kit/motion";
 
 export function WithSkeleton({ loading, skeleton, children }: { loading: boolean; skeleton: ReactNode; children?: ReactNode }) {
   const { ref, shown, state } = usePresence(loading || undefined);

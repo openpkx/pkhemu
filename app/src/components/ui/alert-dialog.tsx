@@ -2,7 +2,7 @@ import * as React from "react"
 import { cn } from "cn"
 import { AlertDialog as AlertDialogPrimitive } from "radix-ui"
 
-import { useBack } from "@/back/back"
+import { useBack } from "@/plugin-kit/host"
 import { Button } from "@/components/ui/button"
 
 function AlertDialog({

@@ -2,7 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { useBack } from "@/back/back";
 import { when } from "@/backups/backups";
-import { ScreenHeader } from "@/components/ScreenHeader";
+import { ScreenHeader } from "@/plugin-kit/ScreenHeader";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import type { Input } from "@/input/input";

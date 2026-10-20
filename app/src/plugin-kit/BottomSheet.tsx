@@ -1,30 +1,23 @@
 import type { ReactNode } from "react";
 import { cn } from "cn";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { buttons, type Input } from "@/input/input";
-import { usePadPresses } from "@/input/padPresses";
-import { usePresence } from "@/motion/motion";
+import { usePresence } from "./motion";
 
 export function BottomSheet({
   open = true,
   title,
-  input,
   onClose,
-  onPadPress,
   centeredFromSm,
   className,
   children,
 }: {
   open?: boolean;
   title: ReactNode;
-  input?: Input;
   onClose(): void;
-  onPadPress?(button: number): void;
   centeredFromSm?: boolean;
   className?: string;
   children: ReactNode;
 }) {
-  usePadPresses(input, (button) => (button === buttons.b ? onClose() : onPadPress?.(button)), open);
   // Radix opens an already mounted dialog a render late, and it then hides dialogs opened in the same update from screen readers.
   const { ref, shown } = usePresence(open || undefined);
   if (shown === undefined) return null;

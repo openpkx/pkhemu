@@ -1,6 +1,6 @@
 import { useId } from "react";
 import { ChevronRight, Trophy } from "lucide-react";
-import { sectionHeading } from "@/components/sectionHeading";
+import { sectionHeading } from "@/plugin-kit/sectionHeading";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useRetroAchievements, type Achievement } from "./retroAchievements";

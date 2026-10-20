@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { ArrowLeftRight, FastForward as FastForwardIcon, FolderOpen, Gamepad2, LogOut, Palette, Pencil, Play, RotateCcw, Save, ScanSearch, Settings, Shuffle, Trophy, Undo2, WandSparkles } from "lucide-react";
+import { ArrowLeftRight, FastForward as FastForwardIcon, FlaskConical, FolderOpen, Gamepad2, LogOut, Palette, Pencil, Play, RotateCcw, Save, ScanSearch, Settings, Shuffle, Trophy, Undo2, WandSparkles } from "lucide-react";
 import { MenuDialog, MenuEntry } from "@/components/MenuDialog";
 import type { FastForward } from "@/fast-forward/fastForward";
 import type { Input } from "@/input/input";
@@ -31,6 +31,8 @@ export function PauseMenu({
   onAchievements,
   skin,
   onSkin,
+  research,
+  onResearch,
   onSettings,
   onQuit,
 }: {
@@ -66,6 +68,9 @@ export function PauseMenu({
   /** The skin and look, as in "Classic grey · Moulded". Undefined hides the entry, as while the touch controls are off. */
   skin?: string;
   onSkin(): void;
+  /** Research's status, as in "Compare two saves". Undefined hides the entry, as on games that aren't Gen 3. */
+  research?: string;
+  onResearch?(): void;
   onSettings(): void;
   onQuit(): void;
 }) {
@@ -136,6 +141,14 @@ export function PauseMenu({
           <span className="grid min-w-0 text-left">
             Skin
             <span className="truncate text-sm font-normal text-muted-foreground">{skin}</span>
+          </span>
+        </MenuEntry>
+      )}
+      {research !== undefined && (
+        <MenuEntry icon={<FlaskConical />} className="h-auto min-h-11 py-1.5" onClick={onResearch}>
+          <span className="grid min-w-0 text-left">
+            Research
+            <span className="truncate text-sm font-normal text-muted-foreground">{research}</span>
           </span>
         </MenuEntry>
       )}

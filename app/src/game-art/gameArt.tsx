@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import type { PokemonGender, PokemonSummary } from "@pkhex-everywhere/engine";
 import { cn, pngDataUrl } from "@/lib/utils";
-import { useReducedMotion } from "@/motion/motion";
+import { useReducedMotion } from "@/plugin-kit/motion";
 import { neutralColor, typeColor } from "./typeColors";
 
 export type GameArtStatus = "pending" | "done" | "partial" | "unsupported" | "failed";

@@ -1,4 +1,4 @@
-import { TitledCard } from "@/components/TitledCard";
+import { TitledCard } from "@/plugin-kit/TitledCard";
 import { Button } from "@/components/ui/button";
 import { useSideloadBuild } from "@/plus/plus";
 import { useJit } from "./jit";

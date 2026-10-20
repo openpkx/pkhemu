@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from "react";
 import type { OnBackGesture } from "@/backGesture";
+import { KitProvider, type KitHost } from "@/plugin-kit/host";
 
 export type BackHost = {
   listen: OnBackGesture;
@@ -35,7 +36,11 @@ export function BackProvider({ host, children }: { host?: BackHost; children: Re
     [host, handlers],
   );
 
-  return <BackContext.Provider value={handlers}>{children}</BackContext.Provider>;
+  return (
+    <BackContext.Provider value={handlers}>
+      <KitProvider host={kitHost}>{children}</KitProvider>
+    </BackContext.Provider>
+  );
 }
 
 function useHandlers() {
@@ -54,6 +59,8 @@ export function useBack(onBack: (() => void) | undefined) {
 
   useEffect(() => add(handlers, handler), [handlers, handler]);
 }
+
+const kitHost: KitHost = { useBack };
 
 export function useBackGesture(): OnBackGesture {
   const handlers = useHandlers();

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Coffee } from "lucide-react";
 import { useBackGesture } from "@/back/back";
-import { TitledCard } from "@/components/TitledCard";
+import { TitledCard } from "@/plugin-kit/TitledCard";
 import {
   AlertDialog,
   AlertDialogAction,

@@ -372,6 +372,12 @@ async fn read_save_file<R: Runtime>(
     save::read_file(&GamesFolder::open(&app, &folder), &path).await
 }
 
+// Unlike read_save_file, it leaves the game running.
+#[tauri::command]
+async fn save_modified<R: Runtime>(app: AppHandle<R>, folder: String, path: String) -> Result<Option<i64>, String> {
+    Ok(save::read_file(&GamesFolder::open(&app, &folder), &path).await?.map(|save| save.modified))
+}
+
 #[tauri::command]
 async fn read_save_files<R: Runtime>(
     app: AppHandle<R>,
@@ -724,6 +730,7 @@ pub fn run() {
             resume_info,
             read_save_file,
             read_save_files,
+            save_modified,
             pace,
             set_screen,
             set_parallax,

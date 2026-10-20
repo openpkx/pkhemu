@@ -1,7 +1,7 @@
 import { useId, type ReactNode } from "react";
-import { cn } from "@/lib/utils";
+import { cn } from "cn";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { sectionHeading } from "@/components/sectionHeading";
+import { sectionHeading } from "./sectionHeading";
 
 export function TitledCard({ title, className, children }: { title: string; className?: string; children: ReactNode }) {
   const titleId = useId();

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from 
 import { useEngine } from "@pkhex-everywhere/react";
 import type { GameProgress } from "@pkhex-everywhere/engine";
 import { when } from "@/backups/backups";
-import { BottomSheet } from "@/components/BottomSheet";
+import { PadBottomSheet } from "@/components/PadBottomSheet";
 import { WithSkeleton } from "@/components/WithSkeleton";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -187,7 +187,7 @@ export function ConflictSheet({
   const slots = left.filter(({ file }) => file !== "save");
 
   return (
-    <BottomSheet
+    <PadBottomSheet
       open={open}
       title="This game changed on another device"
       input={input}
@@ -225,6 +225,6 @@ export function ConflictSheet({
         ))}
         {error && <p className="text-sm text-destructive">{error}</p>}
       </div>
-    </BottomSheet>
+    </PadBottomSheet>
   );
 }

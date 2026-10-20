@@ -8,13 +8,9 @@ import { Input } from "@/components/ui/input";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { ItemArt } from "@/game-art/gameArt";
 import type { Page } from "./EditorScreen";
+import { pocketLabel } from "./pockets";
 
 const pocketOrder = ["Items", "Medicine", "Balls", "TMHMs", "Berries", "MailItems", "BattleItems", "KeyItems", "PCItems"];
-
-const pocketLabels: Record<string, string> = { TMHMs: "TMs & HMs", MailItems: "Mail", PCItems: "PC" };
-
-const pocketLabel = (name: string) =>
-  pocketLabels[name] ?? name.replace(/([a-z])([A-Z])/g, (_, end: string, start: string) => `${end} ${start.toLowerCase()}`);
 
 const rank = (name: string) => {
   const index = pocketOrder.indexOf(name);

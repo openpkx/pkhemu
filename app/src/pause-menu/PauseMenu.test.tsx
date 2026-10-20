@@ -46,6 +46,7 @@ function launch({
   pokemonInfo = undefined as boolean | undefined,
   randomized = undefined as boolean | undefined,
   skin = undefined as string | undefined,
+  research = undefined as string | undefined,
   achievements = undefined as string | undefined,
   onSwapScreens = undefined as (() => void) | undefined,
   held = [] as number[],
@@ -73,6 +74,8 @@ function launch({
     onAchievements: vi.fn(),
     skin,
     onSkin: vi.fn(),
+    research,
+    onResearch: vi.fn(),
     onSettings: vi.fn(),
     onQuit: vi.fn(),
     onSwapScreens,
@@ -119,6 +122,21 @@ it("leaves Skin out without a skin line", () => {
   launch();
 
   expect(screen.queryByRole("button", { name: /^Skin/ })).toBeNull();
+});
+
+it("puts Research above Settings, with its status in a line under it", () => {
+  const props = launch({ skin: "Classic grey · Moulded", research: "Compare two saves" });
+  const names = screen.getAllByRole("button").map((button) => button.textContent);
+
+  expect(names.slice(-4)).toEqual(["SkinClassic grey · Moulded", "ResearchCompare two saves", "Settings", "Quit"]);
+  fireEvent.click(screen.getByRole("button", { name: /^Research/ }));
+  expect(props.onResearch).toHaveBeenCalled();
+});
+
+it("leaves Research out without a status", () => {
+  launch();
+
+  expect(screen.queryByRole("button", { name: /^Research/ })).toBeNull();
 });
 
 it("puts Swap screens below Fast-forward when the game has two screens", () => {

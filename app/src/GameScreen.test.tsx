@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { useEffect, type ReactNode } from "react";
 import { EngineProvider } from "@pkhex-everywhere/react";
 import { invoke } from "@tauri-apps/api/core";
@@ -24,6 +24,7 @@ import { GameSurfaceProvider, noGameSurfaceHost, type GameSurfaceHost } from "./
 import { PreferencesProvider, type PreferencesHost, type RendererChoice } from "./preferences/preferences";
 import { FakeGameArt } from "./game-art/fakeGameArt";
 import { GamesFolderProvider, type GamesFolderHost } from "./games-folder/gamesFolder";
+import { experiments as labExperiments } from "./lab/experiments";
 import { ExperimentsProvider } from "./lab/lab";
 import { RetroAchievementsProvider, type Achievement, type AchievementEvent, type RetroAchievementsHost } from "./retro-achievements/retroAchievements";
 import { fakePlus } from "./plus/fakePlus";
@@ -53,6 +54,9 @@ const game = vi.hoisted(() => ({
   clearance: undefined as string | undefined,
   onStacked: undefined as ((stacked: boolean) => void) | undefined,
   missingEntitlements: [] as string[],
+  sinceSave: null as number | null,
+  save: new Uint8Array(),
+  research: new Map<string, unknown>(),
 }));
 
 vi.mock("@tauri-apps/api/core", () => ({
@@ -63,7 +67,11 @@ vi.mock("@tauri-apps/api/core", () => ({
         ? false
         : command === "read_memory"
           ? (await game.readMemory(args!.ranges)).buffer
-          : undefined,
+          : command === "play_time_since_save"
+            ? game.sinceSave
+            : command === "read_save"
+              ? game.save.slice().buffer
+              : undefined,
   ),
 }));
 
@@ -99,6 +107,13 @@ vi.mock("./preferences/gameSettingsTauriHost", () => ({
     save: async (path: string, settings: GameSettings) => void (game.settings[path] = settings),
   },
   tauriSaveFormatHost: { saveFormat: async () => null, keepSaveFormat: async () => {} },
+}));
+
+vi.mock("./research-host/storage", () => ({
+  researchStorage: {
+    load: async (path: string, key: string) => structuredClone(game.research.get(`${path}:${key}`)),
+    store: async (path: string, key: string, value: unknown) => void game.research.set(`${path}:${key}`, structuredClone(value)),
+  },
 }));
 
 vi.mock("./Player", () => ({
@@ -184,6 +199,9 @@ beforeEach(() => {
   game.states = { current: null, slots: [], canUndoLoad: false };
   game.transferPak = null;
   game.missingEntitlements = [];
+  game.sinceSave = null;
+  game.save = new Uint8Array();
+  game.research.clear();
   vi.mocked(tauriTransferPakHost.chooseTransferPak).mockClear();
   wide = false;
   windowSize(1024, 768);
@@ -250,6 +268,7 @@ async function play(
     preferences = { load: async () => ({}), save: async () => {} } as PreferencesHost,
     plusHost = fakePlus({ status: plus }).host,
     retroAchievements = undefined as RetroAchievementsHost | undefined,
+    experiments = undefined as Record<string, string> | undefined,
   } = {},
 ) {
   const screenOfGame = (
@@ -268,7 +287,7 @@ async function play(
                 <FakeGameArt>
                   <BackProvider host={back}>
                     <PlusProvider host={plusHost}>
-                      <ExperimentsProvider host={{ load: async () => ({}), save: async () => {} }} registry={[]}>
+                      <ExperimentsProvider host={{ load: async () => experiments ?? {}, save: async () => {} }} registry={experiments ? labExperiments : []}>
                         {retroAchievements ? (
                           <RetroAchievementsProvider host={retroAchievements}>{screenOfGame}</RetroAchievementsProvider>
                         ) : (
@@ -748,6 +767,92 @@ it("opens the game's skin picker from the pause menu with the paused frame, and 
   expect(screen.queryByRole("heading", { name: "Game Boy Advance skin" })).toBeNull();
   expect(screen.getByRole("button", { name: "Resume" })).toBeTruthy();
   vi.unstubAllGlobals();
+});
+
+const researching = { plus: { state: "owned" } as PlusStatus, experiments: { research: "on" } };
+const research = () => screen.queryByRole("region", { name: "Research" });
+
+it("opens Research from a Gen 3 game's pause menu, and goes back to the menu", async () => {
+  await play(engine, undefined, undefined, researching);
+  await openPauseMenu();
+
+  fireEvent.click(await screen.findByRole("button", { name: /^Research/ }));
+  await act(async () => {});
+  expect(research()).toBeTruthy();
+  expect(paused()).toBe(true);
+
+  fireEvent.keyDown(window, { key: "Escape" });
+  await act(async () => {});
+  expect(research()).toBeNull();
+  expect(screen.getByRole("button", { name: "Resume" })).toBeTruthy();
+});
+
+it("goes back from Research to the pause menu with B", async () => {
+  const pad = pads.connect();
+  await play(engine, undefined, undefined, researching);
+  await openPauseMenu();
+  fireEvent.click(await screen.findByRole("button", { name: /^Research/ }));
+  await act(async () => {});
+  act(() => void vi.advanceTimersToNextFrame());
+
+  act(() => pad.press(buttons.b));
+  await act(async () => {});
+
+  expect(research()).toBeNull();
+  expect(screen.getByRole("button", { name: "Resume" })).toBeTruthy();
+});
+
+const researchLine = () => screen.getByRole("button", { name: /^Research/ }).textContent;
+
+it("finishes a Research compare started before the game quit", async () => {
+  game.save = new Uint8Array(16).fill(1);
+  await play(engine, undefined, undefined, researching);
+  await openPauseMenu();
+  fireEvent.click(await screen.findByRole("button", { name: /^Research/ }));
+  await act(async () => {});
+  fireEvent.click(await screen.findByRole("button", { name: /Latest save/ }));
+  await act(async () => {});
+  cleanup();
+
+  game.sinceSave = 600;
+  await play(engine, undefined, undefined, researching);
+  await openPauseMenu();
+  await waitFor(() => expect(researchLine()).toContain("Waiting for your next save"));
+  fireEvent.click(screen.getByRole("button", { name: "Resume" }));
+  await act(async () => {});
+
+  game.save = new Uint8Array(16).fill(2);
+  game.sinceSave = 2;
+  await waitFor(() => expect(screen.getByText("Compare ready in Research")).toBeTruthy());
+  await openPauseMenu();
+  expect(researchLine()).toContain("Compare ready");
+});
+
+it("ends a Research compare when the game starts from a save state", async () => {
+  game.research.set("gba/Emerald.gba:compare", { stage: "baseline" });
+
+  await play(engine, undefined, undefined, { ...researching, slot: 2 });
+  await openPauseMenu();
+
+  await waitFor(() => expect(researchLine()).toContain("Compare two saves"));
+});
+
+it("leaves Research out of a DS game's pause menu", async () => {
+  await play(engine, undefined, undefined, { ...researching, played: { name: "Platinum", path: "nds/Platinum.nds", system: "nds" } });
+  await openPauseMenu();
+  await act(async () => {});
+
+  expect(screen.getByRole("button", { name: "Resume" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: /^Research/ })).toBeNull();
+});
+
+it("leaves Research out of the pause menu while the experiment is off", async () => {
+  await play(engine, undefined, undefined, { ...researching, experiments: {} });
+  await openPauseMenu();
+  await act(async () => {});
+
+  expect(screen.getByRole("button", { name: "Resume" })).toBeTruthy();
+  expect(screen.queryByRole("button", { name: /^Research/ })).toBeNull();
 });
 
 it("steps back one screen at a time with B from a skin picker opened from Settings", async () => {

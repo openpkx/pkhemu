@@ -12,7 +12,7 @@ import type {
 } from "@pkhex-everywhere/engine";
 import { useBack } from "@/back/back";
 import { BottomBar } from "@/components/BottomBar";
-import { ScreenHeader } from "@/components/ScreenHeader";
+import { ScreenHeader } from "@/plugin-kit/ScreenHeader";
 import { Toast, useToast } from "@/components/Toast";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -24,7 +24,7 @@ import { inTurn } from "@/lib/engineTurn";
 import { cn } from "@/lib/utils";
 import type { Game } from "@/library/scan";
 import { storedFormatId } from "@/preferences/gameSettings";
-import { navigate, Screen } from "@/motion/motion";
+import { navigate, Screen } from "@/plugin-kit/motion";
 import { commitTransfer, planTransfer, type KeptCopyHost, type KeptCopyPlan } from "./keptCopies";
 import type { Partner } from "./partners";
 import { ReviewScreen } from "./ReviewScreen";

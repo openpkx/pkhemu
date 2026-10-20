@@ -4,7 +4,7 @@ import type { OfferedPokemon, TransferChange, TransferChangeReason, TransferFiel
 import { ArrowRight, TriangleAlert } from "lucide-react";
 import { useBack } from "@/back/back";
 import { BottomBar } from "@/components/BottomBar";
-import { ScreenHeader } from "@/components/ScreenHeader";
+import { ScreenHeader } from "@/plugin-kit/ScreenHeader";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

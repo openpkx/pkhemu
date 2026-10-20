@@ -4,7 +4,8 @@ import { usePreferences } from "@/preferences/preferences";
 import { useAppUpdate, type AppUpdateState } from "./appUpdate";
 
 export function UpdateToast() {
-  return useAppUpdate().state === "none" ? null : <PendingUpdateToast />;
+  const { state } = useAppUpdate();
+  return state === "none" || state === "downloading" ? null : <PendingUpdateToast />;
 }
 
 function PendingUpdateToast() {

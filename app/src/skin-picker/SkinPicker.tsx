@@ -2,11 +2,11 @@ import { useEffect, useMemo, useReducer, useRef, useState, type CSSProperties, t
 import { ArrowLeftRight, ChevronLeft, ChevronRight, Lock, Menu } from "lucide-react";
 import { cn } from "cn";
 import { useBack } from "@/back/back";
-import { ScreenHeader } from "@/components/ScreenHeader";
+import { ScreenHeader } from "@/plugin-kit/ScreenHeader";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useHaptics } from "@/haptics/haptics";
-import { useReducedMotion } from "@/motion/motion";
+import { useReducedMotion } from "@/plugin-kit/motion";
 import { easeInOut, easeOut, linear, tween, type Tween } from "@/motion/tween";
 import { wipe } from "@/motion/wipe";
 import { usePlus, type PlusState } from "@/plus/plus";

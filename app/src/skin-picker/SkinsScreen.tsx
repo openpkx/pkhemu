@@ -1,10 +1,10 @@
 import { useRef, useState } from "react";
 import { ChevronRight } from "lucide-react";
 import { useBack } from "@/back/back";
-import { ScreenHeader } from "@/components/ScreenHeader";
+import { ScreenHeader } from "@/plugin-kit/ScreenHeader";
 import { Button } from "@/components/ui/button";
 import { useGamesFolder } from "@/games-folder/gamesFolder";
-import { navigate, Screen } from "@/motion/motion";
+import { navigate, Screen } from "@/plugin-kit/motion";
 import { usePlus } from "@/plus/plus";
 import { usePreferences } from "@/preferences/preferences";
 import type { Frame } from "@/screen";

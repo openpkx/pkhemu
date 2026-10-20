@@ -66,6 +66,7 @@ import { systems, type System } from "@/systems";
 import { TransferScreen, type TransferHost } from "@/transfer/TransferScreen";
 import { SkinPicker } from "@/skin-picker/SkinPicker";
 import { TransferPakScreen } from "@/transfer-pak/TransferPak";
+import { researchScreens, ResearchScreen } from "./research";
 import "@/index.css";
 import { defaultSkins } from "@/skins";
 
@@ -591,6 +592,7 @@ function SyncingLibrary() {
 }
 
 const screens: Record<string, () => ReactNode> = {
+  ...Object.fromEntries(researchScreens.map((screen) => [screen, () => <ResearchScreen screen={screen} />])),
   library: () => <Home libraryHost={libraryHost()} gamePageHost={gamePageHost()} />,
   "library-3ds": () => <Home libraryHost={libraryHost({ recent: ["3ds/PKSM.3dsx", "nds/Platinum.nds"] })} gamePageHost={gamePageHost()} />,
   "library-no-resume": () => <Home libraryHost={libraryHost({ resume: false })} gamePageHost={gamePageHost()} />,

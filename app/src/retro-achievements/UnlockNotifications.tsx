@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type PointerEvent } from "react";
-import { settled } from "@/motion/motion";
+import { settled } from "@/plugin-kit/motion";
 import type { Skin } from "@/skins";
 import { useRetroAchievements, type AchievementEvent, type Completion } from "./retroAchievements";
 import { unlockColours, type UnlockColours } from "./unlockColours";

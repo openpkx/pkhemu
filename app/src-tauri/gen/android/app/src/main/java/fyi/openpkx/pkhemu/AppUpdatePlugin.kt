@@ -33,7 +33,17 @@ class AppUpdatePlugin(private val activity: Activity) : Plugin(activity), Instal
   }
 
   override fun onStateUpdate(state: InstallState) {
-    if (state.installStatus() == InstallStatus.DOWNLOADED) trigger("downloaded", JSObject())
+    when (state.installStatus()) {
+      InstallStatus.PENDING, InstallStatus.DOWNLOADING -> trigger(
+        "downloading",
+        JSObject()
+          .put("bytesDownloaded", state.bytesDownloaded())
+          .put("totalBytesToDownload", state.totalBytesToDownload()),
+      )
+      InstallStatus.DOWNLOADED -> trigger("downloaded", JSObject())
+      InstallStatus.CANCELED, InstallStatus.FAILED -> trigger("stopped", JSObject())
+      else -> {}
+    }
   }
 
   @Command
@@ -45,6 +55,7 @@ class AppUpdatePlugin(private val activity: Activity) : Plugin(activity), Instal
       val answer = JSObject()
         .put("available", available)
         .put("downloaded", info.installStatus() == InstallStatus.DOWNLOADED)
+        .put("downloading", info.installStatus() in listOf(InstallStatus.PENDING, InstallStatus.DOWNLOADING))
       if (available) answer.put("versionCode", info.availableVersionCode())
       invoke.resolve(answer)
     }

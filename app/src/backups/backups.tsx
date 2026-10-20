@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useEngine } from "@pkhex-everywhere/react";
 import { useBack } from "@/back/back";
-import { ScreenHeader } from "@/components/ScreenHeader";
+import { ScreenHeader } from "@/plugin-kit/ScreenHeader";
 import {
   AlertDialog,
   AlertDialogAction,

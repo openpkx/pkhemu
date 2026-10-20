@@ -1,6 +1,6 @@
 import { useRef, type ComponentProps, type KeyboardEvent, type ReactNode } from "react";
 import { cn } from "cn";
-import { BottomSheet } from "@/components/BottomSheet";
+import { PadBottomSheet } from "@/components/PadBottomSheet";
 import { Button } from "@/components/ui/button";
 import { buttons, type Input } from "@/input/input";
 
@@ -48,7 +48,7 @@ export function MenuDialog({
   };
 
   return (
-    <BottomSheet
+    <PadBottomSheet
       open={open}
       title={title}
       input={input}
@@ -59,6 +59,6 @@ export function MenuDialog({
       <div ref={list} className="stagger grid gap-1" onKeyDown={onKeyDown}>
         {children}
       </div>
-    </BottomSheet>
+    </PadBottomSheet>
   );
 }

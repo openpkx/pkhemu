@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ImageOff, ImagePlus, Link, RotateCcw, Search } from "lucide-react";
-import { BottomSheet } from "@/components/BottomSheet";
+import { BottomSheet } from "@/plugin-kit/BottomSheet";
 import { MenuEntry } from "@/components/MenuDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";

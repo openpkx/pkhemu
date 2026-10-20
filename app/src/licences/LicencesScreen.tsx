@@ -1,6 +1,6 @@
 import { ExternalLink } from "@/components/ExternalLink";
-import { ScreenHeader } from "@/components/ScreenHeader";
-import { TitledCard } from "@/components/TitledCard";
+import { ScreenHeader } from "@/plugin-kit/ScreenHeader";
+import { TitledCard } from "@/plugin-kit/TitledCard";
 import { appNotice, demoNotice, notices, type Notice } from "./notices";
 
 function NoticeList({ title, list }: { title: string; list: Notice[] }) {

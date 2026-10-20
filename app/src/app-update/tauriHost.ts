@@ -6,8 +6,14 @@ export const tauriAppUpdateHost: AppUpdateHost = {
   check: () => invoke("app_update_check"),
   start: () => invoke("app_update_start"),
   complete: () => invoke("app_update_complete"),
-  onDownloaded: (listener) => {
-    const unlisten = listen("app-update-downloaded", () => listener());
-    return () => void unlisten.then((stop) => stop());
+  onInstallState: (listener) => {
+    const unlistens = [
+      listen<{ bytesDownloaded: number; totalBytesToDownload: number }>("app-update-downloading", ({ payload }) =>
+        listener({ status: "downloading", ...payload }),
+      ),
+      listen("app-update-downloaded", () => listener({ status: "downloaded" })),
+      listen("app-update-stopped", () => listener({ status: "stopped" })),
+    ];
+    return () => unlistens.forEach((unlisten) => void unlisten.then((stop) => stop()));
   },
 };

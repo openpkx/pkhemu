@@ -16,4 +16,6 @@ pub struct Check {
     #[serde(skip_serializing_if = "Option::is_none")]
     version_code: Option<i64>,
     downloaded: bool,
+    #[serde(default)]
+    downloading: bool,
 }

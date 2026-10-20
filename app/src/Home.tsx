@@ -21,7 +21,7 @@ import { LibraryScreen, tileName } from "./library/LibraryScreen";
 import type { Game } from "./library/scan";
 import { LicencesScreen } from "./licences/LicencesScreen";
 import { useHackBoxArt } from "./patch-rom/hackBoxArt";
-import { navigate, Screen as MotionScreen } from "./motion/motion";
+import { navigate, Screen as MotionScreen } from "./plugin-kit/motion";
 import { Welcome } from "./onboarding/Welcome";
 import { PadNavigation, reveal } from "./pad-navigation/PadNavigation";
 import { SettingsScreen } from "./SettingsScreen";

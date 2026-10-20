@@ -1,6 +1,6 @@
 import { act, cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { useNextSave } from "./saveFirst";
+import { useSavesWritten } from "./saveFirst";
 import type { SaveHost } from "./editSession";
 
 beforeEach(() => vi.useFakeTimers());
@@ -26,7 +26,7 @@ function game(sinceSave: number) {
 it("waits for the game to save, and for the save to settle", async () => {
   const { host, play, save } = game(120);
   const onSaved = vi.fn();
-  renderHook(() => useNextSave(host, true, onSaved));
+  renderHook(() => useSavesWritten(host, true, onSaved));
 
   await play(30);
   expect(onSaved).not.toHaveBeenCalled();
@@ -42,7 +42,7 @@ it("waits for the game to save, and for the save to settle", async () => {
 it("waits until the game stops writing", async () => {
   const { host, play, save } = game(120);
   const onSaved = vi.fn();
-  renderHook(() => useNextSave(host, true, onSaved));
+  renderHook(() => useSavesWritten(host, true, onSaved));
   await play(1);
 
   save();
@@ -58,7 +58,7 @@ it("waits until the game stops writing", async () => {
 it("stops waiting when told to", async () => {
   const { host, play, save } = game(120);
   const onSaved = vi.fn();
-  const { rerender } = renderHook(({ waiting }) => useNextSave(host, waiting, onSaved), {
+  const { rerender } = renderHook(({ waiting }) => useSavesWritten(host, waiting, onSaved), {
     initialProps: { waiting: true },
   });
   await play(1);
@@ -68,4 +68,22 @@ it("stops waiting when told to", async () => {
   await play(5);
 
   expect(onSaved).not.toHaveBeenCalled();
+});
+
+it("tells of every save the game writes, each once it settles", async () => {
+  const { host, play, save } = game(120);
+  const onSaved = vi.fn();
+  renderHook(() => useSavesWritten(host, true, onSaved));
+
+  save();
+  await play(2);
+  expect(onSaved).toHaveBeenCalledOnce();
+  expect(onSaved.mock.calls[0][0]).toBeGreaterThanOrEqual(1);
+
+  await play(30);
+  expect(onSaved).toHaveBeenCalledOnce();
+
+  save();
+  await play(2);
+  expect(onSaved).toHaveBeenCalledTimes(2);
 });

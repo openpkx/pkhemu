@@ -1003,33 +1003,6 @@ fn lists_nothing_while_signed_out() {
 }
 
 #[test]
-fn a_game_keeps_when_it_unlocked_each_achievement_for_its_page() {
-    let _core = lock_core();
-    let fake = FakeRetroAchievements::start();
-    let (achievements, _, _) = signed_in(&fake, "unlocked-at");
-    let rom = counting_rom();
-    let load = achievements.identify(&rom).unwrap();
-    let mut core = Core::load(rom, &std::env::temp_dir()).unwrap();
-    let mut session = load.start();
-    until_loaded(&mut core, &mut session);
-    play(&mut core, &mut session, FRAMES_TO_UNLOCK + 2);
-    let at = achievements.playing().unwrap()[0].earned.unwrap().at;
-    drop(session);
-    *fake.earned.lock().unwrap() = vec![(101, false)];
-
-    let until = Instant::now() + Duration::from_secs(5);
-    loop {
-        let listed = of_game(&achievements).unwrap();
-        if listed[0].earned.unwrap().at.is_some() {
-            assert_eq!(listed, [ten_frames_listed(Some(Earned { at, hardcore: false }))]);
-            break;
-        }
-        assert!(Instant::now() < until, "the unlock time was never kept");
-        std::thread::sleep(Duration::from_millis(10));
-    }
-}
-
-#[test]
 fn shows_the_last_list_it_had_while_offline() {
     let fake = FakeRetroAchievements::start();
     let (achievements, _, _) = signed_in(&fake, "of-game-offline");

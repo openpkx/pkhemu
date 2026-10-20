@@ -12,7 +12,7 @@ import { gameTitle } from "@/game-page/details";
 import { useGamesFolder } from "@/games-folder/gamesFolder";
 import type { LibraryHost } from "@/library/library";
 import { gameName, scanLibrary, withCloudGames, type Game } from "@/library/scan";
-import { navigate, Screen } from "@/motion/motion";
+import { navigate, Screen } from "@/plugin-kit/motion";
 import { NewFolder } from "@/onboarding/Welcome";
 import { useSync } from "@/sync/sync";
 import { addSaves, count, folderImportToast, megabytes, summarize, type FolderScan, type FolderSummary } from "./folder";

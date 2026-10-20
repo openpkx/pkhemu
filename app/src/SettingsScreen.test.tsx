@@ -774,6 +774,40 @@ it("offers an available update at the end of About", async () => {
   expect(update.host.start).toHaveBeenCalled();
 });
 
+it("shows the download's progress in About instead of Update once it starts", async () => {
+  const update = fakeAppUpdate({ check: { available: true, versionCode: 7, downloaded: false } });
+  openSettings({ update });
+  const section = await screen.findByRole("region", { name: "About" });
+  fireEvent.click(await within(section).findByRole("button", { name: "Update" }));
+
+  act(() => update.downloading(42, 100));
+
+  expect(within(section).getByRole("progressbar").getAttribute("aria-valuenow")).toBe("42");
+  expect(within(section).queryByRole("button", { name: "Update" })).toBeNull();
+});
+
+it("offers Update again when the download stops", async () => {
+  const update = fakeAppUpdate({ check: { available: true, versionCode: 7, downloaded: false } });
+  openSettings({ update });
+  const section = await screen.findByRole("region", { name: "About" });
+  await within(section).findByRole("button", { name: "Update" });
+
+  act(() => update.downloading(42, 100));
+  act(() => update.stop());
+
+  expect(within(section).getByRole("button", { name: "Update" })).toBeTruthy();
+  expect(within(section).queryByRole("progressbar")).toBeNull();
+});
+
+it("shows a download already under way when Settings opens", async () => {
+  const update = fakeAppUpdate({ check: { available: true, versionCode: 7, downloaded: false, downloading: true } });
+  openSettings({ update });
+  const section = await screen.findByRole("region", { name: "About" });
+
+  expect(await within(section).findByRole("progressbar")).toBeTruthy();
+  expect(within(section).queryByRole("button", { name: "Update" })).toBeNull();
+});
+
 it("offers to restart into a downloaded update in About", async () => {
   const update = fakeAppUpdate({ check: { available: true, versionCode: 7, downloaded: false } });
   openSettings({ update });

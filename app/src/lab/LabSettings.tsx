@@ -1,5 +1,5 @@
 import { SettingRow, SwitchRow } from "@/components/SettingsRow";
-import { TitledCard } from "@/components/TitledCard";
+import { TitledCard } from "@/plugin-kit/TitledCard";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import type { Experiment } from "./experiments";

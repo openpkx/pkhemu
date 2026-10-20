@@ -2,10 +2,10 @@ import { useState, type ReactNode } from "react";
 import { ChevronRight, FolderOpen, RefreshCw, Scale } from "lucide-react";
 import { useAppUpdate } from "@/app-update/appUpdate";
 import { useAudioSession } from "@/audio-session/audioSession";
-import { ScreenHeader } from "@/components/ScreenHeader";
+import { ScreenHeader } from "@/plugin-kit/ScreenHeader";
 import { NumberInput } from "@/components/NumberInput";
 import { SettingRow, SwitchRow } from "@/components/SettingsRow";
-import { TitledCard } from "@/components/TitledCard";
+import { TitledCard } from "@/plugin-kit/TitledCard";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -23,7 +23,7 @@ import { useCanTilt } from "./gravity/gravity";
 import { useOpenFolder } from "./games-folder/useOpenFolder";
 import { JitSettings } from "./jit/JitSettings";
 import { LabSettings } from "./lab/LabSettings";
-import { navigate, Screen } from "./motion/motion";
+import { navigate, Screen } from "./plugin-kit/motion";
 import {
   fastForwardSpeeds,
   gameCubeResolutions,
@@ -472,14 +472,21 @@ function AboutSettings({ onLicences }: { onLicences(): void }) {
         <Scale />
         View licences
       </Button>
-      {update.state !== "none" && (
+      {update.state === "downloading" ? (
+        <div className="grid gap-1.5">
+          <p className="text-muted-foreground">
+            Downloading update{update.percent !== undefined && ` · ${update.percent}%`}
+          </p>
+          <Progress aria-label="Downloading update" value={update.percent ?? 0} />
+        </div>
+      ) : update.state !== "none" ? (
         <div className="flex items-center justify-between gap-3">
           <span>{update.state === "available" ? "New version available" : "Update downloaded"}</span>
           <Button variant="outline" onClick={update.state === "available" ? update.start : update.complete}>
             {update.state === "available" ? "Update" : "Restart"}
           </Button>
         </div>
-      )}
+      ) : undefined}
     </SettingsCard>
   );
 }

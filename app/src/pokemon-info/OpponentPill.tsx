@@ -1,4 +1,4 @@
-import { BottomSheet } from "@/components/BottomSheet";
+import { PadBottomSheet } from "@/components/PadBottomSheet";
 import { Button } from "@/components/ui/button";
 import type { GameMemory } from "@/game-memory/gameMemory";
 import type { Input } from "@/input/input";
@@ -66,8 +66,8 @@ function OpponentSheet({
   onClose(): void;
 }) {
   return (
-    <BottomSheet open={open} title={battle && battle.opponents.length > 1 ? "Opponents" : "Opponent"} input={input} onClose={onClose}>
+    <PadBottomSheet open={open} title={battle && battle.opponents.length > 1 ? "Opponents" : "Opponent"} input={input} onClose={onClose}>
       {battle && <Opponents battle={battle} randomized={randomized} />}
-    </BottomSheet>
+    </PadBottomSheet>
   );
 }

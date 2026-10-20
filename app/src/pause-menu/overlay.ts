@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { OnBackGesture } from "@/backGesture";
 import type { Input } from "@/input/input";
 import { capturingPads } from "@/input/padPresses";
-import { navigate } from "@/motion/motion";
+import { navigate } from "@/plugin-kit/motion";
 
 export type Overlay =
   | "menu"
@@ -14,6 +14,7 @@ export type Overlay =
   | "cheats"
   | "transferPak"
   | "skin"
+  | "research"
   | "pokemonInfo"
   | "achievements"
   | "achievement";
@@ -27,6 +28,7 @@ const backFrom: Record<Exclude<Overlay, "editor">, Overlay | undefined> = {
   cheats: "menu",
   transferPak: "menu",
   skin: "menu",
+  research: "menu",
   pokemonInfo: undefined,
   achievements: "menu",
   achievement: undefined,

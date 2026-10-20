@@ -1,12 +1,12 @@
 import { useEffect, useReducer, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useBack } from "@/back/back";
-import { ScreenHeader } from "@/components/ScreenHeader";
+import { ScreenHeader } from "@/plugin-kit/ScreenHeader";
 import { Button } from "@/components/ui/button";
 import { useCapturePads } from "@/input/padPresses";
 import type { SetupEvent, SetupStep } from "@/input/padSetup";
 import { cn } from "@/lib/utils";
-import { Screen } from "@/motion/motion";
+import { Screen } from "@/plugin-kit/motion";
 import { PadDiagram } from "./PadDiagram";
 import type { SetupDriver } from "./setupDrivers";
 

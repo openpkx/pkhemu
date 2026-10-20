@@ -11,15 +11,18 @@ pub fn plugin<R: Runtime>() -> TauriPlugin<R> {
     Builder::new("app-update")
         .setup(|app, api| {
             let handle = api.register_android_plugin("fyi.openpkx.pkhemu", "AppUpdatePlugin")?;
-            let emitter = app.clone();
-            let downloaded = Channel::<Value>::new(move |_| {
-                let _ = emitter.emit("app-update-downloaded", ());
-                Ok(())
-            });
-            if let Err(e) =
-                handle.run_mobile_plugin::<Value>("registerListener", json!({ "event": "downloaded", "handler": downloaded }))
-            {
-                eprintln!("listening for app updates: {e}");
+            for event in ["downloading", "downloaded", "stopped"] {
+                let emitter = app.clone();
+                let handler = Channel::<Value>::new(move |body| {
+                    let _ =
+                        emitter.emit(&format!("app-update-{event}"), body.deserialize::<Value>().unwrap_or_default());
+                    Ok(())
+                });
+                if let Err(e) =
+                    handle.run_mobile_plugin::<Value>("registerListener", json!({ "event": event, "handler": handler }))
+                {
+                    eprintln!("listening for app update {event}: {e}");
+                }
             }
             app.manage(AppUpdate(handle));
             Ok(())

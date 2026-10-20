@@ -27,3 +27,7 @@ it("has no 3DS experiment", () => {
 it("leaves RetroAchievements to Settings", () => {
   expect(experiment("retroAchievements")).toBeUndefined();
 });
+
+it("offers Research to players, off by default", () => {
+  expect(experiment("research")).toMatchObject({ values: ["off", "on"], players: true });
+});

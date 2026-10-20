@@ -23,6 +23,13 @@ export const experiments: Experiment[] = [
     players: true,
   },
   {
+    id: "research",
+    label: "Research",
+    line: "On Gen 3 games, the pause menu offers Research, to compare two saves and name the bytes that changed.",
+    values: ["off", "on"],
+    players: true,
+  },
+  {
     id: "demoGame",
     label: "Demo game",
     line: "The empty library offers a free demo game to play.",

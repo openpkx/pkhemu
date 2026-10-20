@@ -17,6 +17,8 @@ export function ExportProvider({ host, children }: { host: ExportHost; children:
   return <ExportContext.Provider value={host}>{children}</ExportContext.Provider>;
 }
 
+export const useExportHost = () => useContext(ExportContext);
+
 type FilesToExport = () => Promise<ExportedFile | ExportedFile[]>;
 
 export function useExportFile() {

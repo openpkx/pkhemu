@@ -1,7 +1,7 @@
 import { CircleAlert, Wifi } from "lucide-react";
 import { cn } from "cn";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { usePresence } from "@/motion/motion";
+import { usePresence } from "@/plugin-kit/motion";
 import type { SyncBadgeState } from "@/sync/gameStatus";
 
 export function Ring({ percent, className }: { percent: number; className?: string }) {

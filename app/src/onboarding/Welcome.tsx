@@ -1,5 +1,5 @@
-import { useState, type ReactNode } from "react";
-import { ArrowRightLeft, ChevronRight, FolderHeart, FolderInput, Folder, History, Sparkles, TriangleAlert } from "lucide-react";
+import { useState } from "react";
+import { ArrowRightLeft, FolderHeart, FolderInput, Folder, History, Sparkles, TriangleAlert } from "lucide-react";
 import { AppIcon } from "@/components/AppIcon";
 import { SystemChips } from "@/components/SystemChip";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -7,29 +7,11 @@ import { Button } from "@/components/ui/button";
 import { useBack } from "@/back/back";
 import { useGamesFolder, type GamesFolderHost, type UnfamiliarFolder } from "@/games-folder/gamesFolder";
 import { useExperiment } from "@/lab/lab";
-import { navigate, Screen } from "@/motion/motion";
+import { Choice } from "@/plugin-kit/Choice";
+import { navigate, Screen } from "@/plugin-kit/motion";
 import type { System } from "@/systems";
 
 const isIos = (device: GamesFolderHost["device"]) => device === "iPhone" || device === "iPad";
-
-function Choice({ icon, title, line, onClick }: { icon: ReactNode; title: string; line: string; onClick(): void }) {
-  return (
-    <Button
-      variant="outline"
-      className="motion-press h-auto w-full justify-start gap-3 rounded-lg px-4 py-3.5 text-left whitespace-normal"
-      onClick={onClick}
-    >
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary [&_svg]:size-5">
-        {icon}
-      </span>
-      <span className="grid min-w-0 flex-1 gap-0.5">
-        <span className="text-base font-medium">{title}</span>
-        <span className="text-sm font-normal text-muted-foreground">{line}</span>
-      </span>
-      <ChevronRight className="text-muted-foreground" />
-    </Button>
-  );
-}
 
 function Choices({
   systems,

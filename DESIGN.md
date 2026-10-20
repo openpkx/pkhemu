@@ -64,7 +64,7 @@ A system chip is `SystemChip` from `components/`. A row of them is `SystemChips`
 
 ### Type
 
-Geist sets everything except five things, which use Pixelify Sans: the wordmark, section headings, system chips, the save card's numbers (play time, badges, Pokédex) and the touch controls' labels. Titles, body text and buttons stay in Geist. Section headings are the library's sections, the game page's Save heading and every `TitledCard` title, styled with `sectionHeading` from `components/`: 15px, muted, spaced 0.04em. A caption beside one, such as the system under a folder's name, stays in Geist. Pixelify Sans is the `font-pixel` utility, at weights 400 and 600. Fonts that copy Nintendo's lettering stay out, as Pokémon does from the app's name and icon.
+Geist sets everything except five things, which use Pixelify Sans: the wordmark, section headings, system chips, the save card's numbers (play time, badges, Pokédex) and the touch controls' labels. Titles, body text and buttons stay in Geist. Section headings are the library's sections, the game page's Save heading and every `TitledCard` title, styled with `sectionHeading` from `plugin-kit/`: 15px, muted, spaced 0.04em. A caption beside one, such as the system under a folder's name, stays in Geist. Pixelify Sans is the `font-pixel` utility, at weights 400 and 600. Fonts that copy Nintendo's lettering stay out, as Pokémon does from the app's name and icon.
 
 ### Shapes
 
@@ -122,6 +122,8 @@ With no games folder saved, the splash hands over to the welcome screen. It cent
 ## Components
 
 Build the UI from shadcn/ui. The components live in `app/src/components/ui`; add a missing one from `app/` with `npx shadcn@latest add <name>`. Write a custom component only when shadcn has nothing that fits, and build it from shadcn parts where it can. Don't use a plain `<button>`, `<select>` or `<input>` where shadcn has a component.
+
+Pieces a plug-in screen needs too, such as `ScreenHeader`, `BottomSheet`, `TitledCard`, `sectionHeading` and the motion helpers, live in `app/src/plugin-kit/`. The kit imports nothing from the app but `components/ui`, and gets the back button from the app through `KitProvider`.
 
 ## Picking from a list
 
@@ -294,7 +296,7 @@ Two entries open the picker, and both show only while the Touch controls switch 
 
 ## Bottom sheets
 
-A phone shows menus and pop-up details, such as the pause menu and the opponent cards, in a sheet that rises from the bottom. B, Escape, the back gesture or a tap outside closes it. Build one with `BottomSheet`.
+A phone shows menus and pop-up details, such as the pause menu and the opponent cards, in a sheet that rises from the bottom. B, Escape, the back gesture or a tap outside closes it. Build one with `BottomSheet`. Over a game, use `PadBottomSheet`, which also closes on a gamepad's B.
 
 ## Safe areas
 
@@ -310,6 +312,12 @@ Numbered slots, such as save states, sit in a full-screen grid of tiles. A phone
 
 ## Cheats
 
+With the Research experiment on, a Gen 3 game's pause menu has a Research entry above Settings, below Skin, with Research's status in a muted line under its name, as Skin has. It opens Research full screen, with Back and a Lab badge in the header. Back and B return to the pause menu. Other games have no entry.
+
+With no compare, Research shows two outline choice rows: "Latest save", with the save file's time, and "I'll save now". While it waits, a two-step list shows the first and second saves, with "Back to game" and "Cancel compare" under it. Once the second save comes, a toast says "Compare ready in Research", and the panel shows a Compare card with both save times and an actions menu holding "New compare…" and "Close compare…", each confirmed in an alert dialog. The pause-menu line follows each step.
+
+Compare and Findings tabs sit under the header on a phone, and in it on a wide screen. A change of unmapped bytes or an unknown item gets a primary "Name this" button, which opens a sheet: "Name these bytes" with Name, Offset, Length, Type, "How sure are you?" and Note, or "Name this item" with its domain and index, Name, Pocket, "How sure are you?" and Note. The Offset and Length fields set the range, so a touch screen doesn't need Shift. A range that overlaps a known range or another finding, or holds over 256 bytes, shows why in destructive text, and "Save finding" stays disabled. A preview shows the range's before and after bytes. Named bytes get a green bar in the hex view, and their label and tooltip say "your finding" or "from" the file. The Findings tab lists the player's own under "Yours", where a tap edits or deletes, then each imported file under its name with a Remove button. "Export findings" opens a dialog showing the file's name and its exact text before the share sheet or save dialog.
+
 The pause menu's Cheats entry opens a full-screen list of the game's codes, with an outline "Add code" button above it. Each row has the code's name on the left, and its switch and a trash button on the right. When the core can't read a code, the row shows why in destructive text under the name, and the switch stays off and disabled. A tap on a row or on Add code opens a centered dialog with a Name field and a multi-line Code field. A blank name becomes the first free "Code N", such as "Code 1". Save stores the code even when it fails the check, and the dialog then stays open with the reason under the Code field. Delete asks first in an alert dialog. The D-pad moves between rows and along each row, and typing needs a keyboard or the on-screen one. Controls stay enabled while a change saves, so the D-pad keeps its place. Back returns to the pause menu. Each change reaches the core straight away, and the game runs with it on resume.
 
 ## Transfer Pak
@@ -324,7 +332,7 @@ A tile can't hold a button, so a corner button sits over the tile instead. Since
 
 Toasts sit at the top of the screen as dark pills, as in "Sent 3 to Platinum" after a transfer. A toast for an action the player can undo ends with an Undo button after a middle dot, as in "Save edited · Undo" and "Loaded slot 3 · Undo". An optional next step goes there the same way, as in "Created Radical Red · Add box art". Toasts over the running game sit in the game screen's own stack at the top of the game, built with `Toast inline`.
 
-On Android, an update from Google Play gets a toast on the library, never over a game. "New version available · Update" shows at most once per launch. Once it times out, it stays away until Play has a newer version. Once the update downloads, "Update downloaded · Restart" shows on every launch until the player restarts.
+On Android, an update from Google Play gets a toast on the library, never over a game. "New version available · Update" shows at most once per launch. Once it times out, it stays away until Play has a newer version. While Play downloads it, no toast shows. Once the update downloads, "Update downloaded · Restart" shows on every launch until the player restarts.
 
 ## Achievement unlocks
 
@@ -386,7 +394,7 @@ Appearance has Screen depth and Screen glass after Skins. Screen depth shows onl
 
 The Lab card sits before About. It opens with a line saying experiments can change or go away in any update, then one row per experiment like any other setting. It lists every experiment in builds that aren't store builds and the player experiments for a Plus owner in a store build. With nothing to list, it's hidden.
 
-About is the last card. A muted line says "The emulator, the editor and every Pokémon feature are free." A store build that offers sync adds "Plus adds sync, the Lab and more skins." Nothing in the app mentions builds without Plus, since store payment rules forbid pointing elsewhere. An outline "View licences" button opens Licences. While Google Play has an update, a last row says "New version available" with an outline Update button, or "Update downloaded" with an outline Restart button. Dismissing the library's toast doesn't hide it.
+About is the last card. A muted line says "The emulator, the editor and every Pokémon feature are free." A store build that offers sync adds "Plus adds sync, the Lab and more skins." Nothing in the app mentions builds without Plus, since store payment rules forbid pointing elsewhere. An outline "View licences" button opens Licences. While Google Play has an update, a last row says "New version available" with an outline Update button, or "Update downloaded" with an outline Restart button. While Play downloads it, the row gives way to a muted "Downloading update · 42%" over a Progress bar, with no button, and returns to Update if the download is cancelled or fails. Dismissing the library's toast doesn't hide it.
 
 ## Accounts in settings
 
@@ -431,6 +439,16 @@ Content that is still being worked out, such as whether a game can take a transf
 A page reloading data it showed before keeps the old data on screen with an "Updating…" line, and disables the actions that need the new data.
 
 A game that is starting shows the step it is on and a bar that fills one step at a time, in its screen area, over its last screenshot dimmed when resuming.
+
+## Research
+
+Research is a Lab tool, a full-screen layer over the paused game. Its titles, buttons and text use the foreground tokens. Starting a compare and waiting for a save are centred pages, at most 28rem wide.
+
+An open compare is a list of changes and a hex view. From 48rem up they sit side by side: the list on the left, 20 to 26rem wide and scrolling on its own, and the hex view on the right with the first change picked. A phone shows the list, a change drills into its space's hex view with the space's name in the header, and Back returns to the list.
+
+The list opens with the compare card: the two saves' times, the actions menu, counts of unmapped, unknown and known changes, and "Not checked against this ROM" when the layout doesn't list the game's ROM. "Unmapped bytes" follows, grouped by space, one row per run of changed bytes with a warning dot. "Unknown items" lists the items the engine can't name that came, went or changed count between the saves, each with its index, its pocket or holder, and its count before and after. They have no offset, so no hex view: desktop shows their item, pocket and count in the right pane, and a phone opens them in a bottom sheet. "Known changes" comes last, grouped by space and muted, with the range's name and its bytes before and after, three per space before "N more". Spaces where nothing changed stay hidden, and a line at the end counts them. Sections count from 0, and boxes and slots from 1.
+
+The hex view has 16 columns on desktop and 8 on a phone, with a gap between the halves. Unchanged bytes are muted, changed bytes in a known range fill with the primary and unmapped changes with the warning colour. A line under each known range groups its bytes and lights up for the range under the pointer or the cursor. Rows more than one away from a change fold into a button that opens them. Hovering a byte names its range, or says "Unmapped", in a tooltip, and an inspector pinned to the bottom does the same for the byte under the cursor, with its value before and after. Arrow keys move, Shift selects, and N and P jump between changes. A Before and After toggle picks which save's bytes show.
 
 ## Motion
 

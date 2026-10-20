@@ -6,7 +6,7 @@ import { afterEach, expect, it, vi } from "vitest";
 import { BackProvider, useBack, type BackHost } from "@/back/back";
 import { desktopBackHost } from "@/back/desktopHost";
 import { fakeBackHost } from "@/back/fakeBackHost";
-import { BottomSheet } from "@/components/BottomSheet";
+import { BottomSheet } from "@/plugin-kit/BottomSheet";
 import { AlertDialog, AlertDialogContent, AlertDialogTitle } from "./alert-dialog";
 import { Dialog, DialogContent, DialogTitle } from "./dialog";
 

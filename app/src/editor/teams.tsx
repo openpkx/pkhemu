@@ -3,7 +3,7 @@ import { X } from "lucide-react";
 import { useBox, useEngine, useQuery } from "@pkhex-everywhere/react";
 import type { PokemonSummary, TeamEntry } from "@pkhex-everywhere/engine";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { sectionHeading } from "@/components/sectionHeading";
+import { sectionHeading } from "@/plugin-kit/sectionHeading";
 import { Button } from "@/components/ui/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { messageOf } from "@/lib/utils";

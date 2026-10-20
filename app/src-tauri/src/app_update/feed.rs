@@ -57,7 +57,7 @@ pub async fn check<F: Future<Output = Result<String, String>>>(
     }
     match cached.latest.as_deref().and_then(version_code).zip(version_code(current)) {
         Some((latest, current)) if latest > current => {
-            Check { available: true, version_code: Some(latest), downloaded: false }
+            Check { available: true, version_code: Some(latest), downloaded: false, downloading: false }
         }
         _ => Check::default(),
     }

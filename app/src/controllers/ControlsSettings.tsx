@@ -1,13 +1,13 @@
 import { useEffect, useState } from "react";
 import { SettingRow, SwitchRow } from "@/components/SettingsRow";
-import { TitledCard } from "@/components/TitledCard";
+import { TitledCard } from "@/plugin-kit/TitledCard";
 import { Toast, useToast } from "@/components/Toast";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { withPad, type Calibrations, type KeyboardCalibration } from "@/input/calibration";
 import { useCalibrations } from "@/input/calibrations";
 import { connectedGamepads } from "@/input/input";
-import { navigate } from "@/motion/motion";
+import { navigate } from "@/plugin-kit/motion";
 import { isStickSensitivity, stickSensitivities, usePreferences } from "@/preferences/preferences";
 import { ControllerSetup } from "./ControllerSetup";
 import { keyboardDriver, padDriver, type SetupPad } from "./setupDrivers";
