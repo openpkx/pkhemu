@@ -3,7 +3,7 @@ use crate::games_folder::GamesFolder;
 use crate::resume;
 use crate::retro::{Core, CoreInfo};
 use crate::rom::{self, StateName};
-use crate::save::{self, Slot, Watch};
+use crate::save::{self, game_cube::Card, Slot, Watch};
 use serde::{Deserialize, Serialize};
 use tauri::Runtime;
 
@@ -146,7 +146,7 @@ pub async fn read<R: Runtime>(
     let path = rom::state_path(rom, name);
     let state = folder.read(&path).await.map_err(|e| format!("{path}: {e}"))?;
     let mut save = Err(format!("{name} has no save"));
-    for extension in ["dsv", "sav", "srm"] {
+    for extension in ["dsv", "sav", "srm", "raw"] {
         let path = rom::state_save_path(rom, name, extension);
         if let Ok(file) = folder.read(&path).await {
             save = Ok(Slot::new(path, file).1);
@@ -169,6 +169,7 @@ pub async fn remove<R: Runtime>(folder: &GamesFolder<'_, R>, rom: &str, name: im
         rom::state_save_path(rom, name, "sav"),
         rom::state_save_path(rom, name, "dsv"),
         rom::state_save_path(rom, name, "srm"),
+        rom::state_save_path(rom, name, "raw"),
     ];
     for path in paths {
         if folder.has_file(&path).await {
@@ -216,6 +217,50 @@ pub fn load(
     save::fill(save_ram, rtc, &loaded.save);
     let [save_ram, rtc] = core.save_memory();
     Ok(watch.load([save_ram, rtc], frames_since_save))
+}
+
+// Dolphin leaves the memory card out of its states and reads it only as the game boots, so the game boots again with
+// the state's card. A state saved before Dolphin first wrote its card keeps the card there is.
+pub fn load_with_card(
+    core: &mut Core,
+    card: &mut Card,
+    watch: &mut Watch,
+    loaded: &Loaded,
+    frames_since_save: Option<u64>,
+    before: &mut Saved,
+    back_up: impl FnOnce(&[u8]) -> Result<(), String>,
+) -> Result<Vec<u8>, String> {
+    let placed = core.reboot(|| {
+        // Dolphin has just written the card as it unloaded, with any save from the last 15 seconds.
+        before.save = card.read().concat();
+        back_up(&before.save).map_err(|e| format!("couldn't back up the save: {e}"))?;
+        place_unless_empty(card, &loaded.save)
+    })?;
+    if let Err(e) = placed {
+        go_back(core, &before.state);
+        return Err(e);
+    }
+    if !core.unserialize(&loaded.state) {
+        if let Err(e) = core.reboot(|| place_unless_empty(card, &before.save))? {
+            eprintln!("{e}");
+        }
+        go_back(core, &before.state);
+        return Err(REJECTED.into());
+    }
+    Ok(watch.load(card.read(), frames_since_save))
+}
+
+fn place_unless_empty(card: &mut Card, save: &[u8]) -> Result<(), String> {
+    if save.is_empty() {
+        return Ok(());
+    }
+    card.place(Some(save)).map_err(|e| format!("couldn't place the memory card: {e}"))
+}
+
+fn go_back(core: &mut Core, state: &[u8]) {
+    if !core.unserialize(state) {
+        eprintln!("the core couldn't go back to the state from before the load");
+    }
 }
 
 #[cfg(test)]

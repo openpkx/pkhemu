@@ -7,9 +7,14 @@ use std::sync::OnceLock;
 
 pub const N64_CPU: &CStr = c"dynamic_recompiler";
 pub const JIT: bool = true;
+pub const DOLPHIN_CONTEXT: std::ffi::c_uint = super::HW_CONTEXT_VULKAN;
 // The screen is OpenGL ES, so a Vulkan frame is read back.
 pub const SCREEN_DRAWS_VULKAN: bool = false;
 pub const UBERSHADER_FALLBACK: bool = true;
+// Skip Drawing. The Pixel 10's PowerVR driver fails to build some of Dolphin's ubershader pipelines, so Hybrid
+// Ubershaders stalled for up to 1.7 s in the first minute where this didn't, and took 500 MB more memory.
+pub const DOLPHIN_ASYNC_SHADERS: &CStr = c"3";
+pub const DOLPHIN_SYS: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/dolphin-sys.zip"));
 
 // The Pixel 10's PowerVR GLES driver scrambles the textures Azahar uploads, and its Vulkan doesn't. Azahar needs 1.1.
 pub fn azahar_renderer() -> &'static CStr {
@@ -81,6 +86,17 @@ mod tests {
 
         assert_eq!(with_async.as_deref(), Some("enabled"));
         assert_eq!(without.as_deref(), Some("disabled"));
+    }
+
+    #[test]
+    fn skips_gamecube_draws_while_their_shaders_compile() {
+        let _lock = crate::test_games::lock_core();
+
+        crate::retro::set_async_shaders(true);
+        let mode = option(c"dolphin_shader_compilation_mode");
+        crate::retro::set_async_shaders(false);
+
+        assert_eq!(mode.as_deref(), Some("3"));
     }
 
     #[test]

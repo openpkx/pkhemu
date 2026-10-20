@@ -33,6 +33,7 @@ const formatHelp: Record<System, string> = {
   nds: "Action Replay DS codes work here.",
   n64: "GameShark codes work here.",
   "3ds": "3DS games don't take cheats yet.",
+  gc: "GameCube games don't take cheats yet.",
 };
 
 function CodeForm({

@@ -6,6 +6,7 @@ import { cn } from "cn";
 import { Toast, useToast } from "@/components/Toast";
 import { Button } from "@/components/ui/button";
 import { PokemonArt, summaryArt } from "@/game-art/gameArt";
+import { boxRubySapphire } from "@/game-page/saveSummary";
 import { AddPokemonButton } from "./addPokemon";
 import { useClipboard } from "./clipboard";
 import { ApplyBar, useEditorNav, type Page } from "./EditorScreen";
@@ -266,11 +267,18 @@ function Boxes() {
   );
 }
 
-// Only Stadium saves have teams, and they have no party, trainer or bag.
-export const useStadium = () => useQuery("team.list").length > 0;
+const useStadium = () => useQuery("team.list").length > 0;
+
+// Stadium saves have teams in place of a party, trainer and bag, and Box saves have only boxes.
+export function useHasParty() {
+  const stadium = useStadium();
+  const version = useQuery("game.version");
+  return !stadium && version?.versionId !== boxRubySapphire;
+}
 
 function SaveHome() {
   const stadium = useStadium();
+  const hasParty = useHasParty();
   return (
     <div className="flex min-h-full flex-col">
       <div className="@container grid gap-6 p-4">
@@ -278,15 +286,17 @@ function SaveHome() {
           {stadium ? (
             <PageTile page={teamsPage} icon={Users} />
           ) : (
-            <>
-              <PageTile page={trainerPage} icon={IdCard} />
-              <PageTile page={bagPage} icon={Backpack} />
-            </>
+            hasParty && (
+              <>
+                <PageTile page={trainerPage} icon={IdCard} />
+                <PageTile page={bagPage} icon={Backpack} />
+              </>
+            )
           )}
           <EventsTile />
           <MysteryGiftTile />
         </div>
-        {!stadium && <Party />}
+        {hasParty && <Party />}
         <Boxes />
       </div>
       <ApplyBar />

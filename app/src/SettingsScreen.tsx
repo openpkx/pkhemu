@@ -26,7 +26,9 @@ import { LabSettings } from "./lab/LabSettings";
 import { navigate, Screen } from "./motion/motion";
 import {
   fastForwardSpeeds,
+  gameCubeResolutions,
   isFastForwardSpeed,
+  isGameCubeResolution,
   isRendererChoice,
   isTheme,
   maxRestoreBackupsKept,
@@ -219,7 +221,9 @@ function SyncSettings() {
 
 const rendererNames: Record<Renderer, string> = { native: "Native (OpenGL ES)", compatible: "Compatible (WebGL)" };
 
-function PlayingSettings({ system }: { system?: System }) {
+const gameCubeResolutionLabels = { 1: "Native", 2: "2×", 3: "3×" };
+
+function PlayingSettings({ system, systems }: { system?: System; systems: readonly System[] }) {
   const { preferences, error, change } = usePreferences();
   const { silentSwitch } = useAudioSession();
   const { renderers, automatic } = useRenderer();
@@ -284,15 +288,40 @@ function PlayingSettings({ system }: { system?: System }) {
       {shaders.offered && (
         <div className="grid gap-1">
           <SwitchRow
-            label="Fewer 3DS freezes"
+            label="Fewer freezes in 3D games"
             checked={preferences.asyncShaders}
             onCheckedChange={(asyncShaders) => void change({ asyncShaders })}
           />
           <p className="text-muted-foreground">
             {preferences.asyncShaders
               ? shaders.onLine
-              : "3DS games can freeze for a moment the first time they show something new."}
+              : "Some 3D games can freeze for a moment the first time they show something new."}
           </p>
+          <p className="text-xs text-muted-foreground">Applies the next time a game starts.</p>
+        </div>
+      )}
+      {systems.includes("gc") && (
+        <div className="grid gap-1">
+          <SettingRow label="GameCube resolution">
+            {(labelId) => (
+              <ToggleGroup
+                type="single"
+                variant="outline"
+                aria-labelledby={labelId}
+                value={String(preferences.gameCubeResolution)}
+                onValueChange={(value) => {
+                  const gameCubeResolution = Number(value);
+                  if (isGameCubeResolution(gameCubeResolution)) void change({ gameCubeResolution });
+                }}
+              >
+                {gameCubeResolutions.map((resolution) => (
+                  <ToggleGroupItem key={resolution} value={String(resolution)}>
+                    {gameCubeResolutionLabels[resolution]}
+                  </ToggleGroupItem>
+                ))}
+              </ToggleGroup>
+            )}
+          </SettingRow>
           <p className="text-xs text-muted-foreground">Applies the next time a game starts.</p>
         </div>
       )}
@@ -462,7 +491,7 @@ export function SettingsScreen({
   onLicences,
 }: {
   system?: System;
-  /** The platform's systems, for Skins. */
+  /** The platform's systems, for Skins and the GameCube resolution. */
   systems?: readonly System[];
   onBack(): void;
   onLicences(): void;
@@ -485,7 +514,7 @@ export function SettingsScreen({
         <GamesFolderSettings />
         <SyncSettings />
         {!account && retroAchievementsCards}
-        <PlayingSettings system={system} />
+        <PlayingSettings system={system} systems={systems} />
         {sideloadBuild && <JitSettings />}
         <ControlsSettings />
         <AppearanceSettings onSkins={() => navigate("forward", () => setSkins(true))} />

@@ -82,6 +82,7 @@ const defaults: Preferences = {
   screenDepth: true,
   screenGlass: true,
   asyncShaders: false,
+  gameCubeResolution: 1,
 };
 
 function memoryPreferences() {

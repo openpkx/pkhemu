@@ -45,6 +45,8 @@ Each system has colours for its chip, its tile pattern and the game page's hero 
 | GBA | `#2a2152` | `#c9b9ff` | `#a48bff` | `#1e1247` |
 | NDS | `#14304a` | `#9fd8fa` | `#6cc4f5` | `#072542` |
 | N64 | `#3d1518` | `#f5a3a8` | `#ef6b73` | `#350a0d` |
+| 3DS | `#103a36` | `#8fe3d6` | `#4fd1c0` | `#06332f` |
+| GameCube | `#212b52` | `#b9c7ff` | `#5b7bff` | `#121c47` |
 
 In light:
 
@@ -55,8 +57,10 @@ In light:
 | GBA | `#e6e0ff` | `#4a2fb8` | `#7c5cff` |
 | NDS | `#d6ecfa` | `#12507c` | `#2f93d1` |
 | N64 | `#fadadc` | `#7c1820` | `#d63a45` |
+| 3DS | `#d3f2ed` | `#0f5a50` | `#23a08f` |
+| GameCube | `#e0e6ff` | `#2f4ab8` | `#3a5ce9` |
 
-A system chip is `SystemChip` from `components/`. A row of them is `SystemChips`, which screen readers hear once as "Plays Game Boy, Game Boy Color, Game Boy Advance, Nintendo DS, Nintendo 64 and Nintendo 3DS games". The welcome screen and the empty library pass it the platform's systems, which today is every system on every platform. The dot grid is the `dot-grid` utility, which takes the pattern from `--pattern` and `--pattern-dark`.
+A system chip is `SystemChip` from `components/`. A row of them is `SystemChips`, which screen readers hear once as "Plays Game Boy, Game Boy Color, Game Boy Advance, Nintendo DS, Nintendo 64, Nintendo 3DS and Nintendo GameCube games". The welcome screen and the empty library pass it the platform's systems, which today is every system on every platform. The dot grid is the `dot-grid` utility, which takes the pattern from `--pattern` and `--pattern-dark`.
 
 ### Type
 
@@ -82,7 +86,7 @@ In portrait the game screen wears the system's chosen skin (`skins.ts`): a photo
 
 Over a skin the controls take one of two looks (`skin-look/`). Every colour, shadow, blur, inset and rotation they use is a `--skin-` variable that `lookVariables` sets from the skin and look, and `blendLooks` mixes two sets for the picker's animations, with colours premultiplied so a fade to transparent never darkens. Both looks share the layout and the hit areas, so switching looks moves nothing. `TouchControls.tsx` marks each part with `data-part`, which `skinLook.css` styles under `[data-skin]`.
 
-- **Moulded.** The console's own parts in the skin's colours. A border in the screen border colour rings the screen. The D-pad has a hard edge, a soft shadow under it, a sheen and a dimple in the middle. Face buttons are domed in the face colour, sit in a well and press down onto their lip. On GB, GBC and GBA the A and B letters are printed on the plastic below the buttons, and on DS, 3DS and N64 they sit on the buttons. N64's A, B, Z and C buttons are blue, green, grey and yellow. Select and Start are rubber pills angled at -24° with their names printed below, and N64's Start is a level red pill. The shoulders, pause, Hold and Fast-forward are rubber, and Hold and Fast-forward light a small violet LED when on. The stick sits in a well with a domed knob in the D-pad colour.
+- **Moulded.** The console's own parts in the skin's colours. A border in the screen border colour rings the screen. The D-pad has a hard edge, a soft shadow under it, a sheen and a dimple in the middle. Face buttons are domed in the face colour, sit in a well and press down onto their lip. On GB, GBC and GBA the A and B letters are printed on the plastic below the buttons, and on DS, 3DS and N64 they sit on the buttons. N64's A, B, Z and C buttons are blue, green, grey and yellow. GameCube's A, B, X and Y, Z and C-stick are green, red, grey, purple and yellow on every skin, and its Start is a level grey pill. Select and Start are rubber pills angled at -24° with their names printed below, and N64's Start is a level red pill. The shoulders, pause, Hold and Fast-forward are rubber, and Hold and Fast-forward light a small violet LED when on. The stick sits in a well with a domed knob in the D-pad colour.
 - **Frosted.** Every control is glass blurred 12px over the plastic, with a white hairline, stronger on light skins. Labels sit on the buttons in near-black on light skins and white on dark ones. Hold and Fast-forward fill violet when on.
 
 A pressed button darkens, and a pressed D-pad arm lightens on a dark D-pad. In Frosted both lighten.
@@ -136,6 +140,14 @@ When no box has an empty slot, the plus button is disabled and "Your boxes are f
 ## Teams
 
 A Stadium save has registered teams but no party, trainer or bag, so its editor shows a Teams tile in their place. Other saves get no tile. The Teams page groups teams under their cup's name as a section heading. Pocket Monsters Stadium doesn't sort teams by cup, so it has no headings. Each team is a card titled by its place in the cup, as in "Team 2", with the name of the trainer who registered it below. The card shows its members as party slots. Tapping a member opens it in the Pokémon editor. A member's corner button asks in an alert dialog, then removes it. The members after it move up a slot. "Add from box" in the card's header opens the boxes, and picking a Pokémon copies it into the first empty slot and returns to Teams. A full team's "Add from box" is disabled.
+
+## Box saves
+
+A Box Ruby & Sapphire save holds only boxes. Its editor shows no party and no Trainer or Bag tile, and its Save card has no trainer.
+
+## Shadow Pokémon
+
+A shadow Pokémon in Colosseum or XD shows a Shadow badge beside its nickname, and a Shadow card after Stats holds its heart gauge and an outline Purify button. Purifying empties the gauge and removes the badge and the card.
 
 ## Mystery Gift
 
@@ -235,6 +247,10 @@ With touch controls showing, the two screens stay clear of them, since the botto
 ## N64 controls
 
 N64 games get their own touch layout. L and R sit in the top corners. The left side stacks the stick, a smaller 96px D-pad and the pause menu. The right side stacks B, A and Z, with Z a smaller face button above A, then the C buttons as a diamond of 44px circles with arrows, then Hold and Fast-forward. N64 has no Select, and Start sits alone in the middle of the bottom edge. In landscape the shoulders shrink to 36px tall, and Z and the C buttons to 40px, so each side fits the screen's height.
+
+## GameCube controls
+
+GameCube games get a layout shaped like the pad. The left side matches N64's: L, the stick, a 96px D-pad and the pause menu. On the right, Z is a small pill above R, or beside it in landscape. Below R a big A sits with a smaller B to its lower left, and X and Y as pills to its right and above it. X and Y tuck under A's edge, so A's rim cuts the pad's kidney shapes into them. Under the face buttons the C-stick is an 80px stick zone, 64px in landscape, with a small knob, then Hold and Fast-forward. Start sits alone in the middle of the bottom edge. Touch L and R send full presses. In landscape the shoulders shrink to 36px tall.
 
 ## Stick zone
 
@@ -360,7 +376,9 @@ Settings shows background work, such as extracting game art, as a muted line lik
 
 When the work has more to show than fits in a card, as with sync, a status row takes the line's place. Its muted line and a chevron are a ghost button that opens a details sheet with the progress and the list, and a ghost ⟳ icon button at its right end starts the work again. The ⟳ is disabled while the work runs.
 
-Playing has Fewer 3DS freezes after Renderer, on by default.
+Playing has Fewer freezes in 3D games after Renderer, on by default. It covers 3DS and GameCube.
+
+Playing has GameCube resolution after that, as a toggle group of Native, 2× and 3×. It sets Dolphin's internal resolution the next time a game starts. Native is the default on Android and iOS, and 2× on macOS. Widescreen hacks stay off. The game lays out as if it were at native size, so a 3× frame sits where a native one would.
 
 The sideload build has a JIT card after Playing. While JIT is off, a muted line says StikDebug can turn it on until the app closes, over an outline "Enable JIT" button that opens StikDebug. Beside it, an outline "Import pairing file" opens the document picker for a `.mobiledevicepairing` or `.plist` file. A rejected file shows why in destructive text, naming the keys it's missing. An older file without the RemotePairing keys gets a line asking for a new one from iloader. Once JIT is on, the line says so and the buttons go. With a pairing file set, a row reads "Pairing file set" with an outline Remove button on its right, whether JIT is on or off, and importing another replaces it. Store builds leave the card out of their bundle. Other builds have no JIT card.
 

@@ -305,6 +305,182 @@
       "source": "https://github.com/libretro/libretro-common/tree/7fc7feeddca391be65c94e6541381467684b814d"
     },
     {
+      "name": "Dolphin",
+      "version": "2609, modified",
+      "licence": "GPL-2.0-or-later",
+      "source": "https://github.com/pkhex-web/dolphin/tree/pkh-emu"
+    },
+    {
+      "name": "bzip2",
+      "licence": "bzip2-1.0.6",
+      "source": "https://gitlab.com/bzip2/bzip2/-/tree/6a8690fc8d26c815e798c588f796eabe9d684cf0"
+    },
+    {
+      "name": "cpp-optparse",
+      "licence": "MIT",
+      "source": "https://github.com/weisslj/cpp-optparse/tree/2265d647232249a53a03b411099863ceca35f0d3"
+    },
+    {
+      "name": "curl",
+      "licence": "curl",
+      "source": "https://github.com/curl/curl/tree/cfbfb65047e85e6b08af65fe9cdbcf68e9ad496a"
+    },
+    {
+      "name": "Dear ImGui",
+      "licence": "MIT",
+      "source": "https://github.com/ocornut/imgui/tree/45acd5e0e82f4c954432533ae9985ff0e1aad6d5"
+    },
+    {
+      "name": "ENet (Dolphin)",
+      "licence": "MIT",
+      "source": "https://github.com/lsalzman/enet/tree/2662c0de09e36f2a2030ccc2c528a3e4c9e8138a"
+    },
+    {
+      "name": "expr",
+      "licence": "MIT",
+      "source": "https://github.com/pkhex-web/dolphin/tree/7a8a772dce5931c1cae5a1d6955bb33d6b42ac86/Externals/expr"
+    },
+    {
+      "name": "FatFs",
+      "licence": "BSD-1-Clause",
+      "source": "https://github.com/pkhex-web/dolphin/tree/7a8a772dce5931c1cae5a1d6955bb33d6b42ac86/Externals/FatFs"
+    },
+    {
+      "name": "fmt (Dolphin)",
+      "licence": "MIT",
+      "source": "https://github.com/fmtlib/fmt/tree/e424e3f2e607da02742f73db84873b8084fc714c"
+    },
+    {
+      "name": "FreeSurround",
+      "licence": "GPL-2.0-or-later",
+      "source": "https://github.com/pkhex-web/dolphin/tree/7a8a772dce5931c1cae5a1d6955bb33d6b42ac86/Externals/FreeSurround"
+    },
+    {
+      "name": "glslang (Dolphin)",
+      "licence": "BSD-3-Clause",
+      "source": "https://github.com/KhronosGroup/glslang/tree/a57276bf558f5cf94d3a9854ebdf5a2236849a5a"
+    },
+    {
+      "name": "HIDAPI",
+      "licence": "BSD-3-Clause",
+      "source": "https://github.com/libusb/hidapi/tree/d6b2a974608dec3b76fb1e36c189f22b9cf3650c"
+    },
+    {
+      "name": "ImPlot",
+      "licence": "MIT",
+      "source": "https://github.com/epezent/implot/tree/3da8bd34299965d3b0ab124df743fe3e076fa222"
+    },
+    {
+      "name": "libadrenotools",
+      "licence": "BSD-2-Clause",
+      "source": "https://github.com/bylaws/libadrenotools/tree/8fae8ce254dfc1344527e05301e43f37dea2df80"
+    },
+    {
+      "name": "liblinkernsbypass",
+      "licence": "BSD-2-Clause",
+      "source": "https://github.com/bylaws/liblinkernsbypass/tree/aa3975893d83ef1bc84c321ec60c65fbf1287887"
+    },
+    {
+      "name": "GNU libiconv",
+      "licence": "LGPL-2.1-or-later",
+      "source": "https://github.com/pkhex-web/dolphin/tree/7a8a772dce5931c1cae5a1d6955bb33d6b42ac86/Externals/libiconv"
+    },
+    {
+      "name": "liblzma",
+      "licence": "LicenseRef-Public-Domain",
+      "source": "https://github.com/pkhex-web/dolphin/tree/7a8a772dce5931c1cae5a1d6955bb33d6b42ac86/Externals/liblzma"
+    },
+    {
+      "name": "libretro-common (Dolphin)",
+      "licence": "MIT",
+      "source": "https://github.com/pkhex-web/dolphin/tree/7a8a772dce5931c1cae5a1d6955bb33d6b42ac86/Externals/libretro-common"
+    },
+    {
+      "name": "libspng",
+      "licence": "BSD-2-Clause",
+      "source": "https://github.com/randy408/libspng/tree/fb768002d4288590083a476af628e51c3f1d47cd"
+    },
+    {
+      "name": "libusb",
+      "licence": "LGPL-2.1-or-later",
+      "source": "https://github.com/libusb/libusb/tree/15a7ebb4d426c5ce196684347d2b7cafad862626"
+    },
+    {
+      "name": "LZ4",
+      "licence": "BSD-2-Clause",
+      "source": "https://github.com/lz4/lz4/tree/5fc0630a0ed55e9755b0fe3990cd021ae1c3edc1"
+    },
+    {
+      "name": "LZO",
+      "licence": "GPL-2.0-or-later",
+      "source": "https://github.com/pkhex-web/dolphin/tree/7a8a772dce5931c1cae5a1d6955bb33d6b42ac86/Externals/LZO"
+    },
+    {
+      "name": "Mbed TLS",
+      "licence": "Apache-2.0",
+      "source": "https://github.com/pkhex-web/dolphin/tree/7a8a772dce5931c1cae5a1d6955bb33d6b42ac86/Externals/mbedtls"
+    },
+    {
+      "name": "mGBA (Dolphin)",
+      "licence": "MPL-2.0",
+      "source": "https://github.com/mgba-emu/mgba/tree/0b40863f64d0940f333fa1c638e75f86f8a26a33"
+    },
+    {
+      "name": "minizip-ng",
+      "licence": "Zlib",
+      "source": "https://github.com/zlib-ng/minizip-ng/tree/55db144e03027b43263e5ebcb599bf0878ba58de"
+    },
+    {
+      "name": "PicoJSON",
+      "licence": "BSD-2-Clause",
+      "source": "https://github.com/pkhex-web/dolphin/tree/7a8a772dce5931c1cae5a1d6955bb33d6b42ac86/Externals/picojson"
+    },
+    {
+      "name": "pugixml",
+      "licence": "MIT",
+      "source": "https://github.com/zeux/pugixml/tree/ee86beb30e4973f5feffe3ce63bfa4fbadf72f38"
+    },
+    {
+      "name": "SFML",
+      "licence": "Zlib",
+      "source": "https://github.com/SFML/SFML/tree/0fa201c969e48ecc253581c5841ce73f44d42f49"
+    },
+    {
+      "name": "TinyGLTF",
+      "licence": "MIT",
+      "source": "https://github.com/syoyo/tinygltf/tree/c5641f2c22d117da7971504591a8f6a41ece488b"
+    },
+    {
+      "name": "Vulkan Memory Allocator (Dolphin)",
+      "licence": "MIT",
+      "source": "https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator/tree/3bab6924988e5f19bf36586a496156cf72f70d9f"
+    },
+    {
+      "name": "Vulkan-Headers (Dolphin)",
+      "licence": "Apache-2.0",
+      "source": "https://github.com/KhronosGroup/Vulkan-Headers/tree/39f924b810e561fd86b2558b6711ca68d4363f68"
+    },
+    {
+      "name": "watcher",
+      "licence": "MIT",
+      "source": "https://github.com/e-dant/watcher/tree/b03bdcfc11549df595b77239cefe2643943a3e2f"
+    },
+    {
+      "name": "xxHash (Dolphin)",
+      "licence": "BSD-2-Clause",
+      "source": "https://github.com/Cyan4973/xxHash/tree/e626a72bc2321cd320e953a0ccf1584cad60f363"
+    },
+    {
+      "name": "zlib-ng",
+      "licence": "Zlib",
+      "source": "https://github.com/zlib-ng/zlib-ng/tree/ce01b1e41da298334f8214389cc9369540a7560f"
+    },
+    {
+      "name": "Zstandard (Dolphin)",
+      "licence": "BSD-3-Clause OR GPL-2.0-only",
+      "source": "https://github.com/facebook/zstd/tree/711e17da98510a3567bf47f85a08a76f64811474"
+    },
+    {
       "name": "MoltenVK",
       "version": "1.4.2",
       "licence": "Apache-2.0",
@@ -710,6 +886,12 @@
       "version": "2.5.0",
       "licence": "Apache-2.0 OR MIT",
       "source": "https://github.com/smol-rs/concurrent-queue"
+    },
+    {
+      "name": "const-oid",
+      "version": "0.9.6",
+      "licence": "Apache-2.0 OR MIT",
+      "source": "https://github.com/RustCrypto/formats/tree/master/const-oid"
     },
     {
       "name": "cookie",
@@ -1780,6 +1962,12 @@
       "source": "https://github.com/servo/html5ever"
     },
     {
+      "name": "md-5",
+      "version": "0.10.6",
+      "licence": "MIT OR Apache-2.0",
+      "source": "https://github.com/RustCrypto/hashes"
+    },
+    {
       "name": "memchr",
       "version": "2.8.3",
       "licence": "Unlicense OR MIT",
@@ -1987,6 +2175,12 @@
       "name": "objc2-foundation",
       "version": "0.3.2",
       "licence": "MIT",
+      "source": "https://github.com/madsmtm/objc2"
+    },
+    {
+      "name": "objc2-game-controller",
+      "version": "0.3.2",
+      "licence": "Zlib OR Apache-2.0 OR MIT",
       "source": "https://github.com/madsmtm/objc2"
     },
     {
@@ -2282,6 +2476,18 @@
       "version": "6.0.0",
       "licence": "MIT OR Apache-2.0 OR LGPL-2.1-or-later",
       "source": "https://github.com/r-efi/r-efi"
+    },
+    {
+      "name": "rand_core",
+      "version": "0.10.1",
+      "licence": "MIT OR Apache-2.0",
+      "source": "https://github.com/rust-random/rand_core"
+    },
+    {
+      "name": "rand_core",
+      "version": "0.6.4",
+      "licence": "MIT OR Apache-2.0",
+      "source": "https://github.com/rust-random/rand"
     },
     {
       "name": "raw-window-handle",
@@ -3694,6 +3900,12 @@
       "source": "https://github.com/RustCrypto/utils"
     },
     {
+      "name": "zeroize_derive",
+      "version": "1.5.0",
+      "licence": "Apache-2.0 OR MIT",
+      "source": "https://github.com/RustCrypto/utils"
+    },
+    {
       "name": "zerotrie",
       "version": "0.2.5",
       "licence": "Unicode-3.0",
@@ -4063,15 +4275,15 @@
     },
     {
       "name": "@pkhex-everywhere/engine",
-      "version": "0.26.0",
+      "version": "0.29.0",
       "licence": "GPL-3.0-or-later",
-      "source": "https://www.npmjs.com/package/@pkhex-everywhere/engine/v/0.26.0"
+      "source": "https://www.npmjs.com/package/@pkhex-everywhere/engine/v/0.29.0"
     },
     {
       "name": "@pkhex-everywhere/react",
-      "version": "0.26.0",
+      "version": "0.29.0",
       "licence": "GPL-3.0-or-later",
-      "source": "https://www.npmjs.com/package/@pkhex-everywhere/react/v/0.26.0"
+      "source": "https://www.npmjs.com/package/@pkhex-everywhere/react/v/0.29.0"
     },
     {
       "name": "@radix-ui/number",

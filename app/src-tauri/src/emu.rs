@@ -11,7 +11,7 @@ use crate::pace::{self, DisplayRate, OnRefresh, Pacer, Refreshes, Ticker, MAX_OW
 use crate::resume::{self, Resume};
 use crate::retro::{self, Core};
 use crate::rom::{Rom, StateName};
-use crate::save::{self, three_ds::Main};
+use crate::save::{self, game_cube::Card, three_ds::Main, Memory};
 use crate::screen::{self, Layout, Parallax, Screen, WindowChange};
 use crate::states::{self, Loaded, Saved};
 use crate::sync::InUse;
@@ -306,7 +306,7 @@ struct Game {
     audio: Option<Audio>,
     on_frame: Channel<InvokeResponseBody>,
     watch: save::Watch,
-    main: Option<Main>,
+    save_file: Option<SaveFile>,
     writes: tokio_mpsc::UnboundedSender<Write>,
     back_up: BackUp,
     cheats: Vec<String>,
@@ -335,8 +335,8 @@ impl Game {
             achievements.frame(&mut self.core);
         }
         self.frames += 1;
-        let (core, main) = (&mut self.core, &mut self.main);
-        let changed = self.watch.after_frame(|| save_memory(core, main, false));
+        let (core, save_file) = (&mut self.core, &mut self.save_file);
+        let changed = self.watch.after_frame(|| save_memory(core, save_file, false));
         if let Some(file) = changed {
             self.saved(file);
         }
@@ -347,9 +347,10 @@ impl Game {
     }
 
     fn settle_main(&mut self) {
-        match self.main.as_mut().map(Main::settle) {
-            Some(Ok(true)) => self.core.reset(),
-            Some(Err(e)) => eprintln!("placing the 3DS save: {e}"),
+        let Some(SaveFile::Main(main)) = &mut self.save_file else { return };
+        match main.settle() {
+            Ok(true) => self.core.reset(),
+            Err(e) => eprintln!("placing the 3DS save: {e}"),
             _ => {}
         }
     }
@@ -458,7 +459,7 @@ impl Game {
     }
 
     fn read_save(&mut self) -> Option<Vec<u8>> {
-        edit::read(save_memory(&mut self.core, &mut self.main, true)[0])
+        edit::read(save_memory(&mut self.core, &mut self.save_file, true).save())
     }
 
     fn leave_hardcore(&mut self) {
@@ -473,8 +474,9 @@ impl Game {
     fn apply(&mut self, edited: &[u8]) -> Result<(), String> {
         self.leave_hardcore();
         let back_up = |save: &[u8]| (self.back_up)(Reason::Edit, save);
-        let (undo, file) = match &mut self.main {
-            Some(main) => edit::apply_main(&mut self.core, main, &mut self.watch, edited, back_up)?,
+        let (undo, file) = match &mut self.save_file {
+            Some(SaveFile::Main(main)) => edit::apply_main(&mut self.core, main, &mut self.watch, edited, back_up)?,
+            Some(SaveFile::Card(card)) => edit::apply_card(&mut self.core, card, &mut self.watch, edited, back_up)?,
             None => edit::apply(&mut self.core, &mut self.watch, edited, back_up)?,
         };
         self.undo = Some(undo);
@@ -487,10 +489,13 @@ impl Game {
     fn undo(&mut self) -> Result<(), String> {
         let undo = self.undo.take().ok_or("there's no edit to undo")?;
         self.leave_hardcore();
-        let file = edit::undo(&mut self.core, &mut self.watch, undo)?;
+        let file = match &mut self.save_file {
+            Some(SaveFile::Card(card)) => edit::undo_card(&mut self.core, card, &mut self.watch, undo)?,
+            _ => edit::undo(&mut self.core, &mut self.watch, undo)?,
+        };
         self.reset_achievements();
         (self.mark_edited)();
-        if let Some(main) = &mut self.main {
+        if let Some(SaveFile::Main(main)) = &mut self.save_file {
             main.place(Some(&file)).map_err(|e| format!("couldn't write the save back: {e}"))?;
         }
         self.write(Write::Save(file));
@@ -500,7 +505,7 @@ impl Game {
     fn moment(&mut self) -> Result<Saved, String> {
         self.check_save();
         let state = self.core.serialize().ok_or("the core couldn't save its state")?;
-        let save = save_memory(&mut self.core, &mut self.main, true).concat();
+        let save = save_memory(&mut self.core, &mut self.save_file, true).concat();
         let core = self.core.info();
         let info = states::Info {
             saved_at: epoch_ms(),
@@ -530,7 +535,7 @@ impl Game {
         loaded: &Loaded,
         kept: Option<oneshot::Sender<Result<(), String>>>,
     ) -> Result<(), String> {
-        if self.main.as_ref().is_some_and(Main::is_waiting) {
+        if self.save_file.as_ref().is_some_and(SaveFile::is_waiting) {
             return Err("The game has to reach its title screen once before a state loads.".into());
         }
         self.leave_hardcore();
@@ -539,12 +544,16 @@ impl Game {
         let fps = self.core.av().timing.fps;
         let frames_since_save = loaded.info.play_since_save.map(|seconds| (seconds * fps).round() as u64);
         let back_up = &mut self.back_up;
-        let mut file =
-            states::load(&mut self.core, &self.clock, &mut self.watch, loaded, frames_since_save, &before, |save| {
-                back_up(Reason::Load, save)
-            })?;
+        let back_up = |save: &[u8]| back_up(Reason::Load, save);
+        let (core, watch) = (&mut self.core, &mut self.watch);
+        let mut file = match &mut self.save_file {
+            Some(SaveFile::Card(card)) => {
+                states::load_with_card(core, card, watch, loaded, frames_since_save, &mut before, back_up)?
+            }
+            _ => states::load(core, &self.clock, watch, loaded, frames_since_save, &before, back_up)?,
+        };
         self.reset_achievements();
-        if let Some(main) = &mut self.main {
+        if let Some(SaveFile::Main(main)) = &mut self.save_file {
             if !loaded.save.is_empty() {
                 main.place(Some(&loaded.save)).map_err(|e| format!("couldn't write the state's save: {e}"))?;
             }
@@ -584,7 +593,7 @@ impl Game {
     }
 
     fn check_save(&mut self) {
-        let memory = save_memory(&mut self.core, &mut self.main, true);
+        let memory = save_memory(&mut self.core, &mut self.save_file, true);
         if let Some(file) = self.watch.check(memory) {
             self.saved(file);
         }
@@ -670,12 +679,24 @@ impl Game {
     fn quit(mut self) -> JoinHandle<()> {
         self.suspend();
         self.forget_before_load();
-        self.writer
+        let Game { achievements, core, save_file, mut watch, writes, writer, .. } = self;
+        // Dolphin writes the card up to 15 seconds after the game saves, and once more as it unloads.
+        if let Some(SaveFile::Card(mut card)) = save_file {
+            drop(achievements);
+            drop(core);
+            if let Some(file) = watch.check(card.read()) {
+                let _ = writes.send(Write::Save(file));
+            }
+        }
+        writer
     }
 
     // The game was suspended as the app went to sleep, and unloading the core calls OpenGL, so it waits for the app to
     // wake.
-    fn quit_asleep(self) -> (JoinHandle<()>, Unloading) {
+    fn quit_asleep(mut self) -> (JoinHandle<()>, Unloading) {
+        if matches!(self.save_file, Some(SaveFile::Card(_))) {
+            self.check_save();
+        }
         self.forget_before_load();
         let Game { writer, core, transfer_pak, .. } = self;
         (writer, Unloading { _core: core, _transfer_pak: transfer_pak })
@@ -766,13 +787,15 @@ fn run(
                         let azahar_dir = retro::azahar_dir(&system_dir);
                         three_ds::update::placed(&rom, update, &azahar_dir)?;
                         let main = save::three_ds::placed(&rom, save.as_deref(), &azahar_dir)?;
+                        let card = save::game_cube::placed(&rom, save.as_deref(), retro::dolphin_card(&system_dir))?;
+                        let save_file = main.map(SaveFile::Main).or(card.map(SaveFile::Card));
                         // A state would skip the boot in which the game formats the save data its save waits for.
-                        let state = state.filter(|_| !main.as_ref().is_some_and(Main::is_waiting));
+                        let state = state.filter(|_| !save_file.as_ref().is_some_and(SaveFile::is_waiting));
                         load(rom, save, state, &clock, &system_dir, files)
-                            .map(|(core, watch)| (core, watch, main, session))
+                            .map(|(core, watch)| (core, watch, save_file, session))
                     });
                 on_game(loaded.as_ref().ok().map(|_| path.as_str()), cart_path.as_deref());
-                let _ = reply.send(loaded.map(|(mut core, watch, main, transfer_pak)| {
+                let _ = reply.send(loaded.map(|(mut core, watch, save_file, transfer_pak)| {
                     let (cheats, held_cheats) = match hardcore {
                         true => (Vec::new(), Some(cheats)),
                         false => (cheats::on_codes(platform, &cheats), None),
@@ -802,7 +825,7 @@ fn run(
                         audio,
                         on_frame,
                         watch,
-                        main,
+                        save_file,
                         writes,
                         back_up,
                         cheats,
@@ -895,10 +918,14 @@ fn run(
                 let _ = reply.send(running(&mut game).and_then(|game| game.core.read_memory(&ranges)));
             }
             Command::ApplyEdit { edited, reply } => {
+                clear_before_reboot(&mut screen, &game);
                 let _ = reply.send(running(&mut game).and_then(|game| game.apply(&edited)));
+                stop_unloaded(&mut game, &mut last_quit, &mut screen, &on_game);
             }
             Command::UndoEdit { reply } => {
+                clear_before_reboot(&mut screen, &game);
                 let _ = reply.send(running(&mut game).and_then(Game::undo));
+                stop_unloaded(&mut game, &mut last_quit, &mut screen, &on_game);
             }
             Command::CanUndoEdit { reply } => {
                 let _ = reply.send(game.as_ref().is_some_and(Game::can_undo));
@@ -910,10 +937,14 @@ fn run(
                 }
             },
             Command::LoadState { slot, loaded, kept, reply } => {
+                clear_before_reboot(&mut screen, &game);
                 let _ = reply.send(running(&mut game).and_then(|game| game.load_state(Some(slot), &loaded, Some(kept))));
+                stop_unloaded(&mut game, &mut last_quit, &mut screen, &on_game);
             }
             Command::UndoLoadState { loaded, removed, reply } => {
+                clear_before_reboot(&mut screen, &game);
                 let _ = reply.send(running(&mut game).and_then(|game| game.undo_load_state(&loaded, removed)));
+                stop_unloaded(&mut game, &mut last_quit, &mut screen, &on_game);
             }
             Command::CurrentSlot { reply } => {
                 let _ = reply.send(game.as_ref().and_then(|game| game.slot));
@@ -1054,14 +1085,30 @@ fn load(
     Ok((core, save::Watch::new()))
 }
 
-// A 3DS Pokémon game's save is a file on the virtual SD card, which stands in for the save memory the core lacks.
-fn save_memory<'a>(core: &'a mut Core, main: &'a mut Option<Main>, now: bool) -> [&'a [u8]; 2] {
-    match main {
-        Some(main) => [if now { main.read() } else { main.refresh() }, &[]],
-        None => {
-            let [save_ram, rtc] = core.save_memory();
-            [save_ram, rtc]
+// A 3DS Pokémon game's save is a file on the virtual SD card, and a GameCube game's is its memory card. Each stands in
+// for the save memory the core lacks.
+enum SaveFile {
+    Main(Main),
+    Card(Card),
+}
+
+impl SaveFile {
+    fn is_waiting(&self) -> bool {
+        matches!(self, SaveFile::Main(main) if main.is_waiting())
+    }
+}
+
+fn save_memory<'a>(core: &'a mut Core, save_file: &'a mut Option<SaveFile>, now: bool) -> Memory<'a> {
+    match save_file {
+        Some(SaveFile::Main(main)) => [if now { main.read() } else { main.refresh() }, &[]].into(),
+        Some(SaveFile::Card(card)) => {
+            if now {
+                card.read()
+            } else {
+                card.refresh()
+            }
         }
+        None => core.save_memory().into(),
     }
 }
 
@@ -1087,6 +1134,27 @@ fn quit_running(
     }
     *last_quit = ResumeWrites::after(game.quit());
     None
+}
+
+// A GameCube game boots again to load a state or an edit, and the screen's last frame can be an image of the core it
+// unloads.
+fn clear_before_reboot(screen: &mut Option<Box<dyn Screen>>, game: &Option<Game>) {
+    if let (Some(native), Some(Game { save_file: Some(SaveFile::Card(_)), .. })) = (screen, game) {
+        native.clear();
+    }
+}
+
+// A game that failed to boot again has no core, so it stops the way a sleeping app's game does, without the core.
+fn stop_unloaded(
+    game: &mut Option<Game>,
+    last_quit: &mut ResumeWrites,
+    screen: &mut Option<Box<dyn Screen>>,
+    on_game: &OnGame,
+) {
+    if game.as_ref().is_some_and(|game| !game.core.is_loaded()) {
+        drop(quit_running(game, last_quit, screen, true));
+        on_game(None, None);
+    }
 }
 
 fn running(game: &mut Option<Game>) -> Result<&mut Game, String> {
@@ -1161,7 +1229,7 @@ mod tests {
             audio: None,
             on_frame: Channel::new(|_| Ok(())),
             watch,
-            main: None,
+            save_file: None,
             clock: real_time(),
             writes,
             back_up: Box::new(|_, _| Ok(())),
@@ -2456,7 +2524,7 @@ mod tests {
         let mut main = Main::of(X, &azahar).unwrap();
         main.place(Some(&pattern(X_SIZE, 1))).unwrap();
         let (mut game, _) = writing_into(root.join("games"), start_rom(counting_rom(), &[]), save::Watch::new());
-        game.main = Some(main);
+        game.save_file = Some(SaveFile::Main(main));
         game.play(45);
         assert_eq!(std::fs::read(root.join("games/gb/Game.sav")).ok(), None);
 
@@ -2478,11 +2546,13 @@ mod tests {
         let _ = std::fs::remove_dir_all(&azahar);
         let mut main = Main::of(X, &azahar).unwrap();
         main.place(Some(&pattern(X_SIZE, 1))).unwrap();
-        let mut game = Game { main: Some(main), ..game(start_rom(counting_rom(), &[]), save::Watch::new()) };
+        let save_file = Some(SaveFile::Main(main));
+        let mut game = Game { save_file, ..game(start_rom(counting_rom(), &[]), save::Watch::new()) };
         let loaded = Loaded { state: game.core.serialize().unwrap(), save: pattern(X_SIZE, 2), ..rejected() };
 
         assert!(game.load_slot(1, &loaded).is_err());
-        assert_eq!(game.main.as_ref().unwrap().bytes(), pattern(X_SIZE, 1));
+        let Some(SaveFile::Main(main)) = &game.save_file else { panic!("the game has no main") };
+        assert_eq!(main.bytes(), pattern(X_SIZE, 1));
     }
 
     // Pokémon X keeps its party at 0x14200 in main, 0x104 bytes a Pokémon, and its RAM holds the same bytes.
@@ -2494,13 +2564,14 @@ mod tests {
         let folder = GamesFolder::<tauri::Wry>::at(root.to_path_buf());
         block_on(folder.write("3ds/X.sav", save)).unwrap();
         let (slot, read) = block_on(save::open(&folder, "3ds/X.3ds")).unwrap();
-        let main = save::three_ds::placed(&rom, read.as_deref(), &azahar).unwrap();
+        let save_file = save::three_ds::placed(&rom, read.as_deref(), &azahar).unwrap().map(SaveFile::Main);
         let clock = Clock::new(&rom, 0);
         let (core, watch) = load(rom, read, None, &clock, &std::env::temp_dir(), None).unwrap();
         let (writes, queued) = tokio_mpsc::unbounded_channel();
         let writer =
             tauri::async_runtime::spawn(async move { writer::write_all(&folder, "3ds/X.3ds", &slot, queued).await });
-        Game { path: "3ds/X.3ds".into(), platform: Platform::ThreeDs, clock, main, writes, writer, ..game(core, watch) }
+        let platform = Platform::ThreeDs;
+        Game { path: "3ds/X.3ds".into(), platform, clock, save_file, writes, writer, ..game(core, watch) }
     }
 
     fn continue_pokemon_x(game: &mut Game) {
@@ -2533,6 +2604,240 @@ mod tests {
 
     fn contains(haystack: &[u8], needle: &[u8]) -> bool {
         haystack.windows(needle.len()).any(|window| window == needle)
+    }
+
+    const COLOSSEUM: &str = "gc/Colosseum.rvz";
+
+    fn playing_colosseum(root: &Path, state: Option<Vec<u8>>) -> Option<Game> {
+        // Only the European release asks for 60 Hz, which the inputs below answer.
+        let rom = crate::test_games::gamecube_disc("Pokémon Colosseum", "GC6P01", 0)?;
+        let folder = GamesFolder::<tauri::Wry>::at(root.to_path_buf());
+        let (slot, read) = block_on(save::open(&folder, COLOSSEUM)).unwrap();
+        let card = retro::dolphin_card(&std::env::temp_dir());
+        let save_file = save::game_cube::placed(&rom, read.as_deref(), card).unwrap().map(SaveFile::Card);
+        let clock = Clock::new(&rom, 0);
+        let (core, watch) = load(rom, read, state, &clock, &std::env::temp_dir(), None).unwrap();
+        let (writes, queued) = tokio_mpsc::unbounded_channel();
+        let writer =
+            tauri::async_runtime::spawn(async move { writer::write_all(&folder, COLOSSEUM, &slot, queued).await });
+        let platform = Platform::GameCube;
+        Some(Game { path: COLOSSEUM.into(), platform, clock, save_file, writes, writer, ..game(core, watch) })
+    }
+
+    // A device that never ran the game has neither Dolphin's copy of the card nor its SRAM, where Colosseum keeps the
+    // 60 Hz choice.
+    fn as_on_a_new_device() {
+        let _ = std::fs::remove_dir_all(retro::dolphin_card(&std::env::temp_dir()).parent().unwrap());
+    }
+
+    fn mash(game: &mut Game, button: u16, frames: u32, gap: u32) {
+        for frame in 0..frames {
+            retro::set_input(if frame % gap < 4 { button } else { 0 });
+            game.run_frame();
+        }
+        retro::set_input(0);
+    }
+
+    // Past the 60 Hz prompt and the title to where Colosseum has read the card: it offers to make a save file on a
+    // card without one, and says it has read one with a save.
+    fn colosseum_card_message(game: &mut Game) -> Vec<u16> {
+        game.play(410);
+        mash(game, 1 << 6, 10, 10);
+        game.play(20);
+        mash(game, 1 << 8, 10, 10);
+        game.play(1500);
+        mash(game, 1 << 3, 200, 30);
+        game.play(300);
+        game.core.last_frame(|frame| frame.pixels.clone()).unwrap()
+    }
+
+    fn dolphin() -> retro::CoreInfo {
+        retro::core_info_for(crate::rom::System::GameCube).unwrap()
+    }
+
+    fn colosseum_ram(game: &mut Game) -> Vec<u8> {
+        game.core.memory_data(retro::MEMORY_SYSTEM_RAM).to_vec()
+    }
+
+    #[test]
+    #[cfg(target_arch = "aarch64")]
+    fn a_colosseum_game_resumes_from_the_state_it_quit_in() {
+        let _lock = lock_core();
+        let root = std::env::temp_dir().join(format!("pkh-emu-emu-colosseum-resume-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let folder = GamesFolder::<tauri::Wry>::at(root.clone());
+        as_on_a_new_device();
+        let Some(mut game) = playing_colosseum(&root, None) else { return };
+        game.play(600);
+        let ram = colosseum_ram(&mut game);
+        quit(game);
+        assert!(block_on(folder.has_file("gc/Colosseum/states/resume.png")), "the resume state has no screenshot");
+        let resumed = block_on(resume::read(&folder, COLOSSEUM, &dolphin())).unwrap();
+        let (state, _) = resumed.expect("Colosseum left no resume state");
+
+        let mut game = playing_colosseum(&root, Some(state)).unwrap();
+
+        assert!(colosseum_ram(&mut game) == ram, "Colosseum didn't resume where it quit");
+        game.play(60);
+        quit(game);
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    #[cfg(target_arch = "aarch64")]
+    fn a_colosseum_state_loads_after_a_restart_with_the_card_it_was_saved_with() {
+        let _lock = lock_core();
+        let root = std::env::temp_dir().join(format!("pkh-emu-emu-colosseum-state-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let folder = GamesFolder::<tauri::Wry>::at(root.clone());
+        as_on_a_new_device();
+        let Some(mut game) = playing_colosseum(&root, None) else { return };
+        colosseum_card_message(&mut game);
+        quit(game);
+        let blank = block_on(folder.read("gc/Colosseum.raw")).unwrap();
+        as_on_a_new_device();
+
+        let mut game = playing_colosseum(&root, None).unwrap();
+        game.play(600);
+        let ram = colosseum_ram(&mut game);
+        save_to(&mut game, 1);
+        colosseum_card_message(&mut game);
+        mash(&mut game, 1 << 8, 300, 40);
+        quit(game);
+        let saved = block_on(folder.read("gc/Colosseum.raw")).unwrap();
+        assert!(contains(&saved[0x2000..0x6000], b"GC6P01"), "Colosseum made no save file on the card");
+        assert_eq!(block_on(folder.read("gc/Colosseum/states/slot-1.raw")).unwrap(), blank);
+        assert!(block_on(folder.has_file("gc/Colosseum/states/slot-1.png")), "the slot has no screenshot");
+        as_on_a_new_device();
+
+        let mut game = playing_colosseum(&root, None).unwrap();
+        let dolphin = dolphin();
+        let listed = block_on(states::list(&folder, COLOSSEUM, Some(&dolphin)));
+        assert_eq!(listed.iter().map(|listed| (listed.slot, listed.loadable)).collect::<Vec<_>>(), [(1, true)]);
+        let loaded = block_on(states::read(&folder, COLOSSEUM, 1, &dolphin)).unwrap();
+        game.load_slot(1, &loaded).unwrap();
+
+        assert!(colosseum_ram(&mut game) == ram, "Colosseum isn't where the state was saved");
+        assert_eq!(flushed(&game, &root.join("gc/Colosseum.raw")), blank);
+        assert_eq!(block_on(folder.read("gc/Colosseum/states/before-load.raw")).unwrap(), saved);
+        game.play(60);
+        quit(game);
+        assert_eq!(block_on(folder.read("gc/Colosseum.raw")).unwrap(), blank, "Dolphin kept the card from before");
+
+        let other = states::Info { core_version: Some("2509.0.0+0000000000".into()), ..loaded.info };
+        block_on(folder.write("gc/Colosseum/states/slot-1.json", &serde_json::to_vec(&other).unwrap())).unwrap();
+        assert!(!block_on(states::list(&folder, COLOSSEUM, Some(&dolphin)))[0].loadable);
+        assert!(block_on(states::read(&folder, COLOSSEUM, 1, &dolphin)).is_err());
+        as_on_a_new_device();
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    #[cfg(target_arch = "aarch64")]
+    fn a_colosseum_card_restored_from_a_backup_loads_on_another_device() {
+        let _lock = lock_core();
+        let root = std::env::temp_dir().join(format!("pkh-emu-emu-colosseum-card-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let folder = GamesFolder::<tauri::Wry>::at(root.clone());
+        as_on_a_new_device();
+        let Some(mut game) = playing_colosseum(&root, None) else { return };
+        let offer = colosseum_card_message(&mut game);
+        mash(&mut game, 1 << 8, 300, 40);
+        quit(game);
+
+        let card = block_on(folder.read("gc/Colosseum.raw")).unwrap();
+        assert!(contains(&card[0x2000..0x6000], b"GC6P01"), "Colosseum made no save file on the card");
+        let (slot, _) = block_on(save::open(&folder, COLOSSEUM)).unwrap();
+        block_on(crate::backups::take(&folder, COLOSSEUM, &slot, Reason::Start, &card, "2026-10-20_1200", None))
+            .unwrap();
+        block_on(folder.remove_unlogged("gc/Colosseum.raw")).unwrap();
+        block_on(crate::backups::restore(&folder, COLOSSEUM, "2026-10-20_1200_start.raw", "2026-10-20_1201", 10))
+            .unwrap();
+        as_on_a_new_device();
+
+        let mut game = playing_colosseum(&root, None).unwrap();
+        let read = colosseum_card_message(&mut game);
+        quit(game);
+
+        // The offer's YES and NO sit over the logo, which shows once the game has read its save.
+        let width = 640;
+        let changed =
+            (215..300).flat_map(|y| (90..210).map(move |x| y * width + x)).filter(|&at| offer[at] != read[at]).count();
+        assert!(changed > 120 * 85 / 2, "Colosseum offered to make a save file again ({changed} pixels changed)");
+        assert_eq!(block_on(folder.read("gc/Colosseum.raw")).unwrap(), card);
+        as_on_a_new_device();
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    #[cfg(target_arch = "aarch64")]
+    fn a_colosseum_edit_boots_the_game_again_on_the_edited_card_and_undo_brings_back_the_game_from_before() {
+        let _lock = lock_core();
+        let root = std::env::temp_dir().join(format!("pkh-emu-emu-colosseum-apply-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let folder = GamesFolder::<tauri::Wry>::at(root.clone());
+        as_on_a_new_device();
+        let Some(mut game) = playing_colosseum(&root, None) else { return };
+        colosseum_card_message(&mut game);
+        mash(&mut game, 1 << 8, 300, 40);
+        quit(game);
+        let card = block_on(folder.read("gc/Colosseum.raw")).unwrap();
+        let mut edited = card.clone();
+        let last_block = edited.len() - 0x2000;
+        edited[last_block..].fill(0x5A);
+        as_on_a_new_device();
+
+        let mut game = playing_colosseum(&root, None).unwrap();
+        game.play(600);
+        let ram = colosseum_ram(&mut game);
+        game.apply(&edited).unwrap();
+        assert_eq!(flushed(&game, &root.join("gc/Colosseum.raw")), edited);
+        game.play(60);
+        game.undo().unwrap();
+
+        assert!(colosseum_ram(&mut game) == ram, "Colosseum isn't where it was before the edit");
+        assert_eq!(flushed(&game, &root.join("gc/Colosseum.raw")), card);
+        game.apply(&edited).unwrap();
+        game.play(60);
+        quit(game);
+        assert_eq!(block_on(folder.read("gc/Colosseum.raw")).unwrap(), edited, "Dolphin kept the card from before");
+        as_on_a_new_device();
+        let _ = std::fs::remove_dir_all(&root);
+    }
+
+    #[test]
+    #[cfg(target_arch = "aarch64")]
+    #[ignore = "needs Node and the app's npm packages"]
+    fn a_pokemon_edited_on_the_colosseum_card_is_in_the_game_after_it_boots_again() {
+        let _lock = lock_core();
+        let Some(card) = crate::test_games::colosseum_card() else { return };
+        let root = std::env::temp_dir().join(format!("pkh-emu-emu-colosseum-edit-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        let folder = GamesFolder::<tauri::Wry>::at(root.clone());
+        block_on(folder.write("gc/Colosseum.raw", &card)).unwrap();
+        as_on_a_new_device();
+        let Some(mut game) = playing_colosseum(&root, None) else { return };
+        game.play(600);
+
+        let dir = root.join("engine");
+        std::fs::create_dir_all(&dir).unwrap();
+        let (before, edited) = (dir.join("before.raw"), dir.join("edited.raw"));
+        std::fs::write(&before, game.read_save().unwrap()).unwrap();
+        node("nickname.mjs", &[before.as_ref(), "PKHEMU".as_ref(), edited.as_ref()]);
+        let edited = std::fs::read(&edited).unwrap();
+        game.apply(&edited).unwrap();
+        assert_eq!(flushed(&game, &root.join("gc/Colosseum.raw")), edited);
+        colosseum_card_message(&mut game);
+        mash(&mut game, 1 << 8, 600, 40);
+        game.play(600);
+
+        // Colosseum keeps nicknames in UTF-16, big-endian.
+        let nickname: Vec<u8> = "PKHEMU".encode_utf16().flat_map(u16::to_be_bytes).collect();
+        assert!(contains(&colosseum_ram(&mut game), &nickname), "Colosseum didn't load the edited Pokémon");
+        quit(game);
+        assert_eq!(block_on(folder.read("gc/Colosseum.raw")).unwrap(), edited, "Colosseum replaced the edited card");
+        as_on_a_new_device();
+        let _ = std::fs::remove_dir_all(&root);
     }
 
     #[test]

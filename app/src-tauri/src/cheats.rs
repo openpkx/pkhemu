@@ -15,6 +15,7 @@ pub enum Platform {
     Ds,
     N64,
     ThreeDs,
+    GameCube,
 }
 
 impl Platform {
@@ -25,6 +26,7 @@ impl Platform {
             System::Ds => Platform::Ds,
             System::N64 => Platform::N64,
             System::ThreeDs => Platform::ThreeDs,
+            System::GameCube => Platform::GameCube,
         }
     }
 
@@ -41,6 +43,8 @@ impl Platform {
             "nds" => Ok(Platform::Ds),
             "n64" | "z64" | "v64" => Ok(Platform::N64),
             system if rom::THREE_DS_EXTENSIONS.contains(&system) => Ok(Platform::ThreeDs),
+            system if rom::GAMECUBE_EXTENSIONS.contains(&system) => Ok(Platform::GameCube),
+            "gc" => Err(rom::zipped_disc(&Path::new(path).file_name().unwrap_or_default().to_string_lossy())),
             _ => Err(format!("{path} isn't a game")),
         }
     }
@@ -54,6 +58,7 @@ impl From<Platform> for System {
             Platform::Ds => System::Ds,
             Platform::N64 => System::N64,
             Platform::ThreeDs => System::ThreeDs,
+            Platform::GameCube => System::GameCube,
         }
     }
 }
@@ -178,6 +183,7 @@ pub fn check(platform: Platform, text: &str) -> Result<String, String> {
         Platform::Ds => ds_lines(&text),
         Platform::N64 => n64_lines(&text),
         Platform::ThreeDs => Err("3DS games don't take cheats yet.".into()),
+        Platform::GameCube => Err("GameCube games don't take cheats yet.".into()),
     }?;
     if lines.is_empty() {
         return Err("Enter a code.".into());
@@ -520,6 +526,11 @@ mod tests {
         assert_eq!(Platform::of_path("nds/HeartGold.zip"), Ok(Platform::Ds));
         assert_eq!(Platform::of_path("gba/Emerald.7z"), Ok(Platform::Gba));
         assert!(Platform::of_path("Emerald.zip").is_err());
+        assert_eq!(Platform::of_path("gc/XD.rvz"), Ok(Platform::GameCube));
+        assert_eq!(
+            Platform::of_path("gc/Pokémon/XD.7z"),
+            Err("Unzip XD.7z first. pkhemu can't play a zipped GameCube disc.".into())
+        );
     }
 
     fn reads(platform: Platform, code: &str) -> String {
@@ -633,5 +644,12 @@ mod tests {
         assert_eq!(Platform::of_path("3ds/PKSM.3dsx"), Ok(Platform::ThreeDs));
         assert_eq!(Platform::of_path("3ds/X.3DS"), Ok(Platform::ThreeDs));
         assert_eq!(Platform::of_path("3ds/X.cxi"), Ok(Platform::ThreeDs));
+    }
+
+    #[test]
+    fn knows_a_gamecube_disc_from_its_file() {
+        assert_eq!(Platform::of_path("gc/Colosseum.iso"), Ok(Platform::GameCube));
+        assert_eq!(Platform::of_path("gc/XD.RVZ"), Ok(Platform::GameCube));
+        assert!(check(Platform::GameCube, "0000 0000").is_err());
     }
 }

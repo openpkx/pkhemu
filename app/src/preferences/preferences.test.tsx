@@ -7,7 +7,7 @@ import { PreferencesProvider, usePreferences, type Preferences, type Preferences
 
 afterEach(cleanup);
 
-const defaults: Preferences = { touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic", skins: defaultSkins, skinHintSeen: false, screenDepth: true, screenGlass: true, asyncShaders: false };
+const defaults: Preferences = { touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic", skins: defaultSkins, skinHintSeen: false, screenDepth: true, screenGlass: true, asyncShaders: false, gameCubeResolution: 1 };
 
 function launchWith(host: PreferencesHost, launchDefaults = defaults) {
   return renderHook(usePreferences, {
@@ -68,7 +68,7 @@ function syncedSkins(stored: Record<string, unknown> = {}, loaded: Promise<void>
 it("starts with the platform defaults", async () => {
   const { launch } = fakeStore();
 
-  const { result } = launch({ touchControls: true, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic", skins: defaultSkins, skinHintSeen: false, screenDepth: true, screenGlass: true, asyncShaders: false });
+  const { result } = launch({ touchControls: true, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic", skins: defaultSkins, skinHintSeen: false, screenDepth: true, screenGlass: true, asyncShaders: false, gameCubeResolution: 1 });
 
   await waitFor(() =>
     expect(result.current.preferences).toEqual({
@@ -88,6 +88,7 @@ it("starts with the platform defaults", async () => {
       screenDepth: true,
       screenGlass: true,
       asyncShaders: false,
+      gameCubeResolution: 1,
     }),
   );
 });
@@ -113,6 +114,7 @@ it("keeps changes across restarts", async () => {
   await act(() => first.result.current.change({ screenDepth: false }));
   await act(() => first.result.current.change({ screenGlass: false }));
   await act(() => first.result.current.change({ asyncShaders: true }));
+  await act(() => first.result.current.change({ gameCubeResolution: 3 }));
   first.unmount();
   const { result } = launch();
 
@@ -134,6 +136,7 @@ it("keeps changes across restarts", async () => {
       screenDepth: false,
       screenGlass: false,
       asyncShaders: true,
+      gameCubeResolution: 3,
     }),
   );
 });
@@ -141,7 +144,7 @@ it("keeps changes across restarts", async () => {
 it("fills in preferences that were never stored", async () => {
   const { launch } = fakeStore({ fastForwardSpeed: 4 });
 
-  const { result } = launch({ touchControls: true, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic", skins: defaultSkins, skinHintSeen: false, screenDepth: true, screenGlass: true, asyncShaders: false });
+  const { result } = launch({ touchControls: true, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic", skins: defaultSkins, skinHintSeen: false, screenDepth: true, screenGlass: true, asyncShaders: false, gameCubeResolution: 1 });
 
   await waitFor(() =>
     expect(result.current.preferences).toEqual({
@@ -161,6 +164,7 @@ it("fills in preferences that were never stored", async () => {
       screenDepth: true,
       screenGlass: true,
       asyncShaders: false,
+      gameCubeResolution: 1,
     }),
   );
 });
@@ -205,6 +209,14 @@ it("ignores a stored async shaders setting that isn't a switch", async () => {
   await waitFor(() => expect(result.current.preferences.asyncShaders).toBe(false));
 });
 
+it("ignores a stored GameCube resolution it doesn't offer", async () => {
+  const { launch } = fakeStore({ gameCubeResolution: 4 as Preferences["gameCubeResolution"] });
+
+  const { result } = launch({ ...defaults, gameCubeResolution: 2 });
+
+  await waitFor(() => expect(result.current.preferences.gameCubeResolution).toBe(2));
+});
+
 it("ignores a stored theme it doesn't know", async () => {
   const { launch } = fakeStore({ theme: "sepia" as Preferences["theme"] });
 
@@ -222,7 +234,7 @@ it("ignores a stored renderer it doesn't know", async () => {
 });
 
 it("starts every system on pkhemu, Moulded", () => {
-  expect(Object.values(defaultSkins)).toEqual(Array(6).fill({ skin: "pkhemu", look: "moulded" }));
+  expect(Object.values(defaultSkins)).toEqual(Array(7).fill({ skin: "pkhemu", look: "moulded" }));
 });
 
 it.each([

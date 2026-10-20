@@ -71,7 +71,7 @@ pub fn now() -> String {
     chrono::Local::now().format(TIME_FORMAT).to_string()
 }
 
-const EXTENSIONS: [&str; 3] = ["sav", "dsv", "srm"];
+const EXTENSIONS: [&str; 4] = ["sav", "dsv", "srm", "raw"];
 
 // A second backup in the same minute gets a number, so it can't replace the first.
 #[derive(PartialEq, Eq, PartialOrd, Ord)]
@@ -413,6 +413,21 @@ mod tests {
 
         assert_eq!(block_on(save::open(&folder, "n64/Stadium.z64")).unwrap().1.unwrap(), stadium_save());
         assert!(!block_on(folder.has_file("n64/Stadium.srm")));
+    }
+
+    #[test]
+    fn backs_up_a_memory_card_and_restores_it_beside_the_disc() {
+        let folder = temp_folder("card");
+        let card = crate::test_games::pattern(0x200000, 1);
+        block_on(folder.write("gc/Colosseum.raw", &card)).unwrap();
+        let (slot, _) = block_on(save::open(&folder, "gc/Colosseum.rvz")).unwrap();
+        block_on(take(&folder, "gc/Colosseum.rvz", &slot, Reason::Start, &card, "2026-10-05_1400", None)).unwrap();
+        block_on(folder.write("gc/Colosseum.raw", &crate::test_games::pattern(0x200000, 2))).unwrap();
+
+        block_on(restore(&folder, "gc/Colosseum.rvz", "2026-10-05_1400_start.raw", "2026-10-05_1412", 10)).unwrap();
+
+        assert_eq!(block_on(folder.read("gc/Colosseum.raw")).unwrap(), card);
+        assert_eq!(block_on(list(&folder, "gc/Colosseum.rvz")).unwrap().len(), 2);
     }
 
     #[test]

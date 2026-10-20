@@ -15,6 +15,7 @@ core-cache = { path = "../../crates/core-cache" }
 # naga 30 builds its GLSL front end only alongside the WGSL or SPIR-V one.
 naga = { version = "30", features = ["glsl-in", "wgsl-in", "spv-out"] }
 tauri-build = { version = "2.7.2", features = [] }
+zip = { version = "8.6.0", default-features = false, features = ["deflate-flate2-zlib-rs"] }
 
 [dependencies]
 tauri = { version = "2.12.3", features = [] }
@@ -25,6 +26,7 @@ tauri-plugin-opener = "2.7.1"
 tauri-plugin-persisted-scope = "2.4.1"
 tauri-plugin-store = "2.5.0"
 zip = { version = "8.6.0", default-features = false, features = ["deflate-flate2-zlib-rs"] }
+flate2 = { version = "1.1.10", default-features = false, features = ["zlib-rs"] }
 sevenz-rust2 = { version = "0.23.0", default-features = false, features = ["bzip2", "ppmd"] }
 plist = "1.10"
 tokio = { version = "1.53.2", features = ["sync", "time", "net", "io-util"] }

@@ -3,7 +3,7 @@ import { ChevronDown, ChevronLeft, ChevronRight, ChevronUp, FastForward as FastF
 import { cn } from "cn";
 import type { FastForward } from "@/fast-forward/fastForward";
 import { useHaptics } from "@/haptics/haptics";
-import { bit, buttons, createInput, DPAD, n64Buttons, type Input } from "@/input/input";
+import { bit, buttons, createInput, DPAD, gcButtons, n64Buttons, type Input, type StickSide } from "@/input/input";
 import { tilt } from "@/input/stick";
 import { usePreferences } from "@/preferences/preferences";
 import type { System } from "@/systems";
@@ -100,7 +100,7 @@ function GameButton({
   press: Press;
   hold: Hold;
   part: Part;
-  tint?: "a" | "b" | "z";
+  tint?: "a" | "b" | "xy" | "z";
   printed?: boolean;
   className?: string;
   children?: ReactNode;
@@ -225,18 +225,32 @@ const STICK_REACH = 1 / 3;
 
 type StickTouch = { pointerId: number; x: number; y: number; tilt: [number, number] };
 
-function Stick({ input }: { input: Input }) {
+function Stick({
+  input,
+  label = "Stick",
+  side = "left",
+  className = "size-32 landscape:size-26",
+  knobClassName = "size-14",
+  tint,
+}: {
+  input: Input;
+  label?: string;
+  side?: StickSide;
+  className?: string;
+  knobClassName?: string;
+  tint?: "c";
+}) {
   const { tap } = useHaptics();
   const { stickSensitivity } = usePreferences().preferences;
   const [touch, setTouch] = useState<StickTouch>();
   const [reach, setReach] = useState(0);
 
-  useEffect(() => () => input.touchStick(0, 0), [input]);
+  useEffect(() => () => input.touchStick(0, 0, side), [input, side]);
 
   const release = (event: PointerEvent) => {
     if (event.pointerId !== touch?.pointerId) return;
     setTouch(undefined);
-    input.touchStick(0, 0);
+    input.touchStick(0, 0, side);
   };
   const knob = touch
     ? { left: touch.x + touch.tilt[0] * reach, top: touch.y + touch.tilt[1] * reach }
@@ -244,9 +258,9 @@ function Stick({ input }: { input: Input }) {
 
   return (
     <div
-      aria-label="Stick"
+      aria-label={label}
       data-part="stick"
-      className="relative size-32 rounded-full border border-pad-border landscape:size-26"
+      className={cn("relative rounded-full border border-pad-border", className)}
       onPointerDown={(event) => {
         if (event.button !== 0 || touch) return;
         event.currentTarget.setPointerCapture?.(event.pointerId);
@@ -254,7 +268,7 @@ function Stick({ input }: { input: Input }) {
         tap();
         setReach(box.width * STICK_REACH);
         setTouch({ pointerId: event.pointerId, x: event.clientX - box.left, y: event.clientY - box.top, tilt: [0, 0] });
-        input.touchStick(0, 0);
+        input.touchStick(0, 0, side);
       }}
       onPointerMove={(event) => {
         if (event.pointerId !== touch?.pointerId) return;
@@ -267,7 +281,7 @@ function Stick({ input }: { input: Input }) {
           stickSensitivity,
         );
         setTouch({ ...touch, tilt: tilted });
-        input.touchStick(...tilted);
+        input.touchStick(...tilted, side);
       }}
       onPointerUp={release}
       onPointerCancel={release}
@@ -283,7 +297,8 @@ function Stick({ input }: { input: Input }) {
       <div
         data-pressed={!!touch}
         data-part="knob"
-        className={cn("pointer-events-none absolute size-14 -translate-1/2 rounded-full", faceSurface)}
+        data-tint={tint}
+        className={cn("pointer-events-none absolute -translate-1/2 rounded-full", faceSurface, knobClassName)}
         style={knob}
       />
     </div>
@@ -338,10 +353,35 @@ type ControlsProps = { input: Input; system: System; fastForward: FastForward; s
 
 const padScaleStyle = (scale: number) => ({ "--pad-scale": scale }) as CSSProperties;
 
+const analogShoulder = cn(shoulder, "landscape:h-9");
+
+function AnalogControls({
+  input,
+  scale,
+  press,
+  hold,
+  l,
+  children,
+}: Omit<ControlsProps, "system" | "fastForward"> & { press: Press; hold: Hold; l: number; children: ReactNode }) {
+  return (
+    <div className={cn(controlsBody, scaled, "relative")} style={padScaleStyle(scale)} onContextMenu={(event) => event.preventDefault()}>
+      <Side className="landscape:gap-2">
+        <GameButton label="L" button={l} press={press} hold={hold} part="shoulder" className={analogShoulder} />
+        <Stick input={input} />
+        <Dpad press={press} hold={hold} className="size-24" />
+        <PauseMenuButton input={input} />
+      </Side>
+      <div className="pointer-events-auto absolute bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2">
+        <GameButton label="Start" button={buttons.start} press={press} hold={hold} part="pill" className={small} />
+      </div>
+      <Side className="landscape:gap-2">{children}</Side>
+    </div>
+  );
+}
+
 function N64Controls({ input, fastForward, scale }: ControlsProps) {
   const press = usePress(input);
   const hold = useHold(input);
-  const n64Shoulder = cn(shoulder, "landscape:h-9");
   const face = "absolute rounded-full text-xl";
   const cButton = "absolute size-11 rounded-full landscape:size-10 [&_svg]:size-5";
   const cButtons = [
@@ -352,35 +392,51 @@ function N64Controls({ input, fastForward, scale }: ControlsProps) {
   ] as const;
 
   return (
-    <div className={cn(controlsBody, scaled, "relative")} style={padScaleStyle(scale)} onContextMenu={(event) => event.preventDefault()}>
-      <Side className="landscape:gap-2">
-        <GameButton label="L" button={buttons.l} press={press} hold={hold} part="shoulder" className={n64Shoulder} />
-        <Stick input={input} />
-        <Dpad press={press} hold={hold} className="size-24" />
-        <PauseMenuButton input={input} />
-      </Side>
-      <div className="pointer-events-auto absolute bottom-[max(1.5rem,env(safe-area-inset-bottom))] left-1/2 -translate-x-1/2">
-        <GameButton label="Start" button={buttons.start} press={press} hold={hold} part="pill" className={small} />
+    <AnalogControls input={input} scale={scale} press={press} hold={hold} l={buttons.l}>
+      <GameButton label="R" button={buttons.r} press={press} hold={hold} part="shoulder" className={analogShoulder} />
+      <div className="relative h-28 w-36 landscape:h-24">
+        <GameButton label="Z" button={n64Buttons.z} press={press} hold={hold} part="face" tint="z" className={cn(face, "top-0 right-1.5 size-11 text-base landscape:size-10")} />
+        <GameButton label="B" button={n64Buttons.b} press={press} hold={hold} part="face" tint="b" className={cn(face, "top-6 left-2 size-14")} />
+        <GameButton label="A" button={n64Buttons.a} press={press} hold={hold} part="face" tint="a" className={cn(face, "right-0 bottom-0 size-14")} />
       </div>
-      <Side className="landscape:gap-2">
-        <GameButton label="R" button={buttons.r} press={press} hold={hold} part="shoulder" className={n64Shoulder} />
-        <div className="relative h-28 w-36 landscape:h-24">
-          <GameButton label="Z" button={n64Buttons.z} press={press} hold={hold} part="face" tint="z" className={cn(face, "top-0 right-1.5 size-11 text-base landscape:size-10")} />
-          <GameButton label="B" button={n64Buttons.b} press={press} hold={hold} part="face" tint="b" className={cn(face, "top-6 left-2 size-14")} />
-          <GameButton label="A" button={n64Buttons.a} press={press} hold={hold} part="face" tint="a" className={cn(face, "right-0 bottom-0 size-14")} />
-        </div>
-        <div className="relative size-28 landscape:size-26">
-          {cButtons.map(([label, button, place, arrow]) => (
-            <GameButton key={label} label={label} button={button} press={press} hold={hold} part="c" className={cn(cButton, place)}>
-              {arrow}
-            </GameButton>
-          ))}
-        </div>
-        <div className="flex gap-2">
-          <ModeButtons hold={hold} fastForward={fastForward} />
-        </div>
-      </Side>
-    </div>
+      <div className="relative size-28 landscape:size-26">
+        {cButtons.map(([label, button, place, arrow]) => (
+          <GameButton key={label} label={label} button={button} press={press} hold={hold} part="c" className={cn(cButton, place)}>
+            {arrow}
+          </GameButton>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <ModeButtons hold={hold} fastForward={fastForward} />
+      </div>
+    </AnalogControls>
+  );
+}
+
+function GcControls({ input, fastForward, scale }: ControlsProps) {
+  const press = usePress(input);
+  const hold = useHold(input);
+  const face = "absolute rounded-full";
+
+  return (
+    <AnalogControls input={input} scale={scale} press={press} hold={hold} l={gcButtons.l}>
+      {/* Above R as on the pad, but beside it in landscape, where the column would outgrow a short screen. */}
+      <div className="relative flex items-center gap-2">
+        <GameButton label="Z" button={gcButtons.z} press={press} hold={hold} part="face" tint="z" className="absolute right-2.5 bottom-full mb-2 h-8 w-16 rounded-full text-sm landscape:static landscape:mb-0 landscape:w-12" />
+        <GameButton label="R" button={gcButtons.r} press={press} hold={hold} part="shoulder" className={analogShoulder} />
+      </div>
+      {/* X and Y tuck under A, so A's rim cuts the pad's kidney shapes into them. */}
+      <div className="relative size-36">
+        <GameButton label="Y" button={gcButtons.y} press={press} hold={hold} part="face" tint="xy" className={cn(face, "top-2 left-5 h-12 w-18 pb-2 text-sm")} />
+        <GameButton label="X" button={gcButtons.x} press={press} hold={hold} part="face" tint="xy" className={cn(face, "top-8 left-22 h-18 w-12 pl-3 text-sm")} />
+        <GameButton label="B" button={gcButtons.b} press={press} hold={hold} part="face" tint="b" className={cn(face, "top-26 left-0 size-10 text-base")} />
+        <GameButton label="A" button={gcButtons.a} press={press} hold={hold} part="face" tint="a" className={cn(face, "top-12 left-9 size-16 text-xl")} />
+      </div>
+      <Stick input={input} label="C-stick" side="right" className="size-20 landscape:size-16" knobClassName="size-9" tint="c" />
+      <div className="flex gap-2">
+        <ModeButtons hold={hold} fastForward={fastForward} />
+      </div>
+    </AnalogControls>
   );
 }
 
@@ -430,11 +486,17 @@ function Controls({ input, system, fastForward, scale }: ControlsProps) {
   );
 }
 
+function SystemControls(props: ControlsProps) {
+  if (props.system === "n64") return <N64Controls {...props} />;
+  if (props.system === "gc") return <GcControls {...props} />;
+  return <Controls {...props} />;
+}
+
 export function TouchControls({ input, system, fastForward }: { input: Input; system: System; fastForward: FastForward }) {
   const scale = usePadScale();
   if (!useTouchControlsShown(input)) return null;
   const props = { input, system, fastForward, scale };
-  return system === "n64" ? <N64Controls {...props} /> : <Controls {...props} />;
+  return <SystemControls {...props} />;
 }
 
 const stillFastForward: FastForward = { on: false, speed: 1, toggle() {} };
@@ -445,7 +507,7 @@ export function StillTouchControls({ system, scale = 1 }: { system: System; scal
   const props = { input, system, fastForward: stillFastForward, scale };
   return (
     <div inert className="contents">
-      {system === "n64" ? <N64Controls {...props} /> : <Controls {...props} />}
+      <SystemControls {...props} />
     </div>
   );
 }

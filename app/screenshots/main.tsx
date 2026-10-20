@@ -111,7 +111,7 @@ function frame(width: number, height: number) {
 
 async function playingCommand(command: string, args: Record<string, unknown>) {
   if (command === "play") {
-    const sizes: Record<string, number[]> = { "playing-gb": [160, 144], "playing-gbc": [160, 144], "playing-nds": [256, 384], "playing-n64": [640, 480], "playing-3ds": [400, 480] };
+    const sizes: Record<string, number[]> = { "playing-gb": [160, 144], "playing-gbc": [160, 144], "playing-nds": [256, 384], "playing-n64": [640, 480], "playing-3ds": [400, 480], "playing-gc": [640, 480] };
     const size = sizes[params.get("screen")!] ?? [240, 160];
     callbacks.get((args.onFrame as { id: number }).id)?.({ index: 0, message: frame(size[0], size[1]) });
     return 60;
@@ -175,6 +175,7 @@ const preferences: Preferences = {
   screenDepth: !playing || forcedShift,
   screenGlass: playing ? params.get("glass") === "on" : params.get("glass") !== "off",
   asyncShaders: true,
+  gameCubeResolution: 1,
 };
 
 const welcome = params.get("screen")?.startsWith("welcome") ?? false;
@@ -297,6 +298,7 @@ const pageGames: Record<System, Game> = {
   nds: { system: "nds", name: "Platinum", path: "nds/Platinum.nds" },
   n64: { system: "n64", name: "Stadium", path: "n64/Stadium.z64" },
   "3ds": { system: "3ds", name: "PKSM", path: "3ds/PKSM.3dsx" },
+  gc: { system: "gc", name: "Colosseum", path: "gc/Colosseum.iso" },
 };
 const gamePageHost = ({ withArt = false, screenshot = lastScreen } = {}): GamePageHost => ({
   hasResumeState: async () => withArt,
@@ -628,7 +630,7 @@ const screens: Record<string, () => ReactNode> = {
     }),
   ),
   ...Object.fromEntries(
-    (["gb", "gbc", "gba", "nds", "n64", "3ds"] as const).map((system) => [
+    (["gb", "gbc", "gba", "nds", "n64", "3ds", "gc"] as const).map((system) => [
       `playing-${system}`,
       () => (
         <FastForwardOn>

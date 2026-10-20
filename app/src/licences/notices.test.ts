@@ -77,6 +77,14 @@ it("credits melonDS under GPL-3.0-or-later as modified, with a link to the patch
   expect(melonDs?.source).toBe("https://github.com/pkhex-web/melonDS/tree/pkh-emu");
 });
 
+it("credits Dolphin under GPL-2.0-or-later as modified, with a link to the patched source", () => {
+  const dolphin = notices.core.find(({ name }) => name === "Dolphin");
+
+  expect(dolphin?.licence).toBe("GPL-2.0-or-later");
+  expect(dolphin?.version).toMatch(/^\d+, modified$/);
+  expect(dolphin?.source).toBe("https://github.com/pkhex-web/dolphin/tree/pkh-emu");
+});
+
 it("credits mGBA under MPL-2.0 as modified, with a link to the patched source", () => {
   const mgba = notices.core.find(({ name }) => name === "mGBA");
 

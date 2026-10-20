@@ -58,7 +58,7 @@ use std::sync::{Arc, Mutex};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter, Manager, Runtime, State};
 
-const SYSTEMS: [&str; 6] = ["gb", "gbc", "gba", "nds", "n64", "3ds"];
+const SYSTEMS: [&str; 7] = ["gb", "gbc", "gba", "nds", "n64", "3ds", "gc"];
 const ROM_EXTENSIONS: [&str; 9] = ["gb", "gbc", "gba", "nds", "z64", "n64", "v64", "zip", "7z"];
 const RETRIES: usize = 8;
 const FIRST_RETRY: Duration = Duration::from_secs(1);
@@ -371,6 +371,7 @@ fn is_rom(entry: &DirEntry) -> bool {
                 && ROM_EXTENSIONS
                     .iter()
                     .chain(&rom::THREE_DS_EXTENSIONS)
+                    .chain(&rom::GAMECUBE_EXTENSIONS)
                     .any(|known| extension.eq_ignore_ascii_case(known))
         })
 }

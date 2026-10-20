@@ -1,12 +1,14 @@
 # Memory snapshots
 
-Each file holds the RAM ranges `readFacts` reads, at one moment of play, and nothing else. They come from save states we made with the cores pkh-emu ships, on our own saves or on the public test saves credited below. mGBA's state keeps IWRAM at offset `0x19000` and EWRAM at `0x21000`, so a range at `0x0300xxxx` or `0x0200xxxx` is copied from there. DS ranges come from melonDS DS's 4 MB of main RAM at `0x02000000`.
+Each file holds the RAM ranges `readFacts` reads, at one moment of play, and nothing else. They come from save states we made with the cores pkh-emu ships, on our own saves or on the public test saves credited below. mGBA's state keeps IWRAM at offset `0x19000` and EWRAM at `0x21000`, so a range at `0x0300xxxx` or `0x0200xxxx` is copied from there. DS ranges come from melonDS DS's 4 MB of main RAM at `0x02000000`, and GameCube ranges from Dolphin's 24 MB at `0x80000000`.
 
 | Snapshot | Moment |
 |---|---|
 | `black-overworld` | Route 1, on Black with the White save |
 | `black-wild` | Wild Lillipup on Route 1 |
 | `black-after-battle` | Back on Route 1 after running from the Lillipup |
+| `colosseum-menu` | Asked to start a new story after a fresh boot, with the starter party |
+| `colosseum-overworld` | The Outskirt Stand diner at the start of a new story |
 | `diamond-overworld` | Route 201, six Pokémon in the party |
 | `diamond-wild` | Wild Starly on Route 201 |
 | `diamond-after-battle` | Back on Route 201 after running from the Starly |
@@ -50,5 +52,7 @@ Each file holds the RAM ranges `readFacts` reads, at one moment of play, and not
 | `black2-overworld` | Route 20, on Black 2 with the White 2 save |
 | `black2-wild` | Wild Patrat on Route 20 |
 | `black2-after-battle` | Back on Route 20 after running from the Patrat |
+| `xd-overworld` | The HQ lab at the start of a new story |
+| `xd-title` | The title screen after a fresh boot, with the starter party |
 
 The Ruby and Sapphire snapshots start from the test saves in [codemonkey85/PKMDS-Blazor](https://github.com/codemonkey85/PKMDS-Blazor) `TestFiles/`. The Platinum, SoulSilver, White, Black, White 2 and Black 2 ones start from saves in [ExtraBytez/Pokemon](https://github.com/ExtraBytez/Pokemon). Black loads the White save and Black 2 the White 2 one, since each pair shares its save format.

@@ -56,10 +56,16 @@ it("picks the renderer automatically until the player chooses", () => {
   for (const hosts of Object.values(hostSets)) expect(hosts.defaultPreferences.renderer).toBe("automatic");
 });
 
-it("turns fewer 3DS freezes on everywhere it's offered", () => {
+it("turns fewer freezes in 3D games on everywhere it's offered", () => {
   expect(androidHosts.defaultPreferences.asyncShaders).toBe(true);
   expect(desktopHosts.defaultPreferences.asyncShaders).toBe(true);
   expect(iosHosts.defaultPreferences.asyncShaders).toBe(true);
+});
+
+it("renders GameCube games at native resolution on phones and at 2× on macOS", () => {
+  expect(androidHosts.defaultPreferences.gameCubeResolution).toBe(1);
+  expect(iosHosts.defaultPreferences.gameCubeResolution).toBe(1);
+  expect(desktopHosts.defaultPreferences.gameCubeResolution).toBe(2);
 });
 
 it.each([

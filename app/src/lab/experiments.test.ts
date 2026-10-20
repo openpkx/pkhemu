@@ -12,6 +12,10 @@ it("offers the demo game, on by default", () => {
   expect(experiment("demoGame")?.values[0]).toBe("on");
 });
 
+it("has no GameCube experiment", () => {
+  expect(experiment("gameCube")).toBeUndefined();
+});
+
 it("leaves 3DS async shaders to Settings", () => {
   expect(experiment("asyncShaders")).toBeUndefined();
 });

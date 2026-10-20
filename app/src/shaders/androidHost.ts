@@ -8,5 +8,5 @@ export const androidShadersHost: ShadersHost = {
       (renderer) => renderer === "Vulkan",
       () => false,
     ),
-  onLine: "New scenes load without freezing, but the game may run slower for a few seconds.",
+  onLine: "New scenes load without freezing, but the game may run slower or flicker for a few seconds.",
 };

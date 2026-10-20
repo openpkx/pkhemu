@@ -17,7 +17,7 @@ import { Toast, useToast } from "@/components/Toast";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { WithSkeleton } from "@/components/WithSkeleton";
-import { BoxesSection, PartySection, PokemonSlot, useStadium } from "@/editor/saveHome";
+import { BoxesSection, PartySection, PokemonSlot, useHasParty } from "@/editor/saveHome";
 import type { SaveSummaryHost } from "@/game-page/saveSummary";
 import { findUnsavedPlay, UnsavedResumeDialog, type ResumeCheckHost, type UnsavedPlay } from "@/game-page/unsavedResume";
 import { inTurn } from "@/lib/engineTurn";
@@ -58,6 +58,7 @@ const refusals: Record<TransferRefusal, (names: Names, pokemon: PokemonSummary) 
   conversionFailed: ({ destination }) => `${destination} can't take this Pokémon`,
   fused: ({ destination }, pokemon) => `Separate ${pokemon.species} before sending it to ${destination}`,
   holdingItem: ({ destination }, pokemon) => `Take ${pokemon.species}'s held item before sending it to ${destination}`,
+  shadow: (_, pokemon) => `Purify ${pokemon.species} before trading it`,
 };
 
 const saveName = (game: Game) => `${game.path.slice(game.path.lastIndexOf("/") + 1).replace(/\.[^.]+$/, "")}.sav`;
@@ -208,10 +209,10 @@ function MySlots({ slot }: { slot(pokemon: PokemonSummary): ReactNode }) {
   const { party } = useParty();
   const { box } = useBox();
   const boxNumbers = useQuery("box.list").map((entry) => entry.box);
-  const stadium = useStadium();
+  const hasParty = useHasParty();
   return (
     <>
-      {!stadium && <PartySection party={party} slot={slot} />}
+      {hasParty && <PartySection party={party} slot={slot} />}
       <BoxesSection box={box} boxNumbers={boxNumbers} slot={slot} />
     </>
   );

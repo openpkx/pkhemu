@@ -35,7 +35,9 @@ export type SaveSummaryHost = SummaryCacheHost &
   };
 
 // Bump when an engine update changes what a summary holds, so cached summaries are made again.
-export const summaryRevision = 4;
+export const summaryRevision = 5;
+
+export const boxRubySapphire = 61;
 
 export const genderSymbols = { male: "♂", female: "♀" };
 
@@ -90,8 +92,11 @@ async function summarise(
       version: version?.version ?? null,
       formatId: version?.formatId ?? null,
       generation: version?.generationId ?? null,
-      // A Stadium save has no single trainer, yet the engine still answers with a placeholder name and money.
-      trainer: teams.length ? null : { id: trainer.id, name: trainer.name, gender: trainer.gender, money: trainer.money },
+      // Stadium and Box saves have no single trainer, yet the engine still answers with a placeholder name and money.
+      trainer:
+        teams.length || version?.versionId === boxRubySapphire
+          ? null
+          : { id: trainer.id, name: trainer.name, gender: trainer.gender, money: trainer.money },
       party: party.map(({ speciesId, speciesIndex, species, isUnknown, isShiny, gender, isEgg, types, level, form }) => ({
         speciesId,
         speciesIndex,

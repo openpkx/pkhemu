@@ -51,3 +51,7 @@
 [submodule "vendor/rcheevos"]
 	path = vendor/rcheevos
 	url = https://github.com/RetroAchievements/rcheevos
+[submodule "vendor/dolphin"]
+	path = vendor/dolphin
+	url = https://github.com/pkhex-web/dolphin
+	branch = pkh-emu

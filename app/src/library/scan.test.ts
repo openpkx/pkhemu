@@ -41,6 +41,23 @@ it("finds DS games, plain and zipped, in the nds folder", async () => {
   ]);
 });
 
+it("finds GameCube discs in the gc folder", async () => {
+  const listDir = fakeFolder(["gc/Colosseum.iso", "gc/XD.rvz", "gc/Box.gcm", "gc/Channel.ciso", "gc/Pinball.gcz", "gb/Red.gb"]);
+
+  const library = await scanLibrary(listDir);
+
+  expect(library.sections[1]).toEqual({
+    system: "gc",
+    games: [
+      { system: "gc", name: "Box", path: "gc/Box.gcm" },
+      { system: "gc", name: "Channel", path: "gc/Channel.ciso" },
+      { system: "gc", name: "Colosseum", path: "gc/Colosseum.iso" },
+      { system: "gc", name: "Pinball", path: "gc/Pinball.gcz" },
+      { system: "gc", name: "XD", path: "gc/XD.rvz" },
+    ],
+  });
+});
+
 it("finds 3DS games in the 3ds folder", async () => {
   const listDir = fakeFolder(["3ds/PKSM.3dsx", "3ds/X.3ds", "3ds/Y.cci", "3ds/Sun.cxi", "3ds/Moon.app", "gb/Red.gb"]);
 

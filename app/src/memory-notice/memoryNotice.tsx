@@ -21,7 +21,7 @@ export type MemoryNoticeHost = {
   missingEntitlements(): Promise<Entitlement[]>;
 };
 
-const needsMemory: readonly System[] = ["3ds"];
+const needsMemory: readonly System[] = ["3ds", "gc"];
 
 const names: Record<Entitlement, string> = {
   "extended-virtual-addressing": "extended virtual addressing",

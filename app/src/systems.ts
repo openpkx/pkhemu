@@ -1,4 +1,4 @@
-export const systems = ["gb", "gbc", "gba", "nds", "n64", "3ds"] as const;
+export const systems = ["gb", "gbc", "gba", "nds", "n64", "3ds", "gc"] as const;
 
 export type System = (typeof systems)[number];
 
@@ -9,6 +9,7 @@ export const systemNames: Record<System, string> = {
   nds: "Nintendo DS",
   n64: "Nintendo 64",
   "3ds": "Nintendo 3DS",
+  gc: "Nintendo GameCube",
 };
 
 type ThemeColors = { chip: string; chipText: string; pattern: string };
@@ -45,6 +46,11 @@ export const systemColors: Record<System, { dark: ThemeColors; light: ThemeColor
     light: { chip: "#d3f2ed", chipText: "#0f5a50", pattern: "#23a08f" },
     hero: "#06332f",
   },
+  gc: {
+    dark: { chip: "#212b52", chipText: "#b9c7ff", pattern: "#5b7bff" },
+    light: { chip: "#e0e6ff", chipText: "#2f4ab8", pattern: "#3a5ce9" },
+    hero: "#121c47",
+  },
 };
 
 export type HandheldWindow = { depth: number };
@@ -62,4 +68,5 @@ export const handheld: Partial<Record<System, HandheldDisplay>> = {
   nds: twoWindows,
   n64: oneWindow,
   "3ds": twoWindows,
+  gc: oneWindow,
 };

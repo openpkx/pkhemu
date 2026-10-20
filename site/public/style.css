@@ -154,6 +154,7 @@ h1 {
 .nds { background: #14304a; color: #9fd8fa; }
 .n64 { background: #3d1518; color: #f5a3a8; }
 .n3ds { background: #103a36; color: #8fe3d6; }
+.gc { background: #212b52; color: #b9c7ff; }
 
 .actions {
   display: flex;

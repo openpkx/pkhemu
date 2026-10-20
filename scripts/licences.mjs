@@ -28,6 +28,14 @@ const azaharPinned = (dep, repo) => {
   return `https://github.com/${repo}/tree/${commit}`;
 };
 
+const dolphinRelease = readFileSync(path("vendor/dolphin/CMake/ScmRevGen.cmake"), "utf8").match(/DOLPHIN_VERSION_MAJOR "(\d+)"/)[1];
+const dolphinCommit = run("git", ["-C", path("vendor/dolphin"), "rev-parse", "HEAD"]).trim();
+const dolphin = `https://github.com/pkhex-web/dolphin/tree/${dolphinCommit}`;
+const dolphinPinned = (dep, repo, host = "https://github.com") => {
+  const commit = run("git", ["-C", path(`vendor/dolphin/Externals/${dep}`), "rev-parse", "HEAD"]).trim();
+  return `${host}/${repo}/tree/${commit}`;
+};
+
 const rcheevosRelease = run("git", ["-C", path("vendor/rcheevos"), "describe", "--tags", "--abbrev=0"]).trim();
 const rcheevos = `https://github.com/RetroAchievements/rcheevos/tree/${rcheevosRelease}`;
 
@@ -35,8 +43,8 @@ const moltenVkRelease = readFileSync(path("app/src-tauri/build.rs"), "utf8").mat
 const moltenVk = `https://github.com/KhronosGroup/MoltenVK/tree/v${moltenVkRelease}`;
 
 // Only the parts of mGBA that core/CMakeLists.txt compiles in, what melonDS DS's CMake bundles,
-// what build.rs compiles into Mupen64Plus-Next, what Azahar's libretro core links, what Khronos links into MoltenVK
-// and rcheevos.
+// what build.rs compiles into Mupen64Plus-Next, what Azahar's and Dolphin's libretro cores link, what Khronos links
+// into MoltenVK and rcheevos.
 const core = [
   {
     name: "mGBA",
@@ -130,6 +138,62 @@ const core = [
     name: "libretro-common (Azahar)",
     licence: "MIT",
     source: azaharPinned("libretro-common/libretro-common", "libretro/libretro-common"),
+  },
+  {
+    name: "Dolphin",
+    version: `${dolphinRelease}, modified`,
+    licence: "GPL-2.0-or-later",
+    source: "https://github.com/pkhex-web/dolphin/tree/pkh-emu",
+  },
+  { name: "bzip2", licence: "bzip2-1.0.6", source: dolphinPinned("bzip2/bzip2", "bzip2/bzip2/-", "https://gitlab.com") },
+  { name: "cpp-optparse", licence: "MIT", source: dolphinPinned("cpp-optparse/cpp-optparse", "weisslj/cpp-optparse") },
+  { name: "curl", licence: "curl", source: dolphinPinned("curl/curl", "curl/curl") },
+  { name: "Dear ImGui", licence: "MIT", source: dolphinPinned("imgui/imgui", "ocornut/imgui") },
+  { name: "ENet (Dolphin)", licence: "MIT", source: dolphinPinned("enet/enet", "lsalzman/enet") },
+  { name: "expr", licence: "MIT", source: `${dolphin}/Externals/expr` },
+  { name: "FatFs", licence: "BSD-1-Clause", source: `${dolphin}/Externals/FatFs` },
+  { name: "fmt (Dolphin)", licence: "MIT", source: dolphinPinned("fmt/fmt", "fmtlib/fmt") },
+  { name: "FreeSurround", licence: "GPL-2.0-or-later", source: `${dolphin}/Externals/FreeSurround` },
+  { name: "glslang (Dolphin)", licence: "BSD-3-Clause", source: dolphinPinned("glslang/glslang", "KhronosGroup/glslang") },
+  { name: "HIDAPI", licence: "BSD-3-Clause", source: dolphinPinned("hidapi/hidapi-src", "libusb/hidapi") },
+  { name: "ImPlot", licence: "MIT", source: dolphinPinned("implot/implot", "epezent/implot") },
+  { name: "libadrenotools", licence: "BSD-2-Clause", source: dolphinPinned("libadrenotools", "bylaws/libadrenotools") },
+  {
+    name: "liblinkernsbypass",
+    licence: "BSD-2-Clause",
+    source: dolphinPinned("libadrenotools/lib/linkernsbypass", "bylaws/liblinkernsbypass"),
+  },
+  { name: "GNU libiconv", licence: "LGPL-2.1-or-later", source: `${dolphin}/Externals/libiconv` },
+  { name: "liblzma", licence: "LicenseRef-Public-Domain", source: `${dolphin}/Externals/liblzma` },
+  {
+    name: "libretro-common (Dolphin)",
+    licence: "MIT",
+    source: `${dolphin}/Externals/libretro-common`,
+  },
+  { name: "libspng", licence: "BSD-2-Clause", source: dolphinPinned("libspng/libspng", "randy408/libspng") },
+  { name: "libusb", licence: "LGPL-2.1-or-later", source: dolphinPinned("libusb/libusb", "libusb/libusb") },
+  { name: "LZ4", licence: "BSD-2-Clause", source: dolphinPinned("lz4/lz4", "lz4/lz4") },
+  { name: "LZO", licence: "GPL-2.0-or-later", source: `${dolphin}/Externals/LZO` },
+  { name: "Mbed TLS", licence: "Apache-2.0", source: `${dolphin}/Externals/mbedtls` },
+  { name: "mGBA (Dolphin)", licence: "MPL-2.0", source: dolphinPinned("mGBA/mgba", "mgba-emu/mgba") },
+  { name: "minizip-ng", licence: "Zlib", source: dolphinPinned("minizip-ng/minizip-ng", "zlib-ng/minizip-ng") },
+  { name: "PicoJSON", licence: "BSD-2-Clause", source: `${dolphin}/Externals/picojson` },
+  { name: "pugixml", licence: "MIT", source: dolphinPinned("pugixml/pugixml", "zeux/pugixml") },
+  { name: "SFML", licence: "Zlib", source: dolphinPinned("SFML/SFML", "SFML/SFML") },
+  { name: "TinyGLTF", licence: "MIT", source: dolphinPinned("tinygltf/tinygltf", "syoyo/tinygltf") },
+  {
+    name: "Vulkan Memory Allocator (Dolphin)",
+    licence: "MIT",
+    source: dolphinPinned("VulkanMemoryAllocator", "GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator"),
+  },
+  { name: "Vulkan-Headers (Dolphin)", licence: "Apache-2.0", source: dolphinPinned("Vulkan-Headers", "KhronosGroup/Vulkan-Headers") },
+  { name: "watcher", licence: "MIT", source: dolphinPinned("watcher/watcher", "e-dant/watcher") },
+  { name: "xxHash (Dolphin)", licence: "BSD-2-Clause", source: dolphinPinned("xxhash/xxHash", "Cyan4973/xxHash") },
+  { name: "zlib-ng", licence: "Zlib", source: dolphinPinned("zlib-ng/zlib-ng", "zlib-ng/zlib-ng") },
+  {
+    name: "Zstandard (Dolphin)",
+    licence: "BSD-3-Clause OR GPL-2.0-only",
+    source: dolphinPinned("zstd/zstd", "facebook/zstd"),
   },
   { name: "MoltenVK", version: moltenVkRelease, licence: "Apache-2.0", source: moltenVk },
   { name: "SPIRV-Cross", licence: "Apache-2.0", source: `${moltenVk}/ExternalRevisions` },

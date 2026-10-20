@@ -99,3 +99,12 @@ it("summarises a Stadium save again when its summary is cached under an older re
 
   expect(summary).toMatchObject({ revision: summaryRevision, trainer: null });
 });
+
+it("summarises a Box save without a trainer", async () => {
+  const { engine } = fakeEngine({ version: "Box Ruby & Sapphire", versionId: 61 });
+  const host = { saveSummary: vi.fn(async () => null), keepSaveSummary: vi.fn(async () => {}) };
+
+  const summary = await summaryOf(engine, host, "sha", async () => new Uint8Array([1]), () => true);
+
+  expect(summary).toMatchObject({ version: "Box Ruby & Sapphire", trainer: null });
+});

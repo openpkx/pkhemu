@@ -74,6 +74,7 @@ const screens = [
   "playing-nds",
   "playing-n64",
   "playing-3ds",
+  "playing-gc",
   "skin-picker-gb",
   "skin-picker-gbc",
   "skin-picker-gba",
@@ -115,6 +116,7 @@ const lightSkins = {
   "playing-nds": "polar-white",
   "playing-n64": "gold",
   "playing-3ds": "polar-white",
+  "playing-gc": "platinum",
 };
 const freeSkins = {
   "playing-gb": "classic-grey",
@@ -123,6 +125,7 @@ const freeSkins = {
   "playing-nds": "polar-white",
   "playing-n64": "charcoal",
   "playing-3ds": "polar-white",
+  "playing-gc": "pkhemu",
 };
 const skinShots = (screen) =>
   [...new Set([lightSkins[screen], freeSkins[screen]])]

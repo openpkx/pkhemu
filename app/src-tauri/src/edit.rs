@@ -1,7 +1,7 @@
 use crate::backups::{self, Reason};
 use crate::games_folder::GamesFolder;
 use crate::retro::Core;
-use crate::save::{self, three_ds::Main, Slot, Watch};
+use crate::save::{self, game_cube::Card, three_ds::Main, Slot, Watch};
 use crate::resume;
 use tauri::Runtime;
 
@@ -28,6 +28,21 @@ impl Cart for Core {
 
     fn reset(&mut self) {
         Core::reset(self)
+    }
+}
+
+pub trait Reboot: Cart {
+    fn reboot<T>(&mut self, between: impl FnOnce() -> T) -> Result<T, String>;
+    fn unserialize(&mut self, state: &[u8]) -> bool;
+}
+
+impl Reboot for Core {
+    fn reboot<T>(&mut self, between: impl FnOnce() -> T) -> Result<T, String> {
+        Core::reboot(self, between)
+    }
+
+    fn unserialize(&mut self, state: &[u8]) -> bool {
+        Core::unserialize(self, state)
     }
 }
 
@@ -79,6 +94,45 @@ pub fn apply_main(
     cart.reset();
     let flushed = watch.flush([main.bytes(), &[]]);
     Ok((Undo { state, save, watch: before }, flushed))
+}
+
+// Dolphin reads its memory card only as the game boots, so the edited card goes in place while the game boots again.
+pub fn apply_card(
+    cart: &mut impl Reboot,
+    card: &mut Card,
+    watch: &mut Watch,
+    edited: &[u8],
+    back_up: impl FnOnce(&[u8]) -> Result<(), String>,
+) -> Result<(Undo, Vec<u8>), String> {
+    let size = card.read().save().len();
+    if edited.len() != size {
+        return Err(format!("the edited card is {} bytes, but the game's is {size}", edited.len()));
+    }
+    let state = cart.serialize().ok_or("the core couldn't save its state")?;
+    let before = watch.clone();
+    let placed = cart.reboot(|| -> Result<Vec<u8>, String> {
+        // Dolphin has just written the card as it unloaded, with any save from the last 15 seconds.
+        let save = card.read().concat();
+        back_up(&save).map_err(|e| format!("couldn't back up the save: {e}"))?;
+        card.place(Some(edited)).map_err(|e| format!("couldn't write the save: {e}"))?;
+        Ok(save)
+    })?;
+    let save = placed.inspect_err(|_| {
+        if !cart.unserialize(&state) {
+            eprintln!("the core couldn't go back to the state from before the edit");
+        }
+    })?;
+    let flushed = watch.flush(card.read());
+    Ok((Undo { state, save, watch: before }, flushed))
+}
+
+pub fn undo_card(cart: &mut impl Reboot, card: &mut Card, watch: &mut Watch, before: Undo) -> Result<Vec<u8>, String> {
+    cart.reboot(|| card.place(Some(&before.save)))?.map_err(|e| format!("couldn't write the save back: {e}"))?;
+    *watch = before.watch;
+    if !cart.unserialize(&before.state) {
+        return Err("the core couldn't load the state from before the edit".into());
+    }
+    Ok(before.save)
 }
 
 #[derive(serde::Deserialize)]
@@ -438,6 +492,112 @@ mod tests {
 
         assert_eq!(std::fs::read(&cart.main).unwrap(), pattern(size, 1));
         assert_eq!(cart.at_reset, None);
+    }
+
+    struct GameCube {
+        card: std::path::PathBuf,
+        written_at_unload: Option<Vec<u8>>,
+        at_boot: Option<Vec<u8>>,
+        loaded: Option<Vec<u8>>,
+    }
+
+    impl Cart for GameCube {
+        fn save_memory(&mut self) -> [&mut [u8]; 2] {
+            [&mut [], &mut []]
+        }
+
+        fn serialize(&mut self) -> Option<Vec<u8>> {
+            Some(b"state".to_vec())
+        }
+
+        fn reset(&mut self) {
+            panic!("Dolphin keeps the card it booted with through a reset");
+        }
+    }
+
+    impl Reboot for GameCube {
+        fn reboot<T>(&mut self, between: impl FnOnce() -> T) -> Result<T, String> {
+            if let Some(card) = self.written_at_unload.take() {
+                std::fs::write(&self.card, card).unwrap();
+            }
+            let done = between();
+            self.at_boot = std::fs::read(&self.card).ok();
+            Ok(done)
+        }
+
+        fn unserialize(&mut self, state: &[u8]) -> bool {
+            self.loaded = Some(state.to_vec());
+            true
+        }
+    }
+
+    fn game_cube(name: &str) -> (GameCube, Card) {
+        use crate::save::game_cube::tests::{card_path, SIZE};
+        let path = card_path(&format!("edit-{name}"));
+        let mut card = Card::at(path.clone());
+        card.place(Some(&pattern(SIZE, 1))).unwrap();
+        (GameCube { card: path, written_at_unload: None, at_boot: None, loaded: None }, card)
+    }
+
+    #[test]
+    fn boots_a_gamecube_game_again_with_the_edited_card_and_backs_up_the_card_dolphin_wrote_as_it_unloaded() {
+        let (mut cart, mut card) = game_cube("apply");
+        let mut watch = Watch::new();
+        watch.after_frame(|| card.refresh());
+        let size = card.read().save().len();
+        cart.written_at_unload = Some(pattern(size, 2));
+        let edited = pattern(size, 7);
+        let mut backup = None;
+
+        let (undo, flushed) = apply_card(&mut cart, &mut card, &mut watch, &edited, |save| {
+            backup = Some(save.to_vec());
+            Ok(())
+        })
+        .unwrap();
+
+        assert_eq!(cart.at_boot.as_deref(), Some(edited.as_slice()));
+        assert_eq!(flushed, edited);
+        assert_eq!(backup, Some(pattern(size, 2)));
+        assert_eq!((undo.state, undo.save), (b"state".to_vec(), pattern(size, 2)));
+        assert_eq!(watch.check(card.refresh()), None);
+    }
+
+    #[test]
+    fn leaves_a_gamecube_card_alone_when_the_edit_is_the_wrong_size() {
+        let (mut cart, mut card) = game_cube("refused");
+        let size = card.read().save().len();
+
+        assert!(apply_card(&mut cart, &mut card, &mut Watch::new(), &pattern(size + 1, 7), no_backup).is_err());
+
+        assert_eq!(cart.at_boot, None);
+        assert_eq!(card.read().concat(), pattern(size, 1));
+    }
+
+    #[test]
+    fn keeps_the_gamecube_card_it_had_when_the_backup_fails() {
+        let (mut cart, mut card) = game_cube("no-backup");
+        let size = card.read().save().len();
+
+        let applied =
+            apply_card(&mut cart, &mut card, &mut Watch::new(), &pattern(size, 7), |_| Err("disk full".into()));
+
+        assert!(applied.is_err());
+        assert_eq!(cart.at_boot, Some(pattern(size, 1)));
+        assert_eq!(cart.loaded.as_deref(), Some(&b"state"[..]));
+    }
+
+    #[test]
+    fn undoing_a_gamecube_edit_boots_with_the_card_from_before_and_loads_the_state_from_before() {
+        let (mut cart, mut card) = game_cube("undo");
+        let size = card.read().save().len();
+        let mut watch = Watch::new();
+        let (undo, _) = apply_card(&mut cart, &mut card, &mut watch, &pattern(size, 7), no_backup).unwrap();
+
+        let flushed = undo_card(&mut cart, &mut card, &mut watch, undo).unwrap();
+
+        assert_eq!(flushed, pattern(size, 1));
+        assert_eq!(cart.at_boot, Some(pattern(size, 1)));
+        assert_eq!(cart.loaded.as_deref(), Some(&b"state"[..]));
     }
 
     fn temp_folder(name: &str) -> GamesFolder<'static, tauri::Wry> {

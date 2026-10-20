@@ -11,7 +11,7 @@ import {
   type RawInput,
   type StandardButton,
 } from "./calibration";
-import { centred, clampToCircle, tilt, toAxis, type Analog } from "./stick";
+import { centred, clampToCircle, releasedTriggers, tilt, toAxis, type Analog, type Triggers } from "./stick";
 
 export const buttons = {
   b: 0,
@@ -27,6 +27,7 @@ export const buttons = {
   l: 10,
   r: 11,
   l2: 12,
+  r2: 13,
 } as const;
 
 // The keyboard's stick sits past the RetroPad's 16 bits and reaches the core as the left stick.
@@ -47,6 +48,19 @@ export const n64Buttons = {
   stickLeft: stickButtons.left,
   stickRight: stickButtons.right,
 } as const;
+
+// Dolphin reads the RetroPad's R as Z, and L2 and R2 as full presses of L and R. Pads also send how far each is pulled.
+export const gcButtons = {
+  a: buttons.a,
+  b: buttons.b,
+  x: buttons.x,
+  y: buttons.y,
+  z: buttons.r,
+  l: buttons.l2,
+  r: buttons.r2,
+} as const;
+
+export type StickSide = "left" | "right";
 
 export const connectedGamepads = () => navigator.getGamepads?.() ?? [];
 
@@ -92,6 +106,22 @@ const n64KeyButtons: Record<string, number> = {
   KeyS: buttons.r,
   Enter: buttons.start,
   ...n64CAndDpadKeys,
+};
+
+const gcCStickDpadAndZKeys: Record<string, number> = { ...n64CAndDpadKeys, KeyD: gcButtons.z };
+
+const gcKeyButtons: Record<string, number> = {
+  ArrowUp: stickButtons.up,
+  ArrowDown: stickButtons.down,
+  ArrowLeft: stickButtons.left,
+  ArrowRight: stickButtons.right,
+  KeyZ: gcButtons.a,
+  KeyX: gcButtons.b,
+  KeyC: gcButtons.x,
+  KeyV: gcButtons.y,
+  KeyA: gcButtons.l,
+  KeyS: gcButtons.r,
+  Enter: buttons.start,
 };
 
 const circlePadKeys: Record<string, number> = {
@@ -156,6 +186,24 @@ const n64KeyboardButtons: Partial<Record<StandardButton, number>> = {
   right: n64Buttons.stickRight,
 };
 
+const gcPadButtons: Partial<Record<StandardButton, number>> = {
+  ...padButtonsWithStick,
+  l1: undefined,
+  r1: gcButtons.z,
+  l2: gcButtons.l,
+  r2: gcButtons.r,
+};
+
+const gcKeyboardButtons: Partial<Record<StandardButton, number>> = {
+  ...gcPadButtons,
+  l1: gcButtons.l,
+  r1: gcButtons.r,
+  up: stickButtons.up,
+  down: stickButtons.down,
+  left: stickButtons.left,
+  right: stickButtons.right,
+};
+
 const PAD_DEAD_ZONE = 0.15;
 const PAUSE_HOLD_MS = 1000;
 
@@ -170,6 +218,22 @@ function strength(pad: Gamepad, raw: RawInput | undefined) {
   return isPressed(pad, raw) ? 1 : 0;
 }
 
+// Digital buttons can report a press with no value. A trigger's axis reads 0 until its first pull and can rest at -1
+// after, so a pull counts from the lowest the axis has read.
+function pull(pad: Gamepad, raw: RawInput | undefined, rests: Map<string, number>) {
+  if (!raw) return 0;
+  if ("button" in raw) {
+    const button = pad.buttons[raw.button];
+    return button?.pressed && !button.value ? 1 : (button?.value ?? 0);
+  }
+  if ("value" in raw) return isPressed(pad, raw) ? 1 : 0;
+  const at = (pad.axes[raw.axis] ?? 0) * raw.direction;
+  const key = `${pad.index}:${pad.id}:${raw.axis}:${raw.direction}`;
+  const rest = Math.min(rests.get(key) ?? 0, at);
+  rests.set(key, rest);
+  return Math.max(0, (at - rest) / (1 - rest));
+}
+
 function stick(pad: Gamepad, { up, down, left, right }: Record<"up" | "down" | "left" | "right", RawInput | undefined>) {
   return tilt(strength(pad, right) - strength(pad, left), strength(pad, down) - strength(pad, up), PAD_DEAD_ZONE);
 }
@@ -178,11 +242,13 @@ function readPads(
   pads: readonly (Gamepad | null)[],
   calibrations: Calibrations,
   layout: Partial<Record<StandardButton, number>>,
+  triggerRests: Map<string, number>,
 ) {
   let mask = 0;
   let guide = false;
   const left: [number, number] = [0, 0];
   const right: [number, number] = [0, 0];
+  const triggers: [number, number] = [0, 0];
   for (const pad of pads) {
     const calibration = pad && calibrationFor(pad, calibrations);
     if (!calibration) continue;
@@ -203,19 +269,23 @@ function readPads(
     const [rx, ry] = stick(pad, rightStickFor(pad, calibration));
     right[0] += rx;
     right[1] += ry;
+    triggers[0] = Math.max(triggers[0], pull(pad, calibration.l2, triggerRests));
+    triggers[1] = Math.max(triggers[1], pull(pad, calibration.r2, triggerRests));
   }
-  return { mask, guide, left, right };
+  return { mask, guide, left, right, triggers };
 }
 
-function analogFrom(mask: number, pads: { left: [number, number]; right: [number, number] }, touch: [number, number]) {
+type Sticks = Record<StickSide, [number, number]>;
+
+function analogFrom(mask: number, pads: Sticks, touch: Sticks) {
   const on = (button: number) => (mask & bit(button) ? 1 : 0);
   const [leftX, leftY] = clampToCircle(
-    pads.left[0] + touch[0] + on(stickButtons.right) - on(stickButtons.left),
-    pads.left[1] + touch[1] + on(stickButtons.down) - on(stickButtons.up),
+    pads.left[0] + touch.left[0] + on(stickButtons.right) - on(stickButtons.left),
+    pads.left[1] + touch.left[1] + on(stickButtons.down) - on(stickButtons.up),
   );
   const [rightX, rightY] = clampToCircle(
-    pads.right[0] + on(n64Buttons.cRight) - on(n64Buttons.cLeft),
-    pads.right[1] + on(n64Buttons.cDown) - on(n64Buttons.cUp),
+    pads.right[0] + touch.right[0] + on(n64Buttons.cRight) - on(n64Buttons.cLeft),
+    pads.right[1] + touch.right[1] + on(n64Buttons.cDown) - on(n64Buttons.cUp),
   );
   return [toAxis(leftX), toAxis(leftY), toAxis(rightX), toAxis(rightY)] satisfies Analog;
 }
@@ -240,12 +310,27 @@ function createUnreadablePressDetector() {
   };
 }
 
+type Layouts = {
+  pad: Partial<Record<StandardButton, number>>;
+  keyboard: Partial<Record<StandardButton, number>>;
+  keys: Record<string, number>;
+  extraKeys: Record<string, number>;
+};
+
+const consoleLayouts: Layouts = { pad: padButtonsWithStick, keyboard: consoleButtons, keys: keyButtons, extraKeys: {} };
+
+const stickLayouts: Partial<Record<System, Layouts>> = {
+  n64: { pad: n64PadButtons, keyboard: n64KeyboardButtons, keys: n64KeyButtons, extraKeys: n64CAndDpadKeys },
+  gc: { pad: gcPadButtons, keyboard: gcKeyboardButtons, keys: gcKeyButtons, extraKeys: gcCStickDpadAndZKeys },
+  "3ds": { ...consoleLayouts, extraKeys: circlePadKeys },
+};
+
+const layoutsFor = (system: System | undefined) => (system && stickLayouts[system]) || consoleLayouts;
+
 function keyboardLayout(calibration: KeyboardCalibration | undefined, system: System | undefined) {
-  const n64 = system === "n64";
-  const extraKeys = n64 ? n64CAndDpadKeys : system === "3ds" ? circlePadKeys : {};
-  if (!calibration) return { buttons: n64 ? n64KeyButtons : { ...keyButtons, ...extraKeys }, guide: undefined };
+  const { keyboard: layout, keys, extraKeys } = layoutsFor(system);
+  if (!calibration) return { buttons: { ...keys, ...extraKeys }, guide: undefined };
   const calibrated: Record<string, number> = { ...extraKeys };
-  const layout = n64 ? n64KeyboardButtons : consoleButtons;
   for (const [standard, code] of Object.entries(calibration) as [StandardButton, string][]) {
     const button = layout[standard];
     if (button !== undefined) calibrated[code] = button;
@@ -260,9 +345,8 @@ export function createInput(
   calibrations: () => Calibrations = () => noCalibrations,
   system?: System,
 ) {
-  const n64 = system === "n64";
-  const hasSticks = n64 || system === "3ds";
-  const padLayout = n64 ? n64PadButtons : padButtonsWithStick;
+  const hasSticks = !!system && system in stickLayouts;
+  const padLayout = layoutsFor(system).pad;
   let keysHeld = 0;
   let keysTapped = 0;
   let touchHeld = 0;
@@ -282,9 +366,11 @@ export function createInput(
   let keyboard = keyboardLayout(undefined, system);
   // Menus read the same input while it's detached, where the stick moves through them like the D-pad.
   let attached = false;
-  let touchStick: [number, number] = [0, 0];
+  const touchSticks: Sticks = { left: [0, 0], right: [0, 0] };
   let padTilted = false;
   let analog: Analog = centred;
+  let triggers: Triggers = releasedTriggers;
+  const triggerRests = new Map<string, number>();
   const unreadablePresses = createUnreadablePressDetector();
   const eventListeners = new Set<(event: InputEvent) => void>();
   const unreadableListeners = new Set<(pad: Gamepad) => void>();
@@ -366,7 +452,7 @@ export function createInput(
       const pads = gamepads();
       const calibrated = calibrations();
       const playingSticks = hasSticks && attached;
-      const read = readPads(pads, calibrated, playingSticks ? padLayout : consoleButtons);
+      const read = readPads(pads, calibrated, playingSticks ? padLayout : consoleButtons, triggerRests);
       // The 3DS runs as an Old 3DS, which has no C-stick.
       if (system === "3ds") read.right = [0, 0];
       for (const pad of unreadablePresses(pads, calibrated)) unreadableListeners.forEach((listener) => listener(pad));
@@ -404,16 +490,20 @@ export function createInput(
       const mask = keys | (startHeldForPause ? pad & ~bit(buttons.start) : pad);
       if (!playingSticks) {
         analog = centred;
+        triggers = releasedTriggers;
         return mask;
       }
-      analog = analogFrom(mask, read, touchStick);
+      analog = analogFrom(mask, read, touchSticks);
+      triggers = [toAxis(read.triggers[0]), toAxis(read.triggers[1])];
       return mask & 0xffff;
     },
 
     pollAnalog: (): Analog => analog,
 
-    touchStick(x: number, y: number) {
-      touchStick = [x, y];
+    pollTriggers: (): Triggers => triggers,
+
+    touchStick(x: number, y: number, side: StickSide = "left") {
+      touchSticks[side] = [x, y];
     },
 
     touch(mask: number) {

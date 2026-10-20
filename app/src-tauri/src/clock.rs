@@ -26,7 +26,7 @@ impl Clock {
             System::Ds => Clock::Ds { offset_seconds },
             System::Gb => Clock::Mgba { state_size: GB_STATE_SIZE, offset_ms },
             System::Gba => Clock::Mgba { state_size: GBA_STATE_SIZE, offset_ms },
-            System::N64 | System::ThreeDs => Clock::Absent,
+            System::N64 | System::ThreeDs | System::GameCube => Clock::Absent,
         }
     }
 

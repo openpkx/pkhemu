@@ -23,6 +23,19 @@
         "role": "Viewer"
       },
       {
+        "ext": ["gcm", "rvz", "ciso", "gcz"],
+        "name": "GameCube disc",
+        "role": "Viewer",
+        "exportedType": { "identifier": "fyi.openpkx.pkhemu.gamecube-disc", "conformsTo": ["public.data"] }
+      },
+      {
+        "ext": ["iso"],
+        "name": "Disc image",
+        "role": "Viewer",
+        "rank": "Alternate",
+        "contentTypes": ["public.iso-image"]
+      },
+      {
         "ext": ["sav", "srm", "dsv"],
         "name": "Save",
         "role": "Viewer"

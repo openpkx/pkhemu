@@ -473,7 +473,7 @@ fn finds_the_roms_the_library_shows() {
     let a = device("scan", "A");
     let games = ["gba/Emerald.gba", "gba/Emerald/states/slot-1.state", "gba/Hacks/Radical Red.zip", "nds/Platinum.7z"];
     let more = ["gb/Red.GB", "gb/.hidden.gb", "Loose.gba", "3ds/X.3ds", "3ds/X.sav", "3ds/PKSM.3dsx"];
-    for path in games.into_iter().chain(more) {
+    for path in games.into_iter().chain(more).chain(["gc/XD.rvz", "gc/XD.raw"]) {
         a.write(path, b"x");
     }
 
@@ -482,7 +482,15 @@ fn finds_the_roms_the_library_shows() {
 
     assert_eq!(
         roms,
-        ["3ds/PKSM.3dsx", "3ds/X.3ds", "gb/Red.GB", "gba/Emerald.gba", "gba/Hacks/Radical Red.zip", "nds/Platinum.7z"]
+        [
+            "3ds/PKSM.3dsx",
+            "3ds/X.3ds",
+            "gb/Red.GB",
+            "gba/Emerald.gba",
+            "gba/Hacks/Radical Red.zip",
+            "gc/XD.rvz",
+            "nds/Platinum.7z"
+        ]
     );
 }
 

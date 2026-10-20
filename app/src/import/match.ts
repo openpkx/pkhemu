@@ -27,7 +27,11 @@ export type ImportPlan = {
   morePatches: boolean;
   known: number;
 };
-export type ImportLibrary = { games: Game[]; sha1s: Record<string, string>; titleIds?: Record<string, string> };
+export type ImportLibrary = {
+  games: Game[];
+  sha1s: Record<string, string>;
+  titleIds?: Record<string, string>;
+};
 
 const romSystems: Record<string, System> = {
   ".gb": "gb",
@@ -43,6 +47,11 @@ const romSystems: Record<string, System> = {
   ".app": "3ds",
   ".3dsx": "3ds",
   ".cia": "3ds",
+  ".iso": "gc",
+  ".gcm": "gc",
+  ".rvz": "gc",
+  ".ciso": "gc",
+  ".gcz": "gc",
 };
 const importedAs: Record<string, string> = { ".cia": ".cxi" };
 const archives = [".zip", ".7z"];
@@ -65,8 +74,8 @@ const clockKey = (file: ImportFile) => `${file.folder ?? ""}/${saveKey(file.name
 
 export function romSystem({ name, inner }: Pick<ImportFile, "name" | "inner">): System | null {
   const extension = split(name).extension.toLowerCase();
-  if (archives.includes(extension)) return inner ? (romSystems[split(inner).extension.toLowerCase()] ?? null) : null;
-  return romSystems[extension] ?? null;
+  const system = archives.includes(extension) ? inner && romSystems[split(inner).extension.toLowerCase()] : romSystems[extension];
+  return system || null;
 }
 
 // An Azahar save is known by the title ID in its folder's path, not its name.

@@ -13,6 +13,7 @@ mod export;
 mod files;
 mod frame_time;
 mod game_art;
+mod game_cube;
 mod games_folder;
 mod gl;
 mod import;
@@ -79,6 +80,7 @@ async fn play<R: Runtime>(
     hardcore: bool,
     clock_offset: i64,
     async_shaders: bool,
+    resolution: u32,
     on_frame: Channel<InvokeResponseBody>,
     on_step: Channel<String>,
     native: bool,
@@ -86,6 +88,7 @@ async fn play<R: Runtime>(
 ) -> Result<f64, String> {
     stop_game(&emu).await?;
     retro::set_async_shaders(async_shaders);
+    retro::set_resolution(resolution);
     let in_use = app.state::<sync::Syncer>().in_use.clone();
     let cart = transfer_pak::cart(&GamesFolder::open(&app, &folder), &path)
         .await
@@ -425,9 +428,10 @@ async fn step(emu: State<'_, Emu>, frames: u32) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn set_input(input: u16, analog: [i16; 4], pointer: Option<[i16; 2]>) {
+async fn set_input(input: u16, analog: [i16; 4], triggers: [i16; 2], pointer: Option<[i16; 2]>) {
     retro::set_input(input);
     retro::set_analog(analog);
+    retro::set_triggers(triggers);
     retro::set_pointer(pointer);
 }
 

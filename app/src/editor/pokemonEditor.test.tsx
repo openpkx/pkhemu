@@ -240,6 +240,30 @@ it("edits the nickname and shiny star in the hero", async () => {
   expect(await screen.findByRole("heading", { name: "LEAFY" })).toBeTruthy();
 });
 
+it("edits a shadow Pokémon's heart gauge and purifies it", async () => {
+  const { draft } = launch({ details: { BULBASAUR: { isShadow: true, shadowId: 12, purification: 3000 } } });
+  await openPokemon("BULBASAUR");
+  expect(within(await screen.findByRole("region", { name: "BULBASAUR" })).getByText("Shadow")).toBeTruthy();
+  expect((await field("Heart gauge")).value).toBe("3000");
+
+  await type("Heart gauge", "1000");
+  await waitFor(() => expect(draft()?.purification).toBe(1000));
+  fireEvent.click(within(await screen.findByRole("region", { name: "Shadow" })).getByRole("button", { name: "Purify" }));
+
+  await waitFor(() => expect(draft()?.isShadow).toBe(false));
+  await waitFor(() => expect(screen.queryByRole("region", { name: "Shadow" })).toBeNull());
+  expect(within(screen.getByRole("region", { name: "BULBASAUR" })).queryByText("Shadow")).toBeNull();
+  expect(within(await saveBar()).getByText(/2 changes/)).toBeTruthy();
+});
+
+it("shows no shadow card for a Pokémon that isn't a shadow Pokémon", async () => {
+  launch({ details: { PIKACHU: { isShadow: false, shadowId: 0, purification: 0 } } });
+  await openPokemon("PIKACHU");
+
+  expect(screen.queryByRole("region", { name: "Shadow" })).toBeNull();
+  expect(within(screen.getByRole("region", { name: "PIKACHU" })).queryByText("Shadow")).toBeNull();
+});
+
 it("shows a pill per type in the hero, in type order", async () => {
   launch({ details: { BULBASAUR: { types: [11, 3] } } });
 

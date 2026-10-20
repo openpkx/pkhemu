@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+mod dolphin;
 #[cfg_attr(target_os = "android", path = "retro/android.rs")]
 #[cfg_attr(target_os = "ios", path = "retro/ios.rs")]
 #[cfg_attr(desktop, path = "retro/desktop.rs")]
@@ -13,8 +14,9 @@ use crate::screen::{Picture, Texture};
 use crate::transfer_pak;
 use crate::vulkan;
 use platform::{
-    azahar_renderer, core_path, exec_mem_alloc, exec_mem_free, release_exec_mem, supports, vulkan_library, JIT,
-    N64_CPU, SCREEN_DRAWS_VULKAN, UBERSHADER_FALLBACK, VULKAN_SETTINGS,
+    azahar_renderer, core_path, exec_mem_alloc, exec_mem_free, release_exec_mem, supports, vulkan_library,
+    DOLPHIN_ASYNC_SHADERS, DOLPHIN_CONTEXT, DOLPHIN_SYS, JIT, N64_CPU, SCREEN_DRAWS_VULKAN, UBERSHADER_FALLBACK,
+    VULKAN_SETTINGS,
 };
 pub use platform::{enable_jit_url, jit_on};
 #[cfg(sideload)]
@@ -55,6 +57,7 @@ const ENV_GET_VFS_INTERFACE: c_uint = 45 | 0x10000;
 const ENV_GET_HW_RENDER_INTERFACE: c_uint = 41 | 0x10000;
 const ENV_SET_HW_RENDER_CONTEXT_NEGOTIATION_INTERFACE: c_uint = 43 | 0x10000;
 const ENV_GET_JIT_CAPABLE: c_uint = 74;
+const ENV_GET_PREFERRED_HW_RENDER: c_uint = 56;
 const ENV_EXEC_MEM_ALLOC: c_uint = 83;
 const ENV_EXEC_MEM_FREE: c_uint = 84;
 const LOG_ERROR: c_uint = 3;
@@ -69,6 +72,9 @@ const PIXEL_FORMAT_XRGB8888: c_uint = 1;
 const DEVICE_JOYPAD: c_uint = 1;
 const DEVICE_ID_JOYPAD_MASK: c_uint = 256;
 const DEVICE_ANALOG: c_uint = 5;
+const DEVICE_INDEX_ANALOG_BUTTON: c_uint = 2;
+const DEVICE_ID_JOYPAD_L2: c_uint = 12;
+const DEVICE_ID_JOYPAD_R2: c_uint = 13;
 const DEVICE_POINTER: c_uint = 6;
 const DEVICE_ID_POINTER_X: c_uint = 0;
 const DEVICE_ID_POINTER_Y: c_uint = 1;
@@ -251,7 +257,7 @@ struct Variable {
 const JIT_OPTION: &CStr = if JIT { c"enabled" } else { c"disabled" };
 
 // Keys carry the core's prefix, so one table serves every core.
-const OPTIONS: [(&CStr, &CStr); 30] = [
+const OPTIONS: [(&CStr, &CStr); 33] = [
     (c"mgba_sgb_borders", c"OFF"),
     (c"melonds_console_mode", c"ds"),
     (c"melonds_sysfile_mode", c"builtin"),
@@ -287,6 +293,11 @@ const OPTIONS: [(&CStr, &CStr); 30] = [
     (c"citra_use_libretro_save_path", c"LibRetro Default"),
     // Old 3DS has no C-stick, and the right stick would otherwise move a touch cursor.
     (c"citra_analog_function", c"c_stick"),
+    // Dolphin otherwise draws notices such as patches it applied into the frame.
+    (c"dolphin_osd_enabled", c"disabled"),
+    // Dolphin uses the app's file system only on Android by default, and the memory card goes through it.
+    (c"dolphin_libretro_vfs_enabled", c"enabled"),
+    (c"dolphin_widescreen_hack", c"disabled"),
 ];
 
 #[repr(C)]
@@ -390,6 +401,7 @@ libretro_api! {
     retro_get_memory_size(c_uint) -> usize;
     retro_cheat_reset();
     retro_cheat_set(c_uint, bool, *const c_char);
+    retro_set_controller_port_device(c_uint, c_uint);
 }
 
 type Library = OnceLock<Result<(libloading::Library, Api), String>>;
@@ -420,12 +432,18 @@ fn azahar() -> Result<Api, String> {
     open_core(&LIBRARY, "azahar_libretro", "3DS")
 }
 
+fn dolphin() -> Result<Api, String> {
+    static LIBRARY: Library = OnceLock::new();
+    open_core(&LIBRARY, "dolphin_libretro", "GameCube")
+}
+
 fn api(system: System) -> Result<Api, String> {
     match system {
         System::Gb | System::Gba => Ok(Api::MGBA),
         System::Ds => melonds_ds(),
         System::N64 => mupen64plus_next(),
         System::ThreeDs => azahar(),
+        System::GameCube => dolphin(),
     }
 }
 
@@ -518,6 +536,8 @@ static HW_FRAMEBUFFER: AtomicU32 = AtomicU32::new(0);
 static INPUT: AtomicU16 = AtomicU16::new(0);
 // Left X, left Y, right X and right Y, 16 bits each from the low end, so the core never reads half an update.
 static ANALOG: AtomicU64 = AtomicU64::new(0);
+// L2 in the low 16 bits and R2 in the high 16.
+static TRIGGERS: AtomicU32 = AtomicU32::new(0);
 // Pressed in bit 32, y in bits 16 to 31 and x in the low 16, so the core never reads half an update.
 static POINTER: AtomicU64 = AtomicU64::new(0);
 // Input arrives whenever it changes, so a tap can go down and up between two frames. The next frame still sees it.
@@ -526,7 +546,11 @@ static UNSEEN_TOUCH: AtomicU64 = AtomicU64::new(0);
 static PIXEL_FORMAT: AtomicU32 = AtomicU32::new(PIXEL_FORMAT_RGB565);
 static LOADED: AtomicBool = AtomicBool::new(false);
 static ASYNC_SHADERS: AtomicBool = AtomicBool::new(false);
+static RESOLUTION: AtomicU32 = AtomicU32::new(1);
 static SYSTEM_DIR: OnceLock<CString> = OnceLock::new();
+// Dolphin asks for its directories, options and files from its own threads too, so it can't be a thread-local.
+static DOLPHIN: AtomicBool = AtomicBool::new(false);
+static DOLPHIN_SAVE_DIR: OnceLock<CString> = OnceLock::new();
 static MESSAGES: Mutex<Vec<Message>> = Mutex::new(Vec::new());
 
 unsafe fn keep_for_player(text: *const c_char, duration_ms: c_uint) {
@@ -548,6 +572,10 @@ pub fn set_async_shaders(on: bool) {
     ASYNC_SHADERS.store(on, Ordering::Relaxed);
 }
 
+pub fn set_resolution(scale: u32) {
+    RESOLUTION.store(scale.clamp(1, 3), Ordering::Relaxed);
+}
+
 pub fn set_ds_clock_offset(seconds: i64) {
     let [days, hours] = [seconds / (24 * 60 * 60), seconds / (60 * 60) % 24].map(|n| CString::new(n.to_string()).unwrap());
     DS_CLOCK_OFFSET.set([days, hours]);
@@ -559,7 +587,11 @@ unsafe extern "C" fn current_framebuffer() -> usize {
 
 fn start_hw_render(hw: &mut HwRenderCallback) -> Result<(), String> {
     let (reset, destroy) = (hw.context_reset, hw.context_destroy);
-    if hw.context_type == HW_CONTEXT_VULKAN {
+    let vulkan = hw.context_type == HW_CONTEXT_VULKAN;
+    if DOLPHIN.load(Ordering::Relaxed) && (hw.context_type != DOLPHIN_CONTEXT || vulkan && !vulkan_1_1()) {
+        return Err(format!("GameCube games need Vulkan 1.1, and the core asked for context type {}", hw.context_type));
+    }
+    if vulkan {
         let library = vulkan_library().ok_or("the core asked for Vulkan, which this device can't give it")?;
         HW.take();
         let renderer = Renderer::Vulkan(vulkan::Renderer::new(&library, VULKAN_SETTINGS)?);
@@ -585,6 +617,17 @@ fn start_hw_render(hw: &mut HwRenderCallback) -> Result<(), String> {
     let bottom_left = hw.bottom_left_origin;
     HW.set(Some(HwRender { renderer: Renderer::Gl(renderer), reset, destroy, bottom_left }));
     Ok(())
+}
+
+fn vulkan_1_1() -> bool {
+    static VULKAN_1_1: OnceLock<bool> = OnceLock::new();
+    *VULKAN_1_1.get_or_init(|| {
+        vulkan_library().is_some_and(|library| {
+            vulkan::version(&library)
+                .inspect_err(|e| eprintln!("Vulkan: {e}"))
+                .is_ok_and(|version| version >= ash::vk::API_VERSION_1_1)
+        })
+    })
 }
 
 fn resize_hw_render(geometry: GameGeometry) -> bool {
@@ -634,9 +677,14 @@ pub fn set_analog(analog: [i16; 4]) {
     ANALOG.store(analog.iter().rev().fold(0, |packed, &axis| packed << 16 | axis as u16 as u64), Ordering::Relaxed);
 }
 
+pub fn set_triggers([l2, r2]: [i16; 2]) {
+    TRIGGERS.store((r2 as u16 as u32) << 16 | l2 as u16 as u32, Ordering::Relaxed);
+}
+
 pub fn release_input() {
     set_input(0);
     set_analog([0; 4]);
+    set_triggers([0; 2]);
     set_pointer(None);
     UNSEEN_PRESSES.store(0, Ordering::Relaxed);
     UNSEEN_TOUCH.store(0, Ordering::Relaxed);
@@ -660,9 +708,19 @@ fn frame_saw((presses, touch): (u16, u64)) {
 
 // The callback is variadic in C, which stable Rust can't define. Taking only the level and the format
 // reads both from the right registers, but leaves the format unfilled.
+// Dolphin turns its popups into log lines and carries on, so a crashed game would log the same line forever.
 unsafe extern "C" fn log(level: c_uint, format: *const c_char) {
-    if level >= LOG_ERROR && !format.is_null() {
-        eprint!("{}", CStr::from_ptr(format).to_string_lossy());
+    const BUDGET: u64 = 4 << 20;
+    static LOGGED: AtomicU64 = AtomicU64::new(0);
+    if level < LOG_ERROR || format.is_null() {
+        return;
+    }
+    let text = CStr::from_ptr(format).to_string_lossy();
+    let before = LOGGED.fetch_add(text.len() as u64, Ordering::Relaxed);
+    if before < BUDGET {
+        eprint!("{text}");
+    } else if before < BUDGET + text.len() as u64 {
+        eprintln!("core log: over {} MB, dropping the rest", BUDGET >> 20);
     }
 }
 
@@ -744,6 +802,14 @@ unsafe extern "C" fn environment(cmd: c_uint, data: *mut c_void) -> bool {
                     if UBERSHADER_FALLBACK && ASYNC_SHADERS.load(Ordering::Relaxed) { c"enabled" } else { c"disabled" }
                         .as_ptr()
                 })
+            })
+            .or_else(|| {
+                (key == c"dolphin_shader_compilation_mode")
+                    .then(|| if ASYNC_SHADERS.load(Ordering::Relaxed) { DOLPHIN_ASYNC_SHADERS } else { c"0" }.as_ptr())
+            })
+            .or_else(|| {
+                (key == c"dolphin_efb_scale")
+                    .then(|| [c"1", c"2", c"3"][RESOLUTION.load(Ordering::Relaxed) as usize - 1].as_ptr())
             })
             .or_else(|| {
                 OPTION_DEFAULTS.with_borrow(|defaults| {
@@ -838,7 +904,7 @@ unsafe extern "C" fn environment(cmd: c_uint, data: *mut c_void) -> bool {
             true
         }
         ENV_GET_JIT_CAPABLE => {
-            *(data as *mut bool) = JIT;
+            *(data as *mut bool) = jit_on();
             true
         }
         ENV_EXEC_MEM_ALLOC => {
@@ -852,7 +918,21 @@ unsafe extern "C" fn environment(cmd: c_uint, data: *mut c_void) -> bool {
             }
         }
         ENV_EXEC_MEM_FREE => exec_mem_free(*(data as *const *mut c_void)),
+        ENV_GET_PREFERRED_HW_RENDER if DOLPHIN.load(Ordering::Relaxed) => {
+            *(data as *mut c_uint) = DOLPHIN_CONTEXT;
+            true
+        }
+        ENV_GET_SAVE_DIRECTORY if DOLPHIN.load(Ordering::Relaxed) => match DOLPHIN_SAVE_DIR.get() {
+            Some(dir) => {
+                *(data as *mut *const c_char) = dir.as_ptr();
+                true
+            }
+            None => false,
+        },
         ENV_GET_SAVE_DIRECTORY if !AZAHAR.get() => false,
+        ENV_GET_VFS_INTERFACE if DOLPHIN.load(Ordering::Relaxed) => {
+            vfs::answer_up_to(data as *mut vfs::InterfaceInfo, vfs::DIRECTORY_VERSION)
+        }
         ENV_GET_VFS_INTERFACE => AZAHAR.get() && vfs::answer(data as *mut vfs::InterfaceInfo),
         ENV_GET_SYSTEM_DIRECTORY | ENV_GET_SAVE_DIRECTORY => match SYSTEM_DIR.get() {
             Some(dir) => {
@@ -1066,6 +1146,11 @@ unsafe extern "C" fn input_state(port: c_uint, device: c_uint, index: c_uint, id
         DEVICE_ANALOG if index < 2 && id < 2 => {
             (ANALOG.load(Ordering::Relaxed) >> (16 * (index * 2 + id))) as u16 as i16
         }
+        DEVICE_ANALOG
+            if index == DEVICE_INDEX_ANALOG_BUTTON && matches!(id, DEVICE_ID_JOYPAD_L2 | DEVICE_ID_JOYPAD_R2) =>
+        {
+            (TRIGGERS.load(Ordering::Relaxed) >> (16 * (id - DEVICE_ID_JOYPAD_L2))) as u16 as i16
+        }
         DEVICE_POINTER if index == 0 => {
             let pointer = match POINTER.load(Ordering::Relaxed) {
                 0 => UNSEEN_TOUCH.load(Ordering::Relaxed),
@@ -1122,7 +1207,10 @@ pub struct Core {
     system: System,
     system_ram_base: usize,
     ran_a_frame: bool,
-    _file: Option<crate::rom::RomFile>,
+    loaded: bool,
+    name: String,
+    system_dir: PathBuf,
+    file: Option<crate::rom::RomFile>,
     // Frames and audio land in thread-locals, so the core stays on the thread that loaded it.
     _not_send: std::marker::PhantomData<*const ()>,
 }
@@ -1148,14 +1236,22 @@ impl Core {
         if system == System::ThreeDs {
             forget_console_keys(&azahar_dir)?;
         }
+        if system == System::GameCube {
+            let dir = dolphin_dir(system_dir);
+            dolphin::install_sys(&dir, DOLPHIN_SYS)?;
+            dolphin::use_card(&dir, &dolphin_card(system_dir))?;
+            DOLPHIN_SAVE_DIR.get_or_init(|| CString::new(dir.to_string_lossy().as_bytes()).unwrap());
+        }
         if LOADED.swap(true, Ordering::AcqRel) {
             return Err("a game is already loaded".into());
         }
+        let path = rom.file.as_ref().map_or(rom.name.clone(), |file| game_path(system, &file.path, &rom.name));
         // Android's storage refuses the core a SAF file's /proc entry, so the app reads it for the core.
-        if let Some(Err(e)) = rom.file.as_ref().map(|file| vfs::serve_game(&file.path, &file.open)) {
+        if let Some(Err(e)) = rom.file.as_ref().map(|file| vfs::serve_game(&path, &file.open)) {
             LOADED.store(false, Ordering::Release);
             return Err(e);
         }
+        vfs::serve_card((system == System::GameCube).then(|| dolphin_card(system_dir)));
         FRAME.with_borrow_mut(|frame| {
             frame.width = 0;
             frame.height = 0;
@@ -1165,9 +1261,7 @@ impl Core {
         });
         READ_BACK.set(true);
         start_blend(false);
-        set_input(0);
-        set_analog([0; 4]);
-        set_pointer(None);
+        release_input();
         PIXEL_FORMAT.store(PIXEL_FORMAT_RGB565, Ordering::Relaxed);
         AUDIO.with_borrow_mut(|audio| audio.clear());
         MEMORY_MAP.with_borrow_mut(Vec::clear);
@@ -1176,9 +1270,10 @@ impl Core {
         CORE_FLOAT_MODE.set(None);
         TRANSFER_PAK.set(transfer_pak.is_some());
         AZAHAR.set(system == System::ThreeDs);
+        DOLPHIN.store(system == System::GameCube, Ordering::Relaxed);
+        vulkan::CORE_WANTS_SURFACE.store(system == System::GameCube, Ordering::Relaxed);
         let system_ram_base = if system == System::Gb { 0xC000 } else { 0x0200_0000 };
-        let path = rom.file.as_ref().map_or(&rom.name, |file| &file.path);
-        let path = CString::new(path.as_str()).unwrap_or_default();
+        let path = CString::new(path).unwrap_or_default();
         let (data, size) = match rom.file {
             Some(_) => (std::ptr::null(), 0),
             None => (rom.bytes.as_ptr() as *const c_void, rom.bytes.len()),
@@ -1186,7 +1281,7 @@ impl Core {
         in_core(|| unsafe {
             init(api);
             let info = GameInfo { path: path.as_ptr(), data, size, meta: std::ptr::null() };
-            let loaded = match transfer_pak {
+            let mut loaded = match transfer_pak {
                 None => (api.retro_load_game)(&info),
                 Some(files) => {
                     let paths = [&files.save, &files.gb_rom, &files.n64_rom]
@@ -1202,6 +1297,11 @@ impl Core {
                     (api.retro_load_game_special)(GAME_TYPE_TRANSFERPAK, games.as_mut_ptr(), games.len())
                 }
             };
+            // Refused Vulkan, Dolphin loads anyway and draws nothing.
+            if loaded && system == System::GameCube && HW_REFUSED.get() {
+                (api.retro_unload_game)();
+                loaded = false;
+            }
             if !loaded {
                 (api.retro_deinit)();
                 release_exec_mem();
@@ -1209,6 +1309,10 @@ impl Core {
                 stop_hw_render();
                 LOADED.store(false, Ordering::Release);
                 return Err(if HW_REFUSED.get() { UNSUPPORTED_DEVICE } else { "the core refused the ROM" }.into());
+            }
+            // Dolphin leaves every port unplugged until it's told what's in one.
+            if system == System::GameCube {
+                (api.retro_set_controller_port_device)(0, DEVICE_JOYPAD);
             }
             let mut av = AvInfo::default();
             (api.retro_get_system_av_info)(&mut av);
@@ -1218,7 +1322,10 @@ impl Core {
                 system,
                 system_ram_base,
                 ran_a_frame: false,
-                _file: rom.file,
+                loaded: true,
+                name: rom.name,
+                system_dir: system_dir.to_path_buf(),
+                file: rom.file,
                 _not_send: std::marker::PhantomData,
             };
             let resized = resize_hw_render(av.geometry);
@@ -1246,6 +1353,44 @@ impl Core {
         self.ran_a_frame = true;
     }
 
+    /// Unloads a game read from its path and boots it again, running `between` while no core is loaded. Dolphin writes
+    /// its memory card as it unloads and reads it only as it boots. A core that fails to boot stays unloaded.
+    pub fn reboot<T>(&mut self, between: impl FnOnce() -> T) -> Result<T, String> {
+        let rom = Rom { name: self.name.clone(), bytes: Vec::new(), file: self.file.take() };
+        let (system_dir, read_back) = (self.system_dir.clone(), READ_BACK.get());
+        self.unload();
+        let done = between();
+        *self = Core::start(rom, &system_dir, None).map_err(|e| format!("the game couldn't boot again: {e}"))?;
+        READ_BACK.set(read_back);
+        Ok(done)
+    }
+
+    pub fn is_loaded(&self) -> bool {
+        self.loaded
+    }
+
+    fn unload(&mut self) {
+        // Mupen64Plus-Next starts its emulator on the first frame. Unloaded before that, it starts it while unloading
+        // instead, with no GL context, and leaves the ROM open, so the next N64 game fails to load.
+        if self.system == System::N64 && !self.ran_a_frame {
+            self.run_frame();
+        }
+        in_core(|| unsafe {
+            if let Some(destroy) = hw_callback(|hw| hw.destroy) {
+                destroy();
+            }
+            (self.api.retro_unload_game)();
+            (self.api.retro_deinit)();
+        });
+        release_exec_mem();
+        vfs::stop_serving_game();
+        stop_hw_render();
+        MEMORY_MAP.with_borrow_mut(Vec::clear);
+        MEMORY_DESCRIPTORS.with_borrow_mut(Vec::clear);
+        LOADED.store(false, Ordering::Release);
+        self.loaded = false;
+    }
+
     pub fn reset(&mut self) {
         in_core(|| unsafe { (self.api.retro_reset)() });
         forget_hw_image();
@@ -1270,6 +1415,7 @@ impl Core {
     }
 
     pub fn serialize(&mut self) -> Option<Vec<u8>> {
+        self.boot_dolphin();
         in_core(|| unsafe {
             let mut state = vec![0u8; (self.api.retro_serialize_size)()];
             (self.api.retro_serialize)(state.as_mut_ptr() as *mut c_void, state.len()).then_some(state)
@@ -1278,6 +1424,7 @@ impl Core {
 
     // Mupen64Plus-Next refuses states until its first frame has run.
     pub fn unserialize(&mut self, state: &[u8]) -> bool {
+        self.boot_dolphin();
         let api = self.api;
         let load = || in_core(|| unsafe { (api.retro_unserialize)(state.as_ptr() as *const c_void, state.len()) });
         let mut loaded = load();
@@ -1287,6 +1434,13 @@ impl Core {
         }
         forget_hw_image();
         loaded
+    }
+
+    // Dolphin boots on its first frame and crashes on a state saved or loaded before it.
+    fn boot_dolphin(&mut self) {
+        if self.system == System::GameCube && !self.ran_a_frame {
+            self.run_frame();
+        }
     }
 
     pub fn blend(&mut self, blend: bool) {
@@ -1362,24 +1516,20 @@ impl Core {
 
 impl Drop for Core {
     fn drop(&mut self) {
-        // Mupen64Plus-Next starts its emulator on the first frame. Unloaded before that, it starts it while unloading
-        // instead, with no GL context, and leaves the ROM open, so the next N64 game fails to load.
-        if self.system == System::N64 && !self.ran_a_frame {
-            self.run_frame();
+        if self.loaded {
+            self.unload();
         }
-        in_core(|| unsafe {
-            if let Some(destroy) = hw_callback(|hw| hw.destroy) {
-                destroy();
-            }
-            (self.api.retro_unload_game)();
-            (self.api.retro_deinit)();
-        });
-        release_exec_mem();
-        vfs::stop_serving_game();
-        stop_hw_render();
-        MEMORY_MAP.with_borrow_mut(Vec::clear);
-        MEMORY_DESCRIPTORS.with_borrow_mut(Vec::clear);
-        LOADED.store(false, Ordering::Release);
+    }
+}
+
+// Dolphin picks a disc's reader by its extension, so a SAF file's /proc entry gets a name only the VFS can open.
+fn game_path(system: System, path: &str, name: &str) -> String {
+    let extension = |path: &str| Path::new(path).extension().map(|e| e.to_ascii_lowercase());
+    match extension(name) {
+        Some(wanted) if system == System::GameCube && extension(path).as_ref() != Some(&wanted) => {
+            format!("{path}/disc.{}", wanted.to_string_lossy())
+        }
+        _ => path.to_owned(),
     }
 }
 
@@ -1390,6 +1540,14 @@ fn system_dir(dir: &Path) -> &'static CString {
 
 pub fn azahar_dir(dir: &Path) -> PathBuf {
     Path::new(&*system_dir(dir).to_string_lossy()).join("Azahar")
+}
+
+fn dolphin_dir(dir: &Path) -> PathBuf {
+    Path::new(&*system_dir(dir).to_string_lossy()).join("dolphin-emu")
+}
+
+pub fn dolphin_card(dir: &Path) -> PathBuf {
+    dolphin_dir(dir).join("User/GC/card.raw")
 }
 
 // Azahar reads console keys from here, and the app plays without them. It makes only the last folder of its own.
@@ -1573,6 +1731,21 @@ mod tests {
         assert_eq!(core_info_for(System::ThreeDs).unwrap().version, described.trim());
     }
 
+    // A Dolphin state can crash another build, so the version a state records has to change with every commit.
+    #[test]
+    #[cfg(target_arch = "aarch64")]
+    fn names_the_commit_of_dolphin_in_its_version() {
+        let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../vendor/dolphin");
+        let head = std::process::Command::new("git").arg("-C").arg(source).args(["rev-parse", "HEAD"]).output();
+        let head = head.unwrap();
+        assert!(head.status.success(), "{}", String::from_utf8_lossy(&head.stderr));
+        let head = String::from_utf8(head.stdout).unwrap();
+
+        let version = core_info_for(System::GameCube).unwrap().version;
+
+        assert!(version.ends_with(&format!("+{}", &head[..10])), "{version} doesn't name {head}");
+    }
+
     // A 3DSX with no data that sleeps forever, so the core boots it with nothing from a console.
     fn sleeping_3dsx(name: &str) -> Rom {
         let code: Vec<u8> =
@@ -1683,6 +1856,216 @@ mod tests {
         assert_ne!(walking, later);
     }
 
+    fn distinct(pixels: &[u16]) -> usize {
+        pixels.iter().collect::<std::collections::HashSet<_>>().len()
+    }
+
+    #[test]
+    #[cfg(target_arch = "aarch64")]
+    fn boots_a_gamecube_homebrew_disc_that_answers_the_pad() {
+        let _lock = crate::test_games::lock_core();
+        let Some(rom) = crate::test_games::snes9x_gx_disc() else { return };
+        let dir = std::env::temp_dir();
+        let mut core = Core::load(rom, &dir).unwrap();
+        let mut play = |frames, press: u16| {
+            for frame in 0..frames {
+                set_input(if frame < 10 { press } else { 0 });
+                core.run_frame();
+            }
+            core.last_frame(|frame| ((frame.width, frame.height), frame.pixels.clone())).unwrap_or_default()
+        };
+
+        let (size, menu) = play(300, 0);
+        let (_, still) = play(30, 0);
+        let (_, moved) = play(40, 1 << 5);
+
+        assert_eq!(size, (640, 528));
+        assert!(distinct(&menu) > 100, "the menu drew {} colours", distinct(&menu));
+        assert_eq!(still, menu);
+        assert_ne!(moved, menu);
+        assert!(dir.join("dolphin-emu/Sys/GameSettings").is_dir());
+        assert!(dir.join("dolphin-emu/User").is_dir());
+    }
+
+    #[test]
+    #[cfg(target_arch = "aarch64")]
+    fn reboots_a_gamecube_disc_from_the_start_or_stays_unloaded() {
+        let _lock = crate::test_games::lock_core();
+        let Some(rom) = crate::test_games::snes9x_gx_disc() else { return };
+        let mut core = Core::load(rom, &std::env::temp_dir()).unwrap();
+        core.read_back(false);
+        for _ in 0..300 {
+            core.run_frame();
+        }
+
+        assert_eq!(core.reboot(|| LOADED.load(Ordering::Acquire)), Ok(false));
+
+        assert!(core.is_loaded() && !core.ran_a_frame);
+        assert!(!READ_BACK.get());
+        core.read_back(true);
+        for _ in 0..300 {
+            core.run_frame();
+        }
+        assert!(core.last_frame(|frame| distinct(&frame.pixels)).is_some_and(|colours| colours > 100));
+
+        assert!(core.reboot(|| LOADED.store(true, Ordering::Release)).is_err());
+        LOADED.store(false, Ordering::Release);
+        assert!(!core.is_loaded());
+    }
+
+    #[test]
+    #[cfg(target_arch = "aarch64")]
+    fn the_shader_setting_changes_dolphins_mode_on_the_next_boot() {
+        let _lock = crate::test_games::lock_core();
+        let dir = std::env::temp_dir();
+        let shaders = dir.join("dolphin-emu/User/Cache/Shaders");
+        let ubershaders = |async_shaders| {
+            let rom = crate::test_games::snes9x_gx_disc()?;
+            let uber = |entry: &std::fs::DirEntry| entry.file_name().to_string_lossy().contains("-uber-");
+            let cached = || std::fs::read_dir(&shaders).into_iter().flatten().flatten().filter(uber);
+            cached().for_each(|entry| std::fs::remove_file(entry.path()).unwrap());
+            set_async_shaders(async_shaders);
+            let mut core = Core::load(rom, &dir).unwrap();
+            for _ in 0..300 {
+                core.run_frame();
+            }
+            drop(core);
+            set_async_shaders(false);
+            Some(cached().map(|entry| entry.metadata().unwrap().len()).sum::<u64>())
+        };
+
+        let Some(without) = ubershaders(false) else { return };
+        let with = ubershaders(true).unwrap();
+
+        assert!(std::fs::read_dir(&shaders).unwrap().count() > 0);
+        assert_eq!(with > without, DOLPHIN_ASYNC_SHADERS == c"2", "{with} bytes of ubershaders against {without}");
+    }
+
+    #[test]
+    #[cfg(target_arch = "aarch64")]
+    fn the_resolution_setting_scales_dolphins_frames_on_the_next_boot() {
+        let _lock = crate::test_games::lock_core();
+        let size = |scale| {
+            let rom = crate::test_games::snes9x_gx_disc()?;
+            set_resolution(scale);
+            let mut core = Core::load(rom, &std::env::temp_dir()).unwrap();
+            for _ in 0..300 {
+                core.run_frame();
+            }
+            let size = core.last_frame(|frame| (frame.width, frame.height, frame.pixels.len()));
+            drop(core);
+            set_resolution(1);
+            size
+        };
+
+        let Some(native) = size(1) else { return };
+
+        assert_eq!(native, (640, 528, 640 * 528));
+        assert_eq!(size(2), Some((1280, 1056, 1280 * 1056)));
+        assert_eq!(size(3), Some((1920, 1584, 1920 * 1584)));
+    }
+
+    #[test]
+    #[cfg(target_arch = "aarch64")]
+    fn every_gamecube_button_reaches_the_pad() {
+        let _lock = crate::test_games::lock_core();
+        let rom = crate::test_games::gamecube_pad_reader_disc();
+        let mut core = Core::load(rom, &std::env::temp_dir()).unwrap();
+        let mut read = |press: u16, analog: [i16; 4], triggers: [i16; 2]| {
+            set_input(press);
+            set_analog(analog);
+            set_triggers(triggers);
+            for _ in 0..6 {
+                core.run_frame();
+            }
+            release_input();
+            let ram = core.memory_data(MEMORY_SYSTEM_RAM);
+            let word = |at: usize| u32::from_be_bytes(ram[at..at + 4].try_into().unwrap());
+            let at = crate::test_games::PAD_READING;
+            (word(at), word(at + 4))
+        };
+        // The RetroPad bits input.ts's gcButtons sends from touch, pads and the keyboard, and the pad's own bits for them.
+        let buttons = [
+            ("A", 8, 0x0100),
+            ("B", 0, 0x0200),
+            ("X", 9, 0x0400),
+            ("Y", 1, 0x0800),
+            ("Start", 3, 0x1000),
+            ("Up", 4, 0x0008),
+            ("Down", 5, 0x0004),
+            ("Left", 6, 0x0001),
+            ("Right", 7, 0x0002),
+            ("Z", 11, 0x0010),
+            ("L", 12, 0x0040),
+            ("R", 13, 0x0020),
+        ];
+
+        let (resting, _) = read(0, [0; 4], [0; 2]);
+        assert_eq!(resting >> 16 & 0x1F7F, 0, "a button is down at rest: {resting:08x}");
+        for (name, bit, pad) in buttons {
+            let (hi, _) = read(1 << bit, [0; 4], [0; 2]);
+            assert_eq!(hi >> 16 & 0x1F7F, pad, "{name} reached the pad as {:04x}", hi >> 16);
+        }
+        // The pad starts in mode 3, where the low word holds R, L, the C-stick's Y and its X, a byte each.
+        let (_, lo) = read(1 << 12, [0; 4], [0; 2]);
+        assert_eq!(lo >> 8 & 0xFF, 0xFF, "L wasn't a full press: {lo:08x}");
+        let (_, lo) = read(1 << 13, [0; 4], [0; 2]);
+        assert_eq!(lo & 0xFF, 0xFF, "R wasn't a full press: {lo:08x}");
+        let (hi, lo) = read(1 << 12 | 1 << 13, [0; 4], [0x4000, 0x2000]);
+        assert_eq!(hi >> 16 & 0x0060, 0, "a half-pulled trigger clicked: {hi:08x}");
+        assert!((0x60..0xA0).contains(&(lo >> 8 & 0xFF)), "L reached the pad as {lo:08x}");
+        assert!((0x20..0x60).contains(&(lo & 0xFF)), "R reached the pad as {lo:08x}");
+        let (hi, lo) = read(1 << 12, [0; 4], [0x7FFF, 0]);
+        assert_eq!((hi >> 16 & 0x0040, lo >> 8 & 0xFF), (0x0040, 0xFF), "L pulled all the way: {hi:08x} {lo:08x}");
+        let stick_x = |hi: u32| hi >> 8 & 0xFF;
+        let c_stick_x = |lo: u32| lo >> 28;
+        let (hi, lo) = read(0, [0; 4], [0; 2]);
+        assert!((0x70..0x90).contains(&stick_x(hi)) && (0x7..0x9).contains(&c_stick_x(lo)), "{hi:08x} {lo:08x}");
+        let (hi, _) = read(0, [0x7FFF, 0, 0, 0], [0; 2]);
+        assert!(stick_x(hi) > 0xC0, "the stick reached the pad as {hi:08x}");
+        let (_, lo) = read(0, [0, 0, 0x7FFF, 0], [0; 2]);
+        assert!(c_stick_x(lo) > 0xC, "the C-stick reached the pad as {lo:08x}");
+    }
+
+    #[test]
+    #[cfg(target_arch = "aarch64")]
+    fn boots_a_gamecube_disc_in_each_format_dolphin_reads_by_blocks() {
+        use crate::game_cube::tests::{ciso_of, gcz_of};
+        let _lock = crate::test_games::lock_core();
+        let iso = crate::test_games::gamecube_pad_reader_iso();
+
+        for (extension, disc) in [("ciso", ciso_of(&iso, 0x8000)), ("gcz", gcz_of(&iso, 0x4000))] {
+            let rom = crate::test_games::gamecube_disc_at(&format!("pkh-emu-gamecube-pad-reader.{extension}"), &disc);
+            let mut core = Core::load(rom, &std::env::temp_dir()).unwrap();
+            let pad = crate::test_games::buttons_after_pressing_a(&mut core);
+            assert_eq!(pad, 0x0100, "{extension}: A reached the pad as {pad:04x}");
+        }
+    }
+
+    #[test]
+    #[cfg(target_arch = "aarch64")]
+    fn colosseum_boots_to_its_60_hz_prompt_and_answers_the_pad() {
+        let _lock = crate::test_games::lock_core();
+        // Only the European release asks for 60 Hz.
+        let Some(rom) = crate::test_games::gamecube_disc("Pokémon Colosseum", "GC6P01", 0) else { return };
+        let mut core = Core::load(rom, &std::env::temp_dir()).unwrap();
+        let mut play = |frames, press: u16| {
+            for frame in 0..frames {
+                set_input(if frame < 10 { press } else { 0 });
+                core.run_frame();
+            }
+            core.last_frame(|frame| frame.pixels.clone()).unwrap_or_default()
+        };
+
+        let asking = play(500, 0);
+        let still_asking = play(30, 0);
+        let moved = play(30, 1 << 6);
+
+        assert!(distinct(&asking) > 50, "Colosseum drew {} colours", distinct(&asking));
+        assert_eq!(still_asking, asking);
+        assert_ne!(moved, asking);
+    }
+
     #[test]
     #[cfg(target_arch = "aarch64")]
     fn mupen64plus_next_starts_with_its_ini_in_the_system_directory() {
@@ -1762,6 +2145,33 @@ mod tests {
     }
 
     #[test]
+    fn compiles_gamecube_shaders_synchronously_unless_asked() {
+        let _lock = crate::test_games::lock_core();
+        assert_eq!(option(c"dolphin_shader_compilation_mode").as_deref(), Some("0"));
+
+        set_async_shaders(true);
+        let with_async = option(c"dolphin_shader_compilation_mode");
+        set_async_shaders(false);
+
+        assert_eq!(with_async.as_deref(), DOLPHIN_ASYNC_SHADERS.to_str().ok());
+    }
+
+    #[test]
+    fn renders_gamecube_games_at_the_chosen_resolution_in_4_3() {
+        let _lock = crate::test_games::lock_core();
+        assert_eq!(option(c"dolphin_efb_scale").as_deref(), Some("1"));
+
+        let chosen = [2, 3, 0, 4].map(|scale| {
+            set_resolution(scale);
+            option(c"dolphin_efb_scale")
+        });
+        set_resolution(1);
+
+        assert_eq!(chosen.each_ref().map(Option::as_deref), [Some("2"), Some("3"), Some("1"), Some("3")]);
+        assert_eq!(option(c"dolphin_widescreen_hack").as_deref(), Some("disabled"));
+    }
+
+    #[test]
     fn runs_azahar_at_full_clock_with_the_fast_interpreter_and_no_texture_filter() {
         assert_eq!(option(c"citra_use_fastinterp").as_deref(), Some("enabled"));
         assert_eq!(option(c"citra_cpu_clock_percentage").as_deref(), Some("100"));
@@ -1784,6 +2194,7 @@ mod tests {
 
     #[test]
     fn gives_only_azahar_the_system_directory_for_saves_too() {
+        let _lock = crate::test_games::lock_core();
         let dir = |cmd| {
             let mut dir: *const c_char = std::ptr::null();
             let answered = unsafe { environment(cmd, &mut dir as *mut *const c_char as *mut c_void) };
@@ -1794,6 +2205,89 @@ mod tests {
         assert_eq!(dir(ENV_GET_SAVE_DIRECTORY), dir(ENV_GET_SYSTEM_DIRECTORY));
         AZAHAR.set(false);
         assert_eq!(dir(ENV_GET_SAVE_DIRECTORY), None);
+    }
+
+    fn as_dolphin<R>(f: impl FnOnce() -> R) -> R {
+        let _lock = crate::test_games::lock_core();
+        DOLPHIN.store(true, Ordering::Relaxed);
+        let result = f();
+        DOLPHIN.store(false, Ordering::Relaxed);
+        result
+    }
+
+    fn preferred() -> Option<c_uint> {
+        let mut context = 0;
+        unsafe { environment(ENV_GET_PREFERRED_HW_RENDER, &mut context as *mut c_uint as *mut c_void) }
+            .then_some(context)
+    }
+
+    pub(super) fn preferred_by_dolphin() -> Option<c_uint> {
+        as_dolphin(preferred)
+    }
+
+    #[test]
+    fn asks_dolphin_for_its_context_and_refuses_it_anything_else() {
+        let other = match DOLPHIN_CONTEXT {
+            HW_CONTEXT_VULKAN => platform::OWN_CONTEXT,
+            _ => (HW_CONTEXT_VULKAN, 1 << 22 | 1 << 12, 0),
+        };
+
+        let refused = as_dolphin(|| hw_render(other).0);
+
+        assert_eq!(preferred_by_dolphin(), Some(DOLPHIN_CONTEXT));
+        assert!(!refused);
+        assert_eq!(preferred(), None);
+    }
+
+    #[test]
+    fn gives_dolphin_a_save_directory_of_its_own() {
+        let dir = |cmd| {
+            let mut dir: *const c_char = std::ptr::null();
+            let answered = unsafe { environment(cmd, &mut dir as *mut *const c_char as *mut c_void) };
+            answered.then(|| unsafe { CStr::from_ptr(dir) }.to_string_lossy().into_owned())
+        };
+        DOLPHIN_SAVE_DIR
+            .get_or_init(|| CString::new(dolphin_dir(&std::env::temp_dir()).to_string_lossy().as_bytes()).unwrap());
+
+        let (save, system) = as_dolphin(|| (dir(ENV_GET_SAVE_DIRECTORY), dir(ENV_GET_SYSTEM_DIRECTORY)));
+
+        let system = PathBuf::from(system.unwrap());
+        assert_eq!(save.map(PathBuf::from), Some(system.join("dolphin-emu")));
+    }
+
+    #[test]
+    fn serves_dolphin_files_through_version_4_of_the_vfs() {
+        #[repr(C)]
+        struct Info {
+            version: u32,
+            interface: *const c_void,
+        }
+        let ask = || {
+            let mut info = Info { version: 4, interface: std::ptr::null() };
+            unsafe {
+                environment(ENV_GET_VFS_INTERFACE, &mut info as *mut Info as *mut c_void) && !info.interface.is_null()
+            }
+        };
+
+        assert!(as_dolphin(ask));
+        assert!(!ask());
+    }
+
+    #[test]
+    fn names_a_gamecube_disc_by_its_extension_where_the_path_has_none() {
+        assert_eq!(game_path(System::GameCube, "/proc/self/fd/9", "Colosseum.RVZ"), "/proc/self/fd/9/disc.rvz");
+        assert_eq!(game_path(System::GameCube, "/games/gc/Colosseum.rvz", "Colosseum.rvz"), "/games/gc/Colosseum.rvz");
+        assert_eq!(game_path(System::ThreeDs, "/proc/self/fd/9", "X.3ds"), "/proc/self/fd/9");
+    }
+
+    #[test]
+    fn turns_dolphins_on_screen_messages_off() {
+        assert_eq!(option(c"dolphin_osd_enabled").as_deref(), Some("disabled"));
+    }
+
+    #[test]
+    fn has_dolphin_open_files_through_the_app_on_every_platform() {
+        assert_eq!(option(c"dolphin_libretro_vfs_enabled").as_deref(), Some("enabled"));
     }
 
     #[test]
@@ -2372,6 +2866,7 @@ mod tests {
 
     #[test]
     fn reports_held_buttons_to_the_core() {
+        let _lock = crate::test_games::lock_core();
         set_input((1 << 8) | (1 << 4));
 
         let state = |port, device, id| unsafe { input_state(port, device, 0, id) };
@@ -2391,6 +2886,21 @@ mod tests {
         assert_eq!(state(0, 2, 0), 0);
         assert_eq!(state(1, 0, 0), 0);
         set_analog([0; 4]);
+    }
+
+    #[test]
+    fn reports_how_far_each_trigger_is_pulled_to_the_core() {
+        let _lock = crate::test_games::lock_core();
+        release_input();
+        let state = |port, index, id| unsafe { input_state(port, DEVICE_ANALOG, index, id) };
+        set_input(1 << 12);
+        set_triggers([0x4000, 0x7fff]);
+
+        assert_eq!([state(0, 2, 12), state(0, 2, 13)], [0x4000, 0x7fff]);
+        assert_eq!(state(0, 2, 8), 0);
+        assert_eq!(state(1, 2, 12), 0);
+        assert_eq!(unsafe { input_state(0, DEVICE_JOYPAD, 0, DEVICE_ID_JOYPAD_MASK) }, 1 << 12);
+        release_input();
     }
 
     #[test]

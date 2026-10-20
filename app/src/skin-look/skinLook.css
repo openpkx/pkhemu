@@ -122,6 +122,20 @@
   --skin-face-edge: var(--skin-z-edge);
 }
 
+[data-skin] [data-tint="xy"] {
+  --skin-face-hi: var(--skin-xy-hi);
+  --skin-face-mid: var(--skin-xy-mid);
+  --skin-face-lo: var(--skin-xy-lo);
+  --skin-face-ink: var(--skin-xy-ink);
+  --skin-face-edge: var(--skin-xy-edge);
+}
+
+[data-skin] [data-part="knob"][data-tint="c"] {
+  --skin-knob-hi: var(--skin-c-hi);
+  --skin-knob-mid: var(--skin-c-mid);
+  --skin-knob-edge: var(--skin-c-edge);
+}
+
 [data-skin] [data-part="face"][data-printed] {
   position: relative;
   color: var(--skin-face-label);

@@ -32,7 +32,7 @@ const isLight = (colour: string) => {
 const violet = "#6d4aff";
 const led = "#b4a0ff";
 
-const buttonColours = ["face", "a", "b", "z", "c"] as const;
+const buttonColours = ["face", "a", "b", "xy", "z", "c"] as const;
 
 function domed(name: (typeof buttonColours)[number], { fill, label }: ColouredButton) {
   return {
@@ -111,7 +111,7 @@ export function lookVariables(skin: Skin, look: SkinLook): LookVariables {
 
   const parts = skin.moulded;
   const face = { fill: parts.face, label: parts.faceLabel };
-  const n64 = parts.n64;
+  const pad = parts.gc ?? parts.n64;
   const border = parts.border !== null;
   return {
     ...shared,
@@ -132,10 +132,11 @@ export function lookVariables(skin: Skin, look: SkinLook): LookVariables {
     "--skin-dpad-shadow": "#00000059",
     "--skin-dimple": "#00000040",
     ...domed("face", face),
-    ...domed("a", n64?.a ?? face),
-    ...domed("b", n64?.b ?? face),
-    ...domed("z", n64?.z ?? face),
-    ...domed("c", n64?.c ?? { fill: parts.rubber, label: parts.print }),
+    ...domed("a", pad?.a ?? face),
+    ...domed("b", pad?.b ?? face),
+    ...domed("xy", parts.gc?.xy ?? face),
+    ...domed("z", pad?.z ?? face),
+    ...domed("c", pad?.c ?? { fill: parts.rubber, label: parts.print }),
     "--skin-face-label": fade(parts.faceLabel),
     "--skin-face-lift": "3px",
     "--skin-face-shadow": "#00000048",
@@ -150,11 +151,11 @@ export function lookVariables(skin: Skin, look: SkinLook): LookVariables {
     "--skin-rubber-lift": "2px",
     "--skin-rubber-ink": parts.print,
     "--skin-rubber-well": "#0000001c",
-    "--skin-pill": n64?.start ?? parts.rubber,
+    "--skin-pill": pad?.start ?? parts.rubber,
     "--skin-pill-ink": "transparent",
-    "--skin-pill-x": n64 ? "14px" : "6px",
-    "--skin-pill-y": n64 ? "12px" : "15px",
-    "--skin-pill-rotate": n64 ? "0deg" : "-24deg",
+    "--skin-pill-x": pad ? "14px" : "6px",
+    "--skin-pill-y": pad ? "12px" : "15px",
+    "--skin-pill-rotate": pad ? "0deg" : "-24deg",
     "--skin-on": "transparent",
     "--skin-on-ink": parts.print,
     "--skin-led": led,

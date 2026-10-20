@@ -10,9 +10,13 @@ pub const JIT: bool = true;
 pub fn azahar_renderer() -> &'static CStr {
     c"Vulkan"
 }
+pub const DOLPHIN_CONTEXT: std::ffi::c_uint = super::HW_CONTEXT_VULKAN;
 // The Mac draws through WebGL, so a Vulkan frame is read back.
 pub const SCREEN_DRAWS_VULKAN: bool = false;
 pub const UBERSHADER_FALLBACK: bool = true;
+// Hybrid Ubershaders.
+pub const DOLPHIN_ASYNC_SHADERS: &CStr = c"2";
+pub const DOLPHIN_SYS: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/dolphin-sys.zip"));
 
 // Cores map their own executable memory here.
 pub fn exec_mem_alloc(_size: usize) -> Option<ExecMem> {
@@ -44,6 +48,7 @@ fn built(name: &str) -> Option<&'static str> {
         "melondsds_libretro" => option_env!("PKH_EMU_MELONDS_DS"),
         "mupen64plus_next_libretro" => option_env!("PKH_EMU_MUPEN64PLUS_NEXT"),
         "azahar_libretro" => option_env!("PKH_EMU_AZAHAR"),
+        "dolphin_libretro" => option_env!("PKH_EMU_DOLPHIN"),
         "libMoltenVK" => option_env!("PKH_EMU_MOLTENVK"),
         _ => None,
     }
@@ -79,6 +84,17 @@ mod tests {
     #[test]
     fn runs_n64_games_on_the_cached_interpreter() {
         assert_eq!(option(c"mupen64plus-cpucore").as_deref(), Some("cached_interpreter"));
+    }
+
+    #[test]
+    fn draws_gamecube_games_through_ubershaders_while_shaders_compile() {
+        let _lock = crate::test_games::lock_core();
+
+        set_async_shaders(true);
+        let mode = option(c"dolphin_shader_compilation_mode");
+        set_async_shaders(false);
+
+        assert_eq!(mode.as_deref(), Some("2"));
     }
 
     #[test]

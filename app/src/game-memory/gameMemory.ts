@@ -1,5 +1,6 @@
 import type { System } from "@/systems";
 import { identifyBuild, type Build, type ReadMemory } from "./builds";
+import { readGameCube } from "./gameCube";
 import { readGen3 } from "./gen3";
 import { readGen4 } from "./gen4";
 import { readGen5 } from "./gen5";
@@ -30,11 +31,18 @@ export async function openGameMemory(system: System, read: ReadMemory): Promise<
 }
 
 async function readFacts(build: Build, read: ReadMemory): Promise<Facts> {
-  const facts =
-    build.format === "pk3"
-      ? await readGen3(build.symbols, read)
-      : build.format === "pk4"
-        ? await readGen4(build.addresses, read)
-        : await readGen5(build.addresses, read);
-  return { build: build.name, format: build.format, version: build.version, ...facts };
+  return { build: build.name, format: build.format, version: build.version, ...(await readParty(build, read)) };
+}
+
+function readParty(build: Build, read: ReadMemory) {
+  switch (build.format) {
+    case "pk3":
+      return readGen3(build.symbols, read);
+    case "pk4":
+      return readGen4(build.addresses, read);
+    case "pk5":
+      return readGen5(build.addresses, read);
+    default:
+      return readGameCube(build.addresses, build.format, read);
+  }
 }

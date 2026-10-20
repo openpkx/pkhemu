@@ -39,10 +39,19 @@ export type Gen5Addresses = {
   battleStyle: number;
 };
 
+export type GameCubeFormat = "ck3" | "xk3";
+
+// The offset is from the big-endian u32 at `pointer` and points at the party.
+export type GameCubeAddresses = {
+  pointer: number;
+  party: number;
+};
+
 export type Build =
   | { name: string; format: "pk3"; version: number; symbols: Gen3Symbols }
   | { name: string; format: "pk4"; version: number; addresses: Gen4Addresses }
-  | { name: string; format: "pk5"; version: number; addresses: Gen5Addresses };
+  | { name: string; format: "pk5"; version: number; addresses: Gen5Addresses }
+  | { name: string; format: GameCubeFormat; version: number; addresses: GameCubeAddresses };
 
 // pret's symbols for all three revisions of each game agree on every address here.
 const rubySapphire: Gen3Symbols = {
@@ -147,9 +156,21 @@ const blackWhite = (shift: number): Gen5Addresses => ({
   battleStyle: 0x022a62f8 + shift,
 });
 
+// Colosseum and XD have no symbols, and their save moves between boots. These pointers sit in each DOL's .sbss and led to
+// the party in all our RAM dumps.
+const colosseum: GameCubeAddresses = { pointer: 0x804c8268, party: 0xa0 };
+const xd: GameCubeAddresses = { pointer: 0x80525ce0, party: 0x170 };
+
 const gen3 = (name: string, version: number, symbols: Gen3Symbols): Build => ({ name, format: "pk3", version, symbols });
 const gen4 = (name: string, version: number, addresses: Gen4Addresses): Build => ({ name, format: "pk4", version, addresses });
 const gen5 = (name: string, version: number, addresses: Gen5Addresses): Build => ({ name, format: "pk5", version, addresses });
+
+const gameCube = (name: string, version: number, format: GameCubeFormat, addresses: GameCubeAddresses): Build => ({
+  name,
+  format,
+  version,
+  addresses,
+});
 
 const builds: Record<string, Build> = {
   "AXVE 0": gen3("Ruby EN 1.0", 2, rubySapphire),
@@ -173,12 +194,15 @@ const builds: Record<string, Build> = {
   "IRDO 0": gen5("White 2 EN", 22, black2White2(0x021b5178)),
   "IRBO 0": gen5("Black EN", 21, blackWhite(0)),
   "IRAO 0": gen5("White EN", 20, blackWhite(0x20)),
+  "GC6P 0": gameCube("Colosseum EU", 62, "ck3", colosseum),
+  "GXXP 0": gameCube("XD EU", 63, "xk3", xd),
 };
 
 // melonDS DS doesn't map the cartridge, but the DS copies its header into main RAM at boot.
 const headers: Partial<Record<System, { code: number; revision: number }>> = {
   gba: { code: 0x080000ac, revision: 0x080000bc },
   nds: { code: 0x027ffe0c, revision: 0x027ffe1e },
+  gc: { code: 0x80000000, revision: 0x80000007 },
 };
 
 export async function identifyBuild(system: System, read: ReadMemory): Promise<Build | "unsupported"> {

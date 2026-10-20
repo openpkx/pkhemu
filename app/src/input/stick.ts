@@ -2,6 +2,10 @@ export type Analog = [leftX: number, leftY: number, rightX: number, rightY: numb
 
 export const centred: Analog = [0, 0, 0, 0];
 
+export type Triggers = [l2: number, r2: number];
+
+export const releasedTriggers: Triggers = [0, 0];
+
 export function tilt(x: number, y: number, deadZone: number, scale = 1): [number, number] {
   const distance = Math.hypot(x, y);
   if (distance <= deadZone) return [0, 0];

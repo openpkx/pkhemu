@@ -17,7 +17,7 @@ import { sharedHosts, sharedPreferences, type Hosts } from "./hosts";
 export const androidHosts: Hosts = {
   ...sharedHosts,
   systems,
-  defaultPreferences: { ...sharedPreferences, touchControls: true, asyncShaders: true },
+  defaultPreferences: { ...sharedPreferences, touchControls: true, asyncShaders: true, gameCubeResolution: 1 },
   gamesFolder: androidGamesFolderHost,
   import: androidImportHost,
   back: androidBackHost,

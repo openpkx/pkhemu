@@ -46,6 +46,22 @@ fn a_3ds_games_main_and_its_backups_appear_on_the_other_device() {
 }
 
 #[test]
+fn a_gamecube_games_memory_card_and_its_backups_appear_on_the_other_device() {
+    let (a, b, cloud) = devices("gc");
+    for device in [&a, &b] {
+        device.write("gc/Colosseum.iso", &crate::game_cube::tests::iso(b"GC6E01", 0));
+    }
+    a.write("gc/Colosseum.raw", b"card from A");
+    a.write("gc/Colosseum/backups/2026-10-05_1412_start.raw", b"card before the game started");
+
+    a.sync_ok(&cloud);
+    b.sync_ok(&cloud);
+
+    assert_eq!(b.read("gc/Colosseum.raw").unwrap(), b"card from A");
+    assert_eq!(b.read("gc/Colosseum/backups/2026-10-05_1412_start.raw").unwrap(), b"card before the game started");
+}
+
+#[test]
 fn slots_the_resume_state_and_backups_sync_but_the_state_from_before_a_load_stays() {
     let (a, b, cloud) = devices("states");
     let synced = [

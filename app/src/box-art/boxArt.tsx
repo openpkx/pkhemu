@@ -14,6 +14,7 @@ const thumbnailFolders: Record<System, string> = {
   nds: "Nintendo - Nintendo DS",
   n64: "Nintendo - Nintendo 64",
   "3ds": "Nintendo - Nintendo 3DS",
+  gc: "Nintendo - GameCube",
 };
 
 export type BoxArtKind = "Named_Boxarts" | "Named_Titles";

@@ -186,8 +186,10 @@ impl<H: Host> Worker<H> {
     fn hash(&self, folder: &str, path: &str) -> Result<(String, File), String> {
         let mut rom = self.host.open_rom(folder, path)?;
         // A ROM streams out of its archive, where sha1_of_rom can't fingerprint it, so it is hashed whole here too.
-        let sha1 = if rom::is_archive(path) { sha1_of_stream(&mut rom) } else { sha1_of_unpacked(&mut rom) };
-        let sha1 = sha1.map_err(|e| format!("{path}: {e}"))?;
+        let sha1 = match rom::is_archive(path) {
+            true => sha1_of_stream(&mut rom).map_err(|e| format!("{path}: {e}"))?,
+            false => sha1_of_rom(path, &mut rom)?,
+        };
         rom.rewind().map_err(|e| format!("{path}: {e}"))?;
         Ok((sha1, rom))
     }
@@ -277,9 +279,16 @@ pub(crate) fn sha1_of_stream(rom: impl Read) -> std::io::Result<String> {
 pub(crate) fn sha1_of_rom(name: &str, file: impl Read + Seek) -> Result<String, String> {
     if rom::is_archive(name) {
         rom::read_archived(name, BufReader::new(file), |_, _, rom| sha1_of_stream(rom))
+    } else if rom::is_game_cube(name) {
+        sha1_of_disc(file).map_err(|e| format!("{name}: {e}"))?.ok_or_else(|| crate::game_cube::not_a_disc(name))
     } else {
         sha1_of_unpacked(file).map_err(|e| format!("{name}: {e}"))
     }
+}
+
+// A disc runs to 1.4 GB and its header names the game, disc and revision, so the header stands in for the disc.
+pub(crate) fn sha1_of_disc(file: impl Read + Seek) -> std::io::Result<Option<String>> {
+    Ok(crate::game_cube::header(file)?.map(|header| sha1_of(&header)))
 }
 
 pub(crate) fn sha1_of_unpacked(mut rom: impl Read + Seek) -> std::io::Result<String> {
@@ -1068,6 +1077,26 @@ mod tests {
         assert!(rom_art::fingerprint(std::io::Cursor::new(&game), &mut fingerprint).unwrap());
         let sha1 = hex(&fingerprint.finalize());
         assert_eq!([library.row("3ds/X.cxi").sha1, library.row("3ds/Copy.cxi").sha1], [sha1.clone(), sha1]);
+    }
+
+    #[test]
+    fn keys_a_gamecube_disc_by_its_header_in_any_format_rather_than_every_byte() {
+        use crate::game_cube::tests::{ciso_of, gcz_of, iso, rvz_of};
+        let library = Library::new("gamecube");
+        let colosseum = iso(b"GC6E01", 0);
+        library.add("gc/Colosseum.iso", &colosseum);
+        library.add("gc/Colosseum.rvz", &rvz_of(&colosseum, b"RVZ\x01"));
+        library.add("gc/Colosseum.ciso", &ciso_of(&colosseum, 0x8000));
+        library.add("gc/Colosseum.gcz", &gcz_of(&colosseum, 0x4000));
+        library.add("gc/Disc 2.iso", &iso(b"GC6E01", 1));
+        let paths = ["gc/Colosseum.iso", "gc/Colosseum.rvz", "gc/Colosseum.ciso", "gc/Colosseum.gcz", "gc/Disc 2.iso"];
+
+        library.scan(&paths);
+
+        let sha1 = sha1_of(&colosseum[..0x80]);
+        let sha1s: Vec<String> = paths.iter().map(|path| library.row(path).sha1).collect();
+        assert_eq!(sha1s, [sha1.clone(), sha1.clone(), sha1.clone(), sha1, sha1_of(&iso(b"GC6E01", 1)[..0x80])]);
+        assert!(sha1_of_rom("gc/Not a disc.iso", std::io::Cursor::new([0x5A; 0x10000])).is_err());
     }
 
     #[test]

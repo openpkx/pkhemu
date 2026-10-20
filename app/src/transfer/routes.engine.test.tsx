@@ -10,6 +10,7 @@ import { inTurn } from "@/lib/engineTurn";
 import type { Game } from "@/library/scan";
 import { exportLoadable } from "./blankSaveFixture";
 import type { StoredCopy } from "./keptCopies";
+import { exportBlankCard, isGameCube } from "./memoryCardFixture";
 import { TransferScreen, type TransferHost, type TransferWrite } from "./TransferScreen";
 
 // jsdom serves test modules over http, and the .NET runtime only loads from file URLs.
@@ -17,7 +18,7 @@ const dotnet = pathToFileURL(`${process.cwd()}/node_modules/@pkhex-everywhere/en
 
 const newEngine = () => createEngine({ host: wasmHost({ dotnetUrl: dotnet, load: (url) => import(/* @vite-ignore */ url) }) });
 
-const versions = { red: 35, crystal: 41, black: 21, x: 24, omegaRuby: 27, sun: 30, ultraMoon: 33 };
+const versions = { red: 35, crystal: 41, black: 21, x: 24, omegaRuby: 27, sun: 30, ultraMoon: 33, box: 61, colosseum: 62, xd: 63 };
 
 // Blank Gen 3 saves don't export yet (pkhex-web/issue-tracker#277).
 const emeraldSave = `${process.cwd()}/../data/saves/emerald.sav`;
@@ -38,6 +39,7 @@ afterEach(() => {
 
 async function saveFor(engine: Engine, version: number | "emerald", species?: number) {
   if (version === "emerald") return new Uint8Array(readFileSync(emeraldSave));
+  if (isGameCube(version)) return exportBlankCard(engine, version);
   await engine.game.loadBlank(version);
   if (species) {
     const encounter = (await engine.encounters.search(version, species)).find(({ isEgg }) => !isEgg);
@@ -78,6 +80,9 @@ const games: Record<string, Game> = {
   Crystal: { system: "gbc", name: "Crystal", path: "gbc/Crystal.gbc" },
   Emerald: { system: "gba", name: "Emerald", path: "gba/Emerald.gba" },
   Black: { system: "nds", name: "Black", path: "nds/Black.nds" },
+  Colosseum: { system: "gc", name: "Colosseum", path: "gc/Colosseum.rvz" },
+  XD: { system: "gc", name: "XD", path: "gc/XD.rvz" },
+  Box: { system: "gc", name: "Box", path: "gc/Box.iso" },
   X: { system: "3ds", name: "X", path: "3ds/X.3ds" },
   "Omega Ruby": { system: "3ds", name: "Omega Ruby", path: "3ds/Omega Ruby.3ds" },
   Sun: { system: "3ds", name: "Sun", path: "3ds/Sun.3ds" },
@@ -151,8 +156,12 @@ it.for([
   { from: "Red", to: "Sun", versions: [versions.red, versions.sun], status: "official" },
   { from: "Crystal", to: "Sun", versions: [versions.crystal, versions.sun], status: "official" },
   { from: "Crystal", to: "X", versions: [versions.crystal, versions.x], status: "unofficial" },
+  { from: "Colosseum", to: "Emerald", versions: [versions.colosseum, "emerald"], status: "official" },
+  { from: "Emerald", to: "XD", versions: ["emerald", versions.xd], status: "official" },
+  { from: "Box", to: "Emerald", versions: [versions.box, "emerald"], status: "official" },
+  { from: "Emerald", to: "Box", versions: ["emerald", versions.box], status: "official" },
 ] as const)("shows the route from $from to $to as $status", { timeout: 300_000 }, async ({ from, to, versions: [mine, theirs], status }, { skip }) => {
-  if (mine === "emerald") needsEmerald(skip);
+  if (mine === "emerald" || theirs === "emerald") needsEmerald(skip);
   const engine = newEngine();
   const saves = new Map([
     [games[from].path, await saveFor(engine, mine)],

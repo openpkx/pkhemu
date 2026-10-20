@@ -137,6 +137,15 @@ it("says so when the boxes are empty, and still shows the switcher", async () =>
   expect(within(box).getByText("Box 1")).toBeTruthy();
 });
 
+it("shows only the boxes of a Box save", async () => {
+  launch({ version: "Box Ruby & Sapphire", versionId: 61, box: [pokemon("Mudkip", inBox(0, 0))] });
+
+  expect(await screen.findByRole("button", { name: /MUDKIP/ })).toBeTruthy();
+  expect(screen.queryByRole("region", { name: "Party" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Trainer" })).toBeNull();
+  expect(screen.queryByRole("button", { name: "Bag" })).toBeNull();
+});
+
 it("opens a Pokémon when it's tapped", async () => {
   launch({ party: [pokemon("Pikachu", inParty(0), { nickname: "SPARKY" })], box: [pokemon("Onix", inBox(0, 0))] });
 

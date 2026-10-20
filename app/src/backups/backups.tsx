@@ -108,7 +108,7 @@ export async function backupFile(
   backup: Backup,
 ): Promise<ExportedFile> {
   const stem = backup.name.replace(/\.[^.]*$/, "");
-  const extension = backup.name.endsWith(".srm") ? "srm" : "sav";
+  const extension = /\.(srm|raw)$/.exec(backup.name)?.[1] ?? "sav";
   return { bytes: await host.readBackup(folder, game.path, backup.name), fileName: `${game.name} ${stem}.${extension}` };
 }
 

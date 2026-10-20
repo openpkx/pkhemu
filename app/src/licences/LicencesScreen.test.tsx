@@ -15,7 +15,7 @@ it("shows the app's GPL-3.0 licence with a link to its source", () => {
 it("links mGBA's source next to its MPL-2.0 licence", () => {
   render(<LicencesScreen onBack={() => {}} />);
   const core = screen.getByRole("region", { name: "Emulator cores" });
-  const mgba = within(core).getByRole("link", { name: /mGBA/ });
+  const mgba = within(core).getByRole("link", { name: /^mGBA \d/ });
 
   expect(mgba.getAttribute("href")).toBe("https://github.com/pkhex-web/mgba/tree/pkh-emu");
   expect(within(mgba.closest("li")!).getByText("MPL-2.0")).toBeTruthy();

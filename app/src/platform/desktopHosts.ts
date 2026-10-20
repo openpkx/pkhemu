@@ -16,7 +16,7 @@ import { sharedHosts, sharedPreferences, type Hosts } from "./hosts";
 export const desktopHosts: Hosts = {
   ...sharedHosts,
   systems,
-  defaultPreferences: { ...sharedPreferences, touchControls: false, asyncShaders: true },
+  defaultPreferences: { ...sharedPreferences, touchControls: false, asyncShaders: true, gameCubeResolution: 2 },
   gamesFolder: desktopGamesFolderHost,
   import: desktopImportHost,
   back: desktopBackHost,

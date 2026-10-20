@@ -6,11 +6,18 @@ use std::path::Path;
 use std::sync::atomic::Ordering;
 use std::sync::{Arc, Condvar, Mutex, MutexGuard, OnceLock};
 
+#[cfg_attr(target_os = "android", path = "vulkan/core_surface/android.rs")]
+#[cfg_attr(target_os = "ios", path = "vulkan/core_surface/ios.rs")]
+#[cfg_attr(desktop, path = "vulkan/core_surface/desktop.rs")]
+mod core_surface;
 #[cfg(target_os = "ios")]
 mod ios;
 
 const INTERFACE_VULKAN: c_uint = 0;
 const INTERFACE_VERSION: c_uint = 5;
+
+// Dolphin's libretro swapchain still asks the driver about the frontend's surface, and draws nothing without one.
+pub static CORE_WANTS_SURFACE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
 
 pub type CreateDevice = unsafe extern "C" fn(
     context: *mut Context,
@@ -234,6 +241,8 @@ pub struct Gpu {
     queue: vk::Queue,
     memory: vk::PhysicalDeviceMemoryProperties,
     destroy_device: Option<unsafe extern "C" fn()>,
+    surface: Option<(ash::khr::surface::Instance, vk::SurfaceKHR)>,
+    _window: Option<core_surface::Window>,
     shared: Box<Shared>,
     interface: Box<Interface>,
 }
@@ -297,6 +306,9 @@ impl Drop for Gpu {
                 destroy();
             }
             self.device.destroy_device(None);
+            if let Some((surfaces, surface)) = &self.surface {
+                surfaces.destroy_surface(*surface, None);
+            }
             self.instance.destroy_instance(None);
         }
     }
@@ -441,9 +453,11 @@ impl Renderer {
         let frame = self.frame(width, height);
         let device = self.device.as_mut().ok_or("the core read a frame before the Vulkan device existed")?;
         let frame = frame.ok_or("the core set no image")?;
-        let swap = match frame.image.create_info.format {
-            vk::Format::R8G8B8A8_UNORM | vk::Format::R8G8B8A8_SRGB => false,
-            vk::Format::B8G8R8A8_UNORM | vk::Format::B8G8R8A8_SRGB => true,
+        let (swap, ten_bit) = match frame.image.create_info.format {
+            vk::Format::R8G8B8A8_UNORM | vk::Format::R8G8B8A8_SRGB => (false, false),
+            vk::Format::B8G8R8A8_UNORM | vk::Format::B8G8R8A8_SRGB => (true, false),
+            vk::Format::A2B10G10R10_UNORM_PACK32 => (false, true),
+            vk::Format::A2R10G10B10_UNORM_PACK32 => (true, true),
             format => return Err(format!("the core's image has format {}", format.as_raw())),
         };
         let size = width as u64 * height as u64 * 4;
@@ -451,6 +465,14 @@ impl Renderer {
             device.copy(&frame, size)?;
             self.rgba.clear();
             self.rgba.extend_from_slice(std::slice::from_raw_parts(device.readback_ptr(), size as usize));
+        }
+        // Dolphin picks 10 bits a channel where the surface offers it.
+        if ten_bit {
+            for pixel in self.rgba.chunks_exact_mut(4) {
+                let packed = u32::from_le_bytes([pixel[0], pixel[1], pixel[2], pixel[3]]);
+                let channel = |shift: u32| (packed >> (shift + 2) & 0xFF) as u8;
+                pixel.copy_from_slice(&[channel(0), channel(10), channel(20), 0xFF]);
+            }
         }
         #[cfg(test)]
         if harness::KEEP_RGB8.load(Ordering::Relaxed) {
@@ -494,13 +516,23 @@ impl Gpu {
         let available = entry.enumerate_instance_extension_properties(None).unwrap_or_default();
         let portability = offered(&available, ash::khr::portability_enumeration::NAME);
         let layer_settings = !settings.is_empty() && offered(&available, ash::ext::layer_settings::NAME);
-        let extensions: Vec<*const c_char> =
-            [ash::khr::surface::NAME, ash::ext::metal_surface::NAME, ash::khr::portability_enumeration::NAME]
-                .into_iter()
-                .filter(|name| offered(&available, name))
-                .chain(layer_settings.then_some(ash::ext::layer_settings::NAME))
-                .map(CStr::as_ptr)
-                .collect();
+        let wants_surface = CORE_WANTS_SURFACE.load(std::sync::atomic::Ordering::Relaxed);
+        let headless = wants_surface && offered(&available, ash::ext::headless_surface::NAME);
+        let window_surface =
+            wants_surface && !headless && core_surface::EXTENSION.is_some_and(|n| offered(&available, n));
+        let extensions: Vec<*const c_char> = [
+            ash::khr::surface::NAME,
+            ash::ext::metal_surface::NAME,
+            ash::khr::portability_enumeration::NAME,
+            ash::khr::get_physical_device_properties2::NAME,
+        ]
+        .into_iter()
+        .filter(|name| offered(&available, name))
+        .chain(layer_settings.then_some(ash::ext::layer_settings::NAME))
+        .chain(headless.then_some(ash::ext::headless_surface::NAME))
+        .chain(core_surface::EXTENSION.filter(|_| window_surface))
+        .map(CStr::as_ptr)
+        .collect();
         let flags = if portability {
             vk::InstanceCreateFlags::ENUMERATE_PORTABILITY_KHR
         } else {
@@ -540,6 +572,17 @@ impl Gpu {
             .map(CStr::as_ptr)
             .collect();
         let get_instance_proc_addr = entry.static_fn().get_instance_proc_addr;
+        let (surface, window) = if headless {
+            let made = ash::ext::headless_surface::Instance::new(entry, &instance)
+                .create_headless_surface(&vk::HeadlessSurfaceCreateInfoEXT::default(), None);
+            (made.inspect_err(|e| eprintln!("vkCreateHeadlessSurfaceEXT: {e}")).ok(), None)
+        } else if window_surface {
+            core_surface::create(entry, &instance)
+                .map_or((None, None), |(surface, window)| (Some(surface), Some(window)))
+        } else {
+            (None, None)
+        };
+        let surface = surface.map(|surface| (ash::khr::surface::Instance::new(entry, &instance), surface));
         let mut context = Context::default();
         let core_creates = negotiation.and_then(|n| n.create_device);
         let by_core = core_creates.is_some_and(|create| {
@@ -547,7 +590,7 @@ impl Gpu {
                 &mut context,
                 instance.handle(),
                 gpu,
-                vk::SurfaceKHR::null(),
+                surface.as_ref().map_or(vk::SurfaceKHR::null(), |(_, surface)| *surface),
                 get_instance_proc_addr,
                 required.as_ptr(),
                 required.len() as c_uint,
@@ -601,6 +644,8 @@ impl Gpu {
             queue_family,
             queue,
             destroy_device,
+            surface,
+            _window: window,
             shared,
             interface,
         })

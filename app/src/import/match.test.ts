@@ -36,6 +36,19 @@ it("puts 3DS games in the 3ds folder, a CIA as a .cxi", () => {
   expect(plan.roms.map((rom) => rom.path)).toEqual(["3ds/X.3ds", "3ds/Y.cxi", "3ds/ORAS.cci", "3ds/Sun.cxi", "3ds/Moon.app", "3ds/PKSM.3dsx"]);
 });
 
+it("puts GameCube discs in the gc folder, zipped ones too", () => {
+  const files = [file("Colosseum.iso"), file("XD.GCM"), file("Box.rvz"), file("Channel.ciso"), file("Battle.gcz"), file("Zipped.zip", { inner: "XD.rvz" })];
+
+  expect(planImport(files, empty).roms.map((rom) => rom.path)).toEqual([
+    "gc/Colosseum.iso",
+    "gc/XD.GCM",
+    "gc/Box.rvz",
+    "gc/Channel.ciso",
+    "gc/Battle.gcz",
+    "gc/Zipped.zip",
+  ]);
+});
+
 it("matches an Azahar save to its 3DS game by title ID, in the import or the library", () => {
   const [x, y] = ["0004000000055d00", "0004000000055e00"];
   const main = (folder: string, titleId: string | null) => file("main", { file: `/picked/${folder}/main`, folder, titleId });

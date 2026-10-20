@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { skins, skinLooks } from "@/skins";
+import { gcColours, skins, skinLooks } from "@/skins";
 import { systems } from "@/systems";
 import { blendLooks, lookVariables, mixColour } from "./skinLook";
 
@@ -67,6 +67,17 @@ it("colours N64's buttons and levels its red Start in Moulded", () => {
   expect(moulded["--skin-a-mid"]).toBe(charcoal.moulded.n64!.a.fill);
   expect(moulded["--skin-c-mid"]).toBe(charcoal.moulded.n64!.c.fill);
   expect(moulded["--skin-pill"]).toBe(charcoal.moulded.n64!.start);
+  expect(moulded["--skin-pill-rotate"]).toBe("0deg");
+});
+
+it.each(skins.gc.map((skin) => [skin.id, skin] as const))("colours GameCube's buttons on %s in Moulded", (_id, skin) => {
+  const moulded = lookVariables(skin, "moulded");
+
+  expect(moulded["--skin-a-mid"]).toBe(gcColours.a.fill);
+  expect(moulded["--skin-b-mid"]).toBe(gcColours.b.fill);
+  expect(moulded["--skin-xy-mid"]).toBe(gcColours.xy.fill);
+  expect(moulded["--skin-z-mid"]).toBe(gcColours.z.fill);
+  expect(moulded["--skin-c-mid"]).toBe(gcColours.c.fill);
   expect(moulded["--skin-pill-rotate"]).toBe("0deg");
 });
 

@@ -62,6 +62,7 @@ it.each([
   ["2026-10-05_1400_edit.sav", "HeartGold 2026-10-05_1400_edit.sav"],
   ["2026-10-05_1400_edit.dsv", "HeartGold 2026-10-05_1400_edit.sav"],
   ["2026-10-05_1400_edit.srm", "HeartGold 2026-10-05_1400_edit.srm"],
+  ["2026-10-05_1400_start.raw", "HeartGold 2026-10-05_1400_start.raw"],
 ])("exports the backup %s as %s", async (name, fileName) => {
   const backup = { ...edit, name };
   const host = { readBackup: vi.fn(async () => new Uint8Array([7, 8])) };

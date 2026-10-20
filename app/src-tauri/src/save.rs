@@ -8,6 +8,7 @@ use std::path::Path;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::Runtime;
 
+pub(crate) mod game_cube;
 pub(crate) mod n64;
 pub(crate) mod three_ds;
 
@@ -59,6 +60,7 @@ impl Slot {
         match &self.0 {
             Kind::File { path, .. } if is_dsv(path) => "dsv",
             Kind::File { path, .. } if has_extension(path, "srm") => "srm",
+            Kind::File { path, .. } if has_extension(path, "raw") => "raw",
             Kind::File { .. } => "sav",
             Kind::N64 { .. } => "srm",
         }
@@ -141,6 +143,9 @@ fn extension(path: &str) -> String {
 }
 
 pub fn paths(rom: &str) -> Vec<String> {
+    if rom::is_game_cube(rom) {
+        return vec![beside(rom, "raw")];
+    }
     match rom::is_n64(rom) {
         true => n64::EXTENSIONS.iter().map(|extension| beside(rom, extension)).collect(),
         false => vec![rom::save_path(rom), rom::dsv_path(rom)],
@@ -148,6 +153,9 @@ pub fn paths(rom: &str) -> Vec<String> {
 }
 
 async fn path<R: Runtime>(folder: &GamesFolder<'_, R>, rom: &str) -> Result<String, String> {
+    if rom::is_game_cube(rom) {
+        return Ok(beside(rom, "raw"));
+    }
     let (sav, dsv) = (rom::save_path(rom), rom::dsv_path(rom));
     if !folder.has_file(&dsv).await {
         return Ok(sav);
@@ -204,7 +212,16 @@ pub fn imported(rom: &str, name: &str, file: Vec<u8>) -> Result<(Slot, Vec<u8>),
             false => Err(format!("{name} isn't a Nintendo 64 save")),
         };
     }
-    let path = if is_dsv(name) || has_dsv_footer(&file) { rom::dsv_path(rom) } else { rom::save_path(rom) };
+    if rom::is_game_cube(rom) && !game_cube::fits(file.len()) {
+        return Err(format!("{name} isn't a GameCube memory card"));
+    }
+    let path = if rom::is_game_cube(rom) {
+        beside(rom, "raw")
+    } else if is_dsv(name) || has_dsv_footer(&file) {
+        rom::dsv_path(rom)
+    } else {
+        rom::save_path(rom)
+    };
     Ok(Slot::new(path, file))
 }
 
@@ -243,9 +260,10 @@ pub struct Exported {
 }
 
 pub async fn exported<R: Runtime>(folder: &GamesFolder<'_, R>, rom: &str) -> Result<Vec<Exported>, String> {
-    let (_, Some(save)) = open(folder, rom).await? else { return Ok(Vec::new()) };
+    let (slot, Some(save)) = open(folder, rom).await? else { return Ok(Vec::new()) };
     if !rom::is_n64(rom) {
-        return Ok(vec![Exported { extension: "sav".into(), bytes: save }]);
+        let extension = if slot.extension() == "raw" { "raw" } else { "sav" };
+        return Ok(vec![Exported { extension: extension.into(), bytes: save }]);
     }
     let mut files = Vec::new();
     for path in paths(rom) {
@@ -321,6 +339,47 @@ pub fn with_clock(rom: &str, mut save: Vec<u8>, rtc: &[u8], now: u64) -> Vec<u8>
     save
 }
 
+pub enum Memory<'a> {
+    Ram([&'a [u8]; 2]),
+    // A file the core writes, hashed once as it's read rather than at every check.
+    File { file: &'a [u8], hash: u64 },
+}
+
+impl<'a> Memory<'a> {
+    pub fn save(&self) -> &'a [u8] {
+        match self {
+            Memory::Ram([save_ram, _]) => save_ram,
+            Memory::File { file, .. } => file,
+        }
+    }
+
+    pub fn concat(&self) -> Vec<u8> {
+        match self {
+            Memory::Ram(memory) => memory.concat(),
+            Memory::File { file, .. } => file.to_vec(),
+        }
+    }
+
+    fn hash(&self) -> u64 {
+        match self {
+            Memory::Ram(memory) => hash(*memory),
+            Memory::File { hash, .. } => *hash,
+        }
+    }
+}
+
+impl<'a> From<[&'a [u8]; 2]> for Memory<'a> {
+    fn from(memory: [&'a [u8]; 2]) -> Memory<'a> {
+        Memory::Ram(memory)
+    }
+}
+
+impl<'a> From<[&'a mut [u8]; 2]> for Memory<'a> {
+    fn from([save_ram, rtc]: [&'a mut [u8]; 2]) -> Memory<'a> {
+        Memory::Ram([save_ram, rtc])
+    }
+}
+
 #[derive(Clone)]
 pub struct Watch {
     frames: u64,
@@ -339,7 +398,7 @@ impl Watch {
     }
 
     // The core loads the save on the first frame, so that frame sets what counts as unchanged.
-    pub fn after_frame<'a>(&mut self, memory: impl FnOnce() -> [&'a [u8]; 2]) -> Option<Vec<u8>> {
+    pub fn after_frame<'a, M: Into<Memory<'a>>>(&mut self, memory: impl FnOnce() -> M) -> Option<Vec<u8>> {
         self.frames += 1;
         if let Some(since_write) = &mut self.since_write {
             *since_write += 1;
@@ -359,8 +418,9 @@ impl Watch {
         self.since_write.unwrap_or(u64::MAX)
     }
 
-    pub fn check(&mut self, memory: [&[u8]; 2]) -> Option<Vec<u8>> {
-        let hash = hash(memory);
+    pub fn check<'a>(&mut self, memory: impl Into<Memory<'a>>) -> Option<Vec<u8>> {
+        let memory = memory.into();
+        let hash = memory.hash();
         match self.hash.replace(hash) {
             Some(previous) if previous != hash => {
                 self.since_write = Some(0);
@@ -370,12 +430,13 @@ impl Watch {
         }
     }
 
-    pub fn flush(&mut self, memory: [&[u8]; 2]) -> Vec<u8> {
+    pub fn flush<'a>(&mut self, memory: impl Into<Memory<'a>>) -> Vec<u8> {
         self.load(memory, Some(0))
     }
 
-    pub fn load(&mut self, memory: [&[u8]; 2], frames_since_write: Option<u64>) -> Vec<u8> {
-        self.hash = Some(hash(memory));
+    pub fn load<'a>(&mut self, memory: impl Into<Memory<'a>>, frames_since_write: Option<u64>) -> Vec<u8> {
+        let memory = memory.into();
+        self.hash = Some(memory.hash());
         self.since_write = frames_since_write;
         memory.concat()
     }
@@ -485,6 +546,30 @@ pub(crate) mod tests {
 
         assert_eq!(save, None);
         assert_eq!(block_on(folder.read("nds/HeartGold.sav")).unwrap(), b"first");
+    }
+
+    #[test]
+    fn keeps_a_gamecube_games_memory_card_beside_the_disc() {
+        let folder = temp_folder("card");
+        let card = pattern(0x200000, 1);
+
+        let (slot, save) = block_on(open(&folder, "gc/Colosseum.rvz")).unwrap();
+        block_on(slot.write(&folder, &card)).unwrap();
+
+        assert_eq!((save, slot.extension()), (None, "raw"));
+        assert_eq!(paths("gc/Colosseum.rvz"), ["gc/Colosseum.raw"]);
+        assert_eq!(block_on(folder.read("gc/Colosseum.raw")).unwrap(), card);
+        assert_eq!(block_on(open(&folder, "gc/Colosseum.rvz")).unwrap().1, Some(card.clone()));
+        let exported = block_on(exported(&folder, "gc/Colosseum.rvz")).unwrap();
+        assert_eq!(exported, [Exported { extension: "raw".into(), bytes: card }]);
+    }
+
+    #[test]
+    fn imports_a_memory_card_as_the_games_card() {
+        let (slot, card) = imported("gc/XD.iso", "XD.sav", pattern(0x200000, 1)).unwrap();
+
+        assert_eq!(slot.files(&card), [("gc/XD.raw".to_string(), pattern(0x200000, 1))]);
+        assert!(imported("gc/XD.iso", "XD.sav", pattern(0x8000, 1)).is_err());
     }
 
     #[test]
@@ -828,7 +913,7 @@ pub(crate) mod tests {
         save_ram[0] = 1;
 
         assert!(run(&mut watch, 1, &save_ram, &[]).is_empty());
-        assert_eq!(watch.check([&save_ram, &[]]), Some(vec![1, 0xFF, 0xFF, 0xFF]));
+        assert_eq!(watch.check([&save_ram[..], &[]]), Some(vec![1, 0xFF, 0xFF, 0xFF]));
     }
 
     #[test]
@@ -837,7 +922,7 @@ pub(crate) mod tests {
         let save_ram = vec![0xFF; 4];
         run(&mut watch, 45, &save_ram, &[]);
 
-        assert_eq!(watch.check([&save_ram, &[]]), None);
+        assert_eq!(watch.check([&save_ram[..], &[]]), None);
     }
 
     #[test]

@@ -22,6 +22,7 @@ export const tauriPreferencesHost: PreferencesHost = {
     screenDepth: await settings.get("screenDepth"),
     screenGlass: await settings.get("screenGlass"),
     asyncShaders: await settings.get("asyncShaders"),
+    gameCubeResolution: await settings.get("gameCubeResolution"),
   }),
   save: async ({
     touchControls,
@@ -39,6 +40,7 @@ export const tauriPreferencesHost: PreferencesHost = {
     screenDepth,
     screenGlass,
     asyncShaders,
+    gameCubeResolution,
   }) => {
     await settings.set("touchControls", touchControls);
     await settings.set("fastForwardSpeed", fastForwardSpeed);
@@ -55,6 +57,7 @@ export const tauriPreferencesHost: PreferencesHost = {
     await settings.set("screenDepth", screenDepth);
     await settings.set("screenGlass", screenGlass);
     await settings.set("asyncShaders", asyncShaders);
+    await settings.set("gameCubeResolution", gameCubeResolution);
     await settings.save();
   },
   chooseSkin: (system, { skin, look }) => invoke("choose_skin", { system, skin, look }),

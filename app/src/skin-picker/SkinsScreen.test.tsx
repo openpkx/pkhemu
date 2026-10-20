@@ -14,7 +14,7 @@ import { SkinsScreen } from "./SkinsScreen";
 
 vi.mock("@/screen", () => ({ createScreen: () => () => {} }));
 
-const defaults: Preferences = { touchControls: true, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic", skins: { ...defaultSkins, gb: { skin: "classic-grey", look: "frosted" }, gbc: { skin: "teal", look: "moulded" } }, skinHintSeen: true, screenDepth: true, screenGlass: true, asyncShaders: false };
+const defaults: Preferences = { touchControls: true, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic", skins: { ...defaultSkins, gb: { skin: "classic-grey", look: "frosted" }, gbc: { skin: "teal", look: "moulded" } }, skinHintSeen: true, screenDepth: true, screenGlass: true, asyncShaders: false, gameCubeResolution: 1 };
 
 const gamesFolder: GamesFolderHost = {
   makeFolder: async () => "/games",
@@ -74,7 +74,7 @@ it("lists every system on the platform with its skin and look", async () => {
 
   expect(rows()).toHaveLength(systems.length);
   expect(rows()[0].textContent).toBe("Game BoyClassic grey · Frosted");
-  expect(rows().at(-1)?.textContent).toBe("Nintendo 3DSpkhemu · Moulded");
+  expect(rows().at(-1)?.textContent).toBe("Nintendo GameCubepkhemu · Moulded");
 });
 
 it("lists only the platform's systems", async () => {

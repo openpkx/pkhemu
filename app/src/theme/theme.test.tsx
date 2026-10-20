@@ -38,7 +38,7 @@ function changeDevice(dark: boolean) {
 }
 
 function applyTheme(theme: Theme) {
-  const defaults: Preferences = { touchControls: false, fastForwardSpeed: 2, showFps: false, theme, eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic", skins: defaultSkins, skinHintSeen: false, screenDepth: true, screenGlass: true, asyncShaders: false };
+  const defaults: Preferences = { touchControls: false, fastForwardSpeed: 2, showFps: false, theme, eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic", skins: defaultSkins, skinHintSeen: false, screenDepth: true, screenGlass: true, asyncShaders: false, gameCubeResolution: 1 };
   return renderHook(
     () => {
       useAppliedTheme();

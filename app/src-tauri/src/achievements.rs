@@ -1014,7 +1014,7 @@ fn hash(rom: &Rom) -> Option<(u32, CString)> {
         System::Gba => RC_CONSOLE_GAMEBOY_ADVANCE,
         System::Ds => RC_CONSOLE_NINTENDO_DS,
         System::N64 => RC_CONSOLE_NINTENDO_64,
-        System::ThreeDs => return None,
+        System::ThreeDs | System::GameCube => return None,
     };
     let mut hash = [0 as c_char; 33];
     let hashed =
@@ -1177,7 +1177,9 @@ pub async fn retro_achievements_game<R: Runtime>(
     folder: String,
     path: String,
 ) -> Result<Option<Vec<Achievement>>, String> {
-    if crate::rom::is_3ds(&path) {
+    use crate::cheats::Platform;
+    // Neither has sets here, and a GameCube disc or its zip is too big to read for nothing.
+    if matches!(Platform::of_path(&path), Ok(Platform::ThreeDs | Platform::GameCube) | Err(_)) {
         return Ok(None);
     }
     let rom = async {

@@ -48,6 +48,7 @@ const game = vi.hoisted(() => ({
   renderer: undefined as string | undefined,
   onNativeFailed: undefined as (() => void) | undefined,
   screens: undefined as unknown,
+  resolution: undefined as number | undefined,
   swapped: undefined as boolean | undefined,
   clearance: undefined as string | undefined,
   onStacked: undefined as ((stacked: boolean) => void) | undefined,
@@ -113,6 +114,7 @@ vi.mock("./Player", () => ({
     renderer,
     onNativeFailed,
     screens,
+    resolution,
     swapped,
     clearance,
     onStacked,
@@ -129,12 +131,14 @@ vi.mock("./Player", () => ({
     renderer: string;
     onNativeFailed?(): void;
     screens?: unknown;
+    resolution?: number;
     swapped?: boolean;
     clearance?: string;
     onStacked?(stacked: boolean): void;
     children?: ReactNode;
   }) {
     game.screens = screens;
+    game.resolution = resolution;
     game.swapped = swapped;
     game.clearance = clearance;
     game.onStacked = onStacked;
@@ -257,7 +261,7 @@ async function play(
         <GameSurfaceProvider host={gameSurface}>
           <PreferencesProvider
             host={preferences}
-            defaults={{ touchControls, fastForwardSpeed: 2, showFps, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer, skins: skinChoices, skinHintSeen: false, screenDepth: true, screenGlass: true, asyncShaders: false }}
+            defaults={{ touchControls, fastForwardSpeed: 2, showFps, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer, skins: skinChoices, skinHintSeen: false, screenDepth: true, screenGlass: true, asyncShaders: false, gameCubeResolution: 1 }}
           >
             <GamesFolderProvider host={gamesFolder}>
               <SyncProvider host={sync.host}>
@@ -383,6 +387,17 @@ it("keeps the game area black in landscape", async () => {
 
   expect(plastic()).toBeNull();
   expect(skinned()).toBeNull();
+});
+
+it.each([
+  ["gc", 3],
+  ["gba", undefined],
+] as const)("starts a %s game at the GameCube resolution only if it's a GameCube game", async (system, resolution) => {
+  const preferences: PreferencesHost = { load: async () => ({ gameCubeResolution: 3 }), save: async () => {} };
+
+  await play(undefined, undefined, undefined, { preferences, played: { name: "Game", path: `${system}/Game`, system } });
+
+  expect(game.resolution).toBe(resolution);
 });
 
 const holding = () => screen.getByTestId("player").getAttribute("data-holding");
@@ -1262,6 +1277,14 @@ it("boots a 3DS game without a warning when the app has its memory entitlements"
 
   expect(notice()).toBeNull();
   expect(game.launches).toEqual([{ resume: false, hardcore: false }]);
+});
+
+it("warns before a GameCube game boots when the app lacks memory entitlements", async () => {
+  game.missingEntitlements = ["increased-memory-limit"];
+  await play(undefined, undefined, undefined, { played: { name: "Colosseum", path: "gc/Colosseum.rvz", system: "gc" } });
+
+  expect(within(notice()!).getByText(/increased memory limit/)).toBeTruthy();
+  expect(game.launches).toEqual([]);
 });
 
 it("boots other systems without the memory warning", async () => {

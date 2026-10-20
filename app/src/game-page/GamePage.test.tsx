@@ -53,6 +53,7 @@ const defaultPreferences: Preferences = {
   screenDepth: true,
   screenGlass: true,
   asyncShaders: false,
+  gameCubeResolution: 1,
 };
 
 const emerald: Game = { system: "gba", name: "Pokemon - Emerald Version (USA, Europe)", path: "gba/Emerald.gba" };

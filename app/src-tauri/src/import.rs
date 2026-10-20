@@ -15,12 +15,12 @@ use url::Url;
 
 use crate::backups::{self, Reason};
 use crate::files::{self, open_picked};
-use crate::game_art::{sha1_of_rom, sha1_of_stream, sha1_of_unpacked};
+use crate::game_art::{sha1_of_disc, sha1_of_rom, sha1_of_stream, sha1_of_unpacked};
 use crate::games_folder::GamesFolder;
 use crate::index::Index;
-use crate::{resume, rom, save, three_ds};
+use crate::{game_cube, resume, rom, save, three_ds};
 
-const SYSTEMS: [&str; 6] = ["gb", "gbc", "gba", "nds", "n64", "3ds"];
+const SYSTEMS: [&str; 7] = ["gb", "gbc", "gba", "nds", "n64", "3ds", "gc"];
 
 struct App {
     name: Option<&'static str>,
@@ -76,7 +76,7 @@ pub(crate) fn millis(time: SystemTime) -> i64 {
 }
 
 fn is_rom(name: &str) -> bool {
-    rom::is_rom(name) || rom::is_archive(name) || three_ds::is_import(name)
+    rom::is_rom(name) || rom::is_archive(name) || three_ds::is_import(name) || rom::is_game_cube(name)
 }
 
 #[derive(Serialize, Debug, PartialEq)]
@@ -113,13 +113,17 @@ fn identify(name: &str, file: impl Read + Seek, hash: bool) -> Result<(Option<St
             if hash { three_ds::imported(file).ok().and_then(|copy| sha1_of_unpacked(copy).ok()) } else { None },
         ));
     }
+    if rom::is_game_cube(name) {
+        return Ok((None, if hash { sha1_of_disc(file).map_err(|e| format!("{name}: {e}"))? } else { None }));
+    }
     if !rom::is_archive(name) {
         return Ok((None, if hash { sha1_of_stream(file).ok() } else { None }));
     }
+    // A zipped disc is only named, since importing it is refused rather than unpacking 1.4 GB.
     let read = |inner: &str, _, rom: &mut dyn Read| {
-        Ok((inner.to_owned(), if hash { Some(sha1_of_stream(rom)?) } else { None }))
+        Ok((inner.to_owned(), if hash && !rom::is_game_cube(inner) { Some(sha1_of_stream(rom)?) } else { None }))
     };
-    let found = rom::find_archived(name, BufReader::new(file), read)?;
+    let found = rom::find_archived_game(name, BufReader::new(file), read)?;
     Ok(found.map_or((None, None), |(inner, sha1)| (Some(inner), sha1)))
 }
 
@@ -558,7 +562,11 @@ fn check_rom_path(path: &str) -> Result<(), String> {
             if SYSTEMS.contains(&system)
                 && !name.contains('/')
                 && !name.starts_with('.')
-                && if system == "3ds" { rom::is_3ds(name) } else { is_rom(name) && !three_ds::is_import(name) } =>
+                && match system {
+                    "3ds" => rom::is_3ds(name),
+                    "gc" => rom::is_game_cube(name),
+                    _ => is_rom(name) && !three_ds::is_import(name) && !rom::is_game_cube(name),
+                } =>
         {
             Ok(())
         }
@@ -593,10 +601,34 @@ pub async fn import_rom<R: Runtime>(
 ) -> Result<Vec<String>, String> {
     let source = open_picked(&app, &file).await?;
     let games = GamesFolder::open(&app, &folder);
-    match path.starts_with("3ds/") {
-        true => copy_3ds(&games, &path, source).await,
-        false => copy_rom(&games, &path, source).await.map(|_| Vec::new()),
+    match path.split_once('/').map(|(system, _)| system) {
+        Some("3ds") => copy_3ds(&games, &path, source).await,
+        Some("gc") => copy_disc(&games, &path, source).await.map(|_| Vec::new()),
+        _ => copy_rom(&games, &path, source).await.map(|_| Vec::new()),
     }
+}
+
+// Dolphin reads a disc by its path, and a 1.4 GB disc is too big to unpack for each run.
+pub async fn copy_disc<R: Runtime>(
+    games: &GamesFolder<'_, R>,
+    path: &str,
+    mut source: impl Read + Seek + Send + 'static,
+) -> Result<(), String> {
+    let name = Path::new(path).file_name().map_or_else(|| path.to_owned(), |name| name.to_string_lossy().into_owned());
+    if rom::is_archive(path) {
+        return Err(rom::zipped_disc(&name));
+    }
+    check_rom_path(path)?;
+    let (header, source) = tauri::async_runtime::spawn_blocking(move || {
+        let header = game_cube::header(&mut source).and_then(|header| source.rewind().map(|_| header));
+        (header, source)
+    })
+    .await
+    .map_err(error)?;
+    if header.map_err(|e| format!("{name}: {e}"))?.is_none() {
+        return Err(game_cube::not_a_disc(&name));
+    }
+    copy_rom(games, path, source).await
 }
 
 pub async fn copy_3ds<R: Runtime>(
@@ -1295,6 +1327,70 @@ mod tests {
 
         assert_eq!(picked.len(), 1);
         assert!(picked[0].error.as_deref().is_some_and(|e| e.starts_with("Game.zip: ")), "{:?}", picked[0].error);
+    }
+
+    fn imported(
+        name: &str,
+        picked: &Picked,
+        path: &str,
+    ) -> (GamesFolder<'static, tauri::Wry>, Result<Vec<String>, String>) {
+        let games = temp_folder(name);
+        let app = tauri::test::mock_app();
+        let folder = games.root().to_string_lossy().into_owned();
+        let imported = block_on(import_rom(app.handle().clone(), folder, picked.file.clone(), path.into()));
+        (games, imported)
+    }
+
+    #[test]
+    fn imports_a_gamecube_disc_in_each_format_known_by_its_header() {
+        use crate::game_cube::tests::{ciso_of, gcz_of, iso, rvz_of};
+        let colosseum = iso(b"GC6E01", 0);
+        let formats = [
+            ("Colosseum.iso", colosseum.clone()),
+            ("Colosseum.GCM", colosseum.clone()),
+            ("Colosseum.rvz", rvz_of(&colosseum, b"RVZ\x01")),
+            ("Colosseum.ciso", ciso_of(&colosseum, 0x8000)),
+            ("Colosseum.gcz", gcz_of(&colosseum, 0x4000)),
+        ];
+
+        for (name, bytes) in formats {
+            let picked = picked_with_unzipped(&format!("disc-{name}"), name, &bytes);
+            let (games, imported) = imported(&format!("disc-{name}"), &picked[0], &format!("gc/{name}"));
+
+            assert_eq!((picked.len(), picked[0].sha1.clone()), (1, Some(crate::game_art::sha1_of(&colosseum[..0x80]))));
+            assert_eq!(imported, Ok(Vec::new()), "{name}");
+            assert_eq!(block_on(games.read(&format!("gc/{name}"))).unwrap(), bytes, "{name}");
+        }
+    }
+
+    #[test]
+    fn refuses_a_file_that_isnt_a_gamecube_disc() {
+        let picked = picked_with_unzipped("not-a-disc", "Game.iso", &[0x5A; 0x10000]);
+
+        let (games, imported) = imported("not-a-disc", &picked[0], "gc/Game.iso");
+
+        assert_eq!((picked[0].sha1.clone(), picked[0].error.clone()), (None, None));
+        assert_eq!(imported, Err("Game.iso isn't a GameCube disc".into()));
+        assert_eq!(names(&games, "gc"), Vec::<String>::new());
+    }
+
+    #[test]
+    fn refuses_a_zipped_disc_with_a_message_to_unzip_it() {
+        let disc = crate::game_cube::tests::iso(b"GC6E01", 0);
+
+        for (name, archive) in [
+            ("Colosseum.zip", zip_of(&[("readme.txt", b"hi"), ("Colosseum.iso", &disc)])),
+            ("Colosseum.7z", sevenz_of(&[("games/Colosseum.rvz", &disc)])),
+        ] {
+            let picked = picked_with_unzipped(&format!("zipped-{name}"), name, &archive);
+            let (games, imported) = imported(&format!("zipped-{name}"), &picked[0], &format!("gc/{name}"));
+
+            assert_eq!(picked.len(), 1, "{name}");
+            assert!(picked[0].inner.as_deref().is_some_and(|inner| rom::is_game_cube(inner)), "{name}");
+            assert_eq!((picked[0].sha1.clone(), picked[0].error.clone()), (None, None), "{name}");
+            assert_eq!(imported, Err(format!("Unzip {name} first. pkhemu can't play a zipped GameCube disc.")));
+            assert_eq!(names(&games, "gc"), Vec::<String>::new());
+        }
     }
 
     #[test]

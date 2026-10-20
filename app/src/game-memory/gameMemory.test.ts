@@ -6,6 +6,8 @@ import blackWild from "./snapshots/black-wild.json";
 import black2AfterBattle from "./snapshots/black2-after-battle.json";
 import black2Overworld from "./snapshots/black2-overworld.json";
 import black2Wild from "./snapshots/black2-wild.json";
+import colosseumMenu from "./snapshots/colosseum-menu.json";
+import colosseumOverworld from "./snapshots/colosseum-overworld.json";
 import diamondAfterBattle from "./snapshots/diamond-after-battle.json";
 import diamondOverworld from "./snapshots/diamond-overworld.json";
 import diamondWild from "./snapshots/diamond-wild.json";
@@ -46,9 +48,12 @@ import whiteAfterBattle from "./snapshots/white-after-battle.json";
 import whiteOverworld from "./snapshots/white-overworld.json";
 import whiteWild from "./snapshots/white-wild.json";
 import whiteWildFainted from "./snapshots/white-wild-fainted.json";
+import xdOverworld from "./snapshots/xd-overworld.json";
+import xdTitle from "./snapshots/xd-title.json";
 import {
   gen3Nickname as nickname,
   dsSpecies as species,
+  gameCubeNickname,
   hex,
   snapshotMemory,
   snapshotSystem,
@@ -100,6 +105,37 @@ it.each([
   expect(facts.party.map(species)).toEqual(party);
   expect(facts.party.every((pokemon) => pokemon.length === 220)).toBe(true);
   expect(facts.battle).toBeNull();
+});
+
+it.each([
+  ["Colosseum", colosseumOverworld, ["UMBREON", "ESPEON"], 312],
+  ["XD", xdOverworld, ["EEVEE"], 196],
+])("reads the party from the save the game keeps in RAM in %s", async (_, snapshot, party, size) => {
+  const facts = await factsOf(snapshot);
+
+  expect(facts.party.map(gameCubeNickname)).toEqual(party);
+  expect(facts.party.every((pokemon) => pokemon.length === size)).toBe(true);
+  expect(facts.battle).toBeNull();
+});
+
+// The game puts its save elsewhere on each boot, and keeps the starter party there before a story begins.
+it.each([
+  ["Colosseum", colosseumMenu, ["UMBREON", "ESPEON"]],
+  ["XD", xdTitle, ["EEVEE"]],
+])("follows %s's save to wherever this boot put it", async (_, snapshot, party) => {
+  const facts = await factsOf(snapshot);
+
+  expect(facts.party.map(gameCubeNickname)).toEqual(party);
+});
+
+it("has no party while the game boots, before it points at its save", async () => {
+  const booting = { 0x80000000: [..."GC6P"].map((c) => c.charCodeAt(0)), 0x80000007: [0], 0x804c8268: [0, 0, 0, 0] };
+  const read = async (ranges: { address: number; length: number }[]) =>
+    Uint8Array.from(ranges.flatMap(({ address }) => booting[address as keyof typeof booting]));
+  const game = await openGameMemory("gc", read);
+  if (game === "unsupported") throw new Error("unsupported");
+
+  expect(await game.read()).toMatchObject({ party: [], battle: null });
 });
 
 it("keeps each Pokémon as the game stores it, encrypted", async () => {
@@ -257,6 +293,13 @@ it.each([
   ["White EN", whiteOverworld, 20],
 ])("names %s, its PKHeX game version and the Gen 5 format", async (build, snapshot, version) => {
   expect(await factsOf(snapshot)).toMatchObject({ build, format: "pk5", version });
+});
+
+it.each([
+  ["Colosseum EU", colosseumOverworld, 62, "ck3"],
+  ["XD EU", xdOverworld, 63, "xk3"],
+])("names %s, its PKHeX game version and its GameCube format", async (build, snapshot, version, format) => {
+  expect(await factsOf(snapshot)).toMatchObject({ build, format, version });
 });
 
 it("reports a build it has no addresses for as unsupported", async () => {

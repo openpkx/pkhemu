@@ -247,6 +247,177 @@ pub fn homebrew_3dsx(title: &str) -> Option<Rom> {
     Some(Rom::at(&name, crate::rom::RomFile::new(file, name.clone())))
 }
 
+fn gamecube_id(path: &Path) -> Option<(String, u8)> {
+    let header = crate::game_cube::header(File::open(path).ok()?).ok()??;
+    Some((String::from_utf8_lossy(&header[..6]).into_owned(), header[7]))
+}
+
+pub fn gamecube_disc(title: &str, id: &str, revision: u8) -> Option<Rom> {
+    let found = files_in(&Path::new(DATA).join("roms"))
+        .into_iter()
+        .find(|path| gamecube_id(path) == Some((id.to_owned(), revision)));
+    let Some(path) = found else {
+        eprintln!("skipped: needs {title} ({id}, revision {revision}) in data/roms/");
+        return None;
+    };
+    let name = path.to_string_lossy().into_owned();
+    Some(Rom::at(&name, crate::rom::RomFile::new(File::open(&path).ok()?, name.clone())))
+}
+
+// A PowerPC apploader that hands the boot code a table of disc reads, then the entry point. Dolphin runs it at
+// 0x81200000 and keeps the table, which follows it, in the same place.
+fn apploader(reads: &[[u32; 3]], entry: u32) -> Vec<u8> {
+    let (lis, addi, lwz, stw) = (
+        |d: u32, imm: u32| 15 << 26 | d << 21 | imm,
+        |d: u32, a: u32, imm: u32| 14 << 26 | d << 21 | a << 16 | imm,
+        |d: u32, a: u32, off: u32| 32 << 26 | d << 21 | a << 16 | off,
+        |s: u32, a: u32, off: u32| 36 << 26 | s << 21 | a << 16 | off,
+    );
+    let (blr, data) = (0x4E80_0020, 0x80);
+    let code = [
+        // Entry: give init, main and close.
+        lis(6, 0x8120),
+        addi(7, 6, 0x20),
+        stw(7, 3, 0),
+        addi(7, 6, 0x24),
+        stw(7, 4, 0),
+        addi(7, 6, 0x70),
+        stw(7, 5, 0),
+        blr,
+        // Init.
+        blr,
+        // Main: the next read, or 0 when there are none left.
+        lis(6, 0x8120),
+        lwz(7, 6, data),
+        lwz(8, 6, data + 4),
+        31 << 26 | 7 << 16 | 8 << 11,
+        16 << 26 | 4 << 21 | 0x34,
+        7 << 26 | 9 << 21 | 7 << 16 | 12,
+        31 << 26 | 9 << 21 | 9 << 16 | 6 << 11 | 266 << 1,
+        lwz(10, 9, data + 12),
+        stw(10, 3, 0),
+        lwz(10, 9, data + 16),
+        stw(10, 4, 0),
+        lwz(10, 9, data + 20),
+        stw(10, 5, 0),
+        addi(7, 7, 1),
+        stw(7, 6, data),
+        addi(3, 0, 1),
+        blr,
+        addi(3, 0, 0),
+        blr,
+        // Close: the entry point.
+        lis(6, 0x8120),
+        lwz(3, 6, data + 8),
+        blr,
+    ];
+    let mut blob: Vec<u8> = code.iter().flat_map(|word| word.to_be_bytes()).collect();
+    assert!(blob.len() <= data as usize);
+    blob.resize(data as usize, 0);
+    let table = [0, reads.len() as u32, entry].into_iter().chain(reads.iter().flatten().copied());
+    blob.extend(table.flat_map(|word| word.to_be_bytes()));
+    blob
+}
+
+// A GameCube disc holding a homebrew DOL, booted by `apploader`.
+pub fn gamecube_disc_of(game_id: &[u8; 6], dol: &[u8]) -> Vec<u8> {
+    let word = |at: usize| u32::from_be_bytes(dol[at..at + 4].try_into().unwrap());
+    let dol_at = 0x8000;
+    let reads: Vec<[u32; 3]> = (0..18)
+        .filter(|section| word(0x90 + section * 4) != 0)
+        .map(|section| [word(0x48 + section * 4), word(0x90 + section * 4), dol_at + word(section * 4)])
+        .collect();
+    let loader = apploader(&reads, word(0xE0));
+    let mut disc = vec![0; dol_at as usize];
+    disc[..6].copy_from_slice(game_id);
+    disc[0x1C..0x20].copy_from_slice(&0xC233_9F3Du32.to_be_bytes());
+    disc[0x20..0x28].copy_from_slice(b"homebrew");
+    disc[0x420..0x424].copy_from_slice(&dol_at.to_be_bytes());
+    // An FST with only its root folder.
+    let fst = 0x7000u32;
+    for (at, value) in [(0x424, fst), (0x428, 13), (0x42C, 13)] {
+        disc[at..at + 4].copy_from_slice(&value.to_be_bytes());
+    }
+    disc[fst as usize..fst as usize + 12].copy_from_slice(&[1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1]);
+    disc[0x45B] = 1;
+    disc[0x2450..0x2454].copy_from_slice(&0x8120_0000u32.to_be_bytes());
+    disc[0x2454..0x2458].copy_from_slice(&(loader.len() as u32).to_be_bytes());
+    disc[0x2460..0x2460 + loader.len()].copy_from_slice(&loader);
+    disc.extend_from_slice(dol);
+    disc.resize(disc.len().next_multiple_of(0x8000), 0);
+    disc
+}
+
+const SNES9X_GX_5_0_3_GAMECUBE: &str = "e21b68ddef85ec7ae5fd3a6ba481c8fee4e3c5062948c7cf9ffa1069d5749f64";
+
+// Snes9x GX ships its GameCube build as a DOL, so the test puts it on a disc of its own.
+pub fn snes9x_gx_disc() -> Option<Rom> {
+    let dol = files_in(&Path::new(DATA).join("roms"))
+        .into_iter()
+        .filter(|path| extension(&path.to_string_lossy()).as_deref() == Some("dol"))
+        .filter_map(|path| std::fs::read(path).ok())
+        .find(|dol| crate::save::sha256(dol) == SNES9X_GX_5_0_3_GAMECUBE);
+    let Some(dol) = dol else {
+        eprintln!("skipped: needs snes9xgx-gc.dol from Snes9x GX 5.0.3's GameCube release in data/roms/");
+        return None;
+    };
+    let path = std::env::temp_dir().join("pkh-emu-snes9x-gx.iso");
+    std::fs::write(&path, gamecube_disc_of(b"GS9E00", &dol)).ok()?;
+    let name = path.to_string_lossy().into_owned();
+    Some(Rom::at(&name, crate::rom::RomFile::new(File::open(&path).ok()?, name.clone())))
+}
+
+pub const PAD_READING: usize = 0x3F00;
+
+// Holds A for a few frames and returns the buttons the pad reader saw, in the pad's own bits.
+pub fn buttons_after_pressing_a(core: &mut crate::retro::Core) -> u32 {
+    crate::retro::set_input(1 << 8);
+    (0..6).for_each(|_| core.run_frame());
+    crate::retro::release_input();
+    let ram = core.memory_data(crate::retro::MEMORY_SYSTEM_RAM);
+    u32::from_be_bytes(ram[PAD_READING..PAD_READING + 4].try_into().unwrap()) >> 16 & 0x1F7F
+}
+
+pub fn gamecube_pad_reader_disc() -> Rom {
+    gamecube_disc_at("pkh-emu-gamecube-pad-reader.iso", &gamecube_pad_reader_iso())
+}
+
+pub fn gamecube_disc_at(name: &str, disc: &[u8]) -> Rom {
+    let path = std::env::temp_dir().join(name);
+    std::fs::write(&path, disc).unwrap();
+    let name = path.to_string_lossy().into_owned();
+    Rom::at(&name, crate::rom::RomFile::new(File::open(&path).unwrap(), name.clone()))
+}
+
+// A disc whose DOL copies what the SI reads from the pad in port 1, its two 32-bit words, to `PAD_READING` forever.
+pub fn gamecube_pad_reader_iso() -> Vec<u8> {
+    let (lis, ori, lwz, stw) = (
+        |d: u32, imm: u32| 15 << 26 | d << 21 | imm,
+        |a: u32, s: u32, imm: u32| 24 << 26 | s << 21 | a << 16 | imm,
+        |d: u32, a: u32, off: u32| 32 << 26 | d << 21 | a << 16 | off,
+        |s: u32, a: u32, off: u32| 36 << 26 | s << 21 | a << 16 | off,
+    );
+    let at = PAD_READING as u32;
+    let code = [
+        lis(3, 0xCC00),
+        ori(3, 3, 0x6404),
+        lis(5, 0x8000),
+        lwz(6, 3, 0),
+        stw(6, 5, at),
+        lwz(6, 3, 4),
+        stw(6, 5, at + 4),
+        18 << 26 | (-16i32 as u32 & 0x03FF_FFFC),
+    ];
+    let (text_at, entry) = (0x100usize, 0x8000_4000u32);
+    let mut dol = vec![0; text_at];
+    dol[0..4].copy_from_slice(&(text_at as u32).to_be_bytes());
+    dol[0x48..0x4C].copy_from_slice(&entry.to_be_bytes());
+    dol[0x90..0x94].copy_from_slice(&(code.len() as u32 * 4).to_be_bytes());
+    dol[0xE0..0xE4].copy_from_slice(&entry.to_be_bytes());
+    dol.extend(code.iter().flat_map(|word| word.to_be_bytes()));
+    gamecube_disc_of(b"GPRE00", &dol)
+}
+
 fn ncch_partitions(path: &Path) -> Vec<u64> {
     let mut ncsd = [0; 0x200];
     let read = File::open(path).and_then(|mut file| file.read_exact(&mut ncsd));
@@ -356,6 +527,21 @@ pub fn pokemon_x_save() -> Option<Vec<u8>> {
         eprintln!("skipped: needs a Pokémon X save at data/saves/3ds/x-catnapfart123-main");
     }
     save
+}
+
+// A raw card whose directory, in blocks 1 and 2, lists the European Colosseum's save file.
+pub fn colosseum_card() -> Option<Vec<u8>> {
+    let lists_colosseum = |file: &Vec<u8>| {
+        crate::save::game_cube::fits(file.len()) && file[0x2000..0x6000].windows(6).any(|id| id == b"GC6P01")
+    };
+    let card = files_in(&Path::new(DATA).join("saves"))
+        .into_iter()
+        .filter_map(|path| std::fs::read(path).ok())
+        .find(lists_colosseum);
+    if card.is_none() {
+        eprintln!("skipped: needs a raw memory card with a European Pokémon Colosseum story save in data/saves/");
+    }
+    card
 }
 
 pub fn rom_by_header(title: &str, code: &[u8; 4], revision: u8) -> Option<Rom> {

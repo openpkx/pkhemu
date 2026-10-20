@@ -1,7 +1,7 @@
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
 import { HapticsProvider } from "@/haptics/haptics";
-import { buttons, createInput, n64Buttons, type Input, type InputEvent } from "@/input/input";
+import { buttons, createInput, gcButtons, n64Buttons, type Input, type InputEvent } from "@/input/input";
 import { PreferencesProvider, type Preferences, type StickSensitivity } from "@/preferences/preferences";
 import type { System } from "@/systems";
 import { TouchControls } from "./TouchControls";
@@ -31,7 +31,7 @@ async function launch({
   fastForwardOn = false,
   stickSensitivity = 1 as StickSensitivity,
 } = {}) {
-  if (system === "n64" || system === "3ds") {
+  if (system === "n64" || system === "3ds" || system === "gc") {
     detach();
     input = createInput(() => [], undefined, system);
     detach = input.attach(window);
@@ -39,7 +39,7 @@ async function launch({
   const host = { load: async (): Promise<Partial<Preferences>> => ({ touchControls, stickSensitivity }), save: async () => {} };
   const fastForward = { on: fastForwardOn, speed: 1, toggle: vi.fn() } as const;
   render(
-    <PreferencesProvider host={host} defaults={{ touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic", skins: defaultSkins, skinHintSeen: false, screenDepth: true, screenGlass: true, asyncShaders: false }}>
+    <PreferencesProvider host={host} defaults={{ touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic", skins: defaultSkins, skinHintSeen: false, screenDepth: true, screenGlass: true, asyncShaders: false, gameCubeResolution: 1 }}>
       <HapticsProvider host={{ tap: () => void taps++ }}>
         <TouchControls input={input} system={system} fastForward={fastForward} />
       </HapticsProvider>
@@ -62,13 +62,13 @@ function tapOn(target: Element, pointerId = 1, clientX = 0, clientY = 0) {
 
 const holdButton = () => screen.getByRole("button", { name: "Hold" });
 
-function stick() {
-  const element = screen.getByLabelText("Stick");
+function stick(name = "Stick") {
+  const element = screen.getByLabelText(name);
   element.getBoundingClientRect = () => ({ left: 0, top: 0, width: 120, height: 120 }) as DOMRect;
   return element;
 }
 
-const names = () => [...screen.getAllByRole("button"), screen.queryByLabelText("D-pad"), screen.queryByLabelText("Stick")].filter(Boolean).map((element) => element!.getAttribute("aria-label"));
+const names = () => [...screen.getAllByRole("button"), screen.queryByLabelText("D-pad"), screen.queryByLabelText("Stick"), screen.queryByLabelText("C-stick")].filter(Boolean).map((element) => element!.getAttribute("aria-label"));
 
 function dpad() {
   const element = screen.getByLabelText("D-pad");
@@ -360,6 +360,45 @@ it("has an N64 layout with a stick, Z and C buttons, and no Select", async () =>
   await launch({ system: "n64" });
 
   expect(names()).toEqual(["L", "Pause menu", "Start", "R", "Z", "B", "A", "C up", "C left", "C right", "C down", "Hold", "Fast-forward", "D-pad", "Stick"]);
+});
+
+it("has a GameCube layout with a stick, a C-stick, Z, X and Y, and no Select", async () => {
+  await launch({ system: "gc" });
+
+  expect(names()).toEqual(["L", "Pause menu", "Start", "Z", "R", "Y", "X", "B", "A", "Hold", "Fast-forward", "D-pad", "Stick", "C-stick"]);
+});
+
+it.each([
+  ["A", gcButtons.a],
+  ["B", gcButtons.b],
+  ["X", gcButtons.x],
+  ["Y", gcButtons.y],
+  ["Z", gcButtons.z],
+  ["L", gcButtons.l],
+  ["R", gcButtons.r],
+  ["Start", buttons.start],
+])("presses the GameCube's %s", async (name, button) => {
+  await launch({ system: "gc" });
+
+  pointer("pointerdown", screen.getByRole("button", { name }), 1);
+
+  expect(input.poll(0)).toBe(bit(button));
+});
+
+it("sends the GameCube's C-stick to the core as the right stick, beside the stick", async () => {
+  await launch({ system: "gc" });
+
+  pointer("pointerdown", stick(), 1, 60, 60);
+  pointer("pointermove", stick(), 1, 100, 60);
+  pointer("pointerdown", stick("C-stick"), 2, 60, 60);
+  pointer("pointermove", stick("C-stick"), 2, 60, 20);
+
+  expect(input.poll(0)).toBe(0);
+  expect(input.pollAnalog()).toEqual([0x7fff, 0, 0, -0x7fff]);
+
+  pointer("pointerup", stick("C-stick"), 2, 60, 20);
+  input.poll(16);
+  expect(input.pollAnalog()).toEqual([0x7fff, 0, 0, 0]);
 });
 
 it("has the DS layout with a circle pad for 3DS games, and no ZL, ZR or C-stick", async () => {

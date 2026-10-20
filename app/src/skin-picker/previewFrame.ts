@@ -17,6 +17,7 @@ const screenSizes: Record<System, Size> = {
   nds: { width: 256, height: 384 },
   n64: { width: 320, height: 240 },
   "3ds": { width: 400, height: 480 },
+  gc: { width: 320, height: 240 },
 };
 
 export function darkFrame(system: System): Frame {

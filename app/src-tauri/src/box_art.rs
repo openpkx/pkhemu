@@ -20,7 +20,7 @@ use std::time::Duration;
 use tauri::ipc::{Request, Response};
 use tauri::{AppHandle, Emitter, Manager, Runtime};
 
-const SYSTEMS: [&str; 5] = ["gb", "gbc", "gba", "nds", "n64"];
+const SYSTEMS: [&str; 6] = ["gb", "gbc", "gba", "nds", "n64", "gc"];
 const THUMBNAILS: &str = "https://thumbnails.libretro.com/";
 const PNG: &str = "box-art.png";
 const JPG: &str = "box-art.jpg";

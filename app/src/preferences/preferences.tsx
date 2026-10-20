@@ -35,6 +35,14 @@ export function isRendererChoice(value: unknown): value is RendererChoice {
   return rendererChoices.includes(value as RendererChoice);
 }
 
+export const gameCubeResolutions = [1, 2, 3] as const;
+
+export type GameCubeResolution = (typeof gameCubeResolutions)[number];
+
+export function isGameCubeResolution(value: unknown): value is GameCubeResolution {
+  return gameCubeResolutions.includes(value as GameCubeResolution);
+}
+
 export type GameClockOffset = { days: number; hours: number };
 
 export const maxClockDays = 365;
@@ -78,6 +86,7 @@ export type Preferences = {
   screenDepth: boolean;
   screenGlass: boolean;
   asyncShaders: boolean;
+  gameCubeResolution: GameCubeResolution;
 };
 
 export type PreferencesHost = {
@@ -128,6 +137,7 @@ function withDefaults(stored: Partial<Preferences>, defaults: Preferences): Pref
     screenDepth: typeof stored.screenDepth === "boolean" ? stored.screenDepth : defaults.screenDepth,
     screenGlass: typeof stored.screenGlass === "boolean" ? stored.screenGlass : defaults.screenGlass,
     asyncShaders: typeof stored.asyncShaders === "boolean" ? stored.asyncShaders : defaults.asyncShaders,
+    gameCubeResolution: isGameCubeResolution(stored.gameCubeResolution) ? stored.gameCubeResolution : defaults.gameCubeResolution,
   };
 }
 

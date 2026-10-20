@@ -1,5 +1,6 @@
 use std::ffi::{c_char, c_int, c_uint, c_void, CStr, CString};
 use std::fs::{File, OpenOptions};
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 use std::os::unix::fs::FileExt;
@@ -11,6 +12,9 @@ const SEEK_START: c_int = 0;
 const SEEK_CURRENT: c_int = 1;
 const SEEK_END: c_int = 2;
 const VERSION: u32 = 2;
+pub const DIRECTORY_VERSION: u32 = 4;
+const STAT_VALID: c_int = 1;
+const STAT_DIRECTORY: c_int = 2;
 
 #[repr(C)]
 pub struct Interface {
@@ -26,6 +30,14 @@ pub struct Interface {
     remove: unsafe extern "C" fn(*const c_char) -> c_int,
     rename: unsafe extern "C" fn(*const c_char, *const c_char) -> c_int,
     truncate: unsafe extern "C" fn(*mut Handle, i64) -> i64,
+    stat: unsafe extern "C" fn(*const c_char, *mut i32) -> c_int,
+    mkdir: unsafe extern "C" fn(*const c_char) -> c_int,
+    opendir: unsafe extern "C" fn(*const c_char, bool) -> *mut Dir,
+    readdir: unsafe extern "C" fn(*mut Dir) -> bool,
+    dirent_get_name: unsafe extern "C" fn(*mut Dir) -> *const c_char,
+    dirent_is_dir: unsafe extern "C" fn(*mut Dir) -> bool,
+    closedir: unsafe extern "C" fn(*mut Dir) -> c_int,
+    stat_64: unsafe extern "C" fn(*const c_char, *mut i64) -> c_int,
 }
 
 #[repr(C)]
@@ -34,8 +46,28 @@ pub struct InterfaceInfo {
     interface: *const Interface,
 }
 
-static INTERFACE: Interface =
-    Interface { get_path, open, close, size, tell, seek, read, write, flush, remove, rename, truncate };
+static INTERFACE: Interface = Interface {
+    get_path,
+    open,
+    close,
+    size,
+    tell,
+    seek,
+    read,
+    write,
+    flush,
+    remove,
+    rename,
+    truncate,
+    stat,
+    mkdir,
+    opendir,
+    readdir,
+    dirent_get_name,
+    dirent_is_dir,
+    closedir,
+    stat_64,
+};
 
 // The game a core reads by a path it couldn't open itself, such as a SAF file's /proc entry on Android.
 static GAME: Mutex<Option<(String, File)>> = Mutex::new(None);
@@ -50,13 +82,32 @@ pub fn stop_serving_game() {
     GAME.lock().unwrap_or_else(|e| e.into_inner()).take();
 }
 
+// Dolphin puts the disc's region in a card's name, so card.raw opens as card.EUR.raw. The app can't tell the region
+// Dolphin will read from a compressed disc, so the card answers to any.
+static CARD: Mutex<Option<PathBuf>> = Mutex::new(None);
+
+pub fn serve_card(card: Option<PathBuf>) {
+    *CARD.lock().unwrap_or_else(|e| e.into_inner()) = card;
+}
+
+fn card(path: &str) -> Option<PathBuf> {
+    let card = CARD.lock().unwrap_or_else(|e| e.into_inner()).clone()?;
+    let (asked, stem) = (Path::new(path), card.file_stem()?.to_str()?);
+    let region = asked.file_name()?.to_str()?.strip_prefix(stem)?.strip_prefix('.')?.strip_suffix(".raw")?;
+    (!region.is_empty() && asked.parent() == card.parent()).then_some(card)
+}
+
 /// Answers RETRO_ENVIRONMENT_GET_VFS_INTERFACE with the version the app gives.
 pub unsafe fn answer(info: *mut InterfaceInfo) -> bool {
+    answer_up_to(info, VERSION)
+}
+
+pub unsafe fn answer_up_to(info: *mut InterfaceInfo, version: u32) -> bool {
     let info = &mut *info;
-    if info.version > VERSION {
+    if info.version > version {
         return false;
     }
-    info.version = VERSION;
+    info.version = version;
     info.interface = &INTERFACE;
     true
 }
@@ -72,7 +123,7 @@ fn game(path: &str) -> Option<File> {
     game.as_ref().filter(|(served, _)| served == path).and_then(|(_, file)| file.try_clone().ok())
 }
 
-fn open_file(path: &str, mode: c_uint) -> std::io::Result<File> {
+fn open_file(path: &Path, mode: c_uint) -> std::io::Result<File> {
     let write = mode & ACCESS_WRITE != 0;
     let fresh = write && mode & ACCESS_UPDATE_EXISTING == 0;
     OpenOptions::new().read(mode & ACCESS_READ != 0 || !write).write(write).create(fresh).truncate(fresh).open(path)
@@ -87,7 +138,7 @@ unsafe extern "C" fn open(path: *const c_char, mode: c_uint, _hints: c_uint) -> 
     let file = match game(&text) {
         Some(file) if mode & ACCESS_WRITE == 0 => Ok(file),
         Some(_) => return std::ptr::null_mut(),
-        None => open_file(&text, mode),
+        None => open_file(&card(&text).unwrap_or_else(|| PathBuf::from(&*text)), mode),
     };
     match file {
         Ok(file) => Box::into_raw(Box::new(Handle { path: path.to_owned(), file, position: 0 })),
@@ -134,7 +185,11 @@ unsafe extern "C" fn seek(handle: *mut Handle, offset: i64, from: c_int) -> i64 
 }
 
 // Reads and writes go by position, so handles to the same file never move each other.
+// Dolphin reads and writes nothing from a null buffer, which isn't a slice.
 unsafe extern "C" fn read(handle: *mut Handle, buffer: *mut c_void, length: u64) -> i64 {
+    if length == 0 {
+        return 0;
+    }
     let handle = &mut *handle;
     let buffer = std::slice::from_raw_parts_mut(buffer as *mut u8, length as usize);
     let mut done = 0;
@@ -151,6 +206,9 @@ unsafe extern "C" fn read(handle: *mut Handle, buffer: *mut c_void, length: u64)
 }
 
 unsafe extern "C" fn write(handle: *mut Handle, buffer: *const c_void, length: u64) -> i64 {
+    if length == 0 {
+        return 0;
+    }
     let handle = &mut *handle;
     let buffer = std::slice::from_raw_parts(buffer as *const u8, length as usize);
     match handle.file.write_all_at(buffer, handle.position) {
@@ -194,6 +252,82 @@ unsafe extern "C" fn rename(from: *const c_char, to: *const c_char) -> c_int {
     } else {
         -1
     }
+}
+
+unsafe extern "C" fn stat_64(path: *const c_char, size: *mut i64) -> c_int {
+    let text = CStr::from_ptr(path).to_string_lossy();
+    let metadata = match game(&text) {
+        Some(file) => file.metadata(),
+        None => std::fs::metadata(card(&text).unwrap_or_else(|| PathBuf::from(&*text))),
+    };
+    match metadata {
+        Ok(metadata) => {
+            if !size.is_null() {
+                *size = metadata.len() as i64;
+            }
+            STAT_VALID | if metadata.is_dir() { STAT_DIRECTORY } else { 0 }
+        }
+        Err(_) => 0,
+    }
+}
+
+unsafe extern "C" fn stat(path: *const c_char, size: *mut i32) -> c_int {
+    let mut long = 0;
+    let flags = stat_64(path, &mut long);
+    if !size.is_null() {
+        *size = long.min(i32::MAX as i64) as i32;
+    }
+    flags
+}
+
+unsafe extern "C" fn mkdir(dir: *const c_char) -> c_int {
+    match std::fs::create_dir(&*CStr::from_ptr(dir).to_string_lossy()) {
+        Ok(()) => 0,
+        Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => -2,
+        Err(_) => -1,
+    }
+}
+
+pub struct Dir {
+    entries: Vec<(CString, bool)>,
+    next: usize,
+}
+
+unsafe extern "C" fn opendir(dir: *const c_char, include_hidden: bool) -> *mut Dir {
+    let Ok(read) = std::fs::read_dir(&*CStr::from_ptr(dir).to_string_lossy()) else { return std::ptr::null_mut() };
+    let entries = read
+        .flatten()
+        .filter_map(|entry| {
+            let name = entry.file_name().to_string_lossy().into_owned();
+            let shown = include_hidden || !name.starts_with('.');
+            let is_dir = entry.file_type().is_ok_and(|kind| kind.is_dir());
+            shown.then(|| CString::new(name).ok().map(|name| (name, is_dir))).flatten()
+        })
+        .collect();
+    Box::into_raw(Box::new(Dir { entries, next: 0 }))
+}
+
+unsafe extern "C" fn readdir(dir: *mut Dir) -> bool {
+    let dir = &mut *dir;
+    dir.next += 1;
+    dir.next <= dir.entries.len()
+}
+
+unsafe extern "C" fn dirent_get_name(dir: *mut Dir) -> *const c_char {
+    let dir = &*dir;
+    dir.entries.get(dir.next.wrapping_sub(1)).map_or(std::ptr::null(), |(name, _)| name.as_ptr())
+}
+
+unsafe extern "C" fn dirent_is_dir(dir: *mut Dir) -> bool {
+    let dir = &*dir;
+    dir.entries.get(dir.next.wrapping_sub(1)).is_some_and(|(_, is_dir)| *is_dir)
+}
+
+unsafe extern "C" fn closedir(dir: *mut Dir) -> c_int {
+    if !dir.is_null() {
+        drop(Box::from_raw(dir));
+    }
+    0
 }
 
 #[cfg(test)]
@@ -260,6 +394,8 @@ mod tests {
             assert_eq!(tell(handle), 6);
             assert_eq!(read_all(handle, 5), b"world");
             assert_eq!(truncate(handle, 5), 0);
+            assert_eq!(read(handle, std::ptr::null_mut(), 0), 0);
+            assert_eq!(write(handle, std::ptr::null(), 0), 0);
             assert_eq!(CStr::from_ptr(get_path(handle)), c.as_c_str());
             close(handle);
 
@@ -298,6 +434,32 @@ mod tests {
         }
         assert_eq!(value, 0x1122334455667788);
         assert_eq!(std::fs::read(&path).unwrap(), 0x1122334455667788u64.to_le_bytes());
+    }
+
+    #[test]
+    fn opens_the_card_under_any_region_dolphin_names_it_after() {
+        let _lock = crate::test_games::lock_core();
+        let dir = std::env::temp_dir().join("pkh-emu-vfs-card");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let card = dir.join("card.raw");
+        let asked = |name: &str| CString::new(dir.join(name).to_string_lossy().as_bytes()).unwrap();
+        serve_card(Some(card.clone()));
+
+        unsafe {
+            let fresh = open(asked("card.EUR.raw").as_ptr(), ACCESS_WRITE, 0);
+            assert_eq!(write(fresh, b"card".as_ptr() as *const c_void, 4), 4);
+            close(fresh);
+            let mut size = 0;
+            assert_eq!(stat_64(asked("card.USA.raw").as_ptr(), &mut size), STAT_VALID);
+            assert_eq!(size, 4);
+            assert!(open(asked("card.raw.EUR").as_ptr(), ACCESS_READ, 0).is_null());
+            assert!(open(asked("other.EUR.raw").as_ptr(), ACCESS_READ, 0).is_null());
+        }
+        assert_eq!(std::fs::read(&card).unwrap(), b"card");
+
+        serve_card(None);
+        assert!(unsafe { open(asked("card.EUR.raw").as_ptr(), ACCESS_READ, 0) }.is_null());
     }
 
     #[test]

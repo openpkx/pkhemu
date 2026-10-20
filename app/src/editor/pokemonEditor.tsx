@@ -236,6 +236,20 @@ function Stats({ at, pokemon: { details } }: { at: PokemonHandle; pokemon: Pokem
   );
 }
 
+function Shadow({ at, pokemon: { details } }: { at: PokemonHandle; pokemon: Pokemon }) {
+  const { update } = useDraft(at);
+  return (
+    <>
+      <Field label="Heart gauge">
+        {(id) => <NumberInput id={id} value={details.purification ?? 0} onCommit={(purification) => update({ purification })} />}
+      </Field>
+      <Button variant="outline" onClick={() => void update({ isShadow: false })}>
+        Purify
+      </Button>
+    </>
+  );
+}
+
 const speciesName = ({ details, options }: Pokemon) =>
   options.species.find((species) => species.id === details.species)?.name;
 
@@ -362,6 +376,7 @@ function Hero({
               )
             )}
             {details.isEgg && <Badge variant="outline">Egg</Badge>}
+            {details.isShadow && <Badge variant="outline">Shadow</Badge>}
           </div>
           <p className="text-sm text-muted-foreground">
             {[species, form, `Lv. ${details.level}`, genderSymbols[details.gender]].filter(Boolean).join(" · ")}
@@ -449,6 +464,11 @@ function PokemonEditor({ at }: { at: PokemonHandle }) {
           <EditorCard title="Stats">
             <Stats at={at} pokemon={pokemon} />
           </EditorCard>
+          {details.isShadow && (
+            <EditorCard title="Shadow">
+              <Shadow at={at} pokemon={pokemon} />
+            </EditorCard>
+          )}
         </div>
       </div>
       <BottomBar open={!!view.error || view.changes > 0} className="mt-auto grid gap-2">

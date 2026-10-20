@@ -149,6 +149,7 @@ fn main() {
     sync_config();
     transfer_pak_crcs();
     rcheevos();
+    dolphin_sys();
     match std::env::var("CARGO_CFG_TARGET_OS").unwrap().as_str() {
         "android" => build_android(),
         "macos" => build_macos(),
@@ -212,6 +213,15 @@ fn build_android() {
             .arg(&library)
             .arg("-o")
             .arg(jni_libs.join("libazahar_libretro.so")));
+
+        let mut dolphin = dolphin_config();
+        use_ndk(&mut dolphin, &ndk, abi);
+        let library = build_dolphin(&mut dolphin, "dolphin_libretro_android.so");
+        run(Command::new(prebuilt.join("bin/llvm-strip"))
+            .arg("--strip-unneeded")
+            .arg(&library)
+            .arg("-o")
+            .arg(jni_libs.join("libdolphin_libretro.so")));
     }
 }
 
@@ -242,6 +252,12 @@ fn build_macos() {
         println!("cargo:rustc-env=PKH_EMU_AZAHAR={}", library.display());
         let check = azahar_file_check::library();
         println!("cargo:rustc-env=PKH_EMU_AZAHAR_FILE_CHECK={}", check.display());
+
+        let mut dolphin = dolphin_config();
+        dolphin.define("CMAKE_OSX_ARCHITECTURES", "arm64").define("CMAKE_OSX_DEPLOYMENT_TARGET", "11.0");
+        let library = build_dolphin(&mut dolphin, "dolphin_libretro.dylib");
+        std::fs::copy(&library, "cores/dolphin_libretro.dylib").unwrap();
+        println!("cargo:rustc-env=PKH_EMU_DOLPHIN={}", library.display());
 
         let library = moltenvk(MOLTENVK_MACOS, "MoltenVK/MoltenVK/dynamic/dylib/macOS/libMoltenVK.dylib");
         std::fs::copy(&library, "cores/libMoltenVK.dylib").unwrap();
@@ -352,6 +368,19 @@ fn build_ios() {
         let library = build_azahar(&mut azahar, "azahar_libretro.dylib", false);
         embed(&library);
         println!("cargo:rustc-env=PKH_EMU_AZAHAR={}", library.display());
+
+        let mut dolphin = dolphin_config();
+        dolphin
+            .define("CMAKE_SYSTEM_NAME", "iOS")
+            .define("CMAKE_OSX_SYSROOT", sdk)
+            .define("CMAKE_OSX_ARCHITECTURES", "arm64")
+            .define("CMAKE_OSX_DEPLOYMENT_TARGET", IOS_DEPLOYMENT_TARGET)
+            // Dolphin picks its CPU code by this, which CMake leaves empty when cross compiling.
+            .define("CMAKE_SYSTEM_PROCESSOR", "arm64")
+            .define("IOS", "ON");
+        let library = build_dolphin(&mut dolphin, "dolphin_libretro.dylib");
+        embed(&library);
+        println!("cargo:rustc-env=PKH_EMU_DOLPHIN={}", library.display());
 
         let slice = if simulator { "ios-arm64_x86_64-simulator" } else { "ios-arm64" };
         let inside = format!("MoltenVK/MoltenVK/dynamic/MoltenVK.xcframework/{slice}/MoltenVK.framework/MoltenVK");
@@ -633,6 +662,76 @@ fn assert_no_keyblob(library: &Path) {
         "{} has Azahar's built-in AES key blob; build it with ENABLE_BUILTIN_KEYBLOB=OFF",
         library.display()
     );
+}
+
+fn dolphin_config() -> CmakeCore {
+    let mut core = CmakeCore::new(vendor("dolphin"));
+    core.out_dir(out_dir().join("dolphin"));
+    // LIBRETRO already turns off Qt, SDL, the sound backends, analytics, updates and achievements.
+    core.define("LIBRETRO", "ON")
+        .define("ENABLE_VULKAN", "ON")
+        .define("USE_SYSTEM_LIBS", "OFF")
+        .define("ENABLE_LTO", "OFF")
+        .build_target("dolphin_libretro")
+        .profile("Release");
+    // Dolphin compiles in its own mGBA, whose symbols would otherwise sit beside the app's.
+    let exports = if std::env::var("CARGO_CFG_TARGET_VENDOR").unwrap() == "apple" {
+        "-Wl,-exported_symbol,_retro_*".to_string()
+    } else {
+        let script = out_dir().join("dolphin_exports.map");
+        std::fs::write(&script, DOLPHIN_EXPORTS).unwrap();
+        format!("-Wl,--version-script={}", script.display())
+    };
+    core.define("CMAKE_SHARED_LINKER_FLAGS", exports);
+    core.recipe += &format!("exports {DOLPHIN_EXPORTS:?}\n");
+    core
+}
+
+const DOLPHIN_EXPORTS: &str = "{ global: retro_*; local: *; };";
+
+fn build_dolphin(core: &mut CmakeCore, name: &str) -> PathBuf {
+    println!("cargo:rerun-if-changed=../../vendor/dolphin");
+    let library = out_dir().join("dolphin/build").join(name);
+    let mut key = core.key();
+    key.git_tree(&vendor("dolphin"));
+    cached("dolphin", key, &[&library], || core.build());
+    library
+}
+
+// Qt's themes, Wii data, title lists and a debugger's symbols. The game settings are what the app needs.
+const DOLPHIN_SYS_LEFT_OUT: [&str; 4] = ["Themes", "Wii", "totaldb.dsy", "wiitdb-"];
+
+// Dolphin reads its Sys folder from disk, so the app carries it zipped and unpacks it into its own storage.
+fn dolphin_sys() {
+    use std::io::Write;
+    let sys = vendor("dolphin").join("Data/Sys");
+    println!("cargo:rerun-if-changed={}", sys.display());
+    let mut files = Vec::new();
+    let mut dirs = vec![sys.clone()];
+    while let Some(dir) = dirs.pop() {
+        for entry in std::fs::read_dir(&dir).unwrap_or_else(|e| panic!("{}: {e}; run scripts/env.sh", dir.display())) {
+            let path = entry.unwrap().path();
+            let name = path.strip_prefix(&sys).unwrap().to_str().unwrap().to_string();
+            if DOLPHIN_SYS_LEFT_OUT.iter().any(|left_out| name.starts_with(left_out)) {
+                continue;
+            }
+            if path.is_dir() {
+                dirs.push(path);
+            } else {
+                files.push(name);
+            }
+        }
+    }
+    files.sort();
+    let mut zip = zip::ZipWriter::new(std::fs::File::create(out_dir().join("dolphin-sys.zip")).unwrap());
+    let options = zip::write::SimpleFileOptions::default()
+        .compression_method(zip::CompressionMethod::Deflated)
+        .last_modified_time(zip::DateTime::default());
+    for name in files {
+        zip.start_file(name.as_str(), options).unwrap();
+        zip.write_all(&std::fs::read(sys.join(&name)).unwrap()).unwrap();
+    }
+    zip.finish().unwrap();
 }
 
 fn out_dir() -> PathBuf {

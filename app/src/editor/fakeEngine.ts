@@ -111,6 +111,9 @@ export function fakeDetails(
     metLevel: 5,
     metDate: null,
     fatefulEncounter: false,
+    isShadow: null,
+    shadowId: null,
+    purification: null,
     ivs: { ...zeroStats },
     evs: { ...zeroStats },
     avs: null,
@@ -215,6 +218,7 @@ export type FakeEngineSave = {
   /** The format `game.load` recognises the save as outright. */
   detected?: string;
   version?: string;
+  versionId?: number;
   /** A Wonder Card album. A fake card file is an event's id, or `unknown:<title>` for a card no event matches, as `fakeCardFile` makes. */
   mysteryGift?: FakeMysteryGift;
 };
@@ -245,6 +249,7 @@ export function fakeEngine({
   candidates = [],
   detected,
   version = "Emerald",
+  versionId = 3,
   mysteryGift,
 }: FakeEngineSave = {}) {
   const box = [...initialBox];
@@ -394,6 +399,7 @@ export function fakeEngine({
       throw { code: "invalid-patch", message: `Level must be between 1 and 100, got ${patch.level}.` };
     const { ivs, evs, moves, ...rest } = patch;
     const next = { ...details, ...Object.fromEntries(Object.entries(rest).filter(([, value]) => value !== null)) };
+    if (patch.isShadow === false) next.purification = 0;
     if (ivs) next.ivs = { ...details.ivs, ...(ivs as Partial<StatValues>) };
     if (evs) next.evs = { ...details.evs, ...(evs as Partial<StatValues>) };
     if (moves)
@@ -482,7 +488,7 @@ export function fakeEngine({
     "game.get": () =>
       save && { fileName: "save.sav", version, generation, hasEvents: !!events, hasMysteryGift: !!mysteryGift, capabilities },
     "game.version": () =>
-      save && { version, versionId: 3, generation: `Gen${generation}`, generationId: generation, formatId: format },
+      save && { version, versionId, generation: `Gen${generation}`, generationId: generation, formatId: format },
     "game.export": () => {
       notify(["party", "box"]);
       return { bytes: toBase64(save!), fileName: "save.sav" };

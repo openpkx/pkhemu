@@ -518,27 +518,96 @@ mod tests {
         }
     }
 
-    fn play_pokemon_x(pool: Option<usize>) -> Option<Result<Played, String>> {
-        let rom = crate::test_games::pokemon_x()?;
-        let _pooled = pool.map(|size| {
-            let pool = Pool::map(size, false).expect("the simulator maps executable pages");
-            state().ready = Some(Ready::Pool(pool));
-            Pooled
-        });
-        let mut core = match crate::retro::Core::load(rom, &std::env::temp_dir()) {
-            Ok(core) => core,
-            Err(e) => return Some(Err(e)),
-        };
+    fn pooled(size: usize) -> Pooled {
+        let pool = Pool::map(size, false).expect("the simulator maps executable pages");
+        state().ready = Some(Ready::Pool(pool));
+        Pooled
+    }
+
+    fn taken() -> Vec<usize> {
+        match &state().ready {
+            Some(Ready::Pool(pool)) => pool.slices.taken.iter().map(|&(_, length)| length).collect(),
+            _ => Vec::new(),
+        }
+    }
+
+    fn play(rom: crate::rom::Rom, pool: Option<usize>) -> Result<Played, String> {
+        let _pooled = pool.map(pooled);
+        let mut core = crate::retro::Core::load(rom, &std::env::temp_dir())?;
         (0..600).for_each(|_| core.run_frame());
         let started = std::time::Instant::now();
         (0..120).for_each(|_| core.run_frame());
         let frame_time = started.elapsed() / 120;
         let colours = core.last_frame(|frame| frame.pixels.iter().collect::<std::collections::HashSet<_>>().len());
-        let pool = match &state().ready {
-            Some(Ready::Pool(pool)) => pool.slices.taken.iter().map(|&(_, length)| length).collect(),
-            _ => Vec::new(),
-        };
-        Some(Ok(Played { frame_time, colours: colours.unwrap_or(0), pool }))
+        Ok(Played { frame_time, colours: colours.unwrap_or(0), pool: taken() })
+    }
+
+    fn play_pokemon_x(pool: Option<usize>) -> Option<Result<Played, String>> {
+        Some(play(crate::test_games::pokemon_x()?, pool))
+    }
+
+    fn jit_capable() -> bool {
+        let mut capable = false;
+        let answered =
+            unsafe { crate::retro::environment(crate::retro::ENV_GET_JIT_CAPABLE, (&mut capable as *mut bool).cast()) };
+        answered && capable
+    }
+
+    #[test]
+    fn tells_cores_they_can_jit_only_once_the_pool_is_mapped() {
+        let _lock = crate::test_games::lock_core();
+        assert!(!jit_capable());
+
+        let _pooled = pooled(page_rounded(1));
+
+        assert!(jit_capable());
+    }
+
+    // JitArm64 takes its near and far code in one block.
+    const DOLPHIN_CODE: usize = 256 << 20;
+
+    fn pressed_a_on_the_pad_reader(pool: Option<usize>) -> (u32, Vec<usize>) {
+        let _pooled = pool.map(pooled);
+        let rom = crate::test_games::gamecube_pad_reader_disc();
+        let mut core = crate::retro::Core::load(rom, &std::env::temp_dir()).unwrap();
+        (crate::test_games::buttons_after_pressing_a(&mut core), taken())
+    }
+
+    #[test]
+    fn dolphin_runs_on_its_jit_from_the_pool() {
+        let _lock = crate::test_games::lock_core();
+
+        let (pad, pool) = pressed_a_on_the_pad_reader(Some(POOL_SIZE));
+
+        assert!(pool.contains(&DOLPHIN_CODE), "Dolphin took {pool:?}");
+        assert_eq!(pad, 0x0100, "A reached the pad as {pad:04x}");
+    }
+
+    #[test]
+    fn dolphin_falls_back_to_the_cached_interpreter_without_executable_memory() {
+        let _lock = crate::test_games::lock_core();
+
+        let (pad, pool) = pressed_a_on_the_pad_reader(None);
+
+        assert!(pool.is_empty());
+        assert_eq!(pad, 0x0100, "A reached the pad as {pad:04x}");
+    }
+
+    #[test]
+    fn dolphin_runs_colosseum_on_its_jit_from_the_pool() {
+        let _lock = crate::test_games::lock_core();
+        let colosseum = || crate::test_games::gamecube_disc("Pokémon Colosseum", "GC6P01", 0);
+        let Some(rom) = colosseum() else { return };
+        let interpreted = play(rom, None).unwrap();
+        let jitted = play(colosseum().unwrap(), Some(POOL_SIZE)).unwrap();
+
+        eprintln!(
+            "Colosseum frame time: {:?} on the cached interpreter, {:?} on the JIT",
+            interpreted.frame_time, jitted.frame_time
+        );
+        assert!(jitted.pool.contains(&DOLPHIN_CODE), "Dolphin took {:?}", jitted.pool);
+        assert!(interpreted.colours > 50, "the cached interpreter drew {} colours", interpreted.colours);
+        assert!(jitted.colours > 50, "the JIT drew {} colours", jitted.colours);
     }
 
     #[test]

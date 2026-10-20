@@ -133,7 +133,7 @@ export function GameScreen({
   );
   const states = useStates(tauriStatesHost, folder, game.path, overlay === "menu");
   const [toast, setToast] = useState<StateMessage>();
-  const { showFps, gameClockOffset, skins, touchControls: touchControlsOn } = usePreferences().preferences;
+  const { showFps, gameClockOffset, gameCubeResolution, skins, touchControls: touchControlsOn } = usePreferences().preferences;
   const display = handheld[game.system];
   const portrait = usePortraitLayout(game.system);
   const square = useMediaQuery(closeToSquare);
@@ -311,6 +311,7 @@ export function GameScreen({
                 wall={skinned ? wallColour(skin, skinChoice.look) : undefined}
                 swapped={swapped}
                 clockOffset={offsetSeconds(gameClockOffset)}
+                resolution={game.system === "gc" ? gameCubeResolution : undefined}
                 renderer={renderer.renderer}
                 onNativeFailed={() => renderer.reportNativeFailure() && setRendererNotice(NATIVE_FAILED)}
                 onStacked={setStacked}

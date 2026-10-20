@@ -29,7 +29,7 @@ it.each(["unlocked", "owned", "notOwned"] as const)("offers every skin when Plus
   expect(offeredSkins("gb", plus)).toEqual(skins.gb);
 });
 
-it.each(systems.filter((system) => system !== "3ds"))(
+it.each(systems.filter((system) => system !== "3ds" && system !== "gc"))(
   "offers only the two free %s skins in a build without Plus",
   (system) => {
     const offered = offeredSkins(system, "unavailable");
@@ -37,6 +37,15 @@ it.each(systems.filter((system) => system !== "3ds"))(
     expect(offered).toHaveLength(2);
   },
 );
+
+it("offers only pkhemu on GameCube in a build without Plus", () => {
+  expect(offeredSkins("gc", "unavailable").map(({ id }) => id)).toEqual(["pkhemu"]);
+});
+
+it("gives GameCube its own skins", () => {
+  expect(skins.gc.map(({ id }) => id)).toEqual(["pkhemu", "indigo", "jet", "platinum", "spice"]);
+  for (const skin of skins.gc) expect(skin.image, skin.id).toContain(`gc-${skin.id}`);
+});
 
 it("keeps every 3DS skin free", () => {
   expect(offeredSkins("3ds", "unavailable")).toEqual(skins["3ds"]);

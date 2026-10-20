@@ -68,7 +68,7 @@ export type Hosts = {
   shaders: ShadersHost;
 };
 
-export const sharedPreferences: Omit<Preferences, "touchControls" | "asyncShaders"> = {
+export const sharedPreferences: Omit<Preferences, "touchControls" | "asyncShaders" | "gameCubeResolution"> = {
   fastForwardSpeed: 2,
   showFps: false,
   theme: "system",

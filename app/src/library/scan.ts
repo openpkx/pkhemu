@@ -7,7 +7,7 @@ export type Game = { system: System; name: string; path: string; cloudOnly?: boo
 export type LibrarySection = { system: System; folder?: string; games: Game[] };
 export type Library = { sections: LibrarySection[]; outsideSystemFolders: number };
 
-const romExtensions = [".gb", ".gbc", ".gba", ".nds", ".z64", ".n64", ".v64", ".3ds", ".3dsx", ".cci", ".cxi", ".app", ".zip", ".7z"];
+const romExtensions = [".gb", ".gbc", ".gba", ".nds", ".z64", ".n64", ".v64", ".3ds", ".3dsx", ".cci", ".cxi", ".app", ".iso", ".gcm", ".rvz", ".ciso", ".gcz", ".zip", ".7z"];
 
 const hidden = (entry: DirEntry) => entry.name.startsWith(".");
 

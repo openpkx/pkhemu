@@ -3642,6 +3642,7 @@ dependencies = [
  "cpal",
  "crc32fast",
  "dispatch2",
+ "flate2",
  "getrandom 0.3.4",
  "image",
  "keyring",

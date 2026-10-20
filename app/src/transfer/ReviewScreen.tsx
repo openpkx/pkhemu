@@ -125,7 +125,7 @@ function OfferCard({ offer, names, paths, notes }: { offer: OfferedPokemon; name
           <UnofficialAlert destination={names.destination} keptFrom={note?.keptFrom} ambiguous={note?.ambiguous} legality={legality} />
         ) : (
           <>
-            {!legality.valid && (
+            {legality && !legality.valid && (
               <Alert>
                 <TriangleAlert />
                 <AlertTitle>Fails the legality check</AlertTitle>

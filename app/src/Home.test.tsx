@@ -190,7 +190,7 @@ function launch({
     <EngineProvider engine={idleEngine}>
       <PreferencesProvider
         host={{ load: async () => ({}), save: async () => {} }}
-        defaults={{ touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic", skins: defaultSkins, skinHintSeen: false, screenDepth: true, screenGlass: true, asyncShaders: false }}
+        defaults={{ touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic", skins: defaultSkins, skinHintSeen: false, screenDepth: true, screenGlass: true, asyncShaders: false, gameCubeResolution: 1 }}
       >
         <GamesFolderProvider host={gamesFolderHost}>
           <SyncProvider host={sync.host}>
@@ -509,6 +509,17 @@ it("shows the empty library without the demo when the Demo game experiment is of
 
   expect(within(ready).getByRole("button", { name: "Import files" })).toBeTruthy();
   expect(within(ready).queryByRole("button", { name: "Play a demo" })).toBeNull();
+});
+
+it("lists GameCube games", async () => {
+  const { paths } = launch();
+
+  await chooseFolder();
+  paths.push("gba/Emerald.gba", "gc/Colosseum.iso");
+  fireEvent.focus(window);
+
+  expect(await screen.findByRole("button", { name: /Emerald/ })).toBeTruthy();
+  expect(screen.getByRole("button", { name: /Colosseum/ })).toBeTruthy();
 });
 
 it("lists 3DS games", async () => {

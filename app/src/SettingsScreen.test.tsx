@@ -40,7 +40,7 @@ afterEach(() => {
   build.sideload = false;
 });
 
-const defaults: Preferences = { touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic", skins: defaultSkins, skinHintSeen: false, screenDepth: true, screenGlass: true, asyncShaders: false };
+const defaults: Preferences = { touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic", skins: defaultSkins, skinHintSeen: false, screenDepth: true, screenGlass: true, asyncShaders: false, gameCubeResolution: 1 };
 
 const idleEngine: EngineHost = {
   ready: () => new Promise(() => {}),
@@ -649,12 +649,11 @@ it("hides Screen depth where the device can't read tilt and still shows Screen g
   expect(screen.queryByRole("switch", { name: "Screen depth" })).toBeNull();
 });
 
-it("turns Fewer 3DS freezes on in Playing and says what it does", async () => {
+it("turns Fewer freezes in 3D games on in Playing and says what it does", async () => {
   const { saved } = openSettings();
   const playing = await screen.findByRole("region", { name: "Playing" });
-  const toggle = await within(playing).findByRole("switch", { name: "Fewer 3DS freezes" });
+  const toggle = await within(playing).findByRole("switch", { name: "Fewer freezes in 3D games" });
   expect(toggle.getAttribute("aria-checked")).toBe("false");
-  expect(within(playing).getByText("3DS games can freeze for a moment the first time they show something new.")).toBeTruthy();
 
   await act(async () => fireEvent.click(toggle));
 
@@ -663,12 +662,30 @@ it("turns Fewer 3DS freezes on in Playing and says what it does", async () => {
   expect(within(playing).getByText("New scenes load without freezing.")).toBeTruthy();
 });
 
-it("hides Fewer 3DS freezes where the core can't draw while shaders compile", async () => {
+it("sets the GameCube resolution in Playing", async () => {
+  const { saved } = openSettings({ systems: ["gba", "gc"] });
+  const playing = await screen.findByRole("region", { name: "Playing" });
+  const resolutions = await within(playing).findByRole("radiogroup", { name: "GameCube resolution" });
+  expect(within(resolutions).getByRole("radio", { name: "Native" }).getAttribute("aria-checked")).toBe("true");
+
+  await act(async () => fireEvent.click(within(resolutions).getByRole("radio", { name: "3×" })));
+
+  expect(saved().gameCubeResolution).toBe(3);
+});
+
+it("hides the GameCube resolution where GameCube games don't show", async () => {
+  openSettings({ systems: ["gba", "n64"] });
+  await screen.findByRole("switch", { name: "Show FPS" });
+
+  expect(screen.queryByRole("radiogroup", { name: "GameCube resolution" })).toBeNull();
+});
+
+it("hides Fewer freezes in 3D games where the core can't draw while shaders compile", async () => {
   openSettings({ shaders: { offered: async () => false, onLine: "" } });
   await screen.findByRole("switch", { name: "Show FPS" });
   await act(async () => {});
 
-  expect(screen.queryByRole("switch", { name: "Fewer 3DS freezes" })).toBeNull();
+  expect(screen.queryByRole("switch", { name: "Fewer freezes in 3D games" })).toBeNull();
 });
 
 it("opens the backups on desktop", async () => {

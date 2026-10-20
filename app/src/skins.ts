@@ -9,6 +9,8 @@ export const lookNames: Record<SkinLook, string> = { moulded: "Moulded", frosted
 
 export type ColouredButton = { fill: string; label: string };
 
+type PadColours = { a: ColouredButton; b: ColouredButton; z: ColouredButton; c: ColouredButton; start: string };
+
 export type MouldedColours = {
   dpad: string;
   face: string;
@@ -16,7 +18,8 @@ export type MouldedColours = {
   rubber: string;
   print: string;
   border: string | null;
-  n64?: { a: ColouredButton; b: ColouredButton; z: ColouredButton; c: ColouredButton; start: string };
+  n64?: PadColours;
+  gc?: PadColours & { xy: ColouredButton };
 };
 
 export type Skin = {
@@ -63,6 +66,15 @@ const n64Buttons: MouldedColours["n64"] = {
   z: { fill: "#4a4a52", label: "#b0b0b8" },
   c: { fill: "#e8b923", label: "#3a2a00" },
   start: "#c42a30",
+};
+
+export const gcColours: NonNullable<MouldedColours["gc"]> = {
+  a: { fill: "#1f9e5a", label: "#c4f0d6" },
+  b: { fill: "#cc2f38", label: "#ffd2d4" },
+  xy: { fill: "#b4b4bc", label: "#4a4a52" },
+  z: { fill: "#6347c4", label: "#dcd4ff" },
+  c: { fill: "#f0c419", label: "#3a2a00" },
+  start: "#a4a4ac",
 };
 
 const n64Black: MouldedColours = { ...black, border: "#08080a", n64: n64Buttons };
@@ -117,6 +129,117 @@ const ds: Skin[] = [
     tone: "dark",
     base: "#991d27",
     moulded: { ...black, border: null },
+  },
+];
+
+const n64: Skin[] = [
+  {
+    id: "pkhemu",
+    name: "pkhemu",
+    image: image("n64-pkhemu"),
+    free: true,
+    tone: "dark",
+    base: "#272237",
+    moulded: { ...violet, n64: n64Buttons },
+  },
+  {
+    id: "charcoal",
+    name: "Charcoal",
+    image: image("n64-charcoal"),
+    free: true,
+    tone: "dark",
+    base: "#464548",
+    moulded: n64Black,
+  },
+  {
+    id: "gold",
+    name: "Gold",
+    image: image("n64-gold"),
+    free: false,
+    tone: "light",
+    base: "#b7954a",
+    moulded: { ...n64Black, dpad: "#3a3a3e", rubber: "#4a4a50", print: "#2a2410cc" },
+  },
+  {
+    id: "jungle-green",
+    name: "Jungle Green",
+    image: image("n64-jungle-green"),
+    free: false,
+    tone: "dark",
+    base: "#457c52",
+    moulded: n64Black,
+  },
+];
+
+const gc: Skin[] = [
+  {
+    id: "pkhemu",
+    name: "pkhemu",
+    image: image("gc-pkhemu"),
+    free: true,
+    tone: "dark",
+    base: "#282649",
+    moulded: { ...violet, gc: gcColours },
+  },
+  {
+    id: "indigo",
+    name: "Indigo",
+    image: image("gc-indigo"),
+    free: false,
+    tone: "dark",
+    base: "#3b3657",
+    moulded: {
+      dpad: "#2c2a3e",
+      face: "#4a4470",
+      faceLabel: "#b8b0e0",
+      rubber: "#3a3656",
+      print: "#ffffffaa",
+      border: "#14121f",
+      gc: gcColours,
+    },
+  },
+  {
+    id: "jet",
+    name: "Jet",
+    image: image("gc-jet"),
+    free: false,
+    tone: "dark",
+    base: "#28282a",
+    moulded: { ...black, border: "#08080a", gc: gcColours },
+  },
+  {
+    id: "platinum",
+    name: "Platinum",
+    image: image("gc-platinum"),
+    free: false,
+    tone: "light",
+    base: "#b2b4b6",
+    moulded: {
+      dpad: "#8a8c92",
+      face: "#a4a6ac",
+      faceLabel: "#4a4a52",
+      rubber: "#9a9ca2",
+      print: "#2a2a30e6",
+      border: "#2a2b30",
+      gc: gcColours,
+    },
+  },
+  {
+    id: "spice",
+    name: "Spice",
+    image: image("gc-spice"),
+    free: false,
+    tone: "dark",
+    base: "#b65e25",
+    moulded: {
+      dpad: "#2c2420",
+      face: "#3a2e26",
+      faceLabel: "#d8a880",
+      rubber: "#4a3a2e",
+      print: "#ffffffcc",
+      border: "#1a120c",
+      gc: gcColours,
+    },
   },
 ];
 
@@ -224,44 +347,7 @@ export const skins: Record<System, Skin[]> = {
     },
   ],
   nds: ds,
-  n64: [
-    {
-      id: "pkhemu",
-      name: "pkhemu",
-      image: image("n64-pkhemu"),
-      free: true,
-      tone: "dark",
-      base: "#272237",
-      moulded: { ...violet, n64: n64Buttons },
-    },
-    {
-      id: "charcoal",
-      name: "Charcoal",
-      image: image("n64-charcoal"),
-      free: true,
-      tone: "dark",
-      base: "#464548",
-      moulded: n64Black,
-    },
-    {
-      id: "gold",
-      name: "Gold",
-      image: image("n64-gold"),
-      free: false,
-      tone: "light",
-      base: "#b7954a",
-      moulded: { ...n64Black, dpad: "#3a3a3e", rubber: "#4a4a50", print: "#2a2410cc" },
-    },
-    {
-      id: "jungle-green",
-      name: "Jungle Green",
-      image: image("n64-jungle-green"),
-      free: false,
-      tone: "dark",
-      base: "#457c52",
-      moulded: n64Black,
-    },
-  ],
+  n64,
   // 3DS stays out of Plus, so every 3DS skin is free.
   "3ds": [
     {
@@ -308,6 +394,7 @@ export const skins: Record<System, Skin[]> = {
       moulded: { ...black, border: null },
     },
   ],
+  gc,
 };
 
 export function isSkinChoice(system: System, value: unknown): value is SkinChoice {

@@ -1,4 +1,4 @@
-use super::{HwRenderCallback, HW_CONTEXT_OPENGLES3};
+use super::{HwRenderCallback, HW_CONTEXT_OPENGLES3, HW_CONTEXT_VULKAN};
 use crate::vulkan::Settings;
 use std::ffi::CStr;
 use std::path::PathBuf;
@@ -25,9 +25,16 @@ pub fn azahar_renderer() -> &'static CStr {
         c"Vulkan"
     }
 }
+// Dolphin reads texel buffers on every frame, which the simulator's Metal refuses too, and its GL backend runs on the
+// simulator's OpenGL ES 3.0.
+pub const DOLPHIN_CONTEXT: std::ffi::c_uint =
+    if cfg!(target_abi = "sim") { HW_CONTEXT_OPENGLES3 } else { HW_CONTEXT_VULKAN };
 pub const SCREEN_DRAWS_VULKAN: bool = true;
 // The ubershader fallback runs vertex shaders on the CPU, without a JIT here, and its cost isn't measured yet.
 pub const UBERSHADER_FALLBACK: bool = false;
+// Hybrid Ubershaders.
+pub const DOLPHIN_ASYNC_SHADERS: &CStr = c"2";
+pub const DOLPHIN_SYS: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/dolphin-sys.zip"));
 
 pub fn core_path(name: &str) -> Option<PathBuf> {
     let exe = std::env::current_exe().ok()?;
@@ -41,6 +48,7 @@ pub fn core_path(name: &str) -> Option<PathBuf> {
 fn built(name: &str) -> Option<&'static str> {
     match name {
         "azahar_libretro" => option_env!("PKH_EMU_AZAHAR"),
+        "dolphin_libretro" => option_env!("PKH_EMU_DOLPHIN"),
         "MoltenVK" => option_env!("PKH_EMU_MOLTENVK"),
         _ => None,
     }
@@ -67,7 +75,7 @@ pub const OWN_CONTEXT: (std::ffi::c_uint, std::ffi::c_uint, std::ffi::c_uint) = 
 
 #[cfg(test)]
 mod tests {
-    use crate::retro::tests::{hw_render, option};
+    use crate::retro::tests::{hw_render, option, preferred_by_dolphin};
     use crate::retro::*;
     use crate::vulkan::tests::draw_two_rows;
     use crate::vulkan::Interface;
@@ -81,6 +89,17 @@ mod tests {
         crate::retro::set_async_shaders(false);
 
         assert_eq!(fallback.as_deref(), Some("disabled"));
+    }
+
+    #[test]
+    fn draws_gamecube_games_through_ubershaders_while_shaders_compile() {
+        let _lock = crate::test_games::lock_core();
+
+        crate::retro::set_async_shaders(true);
+        let mode = option(c"dolphin_shader_compilation_mode");
+        crate::retro::set_async_shaders(false);
+
+        assert_eq!(mode.as_deref(), Some("2"));
     }
 
     #[test]
@@ -106,6 +125,12 @@ mod tests {
     fn asks_azahar_for_vulkan_on_a_phone_and_software_in_the_simulator() {
         let expected = if cfg!(target_abi = "sim") { "Software" } else { "Vulkan" };
         assert_eq!(option(c"citra_graphics_api").as_deref(), Some(expected));
+    }
+
+    #[test]
+    fn asks_dolphin_for_vulkan_on_a_phone_and_opengl_es_in_the_simulator() {
+        let expected = if cfg!(target_abi = "sim") { HW_CONTEXT_OPENGLES3 } else { HW_CONTEXT_VULKAN };
+        assert_eq!(preferred_by_dolphin(), Some(expected));
     }
 
     #[test]

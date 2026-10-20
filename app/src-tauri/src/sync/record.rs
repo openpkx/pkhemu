@@ -139,7 +139,7 @@ pub fn is_save(rom: &str, path: &str) -> bool {
 pub fn decides(rom: &str, path: &str) -> bool {
     match Unit::of(rom, path) {
         Unit::Save => is_save(rom, path),
-        Unit::Slot(_) => [".state", ".sav", ".dsv", ".srm"].iter().any(|extension| path.ends_with(extension)),
+        Unit::Slot(_) => [".state", ".sav", ".dsv", ".srm", ".raw"].iter().any(|extension| path.ends_with(extension)),
         Unit::File(_) => false,
     }
 }

@@ -75,6 +75,8 @@ const scalarFields = [
   "metLevel",
   "metDate",
   "fatefulEncounter",
+  "isShadow",
+  "purification",
   "combatPower",
 ] satisfies (keyof EditablePokemon & keyof PokemonPatch)[];
 const statFields = ["ivs", "evs", "avs"] satisfies (keyof EditablePokemon & keyof PokemonPatch)[];

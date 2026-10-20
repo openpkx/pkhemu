@@ -30,8 +30,8 @@ const STEPS: Record<Step, { text: string; value: number }> = {
   core: { text: "Starting the game…", value: 100 },
 };
 
-type SentInput = { input: number; analog: number[]; pointer: [number, number] | null };
-const released: SentInput = { input: 0, analog: [0, 0, 0, 0], pointer: null };
+type SentInput = { input: number; analog: number[]; triggers: number[]; pointer: [number, number] | null };
+const released: SentInput = { input: 0, analog: [0, 0, 0, 0], triggers: [0, 0], pointer: null };
 
 const black: Rgb = [0, 0, 0];
 
@@ -86,6 +86,7 @@ export function Player({
   wall,
   swapped,
   clockOffset,
+  resolution = 1,
   renderer,
   onStacked,
   onScreenWidth,
@@ -116,6 +117,8 @@ export function Player({
   wall?: string;
   swapped: boolean;
   clockOffset: number;
+  /** The core's internal resolution, as a multiple of the system's own. Changing it later doesn't restart the game. */
+  resolution?: number;
   renderer: Renderer;
   onStacked?(stacked: boolean): void;
   /** The widest screen's width, in CSS pixels. */
@@ -180,6 +183,8 @@ export function Player({
   currentOnError.current = onError;
   const currentClockOffset = useRef(clockOffset);
   currentClockOffset.current = clockOffset;
+  const currentResolution = useRef(resolution);
+  currentResolution.current = resolution;
   const currentHardcore = useRef(hardcore);
   currentHardcore.current = hardcore;
   const currentOnNativeFailed = useRef(onNativeFailed);
@@ -228,6 +233,7 @@ export function Player({
     let shownGlass = currentGlass.current;
     let shownWall = currentWall.current;
     let shownTilt: Point | undefined;
+    const scale = currentResolution.current;
     let windows: Parallax[] = [];
     let drawn = false;
     let look: Look | undefined;
@@ -260,9 +266,11 @@ export function Player({
         // The clearance pads the screens' box, not the measured space, so whether they stack doesn't feed back into the space.
         const padding = getComputedStyle(screenBox.current!);
         const clear = (Math.max(parseFloat(padding.paddingLeft), parseFloat(padding.paddingRight)) || 0) * devicePixelRatio;
+        // A frame the core scaled up lays out as the system's own size, so it snaps and clears the controls as that would.
+        const own = { width: latest.width / scale, height: latest.height / scale };
         layout.current = screens
           ? dualScreen(
-              latest,
+              own,
               shownPortrait ? inPortrait(screens) : screens,
               space,
               shownSwapped,
@@ -270,7 +278,7 @@ export function Player({
               clear,
               matchMedia(closeToSquare).matches,
             )
-          : singleScreen(latest, space, shell, clear);
+          : singleScreen(own, space, shell, clear);
         look = display && shownWall ? shellLook(display, rgb(shownWall), shownGlass) : undefined;
         lean(tiltState?.shift ?? origin);
         setRecessed(!!look);
@@ -345,6 +353,7 @@ export function Player({
         hardcore: currentHardcore.current,
         clockOffset: currentClockOffset.current,
         asyncShaders: await currentAsyncShaders.current,
+        resolution: scale,
         onFrame: frames,
         onStep: steps,
         native: nativeAsked,
@@ -393,7 +402,12 @@ export function Player({
       wasPaused = false;
       const buttons = input.poll(now);
       const pointer = input.pollPointer();
-      send({ input: buttons, analog: input.pollAnalog(), pointer: pointer ? [pointer.x, pointer.y] : null });
+      send({
+        input: buttons,
+        analog: input.pollAnalog(),
+        triggers: input.pollTriggers(),
+        pointer: pointer ? [pointer.x, pointer.y] : null,
+      });
     };
     raf = requestAnimationFrame(tick);
 

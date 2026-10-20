@@ -4,6 +4,7 @@ use std::path::{Path, PathBuf};
 
 const ROM_EXTENSIONS: [&str; 7] = ["gb", "gbc", "gba", "nds", "z64", "n64", "v64"];
 pub const THREE_DS_EXTENSIONS: [&str; 5] = ["3ds", "3dsx", "cci", "cxi", "app"];
+pub const GAMECUBE_EXTENSIONS: [&str; 5] = ["iso", "gcm", "rvz", "ciso", "gcz"];
 
 fn file_name(path: &str) -> String {
     Path::new(path).file_name().map_or(path.into(), |name| name.to_string_lossy().into_owned())
@@ -40,6 +41,7 @@ pub enum System {
     Ds,
     N64,
     ThreeDs,
+    GameCube,
 }
 
 impl Rom {
@@ -50,6 +52,8 @@ impl Rom {
     pub fn system(&self) -> System {
         if is_3ds(&self.name) {
             System::ThreeDs
+        } else if is_game_cube(&self.name) {
+            System::GameCube
         } else if self.is_ds() {
             System::Ds
         } else if self.is_gb() {
@@ -180,6 +184,19 @@ pub fn find_archived<T>(name: &str, archive: impl Read + Seek, read: impl ReadRo
     find_in_archive(name, archive, is_rom, read)
 }
 
+/// Like `find_archived`, but a GameCube disc counts too, so an import can name a zipped disc to refuse it.
+pub fn find_archived_game<T>(
+    name: &str,
+    archive: impl Read + Seek,
+    read: impl ReadRom<T>,
+) -> Result<Option<T>, String> {
+    find_in_archive(name, archive, |name| is_rom(name) || is_game_cube(name), read)
+}
+
+pub fn zipped_disc(name: &str) -> String {
+    format!("Unzip {name} first. pkhemu can't play a zipped GameCube disc.")
+}
+
 /// Copies the first 3DS game in a zip or 7z to a new file in `dir`, with its name inside the archive.
 pub fn unpack_3ds(name: &str, archive: impl Read + Seek, dir: &Path) -> Result<Option<(String, PathBuf)>, String> {
     let copy = |inner: &str, _, game: &mut dyn Read| {
@@ -259,6 +276,10 @@ fn read_7z<T>(
 
 pub(crate) fn is_3ds(name: &str) -> bool {
     has_extension(Path::new(name), &THREE_DS_EXTENSIONS)
+}
+
+pub(crate) fn is_game_cube(name: &str) -> bool {
+    has_extension(Path::new(name), &GAMECUBE_EXTENSIONS)
 }
 
 pub(crate) fn is_rom(name: &str) -> bool {
@@ -353,6 +374,9 @@ mod tests {
         for name in ["PKSM.3dsx", "X.3DS", "X.cci", "X.cxi", "X.app"] {
             assert_eq!(system(name), System::ThreeDs, "{name}");
         }
+        for name in ["Colosseum.iso", "Colosseum.GCM", "XD.rvz", "XD.ciso", "XD.gcz"] {
+            assert_eq!(system(name), System::GameCube, "{name}");
+        }
     }
 
     #[test]
@@ -426,6 +450,16 @@ mod tests {
         }
         assert_eq!(unpack_3ds("Game.zip", std::io::Cursor::new(zip_of(&[("Game.gba", b"gba")])), &dir), Ok(None));
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    #[test]
+    fn never_unpacks_a_zipped_disc() {
+        let disc = crate::game_cube::tests::iso(b"GC6E01", 0);
+
+        assert_eq!(
+            unpack("gc/Colosseum.zip", zip_of(&[("Colosseum.iso", &disc)])).err(),
+            Some(format!("gc/Colosseum.zip: {NO_ROM}"))
+        );
     }
 
     #[test]

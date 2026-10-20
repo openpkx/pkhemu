@@ -1,6 +1,6 @@
 # pkhemu
 
-An emulator for GB, GBC, GBA, DS, N64 and 3DS Pokémon games with save editing built in. These are the words the app, its issues and its code use for what the player plays, saves and moves.
+An emulator for GB, GBC, GBA, DS, N64, 3DS and GameCube Pokémon games with save editing built in. These are the words the app, its issues and its code use for what the player plays, saves and moves.
 
 ## Playing
 
@@ -9,7 +9,7 @@ A ROM in the player's library, together with everything the app keeps beside it.
 _Avoid_: Title, cartridge
 
 **Save file**:
-The game's own save, written when the player saves in game. It's the only progress the game itself knows about. An N64 game's save file is several files, one for each kind of save memory the game writes: `.eep`, `.mpk` for the Controller Paks, `.sra` and `.fla`. Backups, sync and export treat them as one save. A 3DS Pokémon game's save file is the game's `main`, from Azahar's virtual SD card, kept beside the ROM as `.sav`.
+The game's own save, written when the player saves in game. It's the only progress the game itself knows about. An N64 game's save file is several files, one for each kind of save memory the game writes: `.eep`, `.mpk` for the Controller Paks, `.sra` and `.fla`. Backups, sync and export treat them as one save. A 3DS Pokémon game's save file is the game's `main`, from Azahar's virtual SD card, kept beside the ROM as `.sav`. A GameCube game's save file is its own memory card, kept beside the disc as `.raw`.
 _Avoid_: Save data, SRAM, in-game save (as a noun)
 
 **Save format**:
@@ -116,7 +116,7 @@ The body around the game screen in portrait, behind the header, the screens and 
 _Avoid_: Body, case, frame
 
 **Skin**:
-The plastic and button look that covers the shell, chosen per system along with its look, Moulded or Frosted. 3DS has its own skins, all free. The choice syncs, the one setting that does, and the newer change wins.
+The plastic and button look that covers the shell, chosen per system along with its look, Moulded or Frosted. 3DS has its own skins, all free. GameCube has its own skins too. The choice syncs, the one setting that does, and the newer change wins.
 _Avoid_: Theme (that's light or dark), shell theme
 
 ## Editing
@@ -155,7 +155,7 @@ The N64 accessory that plugs a Game Boy game into the controller, so a game like
 _Avoid_: Transfer (that's moving Pokémon between saves)
 
 **Route**:
-The way the games themselves move a Pokémon between two games: link trade, Time Capsule, Pal Park, Poké Transfer, and the moves from Gen 5 into Gen 6 and 7, from Gen 6 into Gen 7, and from Gen 1 and 2 into Gen 7. One transfer can chain several, such as Emerald to Sun. A transfer without one is unofficial.
+The way the games themselves move a Pokémon between two games: link trade (including the GBA cable between Colosseum, XD or Pokémon Box and the Gen 3 GBA games), Time Capsule, Pal Park, Poké Transfer, and the moves from Gen 5 into Gen 6 and 7, from Gen 6 into Gen 7, and from Gen 1 and 2 into Gen 7. One transfer can chain several, such as Emerald to Sun. A transfer without one is unofficial.
 
 **Unofficial transfer**:
 A transfer on a route no game has, such as Platinum to Ruby. The Pokémon may fail the legality check and loses what the destination can't hold.
@@ -201,5 +201,33 @@ The card in Settings that lists experiments. A store build shows it while the pl
 _Avoid_: Lab build
 
 **Experiment**:
-A behaviour change we turn on and off in the Lab to compare before keeping one. Its first value is off and the default. Each experiment says whether players see it. An experiment the Lab doesn't show runs at its first value.
+A behaviour change we turn on and off in the Lab to compare before keeping one, or an unfinished feature we try out there before it becomes part of the app. Its first value is off and the default. Each experiment says whether players see it. An experiment the Lab doesn't show runs at its first value.
 _Avoid_: Feature flag, toggle
+
+## Research
+
+**Research**:
+The Lab experiment that helps players map parts of a save file nobody has mapped yet. The player opens it from the pause menu.
+_Avoid_: Debugger, hex editor
+
+**Compare**:
+Two copies of a game's save file, a baseline and the next save the game writes after it, shown as a diff over spaces. A game has one at a time. It stays open after the player quits, until they close it or start another. Loading a save state ends it.
+_Avoid_: Diff (that's what a compare shows), snapshot
+
+**Baseline**:
+The first save of a compare: the save file as it is when the player starts, or the next save the game writes.
+
+**Space**:
+A decoded view of a save file that a layout names, such as a Gen 3 section, a party slot or an SCBlock. Offsets in research point into a space, never into the file on disk.
+_Avoid_: Region, block (on its own)
+
+**Known range**:
+Bytes in a space whose meaning a layout gives and cites, such as Money in Gen 3 section 1.
+
+**Finding**:
+What a player works out with research. A range finding names bytes that no known range covers. A value finding names a value that a known range holds but the engine can't name, such as Unbound's item 368. The player exports findings as a file and shares it however they like.
+_Avoid_: Discovery, mapping
+
+**Layout**:
+What the bytes of a save format, or later a build's game memory, mean: its spaces, known ranges and findings, written in an open format kept in `openpkx/layouts`. pkh-emu reads saves through the engine; plug-ins such as Research read them through layouts.
+_Avoid_: Map, schema, template

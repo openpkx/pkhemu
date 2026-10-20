@@ -83,3 +83,23 @@ it.each(["gb", "gbc"] as const)("finds no build on %s without reading memory", a
   expect(await identifyBuild(system, nothing.read)).toBe("unsupported");
   expect(nothing.asked).toEqual([]);
 });
+
+// Dolphin maps the disc header's first bytes to the start of main RAM: the game ID, then the disc revision at 7.
+const gameCube = (id: string, revision: number) => rom({ 0x80000000: ascii(id), 0x80000007: [revision] });
+
+it.each([
+  ["GC6P", 0, "Colosseum EU", 62, "ck3"],
+  ["GXXP", 0, "XD EU", 63, "xk3"],
+])("identifies %s revision %i as %s from the disc header in main RAM", async (id, revision, name, version, format) => {
+  const build = await identifyBuild("gc", gameCube(id, revision).read);
+
+  expect(build).toMatchObject({ name, version, format });
+});
+
+it.each([
+  ["the American Colosseum", "GC6E", 0],
+  ["the Japanese XD", "GXXJ", 0],
+  ["a GameCube game that isn't Pokémon", "GALP", 0],
+])("finds no build for %s", async (_, id, revision) => {
+  expect(await identifyBuild("gc", gameCube(id, revision).read)).toBe("unsupported");
+});

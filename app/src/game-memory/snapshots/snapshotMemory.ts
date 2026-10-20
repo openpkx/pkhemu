@@ -2,7 +2,7 @@ import type { Range } from "../builds";
 
 export type Snapshot = { build: string; memory: { address: string; bytes: string }[] };
 
-const headers: Record<string, { system: "gba" | "nds"; code: string; revision: number }> = {
+const headers: Record<string, { system: "gba" | "nds" | "gc"; code: string; revision: number }> = {
   "Emerald EN": { system: "gba", code: "BPEE", revision: 0 },
   "FireRed EN 1.0": { system: "gba", code: "BPRE", revision: 0 },
   "FireRed EN 1.1": { system: "gba", code: "BPRE", revision: 1 },
@@ -17,11 +17,14 @@ const headers: Record<string, { system: "gba" | "nds"; code: string; revision: n
   "White 2 EN": { system: "nds", code: "IRDO", revision: 0 },
   "Black EN": { system: "nds", code: "IRBO", revision: 0 },
   "White EN": { system: "nds", code: "IRAO", revision: 0 },
+  "Colosseum EU": { system: "gc", code: "GC6P", revision: 0 },
+  "XD EU": { system: "gc", code: "GXXP", revision: 0 },
 };
 
 const headerAddresses = {
   gba: { code: 0x080000ac, revision: 0x080000bc },
   nds: { code: 0x027ffe0c, revision: 0x027ffe1e },
+  gc: { code: 0x80000000, revision: 0x80000007 },
 };
 
 export const snapshotSystem = (snapshot: Snapshot) => headers[snapshot.build].system;
@@ -59,4 +62,13 @@ export function dsSpecies(pokemon: Uint8Array) {
   let seed = data.getUint16(6, true);
   for (let word = 0; word <= position * 16; word++) seed = (Math.imul(seed, 0x41c64e6d) + 0x6073) >>> 0;
   return data.getUint16(8 + position * 32, true) ^ (seed >>> 16);
+}
+
+// Colosseum and XD keep a Pokémon unencrypted, with the species first and the nickname in big-endian UTF-16.
+export function gameCubeNickname(pokemon: Uint8Array) {
+  const at = pokemon.length === 312 ? 0x44 : 0x64;
+  const name = new DataView(pokemon.buffer, pokemon.byteOffset + at, 22);
+  const chars = Array.from({ length: 11 }, (_, i) => name.getUint16(i * 2));
+  const end = chars.indexOf(0);
+  return String.fromCharCode(...chars.slice(0, end < 0 ? undefined : end));
 }

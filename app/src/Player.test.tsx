@@ -68,7 +68,7 @@ const noSensor: GravityHost = { tilts: true, start() {}, stop() {}, read: () => 
 const onError = () => {};
 let stored: Partial<Preferences> = {};
 const preferencesHost: PreferencesHost = { load: async () => stored, save: async () => {} };
-const preferences: Preferences = { touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic", skins: defaultSkins, skinHintSeen: false, screenDepth: false, screenGlass: false, asyncShaders: false };
+const preferences: Preferences = { touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic", skins: defaultSkins, skinHintSeen: false, screenDepth: false, screenGlass: false, asyncShaders: false, gameCubeResolution: 1 };
 
 async function rendered(ui: ReactElement) {
   const result = render(ui);
@@ -235,6 +235,34 @@ it.each([false, true])("starts the game with async shaders %s as the preference 
   await vi.waitFor(() => expect(invoke).toHaveBeenCalledWith("play", expect.objectContaining({ asyncShaders })));
 });
 
+it.each([undefined, 3])("starts the game at the resolution it's given: %s", async (resolution) => {
+  render(player({ resolution }));
+
+  await vi.waitFor(() => expect(invoke).toHaveBeenCalledWith("play", expect.objectContaining({ resolution: resolution ?? 1 })));
+});
+
+it.each([
+  [1, 640, 528],
+  [3, 1920, 1584],
+])("lays a frame at %s× out as the system's own size", async (resolution, width, height) => {
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      constructor(private report: ResizeObserverCallback) {}
+      observe() {
+        this.report([{ contentRect: { width: 660, height: 600 } } as ResizeObserverEntry], this as unknown as ResizeObserver);
+      }
+      disconnect() {}
+    },
+  );
+  const { container } = render(player({ resolution, display: handheld.gc, wall: undefined }));
+
+  await sendFrame(width, height);
+
+  const canvas = container.querySelector("canvas")!;
+  expect([canvas.width, canvas.height]).toEqual([640, 528]);
+});
+
 it("starts the game without async shaders where the core can't draw while shaders compile", async () => {
   stored = { asyncShaders: true };
   render(<ShadersProvider host={{ offered: async () => false, onLine: "" }}>{player()}</ShadersProvider>);
@@ -281,7 +309,7 @@ function sentInputs() {
   return vi
     .mocked(invoke)
     .mock.calls.filter(([command]) => command === "set_input")
-    .map(([, args]) => args as { input: number; analog: number[]; pointer: number[] | null });
+    .map(([, args]) => args as { input: number; analog: number[]; triggers: number[]; pointer: number[] | null });
 }
 
 it("has Rust run the game at the speed asked for", async () => {
@@ -329,7 +357,7 @@ it("sends input to Rust only when it changes", async () => {
   await playing();
   tick();
   tick();
-  expect(sentInputs()).toEqual([{ input: 0, analog: [0, 0, 0, 0], pointer: null }]);
+  expect(sentInputs()).toEqual([{ input: 0, analog: [0, 0, 0, 0], triggers: [0, 0], pointer: null }]);
 
   pad.press(1 << 8);
   tick();
@@ -337,6 +365,16 @@ it("sends input to Rust only when it changes", async () => {
 
   expect(sentInputs()).toHaveLength(2);
   expect(sentInputs()[1]).toMatchObject({ input: 1 << 8 });
+});
+
+it("sends how far each trigger is pulled to Rust", async () => {
+  const pad = pressing();
+  vi.spyOn(pad.input, "pollTriggers").mockReturnValue([0x4000, 0x7fff]);
+  render(player({ input: pad.input }));
+  await playing();
+  tick();
+
+  expect(sentInputs().at(-1)).toMatchObject({ triggers: [0x4000, 0x7fff] });
 });
 
 it("lets go of every button in Rust while paused", async () => {
