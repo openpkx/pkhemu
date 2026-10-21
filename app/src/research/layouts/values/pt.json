@@ -1,0 +1,11 @@
+{
+  "$schema": "../schema/values.schema.json",
+  "schema": "1.0",
+  "note": "English names for the items Platinum adds to Diamond and Pearl's.",
+  "values": [
+    {"domain": "item", "index": 112, "name": "Griseous Orb", "cross": {"id": 112}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt"},
+    {"domain": "item", "index": 465, "name": "Vs. Recorder", "cross": {"id": 465}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt"},
+    {"domain": "item", "index": 466, "name": "Gracidea", "cross": {"id": 466}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt"},
+    {"domain": "item", "index": 467, "name": "Secret Key", "cross": {"id": 467}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt and pkhex:Game/GameStrings/GameStrings.cs"}
+  ]
+}

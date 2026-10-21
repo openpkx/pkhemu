@@ -1,0 +1,77 @@
+{
+  "step": "emerald-legacy-blocks",
+  "test": [
+    {
+      "name": "emerald-legacy.sav",
+      "input": {
+        "file": "emerald-legacy.sav"
+      },
+      "passes": true
+    },
+    {
+      "name": "emerald.sav",
+      "input": {
+        "file": "emerald.sav"
+      },
+      "passes": false
+    },
+    {
+      "name": "emerald-legacy.sav with its key item taken out",
+      "input": [
+        {
+          "file": "emerald-legacy.sav",
+          "length": "0x18000"
+        },
+        {
+          "file": "emerald-legacy.sav",
+          "offset": "0x18000",
+          "length": "0x740"
+        },
+        "00 00 00 00",
+        {
+          "file": "emerald-legacy.sav",
+          "offset": "0x18744",
+          "length": "0x8BC"
+        },
+        {
+          "file": "emerald-legacy.sav",
+          "offset": "0x19000"
+        }
+      ],
+      "passes": false
+    },
+    {
+      "name": "emerald-legacy.sav with its third copy of the seen flags cleared",
+      "input": [
+        {
+          "file": "emerald-legacy.sav",
+          "length": "0x1B000"
+        },
+        {
+          "file": "emerald-legacy.sav",
+          "offset": "0x1B000",
+          "length": "0xCB7"
+        },
+        "00",
+        {
+          "file": "emerald-legacy.sav",
+          "offset": "0x1BCB8",
+          "length": "0x348"
+        },
+        {
+          "file": "emerald-legacy.sav",
+          "offset": "0x1C000"
+        }
+      ],
+      "passes": false
+    },
+    {
+      "name": "a file of zeros",
+      "input": {
+        "fill": "00",
+        "length": "0x20000"
+      },
+      "passes": false
+    }
+  ]
+}

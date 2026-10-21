@@ -1,0 +1,114 @@
+{
+  "step": "rom-table",
+  "decode": [
+    {
+      "name": "a known ROM's count of 3 four-byte entries, from the pointer at 0x00",
+      "args": {
+        "pointer": "0x00",
+        "length": 4,
+        "count": 3
+      },
+      "input": [
+        "10 00 00 08",
+        {
+          "fill": "00",
+          "length": "0x0C"
+        },
+        "01 02 03 04 05 06 07 08 FF FF FF FF 00 00 00 00"
+      ],
+      "output": "01 02 03 04 05 06 07 08 FF FF FF FF"
+    },
+    {
+      "name": "an unknown ROM's table, which ends at the first entry starting with 0xFF",
+      "args": {
+        "pointer": "0x00",
+        "length": 4,
+        "checks": [
+          {
+            "offset": 0,
+            "type": "u8",
+            "not": 255
+          }
+        ]
+      },
+      "input": [
+        "10 00 00 08",
+        {
+          "fill": "00",
+          "length": "0x0C"
+        },
+        "01 02 03 04 05 06 07 08 FF FF FF FF 00 00 00 00"
+      ],
+      "output": "01 02 03 04 05 06 07 08"
+    },
+    {
+      "name": "a table of pointers, which ends at the first that points past the ROM's 0x20 bytes",
+      "args": {
+        "pointer": "0x00",
+        "length": 4,
+        "checks": [
+          {
+            "offset": 0,
+            "type": "u32le",
+            "pointer": true
+          }
+        ]
+      },
+      "input": [
+        "10 00 00 08",
+        {
+          "fill": "00",
+          "length": "0x0C"
+        },
+        "00 00 00 08 1C 00 00 08 20 00 00 08 00 00 00 08"
+      ],
+      "output": "00 00 00 08 1C 00 00 08"
+    },
+    {
+      "name": "a table that runs to the end of the ROM, whose last entry is cut off",
+      "args": {
+        "pointer": "0x00",
+        "length": 3,
+        "checks": [
+          {
+            "any": [
+              {
+                "offset": 0,
+                "type": "u8",
+                "equals": [
+                  1,
+                  2,
+                  3
+                ]
+              },
+              {
+                "offset": 1,
+                "type": "bytes",
+                "length": 2,
+                "zero": true
+              }
+            ]
+          }
+        ]
+      },
+      "input": "04 00 00 08 01 01 01 02 02 02 03",
+      "output": "01 01 01 02 02 02"
+    },
+    {
+      "name": "a table whose first entry fails its checks, which has no entries",
+      "args": {
+        "pointer": "0x04",
+        "length": 2,
+        "checks": [
+          {
+            "offset": 0,
+            "type": "u16le",
+            "equals": "0x1234"
+          }
+        ]
+      },
+      "input": "00 00 00 00 0C 00 00 08 00 00 00 00 21 43 34 12",
+      "output": ""
+    }
+  ]
+}

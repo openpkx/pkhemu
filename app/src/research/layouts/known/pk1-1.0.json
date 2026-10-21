@@ -1,0 +1,13 @@
+{
+  "$schema": "../schema/layout.schema.json",
+  "schema": "1.0",
+  "target": {
+    "kind": "pokemon",
+    "format": "pk1",
+    "version": "1.0",
+    "uses": [
+      {"format": "rby", "version": "1.0", "kind": "pk1"}
+    ],
+    "detect": {"match": "certain", "sizes": [69], "source": "pkhex:PKM/Shared/PokeList1.cs"}
+  }
+}

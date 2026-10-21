@@ -1,4 +1,6 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { useEffect, type ReactNode } from "react";
 import { EngineProvider } from "@pkhex-everywhere/react";
 import { invoke } from "@tauri-apps/api/core";
@@ -16,6 +18,7 @@ import { buttons, type Input } from "./input/input";
 import { tauriCheatsHost } from "./cheats/tauriHost";
 import type { Game } from "./library/scan";
 import { tauriTransferPakHost } from "./transfer-pak/tauriHost";
+import { emeraldSave } from "./testing/gen3Save";
 import type { Rates } from "./fps-counter/fpsCounter";
 import { GameScreen } from "./GameScreen";
 import { dualScreens } from "./screens";
@@ -71,7 +74,9 @@ vi.mock("@tauri-apps/api/core", () => ({
             ? game.sinceSave
             : command === "read_save"
               ? game.save.slice().buffer
-              : undefined,
+              : command === "import_sha1s"
+                ? {}
+                : undefined,
   ),
 }));
 
@@ -773,6 +778,7 @@ const researching = { plus: { state: "owned" } as PlusStatus, experiments: { res
 const research = () => screen.queryByRole("region", { name: "Research" });
 
 it("opens Research from a Gen 3 game's pause menu, and goes back to the menu", async () => {
+  game.save = emeraldSave();
   await play(engine, undefined, undefined, researching);
   await openPauseMenu();
 
@@ -788,6 +794,7 @@ it("opens Research from a Gen 3 game's pause menu, and goes back to the menu", a
 });
 
 it("goes back from Research to the pause menu with B", async () => {
+  game.save = emeraldSave();
   const pad = pads.connect();
   await play(engine, undefined, undefined, researching);
   await openPauseMenu();
@@ -805,7 +812,7 @@ it("goes back from Research to the pause menu with B", async () => {
 const researchLine = () => screen.getByRole("button", { name: /^Research/ }).textContent;
 
 it("finishes a Research compare started before the game quit", async () => {
-  game.save = new Uint8Array(16).fill(1);
+  game.save = emeraldSave();
   await play(engine, undefined, undefined, researching);
   await openPauseMenu();
   fireEvent.click(await screen.findByRole("button", { name: /^Research/ }));
@@ -821,7 +828,7 @@ it("finishes a Research compare started before the game quit", async () => {
   fireEvent.click(screen.getByRole("button", { name: "Resume" }));
   await act(async () => {});
 
-  game.save = new Uint8Array(16).fill(2);
+  game.save = emeraldSave([{ section: 1, offset: 0x490, bytes: [1] }]);
   game.sinceSave = 2;
   await waitFor(() => expect(screen.getByText("Compare ready in Research")).toBeTruthy());
   await openPauseMenu();
@@ -829,6 +836,7 @@ it("finishes a Research compare started before the game quit", async () => {
 });
 
 it("ends a Research compare when the game starts from a save state", async () => {
+  game.save = emeraldSave();
   game.research.set("gba/Emerald.gba:compare", { stage: "baseline" });
 
   await play(engine, undefined, undefined, { ...researching, slot: 2 });
@@ -837,8 +845,27 @@ it("ends a Research compare when the game starts from a save state", async () =>
   await waitFor(() => expect(researchLine()).toContain("Compare two saves"));
 });
 
-it("leaves Research out of a DS game's pause menu", async () => {
-  await play(engine, undefined, undefined, { ...researching, played: { name: "Platinum", path: "nds/Platinum.nds", system: "nds" } });
+const vector = (name: string) => new Uint8Array(readFileSync(join(import.meta.dirname, "research/layouts/transforms/vectors", name)));
+
+it("offers Research on a Game Boy game whose save a layout reads", async () => {
+  game.save = vector("red.sav");
+  await play(engine, undefined, undefined, { ...researching, played: { name: "Red", path: "gb/Red.gb", system: "gb" } });
+  await openPauseMenu();
+
+  expect(await screen.findByRole("button", { name: /^Research/ })).toBeTruthy();
+});
+
+it("offers Research on a GameCube game whose memory card holds its save", async () => {
+  game.save = vector("colosseum.raw");
+  await play(engine, undefined, undefined, { ...researching, played: { name: "Colosseum", path: "gc/Colosseum.rvz", system: "gc" } });
+  await openPauseMenu();
+
+  expect(await screen.findByRole("button", { name: /^Research/ })).toBeTruthy();
+});
+
+it("leaves Research out of a game whose save no layout reads", async () => {
+  game.save = vector("gold-jpn.sav");
+  await play(engine, undefined, undefined, { ...researching, played: { name: "Gold", path: "gbc/Gold.gbc", system: "gbc" } });
   await openPauseMenu();
   await act(async () => {});
 

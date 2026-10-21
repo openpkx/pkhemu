@@ -1,0 +1,1230 @@
+{
+  "step": "text-gen1-intl",
+  "decode": [
+    {
+      "name": "the trainer name OPENPKX the engine writes in Red",
+      "input": "8E 8F 84 8D 8F 8A 97 50",
+      "output": {
+        "text": "OPENPKX"
+      }
+    },
+    {
+      "name": "bytes 0x70 to 0x79",
+      "input": "70 5D 71 72 73 75 79 50",
+      "output": {
+        "text": "@*#“”…┌"
+      }
+    },
+    {
+      "name": "bytes 0x7A to 0x80",
+      "input": "7A 7B 7C 7D 7E 7F 80 50",
+      "output": {
+        "text": "─┐│└┘ A"
+      }
+    },
+    {
+      "name": "bytes 0x81 to 0x87",
+      "input": "81 82 83 84 85 86 87 50",
+      "output": {
+        "text": "BCDEFGH"
+      }
+    },
+    {
+      "name": "bytes 0x88 to 0x8E",
+      "input": "88 89 8A 8B 8C 8D 8E 50",
+      "output": {
+        "text": "IJKLMNO"
+      }
+    },
+    {
+      "name": "bytes 0x8F to 0x95",
+      "input": "8F 90 91 92 93 94 95 50",
+      "output": {
+        "text": "PQRSTUV"
+      }
+    },
+    {
+      "name": "bytes 0x96 to 0x9C",
+      "input": "96 97 98 99 9A 9B 9C 50",
+      "output": {
+        "text": "WXYZ():"
+      }
+    },
+    {
+      "name": "bytes 0x9D to 0xA3",
+      "input": "9D 9E 9F A0 A1 A2 A3 50",
+      "output": {
+        "text": ";[]abcd"
+      }
+    },
+    {
+      "name": "bytes 0xA4 to 0xAA",
+      "input": "A4 A5 A6 A7 A8 A9 AA 50",
+      "output": {
+        "text": "efghijk"
+      }
+    },
+    {
+      "name": "bytes 0xAB to 0xB1",
+      "input": "AB AC AD AE AF B0 B1 50",
+      "output": {
+        "text": "lmnopqr"
+      }
+    },
+    {
+      "name": "bytes 0xB2 to 0xB8",
+      "input": "B2 B3 B4 B5 B6 B7 B8 50",
+      "output": {
+        "text": "stuvwxy"
+      }
+    },
+    {
+      "name": "bytes 0xB9 to 0xBF",
+      "input": "B9 BA BB BC BD BE BF 50",
+      "output": {
+        "text": "zàèéùÀÁ"
+      }
+    },
+    {
+      "name": "bytes 0xC0 to 0xC6",
+      "input": "C0 C1 C2 C3 C4 C5 C6 50",
+      "output": {
+        "text": "ÄÖÜäöüÈ"
+      }
+    },
+    {
+      "name": "bytes 0xC7 to 0xCD",
+      "input": "C7 C8 C9 CA CB CC CD 50",
+      "output": {
+        "text": "ÉÌÍÑÒÓÙ"
+      }
+    },
+    {
+      "name": "bytes 0xCE to 0xD4",
+      "input": "CE CF D0 D1 D2 D3 D4 50",
+      "output": {
+        "text": "Úáìíñòó"
+      }
+    },
+    {
+      "name": "bytes 0xD5 to 0xE2",
+      "input": "D5 D6 DE DF E0 E1 E2 50",
+      "output": {
+        "text": "úº←'’{}"
+      }
+    },
+    {
+      "name": "bytes 0xE3 to 0xEB",
+      "input": "E3 E6 E7 E8 E9 EA EB 50",
+      "output": {
+        "text": "-?!․&%→"
+      }
+    },
+    {
+      "name": "bytes 0xEC to 0xF2",
+      "input": "EC ED EE EF F0 F1 F2 50",
+      "output": {
+        "text": "▷▶▼♂¥×."
+      }
+    },
+    {
+      "name": "bytes 0xF3 to 0xF9",
+      "input": "F3 F4 F5 F6 F7 F8 F9 50",
+      "output": {
+        "text": "/,♀0123"
+      }
+    },
+    {
+      "name": "bytes 0xFA to 0xFF",
+      "input": "FA FB FC FD FE FF 50 50",
+      "output": {
+        "text": "456789"
+      }
+    },
+    {
+      "name": "byte 0x00 ends the text",
+      "input": "80 00 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x01 ends the text",
+      "input": "80 01 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x02 ends the text",
+      "input": "80 02 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x03 ends the text",
+      "input": "80 03 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x04 ends the text",
+      "input": "80 04 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x05 ends the text",
+      "input": "80 05 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x06 ends the text",
+      "input": "80 06 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x07 ends the text",
+      "input": "80 07 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x08 ends the text",
+      "input": "80 08 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x09 ends the text",
+      "input": "80 09 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x0A ends the text",
+      "input": "80 0A 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x0B ends the text",
+      "input": "80 0B 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x0C ends the text",
+      "input": "80 0C 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x0D ends the text",
+      "input": "80 0D 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x0E ends the text",
+      "input": "80 0E 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x0F ends the text",
+      "input": "80 0F 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x10 ends the text",
+      "input": "80 10 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x11 ends the text",
+      "input": "80 11 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x12 ends the text",
+      "input": "80 12 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x13 ends the text",
+      "input": "80 13 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x14 ends the text",
+      "input": "80 14 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x15 ends the text",
+      "input": "80 15 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x16 ends the text",
+      "input": "80 16 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x17 ends the text",
+      "input": "80 17 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x18 ends the text",
+      "input": "80 18 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x19 ends the text",
+      "input": "80 19 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x1A ends the text",
+      "input": "80 1A 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x1B ends the text",
+      "input": "80 1B 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x1C ends the text",
+      "input": "80 1C 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x1D ends the text",
+      "input": "80 1D 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x1E ends the text",
+      "input": "80 1E 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x1F ends the text",
+      "input": "80 1F 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x20 ends the text",
+      "input": "80 20 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x21 ends the text",
+      "input": "80 21 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x22 ends the text",
+      "input": "80 22 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x23 ends the text",
+      "input": "80 23 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x24 ends the text",
+      "input": "80 24 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x25 ends the text",
+      "input": "80 25 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x26 ends the text",
+      "input": "80 26 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x27 ends the text",
+      "input": "80 27 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x28 ends the text",
+      "input": "80 28 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x29 ends the text",
+      "input": "80 29 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x2A ends the text",
+      "input": "80 2A 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x2B ends the text",
+      "input": "80 2B 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x2C ends the text",
+      "input": "80 2C 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x2D ends the text",
+      "input": "80 2D 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x2E ends the text",
+      "input": "80 2E 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x2F ends the text",
+      "input": "80 2F 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x30 ends the text",
+      "input": "80 30 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x31 ends the text",
+      "input": "80 31 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x32 ends the text",
+      "input": "80 32 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x33 ends the text",
+      "input": "80 33 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x34 ends the text",
+      "input": "80 34 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x35 ends the text",
+      "input": "80 35 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x36 ends the text",
+      "input": "80 36 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x37 ends the text",
+      "input": "80 37 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x38 ends the text",
+      "input": "80 38 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x39 ends the text",
+      "input": "80 39 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x3A ends the text",
+      "input": "80 3A 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x3B ends the text",
+      "input": "80 3B 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x3C ends the text",
+      "input": "80 3C 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x3D ends the text",
+      "input": "80 3D 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x3E ends the text",
+      "input": "80 3E 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x3F ends the text",
+      "input": "80 3F 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x40 ends the text",
+      "input": "80 40 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x41 ends the text",
+      "input": "80 41 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x42 ends the text",
+      "input": "80 42 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x43 ends the text",
+      "input": "80 43 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x44 ends the text",
+      "input": "80 44 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x45 ends the text",
+      "input": "80 45 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x46 ends the text",
+      "input": "80 46 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x47 ends the text",
+      "input": "80 47 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x48 ends the text",
+      "input": "80 48 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x49 ends the text",
+      "input": "80 49 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x4A ends the text",
+      "input": "80 4A 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x4B ends the text",
+      "input": "80 4B 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x4C ends the text",
+      "input": "80 4C 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x4D ends the text",
+      "input": "80 4D 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x4E ends the text",
+      "input": "80 4E 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x4F ends the text",
+      "input": "80 4F 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x50 ends the text",
+      "input": "80 50 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x51 ends the text",
+      "input": "80 51 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x52 ends the text",
+      "input": "80 52 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x53 ends the text",
+      "input": "80 53 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x54 ends the text",
+      "input": "80 54 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x55 ends the text",
+      "input": "80 55 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x56 ends the text",
+      "input": "80 56 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x57 ends the text",
+      "input": "80 57 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x58 ends the text",
+      "input": "80 58 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x59 ends the text",
+      "input": "80 59 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x5A ends the text",
+      "input": "80 5A 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x5B ends the text",
+      "input": "80 5B 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x5C ends the text",
+      "input": "80 5C 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x5E ends the text",
+      "input": "80 5E 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x5F ends the text",
+      "input": "80 5F 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x60 ends the text",
+      "input": "80 60 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x61 ends the text",
+      "input": "80 61 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x62 ends the text",
+      "input": "80 62 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x63 ends the text",
+      "input": "80 63 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x64 ends the text",
+      "input": "80 64 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x65 ends the text",
+      "input": "80 65 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x66 ends the text",
+      "input": "80 66 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x67 ends the text",
+      "input": "80 67 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x68 ends the text",
+      "input": "80 68 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x69 ends the text",
+      "input": "80 69 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x6A ends the text",
+      "input": "80 6A 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x6B ends the text",
+      "input": "80 6B 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x6C ends the text",
+      "input": "80 6C 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x6D ends the text",
+      "input": "80 6D 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x6E ends the text",
+      "input": "80 6E 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x6F ends the text",
+      "input": "80 6F 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x74 ends the text",
+      "input": "80 74 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x76 ends the text",
+      "input": "80 76 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x77 ends the text",
+      "input": "80 77 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x78 ends the text",
+      "input": "80 78 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0xD7 ends the text",
+      "input": "80 D7 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0xD8 ends the text",
+      "input": "80 D8 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0xD9 ends the text",
+      "input": "80 D9 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0xDA ends the text",
+      "input": "80 DA 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0xDB ends the text",
+      "input": "80 DB 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0xDC ends the text",
+      "input": "80 DC 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0xDD ends the text",
+      "input": "80 DD 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0xE4 ends the text",
+      "input": "80 E4 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0xE5 ends the text",
+      "input": "80 E5 80",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "byte 0x5D first, an in-game trade",
+      "input": "5D 80 81 50",
+      "output": {
+        "text": "*"
+      }
+    }
+  ],
+  "encode": [
+    {
+      "name": "the trainer name OPENPKX over the blank Red save's",
+      "input": {
+        "text": "OPENPKX"
+      },
+      "previous": "8F 8A 87 A4 97 96 A4 50",
+      "output": "8E 8F 84 8D 8F 8A 97 50"
+    },
+    {
+      "name": "the trainer name *",
+      "input": {
+        "text": "*"
+      },
+      "previous": "8E 8F 84 8D 8F 8A 97 50",
+      "output": "5D 50 00 00 00 00 00 00"
+    },
+    {
+      "name": "the trainer name ABCDEFG",
+      "input": {
+        "text": "ABCDEFG"
+      },
+      "previous": "5D 50 00 00 00 00 00 00",
+      "output": "80 81 82 83 84 85 86 50"
+    },
+    {
+      "name": "the trainer name @*#“”…┌",
+      "input": {
+        "text": "@*#“”…┌"
+      },
+      "previous": "80 81 82 83 84 85 86 50",
+      "output": "70 5D 71 72 73 75 79 50"
+    },
+    {
+      "name": "the trainer name ─ ┐│└┘A",
+      "input": {
+        "text": "─ ┐│└┘A"
+      },
+      "previous": "70 5D 71 72 73 75 79 50",
+      "output": "7A 7F 7B 7C 7D 7E 80 50"
+    },
+    {
+      "name": "the trainer name BCDEFG",
+      "input": {
+        "text": "BCDEFG"
+      },
+      "previous": "7A 7F 7B 7C 7D 7E 80 50",
+      "output": "81 82 83 84 85 86 50 00"
+    },
+    {
+      "name": "the trainer name HIJKLM",
+      "input": {
+        "text": "HIJKLM"
+      },
+      "previous": "81 82 83 84 85 86 50 00",
+      "output": "87 88 89 8A 8B 8C 50 00"
+    },
+    {
+      "name": "the trainer name NOPQRS",
+      "input": {
+        "text": "NOPQRS"
+      },
+      "previous": "87 88 89 8A 8B 8C 50 00",
+      "output": "8D 8E 8F 90 91 92 50 00"
+    },
+    {
+      "name": "the trainer name TUVWXY",
+      "input": {
+        "text": "TUVWXY"
+      },
+      "previous": "8D 8E 8F 90 91 92 50 00",
+      "output": "93 94 95 96 97 98 50 00"
+    },
+    {
+      "name": "the trainer name Z():;[",
+      "input": {
+        "text": "Z():;["
+      },
+      "previous": "93 94 95 96 97 98 50 00",
+      "output": "99 9A 9B 9C 9D 9E 50 00"
+    },
+    {
+      "name": "the trainer name ]abcde",
+      "input": {
+        "text": "]abcde"
+      },
+      "previous": "99 9A 9B 9C 9D 9E 50 00",
+      "output": "9F A0 A1 A2 A3 A4 50 00"
+    },
+    {
+      "name": "the trainer name fghijk",
+      "input": {
+        "text": "fghijk"
+      },
+      "previous": "9F A0 A1 A2 A3 A4 50 00",
+      "output": "A5 A6 A7 A8 A9 AA 50 00"
+    },
+    {
+      "name": "the trainer name lmnopq",
+      "input": {
+        "text": "lmnopq"
+      },
+      "previous": "A5 A6 A7 A8 A9 AA 50 00",
+      "output": "AB AC AD AE AF B0 50 00"
+    },
+    {
+      "name": "the trainer name rstuvw",
+      "input": {
+        "text": "rstuvw"
+      },
+      "previous": "AB AC AD AE AF B0 50 00",
+      "output": "B1 B2 B3 B4 B5 B6 50 00"
+    },
+    {
+      "name": "the trainer name xyzàèé",
+      "input": {
+        "text": "xyzàèé"
+      },
+      "previous": "B1 B2 B3 B4 B5 B6 50 00",
+      "output": "B7 B8 B9 BA BB BC 50 00"
+    },
+    {
+      "name": "the trainer name ùÀÁÄÖÜ",
+      "input": {
+        "text": "ùÀÁÄÖÜ"
+      },
+      "previous": "B7 B8 B9 BA BB BC 50 00",
+      "output": "BD BE BF C0 C1 C2 50 00"
+    },
+    {
+      "name": "the trainer name äöüÈÉÌ",
+      "input": {
+        "text": "äöüÈÉÌ"
+      },
+      "previous": "BD BE BF C0 C1 C2 50 00",
+      "output": "C3 C4 C5 C6 C7 C8 50 00"
+    },
+    {
+      "name": "the trainer name ÍÑÒÓÙÚ",
+      "input": {
+        "text": "ÍÑÒÓÙÚ"
+      },
+      "previous": "C3 C4 C5 C6 C7 C8 50 00",
+      "output": "C9 CA CB CC CD CE 50 00"
+    },
+    {
+      "name": "the trainer name áìíñòó",
+      "input": {
+        "text": "áìíñòó"
+      },
+      "previous": "C9 CA CB CC CD CE 50 00",
+      "output": "CF D0 D1 D2 D3 D4 50 00"
+    },
+    {
+      "name": "the trainer name úº←'’{",
+      "input": {
+        "text": "úº←'’{"
+      },
+      "previous": "CF D0 D1 D2 D3 D4 50 00",
+      "output": "D5 D6 DE DF E0 E1 50 00"
+    },
+    {
+      "name": "the trainer name }-?!․&",
+      "input": {
+        "text": "}-?!․&"
+      },
+      "previous": "D5 D6 DE DF E0 E1 50 00",
+      "output": "E2 E3 E6 E7 E8 E9 50 00"
+    },
+    {
+      "name": "the trainer name %→▷▶▼♂",
+      "input": {
+        "text": "%→▷▶▼♂"
+      },
+      "previous": "E2 E3 E6 E7 E8 E9 50 00",
+      "output": "EA EB EC ED EE EF 50 00"
+    },
+    {
+      "name": "the trainer name ¥×./,♀",
+      "input": {
+        "text": "¥×./,♀"
+      },
+      "previous": "EA EB EC ED EE EF 50 00",
+      "output": "F0 F1 F2 F3 F4 F5 50 00"
+    },
+    {
+      "name": "the trainer name 012345",
+      "input": {
+        "text": "012345"
+      },
+      "previous": "F0 F1 F2 F3 F4 F5 50 00",
+      "output": "F6 F7 F8 F9 FA FB 50 00"
+    },
+    {
+      "name": "the trainer name 6789",
+      "input": {
+        "text": "6789"
+      },
+      "previous": "F6 F7 F8 F9 FA FB 50 00",
+      "output": "FC FD FE FF 50 00 00 00"
+    },
+    {
+      "name": "the trainer name Ab over the one before",
+      "input": {
+        "text": "Ab"
+      },
+      "previous": "FC FD FE FF 50 00 00 00",
+      "output": "80 A1 50 00 00 00 00 00"
+    }
+  ]
+}

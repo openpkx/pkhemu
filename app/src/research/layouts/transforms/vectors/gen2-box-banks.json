@@ -1,0 +1,367 @@
+{
+  "step": "gen2-box-banks",
+  "decode": [
+    {
+      "name": "box 1 of crystal.sav, the current box, in the first bank",
+      "args": {
+        "banks": [
+          "0x4000",
+          "0x6000"
+        ],
+        "boxes": 14,
+        "length": "0x44E",
+        "stride": "0x450",
+        "current": "0x2D10",
+        "selected": "0x2700",
+        "index": 0
+      },
+      "input": {
+        "file": "crystal.sav"
+      },
+      "output": {
+        "file": "crystal.sav",
+        "offset": "0x4000",
+        "length": "0x44E"
+      }
+    },
+    {
+      "name": "box 2 of crystal.sav, an empty box",
+      "args": {
+        "banks": [
+          "0x4000",
+          "0x6000"
+        ],
+        "boxes": 14,
+        "length": "0x44E",
+        "stride": "0x450",
+        "current": "0x2D10",
+        "selected": "0x2700",
+        "index": 1
+      },
+      "input": {
+        "file": "crystal.sav"
+      },
+      "output": {
+        "file": "crystal.sav",
+        "offset": "0x4450",
+        "length": "0x44E"
+      }
+    },
+    {
+      "name": "box 1 of gold.sav, the current box, in the first bank",
+      "args": {
+        "banks": [
+          "0x4000",
+          "0x6000"
+        ],
+        "boxes": 14,
+        "length": "0x44E",
+        "stride": "0x450",
+        "current": "0x2D6C",
+        "selected": "0x2724",
+        "index": 0
+      },
+      "input": {
+        "file": "gold.sav"
+      },
+      "output": {
+        "file": "gold.sav",
+        "offset": "0x4000",
+        "length": "0x44E"
+      }
+    },
+    {
+      "name": "box 1 of crystal-boxes.sav, in the first bank",
+      "args": {
+        "banks": [
+          "0x4000",
+          "0x6000"
+        ],
+        "boxes": 14,
+        "length": "0x44E",
+        "stride": "0x450",
+        "current": "0x2D10",
+        "selected": "0x2700",
+        "index": 0
+      },
+      "input": {
+        "file": "crystal-boxes.sav"
+      },
+      "output": {
+        "file": "crystal-boxes.sav",
+        "offset": "0x4000",
+        "length": "0x44E"
+      }
+    },
+    {
+      "name": "box 8 of crystal-boxes.sav, the current box, in the second bank",
+      "args": {
+        "banks": [
+          "0x4000",
+          "0x6000"
+        ],
+        "boxes": 14,
+        "length": "0x44E",
+        "stride": "0x450",
+        "current": "0x2D10",
+        "selected": "0x2700",
+        "index": 7
+      },
+      "input": {
+        "file": "crystal-boxes.sav"
+      },
+      "output": {
+        "file": "crystal-boxes.sav",
+        "offset": "0x6000",
+        "length": "0x44E"
+      }
+    },
+    {
+      "name": "box 8 of crystal-boxes.sav, from its bank while the copy of the current box is empty",
+      "args": {
+        "banks": [
+          "0x4000",
+          "0x6000"
+        ],
+        "boxes": 14,
+        "length": "0x44E",
+        "stride": "0x450",
+        "current": "0x2D10",
+        "selected": "0x2700",
+        "index": 7
+      },
+      "input": [
+        {
+          "file": "crystal-boxes.sav",
+          "offset": "0x0",
+          "length": "0x2D10"
+        },
+        "00 FF 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        {
+          "file": "crystal-boxes.sav",
+          "offset": "0x2D31",
+          "length": "0xA"
+        },
+        "00 00 00 00 00 00 00 00 00 00 00",
+        {
+          "file": "crystal-boxes.sav",
+          "offset": "0x2D46",
+          "length": "0x260"
+        },
+        "00 00 00 00 00 00 00 00 00 00 00",
+        {
+          "file": "crystal-boxes.sav",
+          "offset": "0x2FB1",
+          "length": "0xD1"
+        },
+        "00 00 00 00 00 00 00 00 00 00 00",
+        {
+          "file": "crystal-boxes.sav",
+          "offset": "0x308D",
+          "length": "0x4F73"
+        }
+      ],
+      "output": {
+        "file": "crystal-boxes.sav",
+        "offset": "0x6000",
+        "length": "0x44E"
+      }
+    }
+  ],
+  "encode": [
+    {
+      "name": "box 1 of crystal.sav, the current box, its Pikachu nicknamed Ab",
+      "args": {
+        "banks": [
+          "0x4000",
+          "0x6000"
+        ],
+        "boxes": 14,
+        "length": "0x44E",
+        "stride": "0x450",
+        "current": "0x2D10",
+        "selected": "0x2700",
+        "index": 0
+      },
+      "input": [
+        {
+          "file": "crystal.sav",
+          "offset": "0x4000",
+          "length": "0x372"
+        },
+        "80 A1 50 50 50 50 50",
+        {
+          "file": "crystal.sav",
+          "offset": "0x4379",
+          "length": "0xD5"
+        }
+      ],
+      "previous": {
+        "file": "crystal.sav"
+      },
+      "output": [
+        {
+          "file": "crystal.sav",
+          "offset": "0x0",
+          "length": "0x3082"
+        },
+        "80 A1 50 50 50 50 50",
+        {
+          "file": "crystal.sav",
+          "offset": "0x3089",
+          "length": "0x12E9"
+        },
+        "80 A1 50 50 50 50 50",
+        {
+          "file": "crystal.sav",
+          "offset": "0x4379",
+          "length": "0x3C87"
+        }
+      ]
+    },
+    {
+      "name": "box 1 of gold.sav, the current box, its Pikachu nicknamed Ab",
+      "args": {
+        "banks": [
+          "0x4000",
+          "0x6000"
+        ],
+        "boxes": 14,
+        "length": "0x44E",
+        "stride": "0x450",
+        "current": "0x2D6C",
+        "selected": "0x2724",
+        "index": 0
+      },
+      "input": [
+        {
+          "file": "gold.sav",
+          "offset": "0x4000",
+          "length": "0x372"
+        },
+        "80 A1 50 50 50 50 50",
+        {
+          "file": "gold.sav",
+          "offset": "0x4379",
+          "length": "0xD5"
+        }
+      ],
+      "previous": {
+        "file": "gold.sav"
+      },
+      "output": [
+        {
+          "file": "gold.sav",
+          "offset": "0x0",
+          "length": "0x30DE"
+        },
+        "80 A1 50 50 50 50 50",
+        {
+          "file": "gold.sav",
+          "offset": "0x30E5",
+          "length": "0x128D"
+        },
+        "80 A1 50 50 50 50 50",
+        {
+          "file": "gold.sav",
+          "offset": "0x4379",
+          "length": "0x3C87"
+        }
+      ]
+    },
+    {
+      "name": "box 1 of crystal-boxes.sav, no longer current, its Pikachu nicknamed Ab",
+      "args": {
+        "banks": [
+          "0x4000",
+          "0x6000"
+        ],
+        "boxes": 14,
+        "length": "0x44E",
+        "stride": "0x450",
+        "current": "0x2D10",
+        "selected": "0x2700",
+        "index": 0
+      },
+      "input": [
+        {
+          "file": "crystal-boxes.sav",
+          "offset": "0x4000",
+          "length": "0x372"
+        },
+        "80 A1 50 50 50 50 50",
+        {
+          "file": "crystal-boxes.sav",
+          "offset": "0x4379",
+          "length": "0xD5"
+        }
+      ],
+      "previous": {
+        "file": "crystal-boxes.sav"
+      },
+      "output": [
+        {
+          "file": "crystal-boxes.sav",
+          "offset": "0x0",
+          "length": "0x4372"
+        },
+        "80 A1 50 50 50 50 50",
+        {
+          "file": "crystal-boxes.sav",
+          "offset": "0x4379",
+          "length": "0x3C87"
+        }
+      ]
+    },
+    {
+      "name": "box 8 of crystal-boxes.sav, the current box in the second bank, its Pikachu nicknamed Ab",
+      "args": {
+        "banks": [
+          "0x4000",
+          "0x6000"
+        ],
+        "boxes": 14,
+        "length": "0x44E",
+        "stride": "0x450",
+        "current": "0x2D10",
+        "selected": "0x2700",
+        "index": 7
+      },
+      "input": [
+        {
+          "file": "crystal-boxes.sav",
+          "offset": "0x6000",
+          "length": "0x372"
+        },
+        "80 A1 50 50",
+        {
+          "file": "crystal-boxes.sav",
+          "offset": "0x6376",
+          "length": "0xD8"
+        }
+      ],
+      "previous": {
+        "file": "crystal-boxes.sav"
+      },
+      "output": [
+        {
+          "file": "crystal-boxes.sav",
+          "offset": "0x0",
+          "length": "0x3082"
+        },
+        "80 A1 50 50",
+        {
+          "file": "crystal-boxes.sav",
+          "offset": "0x3086",
+          "length": "0x32EC"
+        },
+        "80 A1 50 50",
+        {
+          "file": "crystal-boxes.sav",
+          "offset": "0x6376",
+          "length": "0x1C8A"
+        }
+      ]
+    }
+  ]
+}

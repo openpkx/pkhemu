@@ -1,0 +1,125 @@
+{
+  "step": "gen2-checksum",
+  "decode": [
+    {
+      "name": "crystal.sav, its main checksum",
+      "args": {
+        "start": "0x2009",
+        "end": "0x2B83",
+        "at": "0x2D0D"
+      },
+      "input": {
+        "file": "crystal.sav"
+      },
+      "output": "01 19"
+    },
+    {
+      "name": "crystal.sav, its backup checksum",
+      "args": {
+        "start": "0x2009",
+        "end": "0x2B83",
+        "at": "0x1F0D"
+      },
+      "input": {
+        "file": "crystal.sav"
+      },
+      "output": "01 19"
+    },
+    {
+      "name": "gold.sav, its main checksum",
+      "args": {
+        "start": "0x2009",
+        "end": "0x2D69",
+        "at": "0x2D69"
+      },
+      "input": {
+        "file": "gold.sav"
+      },
+      "output": "2F 18"
+    },
+    {
+      "name": "gold.sav, its backup checksum",
+      "args": {
+        "start": "0x2009",
+        "end": "0x2D69",
+        "at": "0x7E6D"
+      },
+      "input": {
+        "file": "gold.sav"
+      },
+      "output": "2F 18"
+    }
+  ],
+  "encode": [
+    {
+      "name": "crystal.sav with money 654321 from the engine, its checksum zeroed",
+      "args": {
+        "start": "0x2009",
+        "end": "0x2B83",
+        "at": "0x2D0D"
+      },
+      "input": [
+        {
+          "file": "crystal.sav",
+          "offset": "0x0",
+          "length": "0x15DC"
+        },
+        "09 FB F1",
+        {
+          "file": "crystal.sav",
+          "offset": "0x15DF",
+          "length": "0x92E"
+        },
+        "D3",
+        {
+          "file": "crystal.sav",
+          "offset": "0x1F0E",
+          "length": "0x4CE"
+        },
+        "09 FB F1",
+        {
+          "file": "crystal.sav",
+          "offset": "0x23DF",
+          "length": "0x92E"
+        },
+        "00 00",
+        {
+          "file": "crystal.sav",
+          "offset": "0x2D0F",
+          "length": "0x52F1"
+        }
+      ],
+      "output": [
+        {
+          "file": "crystal.sav",
+          "offset": "0x0",
+          "length": "0x15DC"
+        },
+        "09 FB F1",
+        {
+          "file": "crystal.sav",
+          "offset": "0x15DF",
+          "length": "0x92E"
+        },
+        "D3",
+        {
+          "file": "crystal.sav",
+          "offset": "0x1F0E",
+          "length": "0x4CE"
+        },
+        "09 FB F1",
+        {
+          "file": "crystal.sav",
+          "offset": "0x23DF",
+          "length": "0x92E"
+        },
+        "D3",
+        {
+          "file": "crystal.sav",
+          "offset": "0x2D0E",
+          "length": "0x52F2"
+        }
+      ]
+    }
+  ]
+}

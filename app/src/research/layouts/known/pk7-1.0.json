@@ -1,0 +1,14 @@
+{
+  "$schema": "../schema/layout.schema.json",
+  "schema": "1.0",
+  "target": {
+    "kind": "pokemon",
+    "format": "pk7",
+    "version": "1.0",
+    "uses": [
+      {"format": "sm", "version": "1.0", "kind": "pk7"},
+      {"format": "sm", "version": "1.0", "kind": "pk7-party"}
+    ],
+    "detect": {"match": "certain", "sizes": [232, 260], "source": "pkhex:PKM/PK7.cs"}
+  }
+}

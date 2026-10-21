@@ -25,7 +25,7 @@ export const experiments: Experiment[] = [
   {
     id: "research",
     label: "Research",
-    line: "On Gen 3 games, the pause menu offers Research, to compare two saves and name the bytes that changed.",
+    line: "On supported games, the pause menu offers Research, to compare two saves and name the bytes that changed.",
     values: ["off", "on"],
     players: true,
   },

@@ -1,0 +1,14 @@
+{
+  "$schema": "../schema/layout.schema.json",
+  "schema": "1.0",
+  "target": {
+    "kind": "pokemon",
+    "format": "pk4",
+    "version": "1.0",
+    "uses": [
+      {"format": "dp", "version": "1.0", "kind": "pk4"},
+      {"format": "dp", "version": "1.0", "kind": "pk4-party"}
+    ],
+    "detect": {"match": "certain", "sizes": [136, 236], "source": "pkhex:PKM/PK4.cs"}
+  }
+}

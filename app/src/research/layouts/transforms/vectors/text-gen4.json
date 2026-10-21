@@ -1,0 +1,6455 @@
+{
+  "step": "text-gen4",
+  "decode": [
+    {
+      "name": "the trainer name OPENPKX the engine writes in Diamond",
+      "input": "39 01 3A 01 2F 01 38 01 3A 01 35 01 42 01 FF FF",
+      "output": {
+        "text": "OPENPKX"
+      }
+    },
+    {
+      "name": "values 0x0001 to 0x0008",
+      "input": "01 00 02 00 03 00 04 00 05 00 06 00 07 00 08 00",
+      "output": {
+        "text": "　ぁあぃいぅうぇ"
+      }
+    },
+    {
+      "name": "values 0x0009 to 0x0010",
+      "input": "09 00 0A 00 0B 00 0C 00 0D 00 0E 00 0F 00 10 00",
+      "output": {
+        "text": "えぉおかがきぎく"
+      }
+    },
+    {
+      "name": "values 0x0011 to 0x0018",
+      "input": "11 00 12 00 13 00 14 00 15 00 16 00 17 00 18 00",
+      "output": {
+        "text": "ぐけげこごさざし"
+      }
+    },
+    {
+      "name": "values 0x0019 to 0x0020",
+      "input": "19 00 1A 00 1B 00 1C 00 1D 00 1E 00 1F 00 20 00",
+      "output": {
+        "text": "じすずせぜそぞた"
+      }
+    },
+    {
+      "name": "values 0x0021 to 0x0028",
+      "input": "21 00 22 00 23 00 24 00 25 00 26 00 27 00 28 00",
+      "output": {
+        "text": "だちぢっつづてで"
+      }
+    },
+    {
+      "name": "values 0x0029 to 0x0030",
+      "input": "29 00 2A 00 2B 00 2C 00 2D 00 2E 00 2F 00 30 00",
+      "output": {
+        "text": "とどなにぬねのは"
+      }
+    },
+    {
+      "name": "values 0x0031 to 0x0038",
+      "input": "31 00 32 00 33 00 34 00 35 00 36 00 37 00 38 00",
+      "output": {
+        "text": "ばぱひびぴふぶぷ"
+      }
+    },
+    {
+      "name": "values 0x0039 to 0x0040",
+      "input": "39 00 3A 00 3B 00 3C 00 3D 00 3E 00 3F 00 40 00",
+      "output": {
+        "text": "へべぺほぼぽまみ"
+      }
+    },
+    {
+      "name": "values 0x0041 to 0x0048",
+      "input": "41 00 42 00 43 00 44 00 45 00 46 00 47 00 48 00",
+      "output": {
+        "text": "むめもゃやゅゆょ"
+      }
+    },
+    {
+      "name": "values 0x0049 to 0x0050",
+      "input": "49 00 4A 00 4B 00 4C 00 4D 00 4E 00 4F 00 50 00",
+      "output": {
+        "text": "よらりるれろわを"
+      }
+    },
+    {
+      "name": "values 0x0051 to 0x0058",
+      "input": "51 00 52 00 53 00 54 00 55 00 56 00 57 00 58 00",
+      "output": {
+        "text": "んァアィイゥウェ"
+      }
+    },
+    {
+      "name": "values 0x0059 to 0x0060",
+      "input": "59 00 5A 00 5B 00 5C 00 5D 00 5E 00 5F 00 60 00",
+      "output": {
+        "text": "エォオカガキギク"
+      }
+    },
+    {
+      "name": "values 0x0061 to 0x0068",
+      "input": "61 00 62 00 63 00 64 00 65 00 66 00 67 00 68 00",
+      "output": {
+        "text": "グケゲコゴサザシ"
+      }
+    },
+    {
+      "name": "values 0x0069 to 0x0070",
+      "input": "69 00 6A 00 6B 00 6C 00 6D 00 6E 00 6F 00 70 00",
+      "output": {
+        "text": "ジスズセゼソゾタ"
+      }
+    },
+    {
+      "name": "values 0x0071 to 0x0078",
+      "input": "71 00 72 00 73 00 74 00 75 00 76 00 77 00 78 00",
+      "output": {
+        "text": "ダチヂッツヅテデ"
+      }
+    },
+    {
+      "name": "values 0x0079 to 0x0080",
+      "input": "79 00 7A 00 7B 00 7C 00 7D 00 7E 00 7F 00 80 00",
+      "output": {
+        "text": "トドナニヌネノハ"
+      }
+    },
+    {
+      "name": "values 0x0081 to 0x0088",
+      "input": "81 00 82 00 83 00 84 00 85 00 86 00 87 00 88 00",
+      "output": {
+        "text": "バパヒビピフブプ"
+      }
+    },
+    {
+      "name": "values 0x0089 to 0x0090",
+      "input": "89 00 8A 00 8B 00 8C 00 8D 00 8E 00 8F 00 90 00",
+      "output": {
+        "text": "ヘベペホボポマミ"
+      }
+    },
+    {
+      "name": "values 0x0091 to 0x0098",
+      "input": "91 00 92 00 93 00 94 00 95 00 96 00 97 00 98 00",
+      "output": {
+        "text": "ムメモャヤュユョ"
+      }
+    },
+    {
+      "name": "values 0x0099 to 0x00A0",
+      "input": "99 00 9A 00 9B 00 9C 00 9D 00 9E 00 9F 00 A0 00",
+      "output": {
+        "text": "ヨラリルレロワヲ"
+      }
+    },
+    {
+      "name": "values 0x00A1 to 0x00A8",
+      "input": "A1 00 A2 00 A3 00 A4 00 A5 00 A6 00 A7 00 A8 00",
+      "output": {
+        "text": "ン０１２３４５６"
+      }
+    },
+    {
+      "name": "values 0x00A9 to 0x00B0",
+      "input": "A9 00 AA 00 AB 00 AC 00 AD 00 AE 00 AF 00 B0 00",
+      "output": {
+        "text": "７８９ＡＢＣＤＥ"
+      }
+    },
+    {
+      "name": "values 0x00B1 to 0x00B8",
+      "input": "B1 00 B2 00 B3 00 B4 00 B5 00 B6 00 B7 00 B8 00",
+      "output": {
+        "text": "ＦＧＨＩＪＫＬＭ"
+      }
+    },
+    {
+      "name": "values 0x00B9 to 0x00C0",
+      "input": "B9 00 BA 00 BB 00 BC 00 BD 00 BE 00 BF 00 C0 00",
+      "output": {
+        "text": "ＮＯＰＱＲＳＴＵ"
+      }
+    },
+    {
+      "name": "values 0x00C1 to 0x00C8",
+      "input": "C1 00 C2 00 C3 00 C4 00 C5 00 C6 00 C7 00 C8 00",
+      "output": {
+        "text": "ＶＷＸＹＺａｂｃ"
+      }
+    },
+    {
+      "name": "values 0x00C9 to 0x00D0",
+      "input": "C9 00 CA 00 CB 00 CC 00 CD 00 CE 00 CF 00 D0 00",
+      "output": {
+        "text": "ｄｅｆｇｈｉｊｋ"
+      }
+    },
+    {
+      "name": "values 0x00D1 to 0x00D8",
+      "input": "D1 00 D2 00 D3 00 D4 00 D5 00 D6 00 D7 00 D8 00",
+      "output": {
+        "text": "ｌｍｎｏｐｑｒｓ"
+      }
+    },
+    {
+      "name": "values 0x00D9 to 0x00E0",
+      "input": "D9 00 DA 00 DB 00 DC 00 DD 00 DE 00 DF 00 E0 00",
+      "output": {
+        "text": "ｔｕｖｗｘｙｚ￿"
+      }
+    },
+    {
+      "name": "values 0x00E1 to 0x00E8",
+      "input": "E1 00 E2 00 E3 00 E4 00 E5 00 E6 00 E7 00 E8 00",
+      "output": {
+        "text": "！？、。…・／「"
+      }
+    },
+    {
+      "name": "values 0x00E9 to 0x00F0",
+      "input": "E9 00 EA 00 EB 00 EC 00 ED 00 EE 00 EF 00 F0 00",
+      "output": {
+        "text": "」『』（）♂♀＋"
+      }
+    },
+    {
+      "name": "values 0x00F1 to 0x00F8",
+      "input": "F1 00 F2 00 F3 00 F4 00 F5 00 F6 00 F7 00 F8 00",
+      "output": {
+        "text": "ー×÷＝～：；．"
+      }
+    },
+    {
+      "name": "values 0x00F9 to 0x0100",
+      "input": "F9 00 FA 00 FB 00 FC 00 FD 00 FE 00 FF 00 00 01",
+      "output": {
+        "text": "，♠♣♥♦★◎○"
+      }
+    },
+    {
+      "name": "values 0x0101 to 0x0108",
+      "input": "01 01 02 01 03 01 04 01 05 01 06 01 07 01 08 01",
+      "output": {
+        "text": "□△◇＠♪％☀☁"
+      }
+    },
+    {
+      "name": "values 0x0109 to 0x0110",
+      "input": "09 01 0A 01 0B 01 0C 01 0D 01 0E 01 0F 01 10 01",
+      "output": {
+        "text": "☂☃①②③④⑤⑥"
+      }
+    },
+    {
+      "name": "values 0x0111 to 0x0118",
+      "input": "11 01 12 01 13 01 14 01 15 01 16 01 17 01 18 01",
+      "output": {
+        "text": "⑦円♈♉♊♋♌♍"
+      }
+    },
+    {
+      "name": "values 0x0119 to 0x0120",
+      "input": "19 01 1A 01 1B 01 1C 01 1D 01 1E 01 1F 01 20 01",
+      "output": {
+        "text": "♎♏←↑↓→►＆"
+      }
+    },
+    {
+      "name": "values 0x0121 to 0x0128",
+      "input": "21 01 22 01 23 01 24 01 25 01 26 01 27 01 28 01",
+      "output": {
+        "text": "01234567"
+      }
+    },
+    {
+      "name": "values 0x0129 to 0x0130",
+      "input": "29 01 2A 01 2B 01 2C 01 2D 01 2E 01 2F 01 30 01",
+      "output": {
+        "text": "89ABCDEF"
+      }
+    },
+    {
+      "name": "values 0x0131 to 0x0138",
+      "input": "31 01 32 01 33 01 34 01 35 01 36 01 37 01 38 01",
+      "output": {
+        "text": "GHIJKLMN"
+      }
+    },
+    {
+      "name": "values 0x0139 to 0x0140",
+      "input": "39 01 3A 01 3B 01 3C 01 3D 01 3E 01 3F 01 40 01",
+      "output": {
+        "text": "OPQRSTUV"
+      }
+    },
+    {
+      "name": "values 0x0141 to 0x0148",
+      "input": "41 01 42 01 43 01 44 01 45 01 46 01 47 01 48 01",
+      "output": {
+        "text": "WXYZabcd"
+      }
+    },
+    {
+      "name": "values 0x0149 to 0x0150",
+      "input": "49 01 4A 01 4B 01 4C 01 4D 01 4E 01 4F 01 50 01",
+      "output": {
+        "text": "efghijkl"
+      }
+    },
+    {
+      "name": "values 0x0151 to 0x0158",
+      "input": "51 01 52 01 53 01 54 01 55 01 56 01 57 01 58 01",
+      "output": {
+        "text": "mnopqrst"
+      }
+    },
+    {
+      "name": "values 0x0159 to 0x0160",
+      "input": "59 01 5A 01 5B 01 5C 01 5D 01 5E 01 5F 01 60 01",
+      "output": {
+        "text": "uvwxyzÀÁ"
+      }
+    },
+    {
+      "name": "values 0x0161 to 0x0168",
+      "input": "61 01 62 01 63 01 64 01 65 01 66 01 67 01 68 01",
+      "output": {
+        "text": "ÂÃÄÅÆÇÈÉ"
+      }
+    },
+    {
+      "name": "values 0x0169 to 0x0170",
+      "input": "69 01 6A 01 6B 01 6C 01 6D 01 6E 01 6F 01 70 01",
+      "output": {
+        "text": "ÊËÌÍÎÏÐÑ"
+      }
+    },
+    {
+      "name": "values 0x0171 to 0x0178",
+      "input": "71 01 72 01 73 01 74 01 75 01 76 01 77 01 78 01",
+      "output": {
+        "text": "ÒÓÔÕÖ⑧ØÙ"
+      }
+    },
+    {
+      "name": "values 0x0179 to 0x0180",
+      "input": "79 01 7A 01 7B 01 7C 01 7D 01 7E 01 7F 01 80 01",
+      "output": {
+        "text": "ÚÛÜÝÞßàá"
+      }
+    },
+    {
+      "name": "values 0x0181 to 0x0188",
+      "input": "81 01 82 01 83 01 84 01 85 01 86 01 87 01 88 01",
+      "output": {
+        "text": "âãäåæçèé"
+      }
+    },
+    {
+      "name": "values 0x0189 to 0x0190",
+      "input": "89 01 8A 01 8B 01 8C 01 8D 01 8E 01 8F 01 90 01",
+      "output": {
+        "text": "êëìíîïðñ"
+      }
+    },
+    {
+      "name": "values 0x0191 to 0x0198",
+      "input": "91 01 92 01 93 01 94 01 95 01 96 01 97 01 98 01",
+      "output": {
+        "text": "òóôõö⑨øù"
+      }
+    },
+    {
+      "name": "values 0x0199 to 0x01A0",
+      "input": "99 01 9A 01 9B 01 9C 01 9D 01 9E 01 9F 01 A0 01",
+      "output": {
+        "text": "úûüýþÿŒœ"
+      }
+    },
+    {
+      "name": "values 0x01A1 to 0x01A8",
+      "input": "A1 01 A2 01 A3 01 A4 01 A5 01 A6 01 A7 01 A8 01",
+      "output": {
+        "text": "Şşªº⑩⑪⑫$"
+      }
+    },
+    {
+      "name": "values 0x01A9 to 0x01B0",
+      "input": "A9 01 AA 01 AB 01 AC 01 AD 01 AE 01 AF 01 B0 01",
+      "output": {
+        "text": "¡¿!?,.⑬･"
+      }
+    },
+    {
+      "name": "values 0x01B1 to 0x01B8",
+      "input": "B1 01 B2 01 B3 01 B4 01 B5 01 B6 01 B7 01 B8 01",
+      "output": {
+        "text": "/‘'“”„«»"
+      }
+    },
+    {
+      "name": "values 0x01B9 to 0x01C0",
+      "input": "B9 01 BA 01 BB 01 BC 01 BD 01 BE 01 BF 01 C0 01",
+      "output": {
+        "text": "()♂♀+-*#"
+      }
+    },
+    {
+      "name": "values 0x01C1 to 0x01C8",
+      "input": "C1 01 C2 01 C3 01 C4 01 C5 01 C6 01 C7 01 C8 01",
+      "output": {
+        "text": "=&~:;⑯⑰⑱"
+      }
+    },
+    {
+      "name": "values 0x01C9 to 0x01D0",
+      "input": "C9 01 CA 01 CB 01 CC 01 CD 01 CE 01 CF 01 D0 01",
+      "output": {
+        "text": "⑲⑳⑴⑵⑶⑷⑸@"
+      }
+    },
+    {
+      "name": "values 0x01D1 to 0x01D8",
+      "input": "D1 01 D2 01 D3 01 D4 01 D5 01 D6 01 D7 01 D8 01",
+      "output": {
+        "text": "⑹%⑺⑻⑼⑽⑾⑿"
+      }
+    },
+    {
+      "name": "values 0x01D9 to 0x01E0",
+      "input": "D9 01 DA 01 DB 01 DC 01 DD 01 DE 01 DF 01 E0 01",
+      "output": {
+        "text": "⒀⒁⒂⒃⒄ ⒅⒆"
+      }
+    },
+    {
+      "name": "values 0x01E1 to 0x01E8",
+      "input": "E1 01 E2 01 E3 01 E4 01 E5 01 E6 01 E7 01 E8 01",
+      "output": {
+        "text": "⒇⒈⒉⒊⒋⒌⒍°"
+      }
+    },
+    {
+      "name": "values 0x01E9 to 0x0403",
+      "input": "E9 01 EA 01 EB 01 EC 01 00 04 01 04 02 04 03 04",
+      "output": {
+        "text": "_＿⒎⒏￿가각간"
+      }
+    },
+    {
+      "name": "values 0x0404 to 0x040B",
+      "input": "04 04 05 04 06 04 07 04 08 04 09 04 0A 04 0B 04",
+      "output": {
+        "text": "갇갈갉갊감갑값갓"
+      }
+    },
+    {
+      "name": "values 0x040C to 0x0413",
+      "input": "0C 04 0D 04 0E 04 0F 04 10 04 11 04 12 04 13 04",
+      "output": {
+        "text": "갔강갖갗같갚갛개"
+      }
+    },
+    {
+      "name": "values 0x0414 to 0x041B",
+      "input": "14 04 15 04 16 04 17 04 18 04 19 04 1A 04 1B 04",
+      "output": {
+        "text": "객갠갤갬갭갯갰갱"
+      }
+    },
+    {
+      "name": "values 0x041C to 0x0423",
+      "input": "1C 04 1D 04 1E 04 1F 04 20 04 21 04 22 04 23 04",
+      "output": {
+        "text": "갸갹갼걀걋걍걔걘"
+      }
+    },
+    {
+      "name": "values 0x0424 to 0x042B",
+      "input": "24 04 25 04 26 04 27 04 28 04 29 04 2A 04 2B 04",
+      "output": {
+        "text": "걜거걱건걷걸걺검"
+      }
+    },
+    {
+      "name": "values 0x042C to 0x0433",
+      "input": "2C 04 2D 04 2E 04 2F 04 30 04 31 04 32 04 33 04",
+      "output": {
+        "text": "겁것겄겅겆겉겊겋"
+      }
+    },
+    {
+      "name": "values 0x0434 to 0x043B",
+      "input": "34 04 35 04 36 04 37 04 38 04 39 04 3A 04 3B 04",
+      "output": {
+        "text": "게겐겔겜겝겟겠겡"
+      }
+    },
+    {
+      "name": "values 0x043C to 0x0443",
+      "input": "3C 04 3D 04 3E 04 3F 04 40 04 41 04 42 04 43 04",
+      "output": {
+        "text": "겨격겪견겯결겸겹"
+      }
+    },
+    {
+      "name": "values 0x0444 to 0x044B",
+      "input": "44 04 45 04 46 04 47 04 48 04 49 04 4A 04 4B 04",
+      "output": {
+        "text": "겻겼경곁계곈곌곕"
+      }
+    },
+    {
+      "name": "values 0x044C to 0x0453",
+      "input": "4C 04 4D 04 4E 04 4F 04 50 04 51 04 52 04 53 04",
+      "output": {
+        "text": "곗고곡곤곧골곪곬"
+      }
+    },
+    {
+      "name": "values 0x0454 to 0x045B",
+      "input": "54 04 55 04 56 04 57 04 58 04 59 04 5A 04 5B 04",
+      "output": {
+        "text": "곯곰곱곳공곶과곽"
+      }
+    },
+    {
+      "name": "values 0x045C to 0x0463",
+      "input": "5C 04 5D 04 5E 04 5F 04 60 04 61 04 62 04 63 04",
+      "output": {
+        "text": "관괄괆괌괍괏광괘"
+      }
+    },
+    {
+      "name": "values 0x0464 to 0x046B",
+      "input": "64 04 65 04 66 04 67 04 68 04 69 04 6A 04 6B 04",
+      "output": {
+        "text": "괜괠괩괬괭괴괵괸"
+      }
+    },
+    {
+      "name": "values 0x046C to 0x0473",
+      "input": "6C 04 6D 04 6E 04 6F 04 70 04 71 04 72 04 73 04",
+      "output": {
+        "text": "괼굄굅굇굉교굔굘"
+      }
+    },
+    {
+      "name": "values 0x0474 to 0x047B",
+      "input": "74 04 75 04 76 04 77 04 78 04 79 04 7A 04 7B 04",
+      "output": {
+        "text": "굡굣구국군굳굴굵"
+      }
+    },
+    {
+      "name": "values 0x047C to 0x0483",
+      "input": "7C 04 7D 04 7E 04 7F 04 80 04 81 04 82 04 83 04",
+      "output": {
+        "text": "굶굻굼굽굿궁궂궈"
+      }
+    },
+    {
+      "name": "values 0x0484 to 0x048B",
+      "input": "84 04 85 04 86 04 87 04 88 04 89 04 8A 04 8B 04",
+      "output": {
+        "text": "궉권궐궜궝궤궷귀"
+      }
+    },
+    {
+      "name": "values 0x048C to 0x0493",
+      "input": "8C 04 8D 04 8E 04 8F 04 90 04 91 04 92 04 93 04",
+      "output": {
+        "text": "귁귄귈귐귑귓규균"
+      }
+    },
+    {
+      "name": "values 0x0494 to 0x049B",
+      "input": "94 04 95 04 96 04 97 04 98 04 99 04 9A 04 9B 04",
+      "output": {
+        "text": "귤그극근귿글긁금"
+      }
+    },
+    {
+      "name": "values 0x049C to 0x04A3",
+      "input": "9C 04 9D 04 9E 04 9F 04 A0 04 A1 04 A2 04 A3 04",
+      "output": {
+        "text": "급긋긍긔기긱긴긷"
+      }
+    },
+    {
+      "name": "values 0x04A4 to 0x04AB",
+      "input": "A4 04 A5 04 A6 04 A7 04 A8 04 A9 04 AA 04 AB 04",
+      "output": {
+        "text": "길긺김깁깃깅깆깊"
+      }
+    },
+    {
+      "name": "values 0x04AC to 0x04B3",
+      "input": "AC 04 AD 04 AE 04 AF 04 B0 04 B1 04 B2 04 B3 04",
+      "output": {
+        "text": "까깍깎깐깔깖깜깝"
+      }
+    },
+    {
+      "name": "values 0x04B4 to 0x04BB",
+      "input": "B4 04 B5 04 B6 04 B7 04 B8 04 B9 04 BA 04 BB 04",
+      "output": {
+        "text": "깟깠깡깥깨깩깬깰"
+      }
+    },
+    {
+      "name": "values 0x04BC to 0x04C3",
+      "input": "BC 04 BD 04 BE 04 BF 04 C0 04 C1 04 C2 04 C3 04",
+      "output": {
+        "text": "깸깹깻깼깽꺄꺅꺌"
+      }
+    },
+    {
+      "name": "values 0x04C4 to 0x04CB",
+      "input": "C4 04 C5 04 C6 04 C7 04 C8 04 C9 04 CA 04 CB 04",
+      "output": {
+        "text": "꺼꺽꺾껀껄껌껍껏"
+      }
+    },
+    {
+      "name": "values 0x04CC to 0x04D3",
+      "input": "CC 04 CD 04 CE 04 CF 04 D0 04 D1 04 D2 04 D3 04",
+      "output": {
+        "text": "껐껑께껙껜껨껫껭"
+      }
+    },
+    {
+      "name": "values 0x04D4 to 0x04DB",
+      "input": "D4 04 D5 04 D6 04 D7 04 D8 04 D9 04 DA 04 DB 04",
+      "output": {
+        "text": "껴껸껼꼇꼈꼍꼐꼬"
+      }
+    },
+    {
+      "name": "values 0x04DC to 0x04E3",
+      "input": "DC 04 DD 04 DE 04 DF 04 E0 04 E1 04 E2 04 E3 04",
+      "output": {
+        "text": "꼭꼰꼲꼴꼼꼽꼿꽁"
+      }
+    },
+    {
+      "name": "values 0x04E4 to 0x04EB",
+      "input": "E4 04 E5 04 E6 04 E7 04 E8 04 E9 04 EA 04 EB 04",
+      "output": {
+        "text": "꽂꽃꽈꽉꽐꽜꽝꽤"
+      }
+    },
+    {
+      "name": "values 0x04EC to 0x04F3",
+      "input": "EC 04 ED 04 EE 04 EF 04 F0 04 F1 04 F2 04 F3 04",
+      "output": {
+        "text": "꽥꽹꾀꾄꾈꾐꾑꾕"
+      }
+    },
+    {
+      "name": "values 0x04F4 to 0x04FB",
+      "input": "F4 04 F5 04 F6 04 F7 04 F8 04 F9 04 FA 04 FB 04",
+      "output": {
+        "text": "꾜꾸꾹꾼꿀꿇꿈꿉"
+      }
+    },
+    {
+      "name": "values 0x04FC to 0x0503",
+      "input": "FC 04 FD 04 FE 04 FF 04 00 05 01 05 02 05 03 05",
+      "output": {
+        "text": "꿋꿍꿎꿔꿜꿨꿩꿰"
+      }
+    },
+    {
+      "name": "values 0x0504 to 0x050B",
+      "input": "04 05 05 05 06 05 07 05 08 05 09 05 0A 05 0B 05",
+      "output": {
+        "text": "꿱꿴꿸뀀뀁뀄뀌뀐"
+      }
+    },
+    {
+      "name": "values 0x050C to 0x0513",
+      "input": "0C 05 0D 05 0E 05 0F 05 10 05 11 05 12 05 13 05",
+      "output": {
+        "text": "뀔뀜뀝뀨끄끅끈끊"
+      }
+    },
+    {
+      "name": "values 0x0514 to 0x051B",
+      "input": "14 05 15 05 16 05 17 05 18 05 19 05 1A 05 1B 05",
+      "output": {
+        "text": "끌끎끓끔끕끗끙끝"
+      }
+    },
+    {
+      "name": "values 0x051C to 0x0523",
+      "input": "1C 05 1D 05 1E 05 1F 05 20 05 21 05 22 05 23 05",
+      "output": {
+        "text": "끼끽낀낄낌낍낏낑"
+      }
+    },
+    {
+      "name": "values 0x0524 to 0x052B",
+      "input": "24 05 25 05 26 05 27 05 28 05 29 05 2A 05 2B 05",
+      "output": {
+        "text": "나낙낚난낟날낡낢"
+      }
+    },
+    {
+      "name": "values 0x052C to 0x0533",
+      "input": "2C 05 2D 05 2E 05 2F 05 30 05 31 05 32 05 33 05",
+      "output": {
+        "text": "남납낫났낭낮낯낱"
+      }
+    },
+    {
+      "name": "values 0x0534 to 0x053B",
+      "input": "34 05 35 05 36 05 37 05 38 05 39 05 3A 05 3B 05",
+      "output": {
+        "text": "낳내낵낸낼냄냅냇"
+      }
+    },
+    {
+      "name": "values 0x053C to 0x0543",
+      "input": "3C 05 3D 05 3E 05 3F 05 40 05 41 05 42 05 43 05",
+      "output": {
+        "text": "냈냉냐냑냔냘냠냥"
+      }
+    },
+    {
+      "name": "values 0x0544 to 0x054B",
+      "input": "44 05 45 05 46 05 47 05 48 05 49 05 4A 05 4B 05",
+      "output": {
+        "text": "너넉넋넌널넒넓넘"
+      }
+    },
+    {
+      "name": "values 0x054C to 0x0553",
+      "input": "4C 05 4D 05 4E 05 4F 05 50 05 51 05 52 05 53 05",
+      "output": {
+        "text": "넙넛넜넝넣네넥넨"
+      }
+    },
+    {
+      "name": "values 0x0554 to 0x055B",
+      "input": "54 05 55 05 56 05 57 05 58 05 59 05 5A 05 5B 05",
+      "output": {
+        "text": "넬넴넵넷넸넹녀녁"
+      }
+    },
+    {
+      "name": "values 0x055C to 0x0563",
+      "input": "5C 05 5D 05 5E 05 5F 05 60 05 61 05 62 05 63 05",
+      "output": {
+        "text": "년녈념녑녔녕녘녜"
+      }
+    },
+    {
+      "name": "values 0x0564 to 0x056B",
+      "input": "64 05 65 05 66 05 67 05 68 05 69 05 6A 05 6B 05",
+      "output": {
+        "text": "녠노녹논놀놂놈놉"
+      }
+    },
+    {
+      "name": "values 0x056C to 0x0573",
+      "input": "6C 05 6D 05 6E 05 6F 05 70 05 71 05 72 05 73 05",
+      "output": {
+        "text": "놋농높놓놔놘놜놨"
+      }
+    },
+    {
+      "name": "values 0x0574 to 0x057B",
+      "input": "74 05 75 05 76 05 77 05 78 05 79 05 7A 05 7B 05",
+      "output": {
+        "text": "뇌뇐뇔뇜뇝뇟뇨뇩"
+      }
+    },
+    {
+      "name": "values 0x057C to 0x0583",
+      "input": "7C 05 7D 05 7E 05 7F 05 80 05 81 05 82 05 83 05",
+      "output": {
+        "text": "뇬뇰뇹뇻뇽누눅눈"
+      }
+    },
+    {
+      "name": "values 0x0584 to 0x058B",
+      "input": "84 05 85 05 86 05 87 05 88 05 89 05 8A 05 8B 05",
+      "output": {
+        "text": "눋눌눔눕눗눙눠눴"
+      }
+    },
+    {
+      "name": "values 0x058C to 0x0593",
+      "input": "8C 05 8D 05 8E 05 8F 05 90 05 91 05 92 05 93 05",
+      "output": {
+        "text": "눼뉘뉜뉠뉨뉩뉴뉵"
+      }
+    },
+    {
+      "name": "values 0x0594 to 0x059B",
+      "input": "94 05 95 05 96 05 97 05 98 05 99 05 9A 05 9B 05",
+      "output": {
+        "text": "뉼늄늅늉느늑는늘"
+      }
+    },
+    {
+      "name": "values 0x059C to 0x05A3",
+      "input": "9C 05 9D 05 9E 05 9F 05 A0 05 A1 05 A2 05 A3 05",
+      "output": {
+        "text": "늙늚늠늡늣능늦늪"
+      }
+    },
+    {
+      "name": "values 0x05A4 to 0x05AB",
+      "input": "A4 05 A5 05 A6 05 A7 05 A8 05 A9 05 AA 05 AB 05",
+      "output": {
+        "text": "늬늰늴니닉닌닐닒"
+      }
+    },
+    {
+      "name": "values 0x05AC to 0x05B3",
+      "input": "AC 05 AD 05 AE 05 AF 05 B0 05 B1 05 B2 05 B3 05",
+      "output": {
+        "text": "님닙닛닝닢다닥닦"
+      }
+    },
+    {
+      "name": "values 0x05B4 to 0x05BB",
+      "input": "B4 05 B5 05 B6 05 B7 05 B8 05 B9 05 BA 05 BB 05",
+      "output": {
+        "text": "단닫달닭닮닯닳담"
+      }
+    },
+    {
+      "name": "values 0x05BC to 0x05C3",
+      "input": "BC 05 BD 05 BE 05 BF 05 C0 05 C1 05 C2 05 C3 05",
+      "output": {
+        "text": "답닷닸당닺닻닿대"
+      }
+    },
+    {
+      "name": "values 0x05C4 to 0x05CB",
+      "input": "C4 05 C5 05 C6 05 C7 05 C8 05 C9 05 CA 05 CB 05",
+      "output": {
+        "text": "댁댄댈댐댑댓댔댕"
+      }
+    },
+    {
+      "name": "values 0x05CC to 0x05D3",
+      "input": "CC 05 CD 05 CE 05 CF 05 D0 05 D1 05 D2 05 D3 05",
+      "output": {
+        "text": "댜더덕덖던덛덜덞"
+      }
+    },
+    {
+      "name": "values 0x05D4 to 0x05DB",
+      "input": "D4 05 D5 05 D6 05 D7 05 D8 05 D9 05 DA 05 DB 05",
+      "output": {
+        "text": "덟덤덥덧덩덫덮데"
+      }
+    },
+    {
+      "name": "values 0x05DC to 0x05E3",
+      "input": "DC 05 DD 05 DE 05 DF 05 E0 05 E1 05 E2 05 E3 05",
+      "output": {
+        "text": "덱덴델뎀뎁뎃뎄뎅"
+      }
+    },
+    {
+      "name": "values 0x05E4 to 0x05EB",
+      "input": "E4 05 E5 05 E6 05 E7 05 E8 05 E9 05 EA 05 EB 05",
+      "output": {
+        "text": "뎌뎐뎔뎠뎡뎨뎬도"
+      }
+    },
+    {
+      "name": "values 0x05EC to 0x05F3",
+      "input": "EC 05 ED 05 EE 05 EF 05 F0 05 F1 05 F2 05 F3 05",
+      "output": {
+        "text": "독돈돋돌돎돐돔돕"
+      }
+    },
+    {
+      "name": "values 0x05F4 to 0x05FB",
+      "input": "F4 05 F5 05 F6 05 F7 05 F8 05 F9 05 FA 05 FB 05",
+      "output": {
+        "text": "돗동돛돝돠돤돨돼"
+      }
+    },
+    {
+      "name": "values 0x05FC to 0x0603",
+      "input": "FC 05 FD 05 FE 05 FF 05 00 06 01 06 02 06 03 06",
+      "output": {
+        "text": "됐되된될됨됩됫됴"
+      }
+    },
+    {
+      "name": "values 0x0604 to 0x060B",
+      "input": "04 06 05 06 06 06 07 06 08 06 09 06 0A 06 0B 06",
+      "output": {
+        "text": "두둑둔둘둠둡둣둥"
+      }
+    },
+    {
+      "name": "values 0x060C to 0x0613",
+      "input": "0C 06 0D 06 0E 06 0F 06 10 06 11 06 12 06 13 06",
+      "output": {
+        "text": "둬뒀뒈뒝뒤뒨뒬뒵"
+      }
+    },
+    {
+      "name": "values 0x0614 to 0x061B",
+      "input": "14 06 15 06 16 06 17 06 18 06 19 06 1A 06 1B 06",
+      "output": {
+        "text": "뒷뒹듀듄듈듐듕드"
+      }
+    },
+    {
+      "name": "values 0x061C to 0x0623",
+      "input": "1C 06 1D 06 1E 06 1F 06 20 06 21 06 22 06 23 06",
+      "output": {
+        "text": "득든듣들듦듬듭듯"
+      }
+    },
+    {
+      "name": "values 0x0624 to 0x062B",
+      "input": "24 06 25 06 26 06 27 06 28 06 29 06 2A 06 2B 06",
+      "output": {
+        "text": "등듸디딕딘딛딜딤"
+      }
+    },
+    {
+      "name": "values 0x062C to 0x0633",
+      "input": "2C 06 2D 06 2E 06 2F 06 30 06 31 06 32 06 33 06",
+      "output": {
+        "text": "딥딧딨딩딪따딱딴"
+      }
+    },
+    {
+      "name": "values 0x0634 to 0x063B",
+      "input": "34 06 35 06 36 06 37 06 38 06 39 06 3A 06 3B 06",
+      "output": {
+        "text": "딸땀땁땃땄땅땋때"
+      }
+    },
+    {
+      "name": "values 0x063C to 0x0643",
+      "input": "3C 06 3D 06 3E 06 3F 06 40 06 41 06 42 06 43 06",
+      "output": {
+        "text": "땍땐땔땜땝땟땠땡"
+      }
+    },
+    {
+      "name": "values 0x0644 to 0x064B",
+      "input": "44 06 45 06 46 06 47 06 48 06 49 06 4A 06 4B 06",
+      "output": {
+        "text": "떠떡떤떨떪떫떰떱"
+      }
+    },
+    {
+      "name": "values 0x064C to 0x0653",
+      "input": "4C 06 4D 06 4E 06 4F 06 50 06 51 06 52 06 53 06",
+      "output": {
+        "text": "떳떴떵떻떼떽뗀뗄"
+      }
+    },
+    {
+      "name": "values 0x0654 to 0x065B",
+      "input": "54 06 55 06 56 06 57 06 58 06 59 06 5A 06 5B 06",
+      "output": {
+        "text": "뗌뗍뗏뗐뗑뗘뗬또"
+      }
+    },
+    {
+      "name": "values 0x065C to 0x0663",
+      "input": "5C 06 5D 06 5E 06 5F 06 60 06 61 06 62 06 63 06",
+      "output": {
+        "text": "똑똔똘똥똬똴뙈뙤"
+      }
+    },
+    {
+      "name": "values 0x0664 to 0x066B",
+      "input": "64 06 65 06 66 06 67 06 68 06 69 06 6A 06 6B 06",
+      "output": {
+        "text": "뙨뚜뚝뚠뚤뚫뚬뚱"
+      }
+    },
+    {
+      "name": "values 0x066C to 0x0673",
+      "input": "6C 06 6D 06 6E 06 6F 06 70 06 71 06 72 06 73 06",
+      "output": {
+        "text": "뛔뛰뛴뛸뜀뜁뜅뜨"
+      }
+    },
+    {
+      "name": "values 0x0674 to 0x067B",
+      "input": "74 06 75 06 76 06 77 06 78 06 79 06 7A 06 7B 06",
+      "output": {
+        "text": "뜩뜬뜯뜰뜸뜹뜻띄"
+      }
+    },
+    {
+      "name": "values 0x067C to 0x0683",
+      "input": "7C 06 7D 06 7E 06 7F 06 80 06 81 06 82 06 83 06",
+      "output": {
+        "text": "띈띌띔띕띠띤띨띰"
+      }
+    },
+    {
+      "name": "values 0x0684 to 0x068B",
+      "input": "84 06 85 06 86 06 87 06 88 06 89 06 8A 06 8B 06",
+      "output": {
+        "text": "띱띳띵라락란랄람"
+      }
+    },
+    {
+      "name": "values 0x068C to 0x0693",
+      "input": "8C 06 8D 06 8E 06 8F 06 90 06 91 06 92 06 93 06",
+      "output": {
+        "text": "랍랏랐랑랒랖랗래"
+      }
+    },
+    {
+      "name": "values 0x0694 to 0x069B",
+      "input": "94 06 95 06 96 06 97 06 98 06 99 06 9A 06 9B 06",
+      "output": {
+        "text": "랙랜랠램랩랫랬랭"
+      }
+    },
+    {
+      "name": "values 0x069C to 0x06A3",
+      "input": "9C 06 9D 06 9E 06 9F 06 A0 06 A1 06 A2 06 A3 06",
+      "output": {
+        "text": "랴략랸럇량러럭런"
+      }
+    },
+    {
+      "name": "values 0x06A4 to 0x06AB",
+      "input": "A4 06 A5 06 A6 06 A7 06 A8 06 A9 06 AA 06 AB 06",
+      "output": {
+        "text": "럴럼럽럿렀렁렇레"
+      }
+    },
+    {
+      "name": "values 0x06AC to 0x06B3",
+      "input": "AC 06 AD 06 AE 06 AF 06 B0 06 B1 06 B2 06 B3 06",
+      "output": {
+        "text": "렉렌렐렘렙렛렝려"
+      }
+    },
+    {
+      "name": "values 0x06B4 to 0x06BB",
+      "input": "B4 06 B5 06 B6 06 B7 06 B8 06 B9 06 BA 06 BB 06",
+      "output": {
+        "text": "력련렬렴렵렷렸령"
+      }
+    },
+    {
+      "name": "values 0x06BC to 0x06C3",
+      "input": "BC 06 BD 06 BE 06 BF 06 C0 06 C1 06 C2 06 C3 06",
+      "output": {
+        "text": "례롄롑롓로록론롤"
+      }
+    },
+    {
+      "name": "values 0x06C4 to 0x06CB",
+      "input": "C4 06 C5 06 C6 06 C7 06 C8 06 C9 06 CA 06 CB 06",
+      "output": {
+        "text": "롬롭롯롱롸롼뢍뢨"
+      }
+    },
+    {
+      "name": "values 0x06CC to 0x06D3",
+      "input": "CC 06 CD 06 CE 06 CF 06 D0 06 D1 06 D2 06 D3 06",
+      "output": {
+        "text": "뢰뢴뢸룀룁룃룅료"
+      }
+    },
+    {
+      "name": "values 0x06D4 to 0x06DB",
+      "input": "D4 06 D5 06 D6 06 D7 06 D8 06 D9 06 DA 06 DB 06",
+      "output": {
+        "text": "룐룔룝룟룡루룩룬"
+      }
+    },
+    {
+      "name": "values 0x06DC to 0x06E3",
+      "input": "DC 06 DD 06 DE 06 DF 06 E0 06 E1 06 E2 06 E3 06",
+      "output": {
+        "text": "룰룸룹룻룽뤄뤘뤠"
+      }
+    },
+    {
+      "name": "values 0x06E4 to 0x06EB",
+      "input": "E4 06 E5 06 E6 06 E7 06 E8 06 E9 06 EA 06 EB 06",
+      "output": {
+        "text": "뤼뤽륀륄륌륏륑류"
+      }
+    },
+    {
+      "name": "values 0x06EC to 0x06F3",
+      "input": "EC 06 ED 06 EE 06 EF 06 F0 06 F1 06 F2 06 F3 06",
+      "output": {
+        "text": "륙륜률륨륩륫륭르"
+      }
+    },
+    {
+      "name": "values 0x06F4 to 0x06FB",
+      "input": "F4 06 F5 06 F6 06 F7 06 F8 06 F9 06 FA 06 FB 06",
+      "output": {
+        "text": "륵른를름릅릇릉릊"
+      }
+    },
+    {
+      "name": "values 0x06FC to 0x0703",
+      "input": "FC 06 FD 06 FE 06 FF 06 00 07 01 07 02 07 03 07",
+      "output": {
+        "text": "릍릎리릭린릴림립"
+      }
+    },
+    {
+      "name": "values 0x0704 to 0x070B",
+      "input": "04 07 05 07 06 07 07 07 08 07 09 07 0A 07 0B 07",
+      "output": {
+        "text": "릿링마막만많맏말"
+      }
+    },
+    {
+      "name": "values 0x070C to 0x0713",
+      "input": "0C 07 0D 07 0E 07 0F 07 10 07 11 07 12 07 13 07",
+      "output": {
+        "text": "맑맒맘맙맛망맞맡"
+      }
+    },
+    {
+      "name": "values 0x0714 to 0x071B",
+      "input": "14 07 15 07 16 07 17 07 18 07 19 07 1A 07 1B 07",
+      "output": {
+        "text": "맣매맥맨맬맴맵맷"
+      }
+    },
+    {
+      "name": "values 0x071C to 0x0723",
+      "input": "1C 07 1D 07 1E 07 1F 07 20 07 21 07 22 07 23 07",
+      "output": {
+        "text": "맸맹맺먀먁먈먕머"
+      }
+    },
+    {
+      "name": "values 0x0724 to 0x072B",
+      "input": "24 07 25 07 26 07 27 07 28 07 29 07 2A 07 2B 07",
+      "output": {
+        "text": "먹먼멀멂멈멉멋멍"
+      }
+    },
+    {
+      "name": "values 0x072C to 0x0733",
+      "input": "2C 07 2D 07 2E 07 2F 07 30 07 31 07 32 07 33 07",
+      "output": {
+        "text": "멎멓메멕멘멜멤멥"
+      }
+    },
+    {
+      "name": "values 0x0734 to 0x073B",
+      "input": "34 07 35 07 36 07 37 07 38 07 39 07 3A 07 3B 07",
+      "output": {
+        "text": "멧멨멩며멱면멸몃"
+      }
+    },
+    {
+      "name": "values 0x073C to 0x0743",
+      "input": "3C 07 3D 07 3E 07 3F 07 40 07 41 07 42 07 43 07",
+      "output": {
+        "text": "몄명몇몌모목몫몬"
+      }
+    },
+    {
+      "name": "values 0x0744 to 0x074B",
+      "input": "44 07 45 07 46 07 47 07 48 07 49 07 4A 07 4B 07",
+      "output": {
+        "text": "몰몲몸몹못몽뫄뫈"
+      }
+    },
+    {
+      "name": "values 0x074C to 0x0753",
+      "input": "4C 07 4D 07 4E 07 4F 07 50 07 51 07 52 07 53 07",
+      "output": {
+        "text": "뫘뫙뫼묀묄묍묏묑"
+      }
+    },
+    {
+      "name": "values 0x0754 to 0x075B",
+      "input": "54 07 55 07 56 07 57 07 58 07 59 07 5A 07 5B 07",
+      "output": {
+        "text": "묘묜묠묩묫무묵묶"
+      }
+    },
+    {
+      "name": "values 0x075C to 0x0763",
+      "input": "5C 07 5D 07 5E 07 5F 07 60 07 61 07 62 07 63 07",
+      "output": {
+        "text": "문묻물묽묾뭄뭅뭇"
+      }
+    },
+    {
+      "name": "values 0x0764 to 0x076B",
+      "input": "64 07 65 07 66 07 67 07 68 07 69 07 6A 07 6B 07",
+      "output": {
+        "text": "뭉뭍뭏뭐뭔뭘뭡뭣"
+      }
+    },
+    {
+      "name": "values 0x076C to 0x0773",
+      "input": "6C 07 6D 07 6E 07 6F 07 70 07 71 07 72 07 73 07",
+      "output": {
+        "text": "뭬뮈뮌뮐뮤뮨뮬뮴"
+      }
+    },
+    {
+      "name": "values 0x0774 to 0x077B",
+      "input": "74 07 75 07 76 07 77 07 78 07 79 07 7A 07 7B 07",
+      "output": {
+        "text": "뮷므믄믈믐믓미믹"
+      }
+    },
+    {
+      "name": "values 0x077C to 0x0783",
+      "input": "7C 07 7D 07 7E 07 7F 07 80 07 81 07 82 07 83 07",
+      "output": {
+        "text": "민믿밀밂밈밉밋밌"
+      }
+    },
+    {
+      "name": "values 0x0784 to 0x078B",
+      "input": "84 07 85 07 86 07 87 07 88 07 89 07 8A 07 8B 07",
+      "output": {
+        "text": "밍및밑바박밖밗반"
+      }
+    },
+    {
+      "name": "values 0x078C to 0x0793",
+      "input": "8C 07 8D 07 8E 07 8F 07 90 07 91 07 92 07 93 07",
+      "output": {
+        "text": "받발밝밞밟밤밥밧"
+      }
+    },
+    {
+      "name": "values 0x0794 to 0x079B",
+      "input": "94 07 95 07 96 07 97 07 98 07 99 07 9A 07 9B 07",
+      "output": {
+        "text": "방밭배백밴밸뱀뱁"
+      }
+    },
+    {
+      "name": "values 0x079C to 0x07A3",
+      "input": "9C 07 9D 07 9E 07 9F 07 A0 07 A1 07 A2 07 A3 07",
+      "output": {
+        "text": "뱃뱄뱅뱉뱌뱍뱐뱝"
+      }
+    },
+    {
+      "name": "values 0x07A4 to 0x07AB",
+      "input": "A4 07 A5 07 A6 07 A7 07 A8 07 A9 07 AA 07 AB 07",
+      "output": {
+        "text": "버벅번벋벌벎범법"
+      }
+    },
+    {
+      "name": "values 0x07AC to 0x07B3",
+      "input": "AC 07 AD 07 AE 07 AF 07 B0 07 B1 07 B2 07 B3 07",
+      "output": {
+        "text": "벗벙벚베벡벤벧벨"
+      }
+    },
+    {
+      "name": "values 0x07B4 to 0x07BB",
+      "input": "B4 07 B5 07 B6 07 B7 07 B8 07 B9 07 BA 07 BB 07",
+      "output": {
+        "text": "벰벱벳벴벵벼벽변"
+      }
+    },
+    {
+      "name": "values 0x07BC to 0x07C3",
+      "input": "BC 07 BD 07 BE 07 BF 07 C0 07 C1 07 C2 07 C3 07",
+      "output": {
+        "text": "별볍볏볐병볕볘볜"
+      }
+    },
+    {
+      "name": "values 0x07C4 to 0x07CB",
+      "input": "C4 07 C5 07 C6 07 C7 07 C8 07 C9 07 CA 07 CB 07",
+      "output": {
+        "text": "보복볶본볼봄봅봇"
+      }
+    },
+    {
+      "name": "values 0x07CC to 0x07D3",
+      "input": "CC 07 CD 07 CE 07 CF 07 D0 07 D1 07 D2 07 D3 07",
+      "output": {
+        "text": "봉봐봔봤봬뵀뵈뵉"
+      }
+    },
+    {
+      "name": "values 0x07D4 to 0x07DB",
+      "input": "D4 07 D5 07 D6 07 D7 07 D8 07 D9 07 DA 07 DB 07",
+      "output": {
+        "text": "뵌뵐뵘뵙뵤뵨부북"
+      }
+    },
+    {
+      "name": "values 0x07DC to 0x07E3",
+      "input": "DC 07 DD 07 DE 07 DF 07 E0 07 E1 07 E2 07 E3 07",
+      "output": {
+        "text": "분붇불붉붊붐붑붓"
+      }
+    },
+    {
+      "name": "values 0x07E4 to 0x07EB",
+      "input": "E4 07 E5 07 E6 07 E7 07 E8 07 E9 07 EA 07 EB 07",
+      "output": {
+        "text": "붕붙붚붜붤붰붸뷔"
+      }
+    },
+    {
+      "name": "values 0x07EC to 0x07F3",
+      "input": "EC 07 ED 07 EE 07 EF 07 F0 07 F1 07 F2 07 F3 07",
+      "output": {
+        "text": "뷕뷘뷜뷩뷰뷴뷸븀"
+      }
+    },
+    {
+      "name": "values 0x07F4 to 0x07FB",
+      "input": "F4 07 F5 07 F6 07 F7 07 F8 07 F9 07 FA 07 FB 07",
+      "output": {
+        "text": "븃븅브븍븐블븜븝"
+      }
+    },
+    {
+      "name": "values 0x07FC to 0x0803",
+      "input": "FC 07 FD 07 FE 07 FF 07 00 08 01 08 02 08 03 08",
+      "output": {
+        "text": "븟비빅빈빌빎빔빕"
+      }
+    },
+    {
+      "name": "values 0x0804 to 0x080B",
+      "input": "04 08 05 08 06 08 07 08 08 08 09 08 0A 08 0B 08",
+      "output": {
+        "text": "빗빙빚빛빠빡빤빨"
+      }
+    },
+    {
+      "name": "values 0x080C to 0x0813",
+      "input": "0C 08 0D 08 0E 08 0F 08 10 08 11 08 12 08 13 08",
+      "output": {
+        "text": "빪빰빱빳빴빵빻빼"
+      }
+    },
+    {
+      "name": "values 0x0814 to 0x081B",
+      "input": "14 08 15 08 16 08 17 08 18 08 19 08 1A 08 1B 08",
+      "output": {
+        "text": "빽뺀뺄뺌뺍뺏뺐뺑"
+      }
+    },
+    {
+      "name": "values 0x081C to 0x0823",
+      "input": "1C 08 1D 08 1E 08 1F 08 20 08 21 08 22 08 23 08",
+      "output": {
+        "text": "뺘뺙뺨뻐뻑뻔뻗뻘"
+      }
+    },
+    {
+      "name": "values 0x0824 to 0x082B",
+      "input": "24 08 25 08 26 08 27 08 28 08 29 08 2A 08 2B 08",
+      "output": {
+        "text": "뻠뻣뻤뻥뻬뼁뼈뼉"
+      }
+    },
+    {
+      "name": "values 0x082C to 0x0833",
+      "input": "2C 08 2D 08 2E 08 2F 08 30 08 31 08 32 08 33 08",
+      "output": {
+        "text": "뼘뼙뼛뼜뼝뽀뽁뽄"
+      }
+    },
+    {
+      "name": "values 0x0834 to 0x083B",
+      "input": "34 08 35 08 36 08 37 08 38 08 39 08 3A 08 3B 08",
+      "output": {
+        "text": "뽈뽐뽑뽕뾔뾰뿅뿌"
+      }
+    },
+    {
+      "name": "values 0x083C to 0x0843",
+      "input": "3C 08 3D 08 3E 08 3F 08 40 08 41 08 42 08 43 08",
+      "output": {
+        "text": "뿍뿐뿔뿜뿟뿡쀼쁑"
+      }
+    },
+    {
+      "name": "values 0x0844 to 0x084B",
+      "input": "44 08 45 08 46 08 47 08 48 08 49 08 4A 08 4B 08",
+      "output": {
+        "text": "쁘쁜쁠쁨쁩삐삑삔"
+      }
+    },
+    {
+      "name": "values 0x084C to 0x0853",
+      "input": "4C 08 4D 08 4E 08 4F 08 50 08 51 08 52 08 53 08",
+      "output": {
+        "text": "삘삠삡삣삥사삭삯"
+      }
+    },
+    {
+      "name": "values 0x0854 to 0x085B",
+      "input": "54 08 55 08 56 08 57 08 58 08 59 08 5A 08 5B 08",
+      "output": {
+        "text": "산삳살삵삶삼삽삿"
+      }
+    },
+    {
+      "name": "values 0x085C to 0x0863",
+      "input": "5C 08 5D 08 5E 08 5F 08 60 08 61 08 62 08 63 08",
+      "output": {
+        "text": "샀상샅새색샌샐샘"
+      }
+    },
+    {
+      "name": "values 0x0864 to 0x086B",
+      "input": "64 08 65 08 66 08 67 08 68 08 69 08 6A 08 6B 08",
+      "output": {
+        "text": "샙샛샜생샤샥샨샬"
+      }
+    },
+    {
+      "name": "values 0x086C to 0x0873",
+      "input": "6C 08 6D 08 6E 08 6F 08 70 08 71 08 72 08 73 08",
+      "output": {
+        "text": "샴샵샷샹섀섄섈섐"
+      }
+    },
+    {
+      "name": "values 0x0874 to 0x087B",
+      "input": "74 08 75 08 76 08 77 08 78 08 79 08 7A 08 7B 08",
+      "output": {
+        "text": "섕서석섞섟선섣설"
+      }
+    },
+    {
+      "name": "values 0x087C to 0x0883",
+      "input": "7C 08 7D 08 7E 08 7F 08 80 08 81 08 82 08 83 08",
+      "output": {
+        "text": "섦섧섬섭섯섰성섶"
+      }
+    },
+    {
+      "name": "values 0x0884 to 0x088B",
+      "input": "84 08 85 08 86 08 87 08 88 08 89 08 8A 08 8B 08",
+      "output": {
+        "text": "세섹센셀셈셉셋셌"
+      }
+    },
+    {
+      "name": "values 0x088C to 0x0893",
+      "input": "8C 08 8D 08 8E 08 8F 08 90 08 91 08 92 08 93 08",
+      "output": {
+        "text": "셍셔셕션셜셤셥셧"
+      }
+    },
+    {
+      "name": "values 0x0894 to 0x089B",
+      "input": "94 08 95 08 96 08 97 08 98 08 99 08 9A 08 9B 08",
+      "output": {
+        "text": "셨셩셰셴셸솅소속"
+      }
+    },
+    {
+      "name": "values 0x089C to 0x08A3",
+      "input": "9C 08 9D 08 9E 08 9F 08 A0 08 A1 08 A2 08 A3 08",
+      "output": {
+        "text": "솎손솔솖솜솝솟송"
+      }
+    },
+    {
+      "name": "values 0x08A4 to 0x08AB",
+      "input": "A4 08 A5 08 A6 08 A7 08 A8 08 A9 08 AA 08 AB 08",
+      "output": {
+        "text": "솥솨솩솬솰솽쇄쇈"
+      }
+    },
+    {
+      "name": "values 0x08AC to 0x08B3",
+      "input": "AC 08 AD 08 AE 08 AF 08 B0 08 B1 08 B2 08 B3 08",
+      "output": {
+        "text": "쇌쇔쇗쇘쇠쇤쇨쇰"
+      }
+    },
+    {
+      "name": "values 0x08B4 to 0x08BB",
+      "input": "B4 08 B5 08 B6 08 B7 08 B8 08 B9 08 BA 08 BB 08",
+      "output": {
+        "text": "쇱쇳쇼쇽숀숄숌숍"
+      }
+    },
+    {
+      "name": "values 0x08BC to 0x08C3",
+      "input": "BC 08 BD 08 BE 08 BF 08 C0 08 C1 08 C2 08 C3 08",
+      "output": {
+        "text": "숏숑수숙순숟술숨"
+      }
+    },
+    {
+      "name": "values 0x08C4 to 0x08CB",
+      "input": "C4 08 C5 08 C6 08 C7 08 C8 08 C9 08 CA 08 CB 08",
+      "output": {
+        "text": "숩숫숭숯숱숲숴쉈"
+      }
+    },
+    {
+      "name": "values 0x08CC to 0x08D3",
+      "input": "CC 08 CD 08 CE 08 CF 08 D0 08 D1 08 D2 08 D3 08",
+      "output": {
+        "text": "쉐쉑쉔쉘쉠쉥쉬쉭"
+      }
+    },
+    {
+      "name": "values 0x08D4 to 0x08DB",
+      "input": "D4 08 D5 08 D6 08 D7 08 D8 08 D9 08 DA 08 DB 08",
+      "output": {
+        "text": "쉰쉴쉼쉽쉿슁슈슉"
+      }
+    },
+    {
+      "name": "values 0x08DC to 0x08E3",
+      "input": "DC 08 DD 08 DE 08 DF 08 E0 08 E1 08 E2 08 E3 08",
+      "output": {
+        "text": "슐슘슛슝스슥슨슬"
+      }
+    },
+    {
+      "name": "values 0x08E4 to 0x08EB",
+      "input": "E4 08 E5 08 E6 08 E7 08 E8 08 E9 08 EA 08 EB 08",
+      "output": {
+        "text": "슭슴습슷승시식신"
+      }
+    },
+    {
+      "name": "values 0x08EC to 0x08F3",
+      "input": "EC 08 ED 08 EE 08 EF 08 F0 08 F1 08 F2 08 F3 08",
+      "output": {
+        "text": "싣실싫심십싯싱싶"
+      }
+    },
+    {
+      "name": "values 0x08F4 to 0x08FB",
+      "input": "F4 08 F5 08 F6 08 F7 08 F8 08 F9 08 FA 08 FB 08",
+      "output": {
+        "text": "싸싹싻싼쌀쌈쌉쌌"
+      }
+    },
+    {
+      "name": "values 0x08FC to 0x0903",
+      "input": "FC 08 FD 08 FE 08 FF 08 00 09 01 09 02 09 03 09",
+      "output": {
+        "text": "쌍쌓쌔쌕쌘쌜쌤쌥"
+      }
+    },
+    {
+      "name": "values 0x0904 to 0x090B",
+      "input": "04 09 05 09 06 09 07 09 08 09 09 09 0A 09 0B 09",
+      "output": {
+        "text": "쌨쌩썅써썩썬썰썲"
+      }
+    },
+    {
+      "name": "values 0x090C to 0x0913",
+      "input": "0C 09 0D 09 0E 09 0F 09 10 09 11 09 12 09 13 09",
+      "output": {
+        "text": "썸썹썼썽쎄쎈쎌쏀"
+      }
+    },
+    {
+      "name": "values 0x0914 to 0x091B",
+      "input": "14 09 15 09 16 09 17 09 18 09 19 09 1A 09 1B 09",
+      "output": {
+        "text": "쏘쏙쏜쏟쏠쏢쏨쏩"
+      }
+    },
+    {
+      "name": "values 0x091C to 0x0923",
+      "input": "1C 09 1D 09 1E 09 1F 09 20 09 21 09 22 09 23 09",
+      "output": {
+        "text": "쏭쏴쏵쏸쐈쐐쐤쐬"
+      }
+    },
+    {
+      "name": "values 0x0924 to 0x092B",
+      "input": "24 09 25 09 26 09 27 09 28 09 29 09 2A 09 2B 09",
+      "output": {
+        "text": "쐰쐴쐼쐽쑈쑤쑥쑨"
+      }
+    },
+    {
+      "name": "values 0x092C to 0x0933",
+      "input": "2C 09 2D 09 2E 09 2F 09 30 09 31 09 32 09 33 09",
+      "output": {
+        "text": "쑬쑴쑵쑹쒀쒔쒜쒸"
+      }
+    },
+    {
+      "name": "values 0x0934 to 0x093B",
+      "input": "34 09 35 09 36 09 37 09 38 09 39 09 3A 09 3B 09",
+      "output": {
+        "text": "쒼쓩쓰쓱쓴쓸쓺쓿"
+      }
+    },
+    {
+      "name": "values 0x093C to 0x0943",
+      "input": "3C 09 3D 09 3E 09 3F 09 40 09 41 09 42 09 43 09",
+      "output": {
+        "text": "씀씁씌씐씔씜씨씩"
+      }
+    },
+    {
+      "name": "values 0x0944 to 0x094B",
+      "input": "44 09 45 09 46 09 47 09 48 09 49 09 4A 09 4B 09",
+      "output": {
+        "text": "씬씰씸씹씻씽아악"
+      }
+    },
+    {
+      "name": "values 0x094C to 0x0953",
+      "input": "4C 09 4D 09 4E 09 4F 09 50 09 51 09 52 09 53 09",
+      "output": {
+        "text": "안앉않알앍앎앓암"
+      }
+    },
+    {
+      "name": "values 0x0954 to 0x095B",
+      "input": "54 09 55 09 56 09 57 09 58 09 59 09 5A 09 5B 09",
+      "output": {
+        "text": "압앗았앙앝앞애액"
+      }
+    },
+    {
+      "name": "values 0x095C to 0x0963",
+      "input": "5C 09 5D 09 5E 09 5F 09 60 09 61 09 62 09 63 09",
+      "output": {
+        "text": "앤앨앰앱앳앴앵야"
+      }
+    },
+    {
+      "name": "values 0x0964 to 0x096B",
+      "input": "64 09 65 09 66 09 67 09 68 09 69 09 6A 09 6B 09",
+      "output": {
+        "text": "약얀얄얇얌얍얏양"
+      }
+    },
+    {
+      "name": "values 0x096C to 0x0973",
+      "input": "6C 09 6D 09 6E 09 6F 09 70 09 71 09 72 09 73 09",
+      "output": {
+        "text": "얕얗얘얜얠얩어억"
+      }
+    },
+    {
+      "name": "values 0x0974 to 0x097B",
+      "input": "74 09 75 09 76 09 77 09 78 09 79 09 7A 09 7B 09",
+      "output": {
+        "text": "언얹얻얼얽얾엄업"
+      }
+    },
+    {
+      "name": "values 0x097C to 0x0983",
+      "input": "7C 09 7D 09 7E 09 7F 09 80 09 81 09 82 09 83 09",
+      "output": {
+        "text": "없엇었엉엊엌엎에"
+      }
+    },
+    {
+      "name": "values 0x0984 to 0x098B",
+      "input": "84 09 85 09 86 09 87 09 88 09 89 09 8A 09 8B 09",
+      "output": {
+        "text": "엑엔엘엠엡엣엥여"
+      }
+    },
+    {
+      "name": "values 0x098C to 0x0993",
+      "input": "8C 09 8D 09 8E 09 8F 09 90 09 91 09 92 09 93 09",
+      "output": {
+        "text": "역엮연열엶엷염엽"
+      }
+    },
+    {
+      "name": "values 0x0994 to 0x099B",
+      "input": "94 09 95 09 96 09 97 09 98 09 99 09 9A 09 9B 09",
+      "output": {
+        "text": "엾엿였영옅옆옇예"
+      }
+    },
+    {
+      "name": "values 0x099C to 0x09A3",
+      "input": "9C 09 9D 09 9E 09 9F 09 A0 09 A1 09 A2 09 A3 09",
+      "output": {
+        "text": "옌옐옘옙옛옜오옥"
+      }
+    },
+    {
+      "name": "values 0x09A4 to 0x09AB",
+      "input": "A4 09 A5 09 A6 09 A7 09 A8 09 A9 09 AA 09 AB 09",
+      "output": {
+        "text": "온올옭옮옰옳옴옵"
+      }
+    },
+    {
+      "name": "values 0x09AC to 0x09B3",
+      "input": "AC 09 AD 09 AE 09 AF 09 B0 09 B1 09 B2 09 B3 09",
+      "output": {
+        "text": "옷옹옻와왁완왈왐"
+      }
+    },
+    {
+      "name": "values 0x09B4 to 0x09BB",
+      "input": "B4 09 B5 09 B6 09 B7 09 B8 09 B9 09 BA 09 BB 09",
+      "output": {
+        "text": "왑왓왔왕왜왝왠왬"
+      }
+    },
+    {
+      "name": "values 0x09BC to 0x09C3",
+      "input": "BC 09 BD 09 BE 09 BF 09 C0 09 C1 09 C2 09 C3 09",
+      "output": {
+        "text": "왯왱외왹왼욀욈욉"
+      }
+    },
+    {
+      "name": "values 0x09C4 to 0x09CB",
+      "input": "C4 09 C5 09 C6 09 C7 09 C8 09 C9 09 CA 09 CB 09",
+      "output": {
+        "text": "욋욍요욕욘욜욤욥"
+      }
+    },
+    {
+      "name": "values 0x09CC to 0x09D3",
+      "input": "CC 09 CD 09 CE 09 CF 09 D0 09 D1 09 D2 09 D3 09",
+      "output": {
+        "text": "욧용우욱운울욹욺"
+      }
+    },
+    {
+      "name": "values 0x09D4 to 0x09DB",
+      "input": "D4 09 D5 09 D6 09 D7 09 D8 09 D9 09 DA 09 DB 09",
+      "output": {
+        "text": "움웁웃웅워웍원월"
+      }
+    },
+    {
+      "name": "values 0x09DC to 0x09E3",
+      "input": "DC 09 DD 09 DE 09 DF 09 E0 09 E1 09 E2 09 E3 09",
+      "output": {
+        "text": "웜웝웠웡웨웩웬웰"
+      }
+    },
+    {
+      "name": "values 0x09E4 to 0x09EB",
+      "input": "E4 09 E5 09 E6 09 E7 09 E8 09 E9 09 EA 09 EB 09",
+      "output": {
+        "text": "웸웹웽위윅윈윌윔"
+      }
+    },
+    {
+      "name": "values 0x09EC to 0x09F3",
+      "input": "EC 09 ED 09 EE 09 EF 09 F0 09 F1 09 F2 09 F3 09",
+      "output": {
+        "text": "윕윗윙유육윤율윰"
+      }
+    },
+    {
+      "name": "values 0x09F4 to 0x09FB",
+      "input": "F4 09 F5 09 F6 09 F7 09 F8 09 F9 09 FA 09 FB 09",
+      "output": {
+        "text": "윱윳융윷으윽은을"
+      }
+    },
+    {
+      "name": "values 0x09FC to 0x0A03",
+      "input": "FC 09 FD 09 FE 09 FF 09 00 0A 01 0A 02 0A 03 0A",
+      "output": {
+        "text": "읊음읍읏응읒읓읔"
+      }
+    },
+    {
+      "name": "values 0x0A04 to 0x0A0B",
+      "input": "04 0A 05 0A 06 0A 07 0A 08 0A 09 0A 0A 0A 0B 0A",
+      "output": {
+        "text": "읕읖읗의읜읠읨읫"
+      }
+    },
+    {
+      "name": "values 0x0A0C to 0x0A13",
+      "input": "0C 0A 0D 0A 0E 0A 0F 0A 10 0A 11 0A 12 0A 13 0A",
+      "output": {
+        "text": "이익인일읽읾잃임"
+      }
+    },
+    {
+      "name": "values 0x0A14 to 0x0A1B",
+      "input": "14 0A 15 0A 16 0A 17 0A 18 0A 19 0A 1A 0A 1B 0A",
+      "output": {
+        "text": "입잇있잉잊잎자작"
+      }
+    },
+    {
+      "name": "values 0x0A1C to 0x0A23",
+      "input": "1C 0A 1D 0A 1E 0A 1F 0A 20 0A 21 0A 22 0A 23 0A",
+      "output": {
+        "text": "잔잖잗잘잚잠잡잣"
+      }
+    },
+    {
+      "name": "values 0x0A24 to 0x0A2B",
+      "input": "24 0A 25 0A 26 0A 27 0A 28 0A 29 0A 2A 0A 2B 0A",
+      "output": {
+        "text": "잤장잦재잭잰잴잼"
+      }
+    },
+    {
+      "name": "values 0x0A2C to 0x0A33",
+      "input": "2C 0A 2D 0A 2E 0A 2F 0A 30 0A 31 0A 32 0A 33 0A",
+      "output": {
+        "text": "잽잿쟀쟁쟈쟉쟌쟎"
+      }
+    },
+    {
+      "name": "values 0x0A34 to 0x0A3B",
+      "input": "34 0A 35 0A 36 0A 37 0A 38 0A 39 0A 3A 0A 3B 0A",
+      "output": {
+        "text": "쟐쟘쟝쟤쟨쟬저적"
+      }
+    },
+    {
+      "name": "values 0x0A3C to 0x0A43",
+      "input": "3C 0A 3D 0A 3E 0A 3F 0A 40 0A 41 0A 42 0A 43 0A",
+      "output": {
+        "text": "전절젊점접젓정젖"
+      }
+    },
+    {
+      "name": "values 0x0A44 to 0x0A4B",
+      "input": "44 0A 45 0A 46 0A 47 0A 48 0A 49 0A 4A 0A 4B 0A",
+      "output": {
+        "text": "제젝젠젤젬젭젯젱"
+      }
+    },
+    {
+      "name": "values 0x0A4C to 0x0A53",
+      "input": "4C 0A 4D 0A 4E 0A 4F 0A 50 0A 51 0A 52 0A 53 0A",
+      "output": {
+        "text": "져젼졀졈졉졌졍졔"
+      }
+    },
+    {
+      "name": "values 0x0A54 to 0x0A5B",
+      "input": "54 0A 55 0A 56 0A 57 0A 58 0A 59 0A 5A 0A 5B 0A",
+      "output": {
+        "text": "조족존졸졺좀좁좃"
+      }
+    },
+    {
+      "name": "values 0x0A5C to 0x0A63",
+      "input": "5C 0A 5D 0A 5E 0A 5F 0A 60 0A 61 0A 62 0A 63 0A",
+      "output": {
+        "text": "종좆좇좋좌좍좔좝"
+      }
+    },
+    {
+      "name": "values 0x0A64 to 0x0A6B",
+      "input": "64 0A 65 0A 66 0A 67 0A 68 0A 69 0A 6A 0A 6B 0A",
+      "output": {
+        "text": "좟좡좨좼좽죄죈죌"
+      }
+    },
+    {
+      "name": "values 0x0A6C to 0x0A73",
+      "input": "6C 0A 6D 0A 6E 0A 6F 0A 70 0A 71 0A 72 0A 73 0A",
+      "output": {
+        "text": "죔죕죗죙죠죡죤죵"
+      }
+    },
+    {
+      "name": "values 0x0A74 to 0x0A7B",
+      "input": "74 0A 75 0A 76 0A 77 0A 78 0A 79 0A 7A 0A 7B 0A",
+      "output": {
+        "text": "주죽준줄줅줆줌줍"
+      }
+    },
+    {
+      "name": "values 0x0A7C to 0x0A83",
+      "input": "7C 0A 7D 0A 7E 0A 7F 0A 80 0A 81 0A 82 0A 83 0A",
+      "output": {
+        "text": "줏중줘줬줴쥐쥑쥔"
+      }
+    },
+    {
+      "name": "values 0x0A84 to 0x0A8B",
+      "input": "84 0A 85 0A 86 0A 87 0A 88 0A 89 0A 8A 0A 8B 0A",
+      "output": {
+        "text": "쥘쥠쥡쥣쥬쥰쥴쥼"
+      }
+    },
+    {
+      "name": "values 0x0A8C to 0x0A93",
+      "input": "8C 0A 8D 0A 8E 0A 8F 0A 90 0A 91 0A 92 0A 93 0A",
+      "output": {
+        "text": "즈즉즌즐즘즙즛증"
+      }
+    },
+    {
+      "name": "values 0x0A94 to 0x0A9B",
+      "input": "94 0A 95 0A 96 0A 97 0A 98 0A 99 0A 9A 0A 9B 0A",
+      "output": {
+        "text": "지직진짇질짊짐집"
+      }
+    },
+    {
+      "name": "values 0x0A9C to 0x0AA3",
+      "input": "9C 0A 9D 0A 9E 0A 9F 0A A0 0A A1 0A A2 0A A3 0A",
+      "output": {
+        "text": "짓징짖짙짚짜짝짠"
+      }
+    },
+    {
+      "name": "values 0x0AA4 to 0x0AAB",
+      "input": "A4 0A A5 0A A6 0A A7 0A A8 0A A9 0A AA 0A AB 0A",
+      "output": {
+        "text": "짢짤짧짬짭짯짰짱"
+      }
+    },
+    {
+      "name": "values 0x0AAC to 0x0AB3",
+      "input": "AC 0A AD 0A AE 0A AF 0A B0 0A B1 0A B2 0A B3 0A",
+      "output": {
+        "text": "째짹짼쨀쨈쨉쨋쨌"
+      }
+    },
+    {
+      "name": "values 0x0AB4 to 0x0ABB",
+      "input": "B4 0A B5 0A B6 0A B7 0A B8 0A B9 0A BA 0A BB 0A",
+      "output": {
+        "text": "쨍쨔쨘쨩쩌쩍쩐쩔"
+      }
+    },
+    {
+      "name": "values 0x0ABC to 0x0AC3",
+      "input": "BC 0A BD 0A BE 0A BF 0A C0 0A C1 0A C2 0A C3 0A",
+      "output": {
+        "text": "쩜쩝쩟쩠쩡쩨쩽쪄"
+      }
+    },
+    {
+      "name": "values 0x0AC4 to 0x0ACB",
+      "input": "C4 0A C5 0A C6 0A C7 0A C8 0A C9 0A CA 0A CB 0A",
+      "output": {
+        "text": "쪘쪼쪽쫀쫄쫌쫍쫏"
+      }
+    },
+    {
+      "name": "values 0x0ACC to 0x0AD3",
+      "input": "CC 0A CD 0A CE 0A CF 0A D0 0A D1 0A D2 0A D3 0A",
+      "output": {
+        "text": "쫑쫓쫘쫙쫠쫬쫴쬈"
+      }
+    },
+    {
+      "name": "values 0x0AD4 to 0x0ADB",
+      "input": "D4 0A D5 0A D6 0A D7 0A D8 0A D9 0A DA 0A DB 0A",
+      "output": {
+        "text": "쬐쬔쬘쬠쬡쭁쭈쭉"
+      }
+    },
+    {
+      "name": "values 0x0ADC to 0x0AE3",
+      "input": "DC 0A DD 0A DE 0A DF 0A E0 0A E1 0A E2 0A E3 0A",
+      "output": {
+        "text": "쭌쭐쭘쭙쭝쭤쭸쭹"
+      }
+    },
+    {
+      "name": "values 0x0AE4 to 0x0AEB",
+      "input": "E4 0A E5 0A E6 0A E7 0A E8 0A E9 0A EA 0A EB 0A",
+      "output": {
+        "text": "쮜쮸쯔쯤쯧쯩찌찍"
+      }
+    },
+    {
+      "name": "values 0x0AEC to 0x0AF3",
+      "input": "EC 0A ED 0A EE 0A EF 0A F0 0A F1 0A F2 0A F3 0A",
+      "output": {
+        "text": "찐찔찜찝찡찢찧차"
+      }
+    },
+    {
+      "name": "values 0x0AF4 to 0x0AFB",
+      "input": "F4 0A F5 0A F6 0A F7 0A F8 0A F9 0A FA 0A FB 0A",
+      "output": {
+        "text": "착찬찮찰참찹찻찼"
+      }
+    },
+    {
+      "name": "values 0x0AFC to 0x0B03",
+      "input": "FC 0A FD 0A FE 0A FF 0A 00 0B 01 0B 02 0B 03 0B",
+      "output": {
+        "text": "창찾채책챈챌챔챕"
+      }
+    },
+    {
+      "name": "values 0x0B04 to 0x0B0B",
+      "input": "04 0B 05 0B 06 0B 07 0B 08 0B 09 0B 0A 0B 0B 0B",
+      "output": {
+        "text": "챗챘챙챠챤챦챨챰"
+      }
+    },
+    {
+      "name": "values 0x0B0C to 0x0B13",
+      "input": "0C 0B 0D 0B 0E 0B 0F 0B 10 0B 11 0B 12 0B 13 0B",
+      "output": {
+        "text": "챵처척천철첨첩첫"
+      }
+    },
+    {
+      "name": "values 0x0B14 to 0x0B1B",
+      "input": "14 0B 15 0B 16 0B 17 0B 18 0B 19 0B 1A 0B 1B 0B",
+      "output": {
+        "text": "첬청체첵첸첼쳄쳅"
+      }
+    },
+    {
+      "name": "values 0x0B1C to 0x0B23",
+      "input": "1C 0B 1D 0B 1E 0B 1F 0B 20 0B 21 0B 22 0B 23 0B",
+      "output": {
+        "text": "쳇쳉쳐쳔쳤쳬쳰촁"
+      }
+    },
+    {
+      "name": "values 0x0B24 to 0x0B2B",
+      "input": "24 0B 25 0B 26 0B 27 0B 28 0B 29 0B 2A 0B 2B 0B",
+      "output": {
+        "text": "초촉촌촐촘촙촛총"
+      }
+    },
+    {
+      "name": "values 0x0B2C to 0x0B33",
+      "input": "2C 0B 2D 0B 2E 0B 2F 0B 30 0B 31 0B 32 0B 33 0B",
+      "output": {
+        "text": "촤촨촬촹최쵠쵤쵬"
+      }
+    },
+    {
+      "name": "values 0x0B34 to 0x0B3B",
+      "input": "34 0B 35 0B 36 0B 37 0B 38 0B 39 0B 3A 0B 3B 0B",
+      "output": {
+        "text": "쵭쵯쵱쵸춈추축춘"
+      }
+    },
+    {
+      "name": "values 0x0B3C to 0x0B43",
+      "input": "3C 0B 3D 0B 3E 0B 3F 0B 40 0B 41 0B 42 0B 43 0B",
+      "output": {
+        "text": "출춤춥춧충춰췄췌"
+      }
+    },
+    {
+      "name": "values 0x0B44 to 0x0B4B",
+      "input": "44 0B 45 0B 46 0B 47 0B 48 0B 49 0B 4A 0B 4B 0B",
+      "output": {
+        "text": "췐취췬췰췸췹췻췽"
+      }
+    },
+    {
+      "name": "values 0x0B4C to 0x0B53",
+      "input": "4C 0B 4D 0B 4E 0B 4F 0B 50 0B 51 0B 52 0B 53 0B",
+      "output": {
+        "text": "츄츈츌츔츙츠측츤"
+      }
+    },
+    {
+      "name": "values 0x0B54 to 0x0B5B",
+      "input": "54 0B 55 0B 56 0B 57 0B 58 0B 59 0B 5A 0B 5B 0B",
+      "output": {
+        "text": "츨츰츱츳층치칙친"
+      }
+    },
+    {
+      "name": "values 0x0B5C to 0x0B63",
+      "input": "5C 0B 5D 0B 5E 0B 5F 0B 60 0B 61 0B 62 0B 63 0B",
+      "output": {
+        "text": "칟칠칡침칩칫칭카"
+      }
+    },
+    {
+      "name": "values 0x0B64 to 0x0B6B",
+      "input": "64 0B 65 0B 66 0B 67 0B 68 0B 69 0B 6A 0B 6B 0B",
+      "output": {
+        "text": "칵칸칼캄캅캇캉캐"
+      }
+    },
+    {
+      "name": "values 0x0B6C to 0x0B73",
+      "input": "6C 0B 6D 0B 6E 0B 6F 0B 70 0B 71 0B 72 0B 73 0B",
+      "output": {
+        "text": "캑캔캘캠캡캣캤캥"
+      }
+    },
+    {
+      "name": "values 0x0B74 to 0x0B7B",
+      "input": "74 0B 75 0B 76 0B 77 0B 78 0B 79 0B 7A 0B 7B 0B",
+      "output": {
+        "text": "캬캭컁커컥컨컫컬"
+      }
+    },
+    {
+      "name": "values 0x0B7C to 0x0B83",
+      "input": "7C 0B 7D 0B 7E 0B 7F 0B 80 0B 81 0B 82 0B 83 0B",
+      "output": {
+        "text": "컴컵컷컸컹케켁켄"
+      }
+    },
+    {
+      "name": "values 0x0B84 to 0x0B8B",
+      "input": "84 0B 85 0B 86 0B 87 0B 88 0B 89 0B 8A 0B 8B 0B",
+      "output": {
+        "text": "켈켐켑켓켕켜켠켤"
+      }
+    },
+    {
+      "name": "values 0x0B8C to 0x0B93",
+      "input": "8C 0B 8D 0B 8E 0B 8F 0B 90 0B 91 0B 92 0B 93 0B",
+      "output": {
+        "text": "켬켭켯켰켱켸코콕"
+      }
+    },
+    {
+      "name": "values 0x0B94 to 0x0B9B",
+      "input": "94 0B 95 0B 96 0B 97 0B 98 0B 99 0B 9A 0B 9B 0B",
+      "output": {
+        "text": "콘콜콤콥콧콩콰콱"
+      }
+    },
+    {
+      "name": "values 0x0B9C to 0x0BA3",
+      "input": "9C 0B 9D 0B 9E 0B 9F 0B A0 0B A1 0B A2 0B A3 0B",
+      "output": {
+        "text": "콴콸쾀쾅쾌쾡쾨쾰"
+      }
+    },
+    {
+      "name": "values 0x0BA4 to 0x0BAB",
+      "input": "A4 0B A5 0B A6 0B A7 0B A8 0B A9 0B AA 0B AB 0B",
+      "output": {
+        "text": "쿄쿠쿡쿤쿨쿰쿱쿳"
+      }
+    },
+    {
+      "name": "values 0x0BAC to 0x0BB3",
+      "input": "AC 0B AD 0B AE 0B AF 0B B0 0B B1 0B B2 0B B3 0B",
+      "output": {
+        "text": "쿵쿼퀀퀄퀑퀘퀭퀴"
+      }
+    },
+    {
+      "name": "values 0x0BB4 to 0x0BBB",
+      "input": "B4 0B B5 0B B6 0B B7 0B B8 0B B9 0B BA 0B BB 0B",
+      "output": {
+        "text": "퀵퀸퀼큄큅큇큉큐"
+      }
+    },
+    {
+      "name": "values 0x0BBC to 0x0BC3",
+      "input": "BC 0B BD 0B BE 0B BF 0B C0 0B C1 0B C2 0B C3 0B",
+      "output": {
+        "text": "큔큘큠크큭큰클큼"
+      }
+    },
+    {
+      "name": "values 0x0BC4 to 0x0BCB",
+      "input": "C4 0B C5 0B C6 0B C7 0B C8 0B C9 0B CA 0B CB 0B",
+      "output": {
+        "text": "큽킁키킥킨킬킴킵"
+      }
+    },
+    {
+      "name": "values 0x0BCC to 0x0BD3",
+      "input": "CC 0B CD 0B CE 0B CF 0B D0 0B D1 0B D2 0B D3 0B",
+      "output": {
+        "text": "킷킹타탁탄탈탉탐"
+      }
+    },
+    {
+      "name": "values 0x0BD4 to 0x0BDB",
+      "input": "D4 0B D5 0B D6 0B D7 0B D8 0B D9 0B DA 0B DB 0B",
+      "output": {
+        "text": "탑탓탔탕태택탠탤"
+      }
+    },
+    {
+      "name": "values 0x0BDC to 0x0BE3",
+      "input": "DC 0B DD 0B DE 0B DF 0B E0 0B E1 0B E2 0B E3 0B",
+      "output": {
+        "text": "탬탭탯탰탱탸턍터"
+      }
+    },
+    {
+      "name": "values 0x0BE4 to 0x0BEB",
+      "input": "E4 0B E5 0B E6 0B E7 0B E8 0B E9 0B EA 0B EB 0B",
+      "output": {
+        "text": "턱턴털턺텀텁텃텄"
+      }
+    },
+    {
+      "name": "values 0x0BEC to 0x0BF3",
+      "input": "EC 0B ED 0B EE 0B EF 0B F0 0B F1 0B F2 0B F3 0B",
+      "output": {
+        "text": "텅테텍텐텔템텝텟"
+      }
+    },
+    {
+      "name": "values 0x0BF4 to 0x0BFB",
+      "input": "F4 0B F5 0B F6 0B F7 0B F8 0B F9 0B FA 0B FB 0B",
+      "output": {
+        "text": "텡텨텬텼톄톈토톡"
+      }
+    },
+    {
+      "name": "values 0x0BFC to 0x0C03",
+      "input": "FC 0B FD 0B FE 0B FF 0B 00 0C 01 0C 02 0C 03 0C",
+      "output": {
+        "text": "톤톨톰톱톳통톺톼"
+      }
+    },
+    {
+      "name": "values 0x0C04 to 0x0C0B",
+      "input": "04 0C 05 0C 06 0C 07 0C 08 0C 09 0C 0A 0C 0B 0C",
+      "output": {
+        "text": "퇀퇘퇴퇸툇툉툐투"
+      }
+    },
+    {
+      "name": "values 0x0C0C to 0x0C13",
+      "input": "0C 0C 0D 0C 0E 0C 0F 0C 10 0C 11 0C 12 0C 13 0C",
+      "output": {
+        "text": "툭툰툴툼툽툿퉁퉈"
+      }
+    },
+    {
+      "name": "values 0x0C14 to 0x0C1B",
+      "input": "14 0C 15 0C 16 0C 17 0C 18 0C 19 0C 1A 0C 1B 0C",
+      "output": {
+        "text": "퉜퉤튀튁튄튈튐튑"
+      }
+    },
+    {
+      "name": "values 0x0C1C to 0x0C23",
+      "input": "1C 0C 1D 0C 1E 0C 1F 0C 20 0C 21 0C 22 0C 23 0C",
+      "output": {
+        "text": "튕튜튠튤튬튱트특"
+      }
+    },
+    {
+      "name": "values 0x0C24 to 0x0C2B",
+      "input": "24 0C 25 0C 26 0C 27 0C 28 0C 29 0C 2A 0C 2B 0C",
+      "output": {
+        "text": "튼튿틀틂틈틉틋틔"
+      }
+    },
+    {
+      "name": "values 0x0C2C to 0x0C33",
+      "input": "2C 0C 2D 0C 2E 0C 2F 0C 30 0C 31 0C 32 0C 33 0C",
+      "output": {
+        "text": "틘틜틤틥티틱틴틸"
+      }
+    },
+    {
+      "name": "values 0x0C34 to 0x0C3B",
+      "input": "34 0C 35 0C 36 0C 37 0C 38 0C 39 0C 3A 0C 3B 0C",
+      "output": {
+        "text": "팀팁팃팅파팍팎판"
+      }
+    },
+    {
+      "name": "values 0x0C3C to 0x0C43",
+      "input": "3C 0C 3D 0C 3E 0C 3F 0C 40 0C 41 0C 42 0C 43 0C",
+      "output": {
+        "text": "팔팖팜팝팟팠팡팥"
+      }
+    },
+    {
+      "name": "values 0x0C44 to 0x0C4B",
+      "input": "44 0C 45 0C 46 0C 47 0C 48 0C 49 0C 4A 0C 4B 0C",
+      "output": {
+        "text": "패팩팬팰팸팹팻팼"
+      }
+    },
+    {
+      "name": "values 0x0C4C to 0x0C53",
+      "input": "4C 0C 4D 0C 4E 0C 4F 0C 50 0C 51 0C 52 0C 53 0C",
+      "output": {
+        "text": "팽퍄퍅퍼퍽펀펄펌"
+      }
+    },
+    {
+      "name": "values 0x0C54 to 0x0C5B",
+      "input": "54 0C 55 0C 56 0C 57 0C 58 0C 59 0C 5A 0C 5B 0C",
+      "output": {
+        "text": "펍펏펐펑페펙펜펠"
+      }
+    },
+    {
+      "name": "values 0x0C5C to 0x0C63",
+      "input": "5C 0C 5D 0C 5E 0C 5F 0C 60 0C 61 0C 62 0C 63 0C",
+      "output": {
+        "text": "펨펩펫펭펴편펼폄"
+      }
+    },
+    {
+      "name": "values 0x0C64 to 0x0C6B",
+      "input": "64 0C 65 0C 66 0C 67 0C 68 0C 69 0C 6A 0C 6B 0C",
+      "output": {
+        "text": "폅폈평폐폘폡폣포"
+      }
+    },
+    {
+      "name": "values 0x0C6C to 0x0C73",
+      "input": "6C 0C 6D 0C 6E 0C 6F 0C 70 0C 71 0C 72 0C 73 0C",
+      "output": {
+        "text": "폭폰폴폼폽폿퐁퐈"
+      }
+    },
+    {
+      "name": "values 0x0C74 to 0x0C7B",
+      "input": "74 0C 75 0C 76 0C 77 0C 78 0C 79 0C 7A 0C 7B 0C",
+      "output": {
+        "text": "퐝푀푄표푠푤푭푯"
+      }
+    },
+    {
+      "name": "values 0x0C7C to 0x0C83",
+      "input": "7C 0C 7D 0C 7E 0C 7F 0C 80 0C 81 0C 82 0C 83 0C",
+      "output": {
+        "text": "푸푹푼푿풀풂품풉"
+      }
+    },
+    {
+      "name": "values 0x0C84 to 0x0C8B",
+      "input": "84 0C 85 0C 86 0C 87 0C 88 0C 89 0C 8A 0C 8B 0C",
+      "output": {
+        "text": "풋풍풔풩퓌퓐퓔퓜"
+      }
+    },
+    {
+      "name": "values 0x0C8C to 0x0C93",
+      "input": "8C 0C 8D 0C 8E 0C 8F 0C 90 0C 91 0C 92 0C 93 0C",
+      "output": {
+        "text": "퓟퓨퓬퓰퓸퓻퓽프"
+      }
+    },
+    {
+      "name": "values 0x0C94 to 0x0C9B",
+      "input": "94 0C 95 0C 96 0C 97 0C 98 0C 99 0C 9A 0C 9B 0C",
+      "output": {
+        "text": "픈플픔픕픗피픽핀"
+      }
+    },
+    {
+      "name": "values 0x0C9C to 0x0CA3",
+      "input": "9C 0C 9D 0C 9E 0C 9F 0C A0 0C A1 0C A2 0C A3 0C",
+      "output": {
+        "text": "필핌핍핏핑하학한"
+      }
+    },
+    {
+      "name": "values 0x0CA4 to 0x0CAB",
+      "input": "A4 0C A5 0C A6 0C A7 0C A8 0C A9 0C AA 0C AB 0C",
+      "output": {
+        "text": "할핥함합핫항해핵"
+      }
+    },
+    {
+      "name": "values 0x0CAC to 0x0CB3",
+      "input": "AC 0C AD 0C AE 0C AF 0C B0 0C B1 0C B2 0C B3 0C",
+      "output": {
+        "text": "핸핼햄햅햇했행햐"
+      }
+    },
+    {
+      "name": "values 0x0CB4 to 0x0CBB",
+      "input": "B4 0C B5 0C B6 0C B7 0C B8 0C B9 0C BA 0C BB 0C",
+      "output": {
+        "text": "향허헉헌헐헒험헙"
+      }
+    },
+    {
+      "name": "values 0x0CBC to 0x0CC3",
+      "input": "BC 0C BD 0C BE 0C BF 0C C0 0C C1 0C C2 0C C3 0C",
+      "output": {
+        "text": "헛헝헤헥헨헬헴헵"
+      }
+    },
+    {
+      "name": "values 0x0CC4 to 0x0CCB",
+      "input": "C4 0C C5 0C C6 0C C7 0C C8 0C C9 0C CA 0C CB 0C",
+      "output": {
+        "text": "헷헹혀혁현혈혐협"
+      }
+    },
+    {
+      "name": "values 0x0CCC to 0x0CD3",
+      "input": "CC 0C CD 0C CE 0C CF 0C D0 0C D1 0C D2 0C D3 0C",
+      "output": {
+        "text": "혓혔형혜혠혤혭호"
+      }
+    },
+    {
+      "name": "values 0x0CD4 to 0x0CDB",
+      "input": "D4 0C D5 0C D6 0C D7 0C D8 0C D9 0C DA 0C DB 0C",
+      "output": {
+        "text": "혹혼홀홅홈홉홋홍"
+      }
+    },
+    {
+      "name": "values 0x0CDC to 0x0CE3",
+      "input": "DC 0C DD 0C DE 0C DF 0C E0 0C E1 0C E2 0C E3 0C",
+      "output": {
+        "text": "홑화확환활홧황홰"
+      }
+    },
+    {
+      "name": "values 0x0CE4 to 0x0CEB",
+      "input": "E4 0C E5 0C E6 0C E7 0C E8 0C E9 0C EA 0C EB 0C",
+      "output": {
+        "text": "홱홴횃횅회획횐횔"
+      }
+    },
+    {
+      "name": "values 0x0CEC to 0x0CF3",
+      "input": "EC 0C ED 0C EE 0C EF 0C F0 0C F1 0C F2 0C F3 0C",
+      "output": {
+        "text": "횝횟횡효횬횰횹횻"
+      }
+    },
+    {
+      "name": "values 0x0CF4 to 0x0CFB",
+      "input": "F4 0C F5 0C F6 0C F7 0C F8 0C F9 0C FA 0C FB 0C",
+      "output": {
+        "text": "후훅훈훌훑훔훗훙"
+      }
+    },
+    {
+      "name": "values 0x0CFC to 0x0D03",
+      "input": "FC 0C FD 0C FE 0C FF 0C 00 0D 01 0D 02 0D 03 0D",
+      "output": {
+        "text": "훠훤훨훰훵훼훽휀"
+      }
+    },
+    {
+      "name": "values 0x0D04 to 0x0D0B",
+      "input": "04 0D 05 0D 06 0D 07 0D 08 0D 09 0D 0A 0D 0B 0D",
+      "output": {
+        "text": "휄휑휘휙휜휠휨휩"
+      }
+    },
+    {
+      "name": "values 0x0D0C to 0x0D13",
+      "input": "0C 0D 0D 0D 0E 0D 0F 0D 10 0D 11 0D 12 0D 13 0D",
+      "output": {
+        "text": "휫휭휴휵휸휼흄흇"
+      }
+    },
+    {
+      "name": "values 0x0D14 to 0x0D1B",
+      "input": "14 0D 15 0D 16 0D 17 0D 18 0D 19 0D 1A 0D 1B 0D",
+      "output": {
+        "text": "흉흐흑흔흖흗흘흙"
+      }
+    },
+    {
+      "name": "values 0x0D1C to 0x0D23",
+      "input": "1C 0D 1D 0D 1E 0D 1F 0D 20 0D 21 0D 22 0D 23 0D",
+      "output": {
+        "text": "흠흡흣흥흩희흰흴"
+      }
+    },
+    {
+      "name": "values 0x0D24 to 0x0D2B",
+      "input": "24 0D 25 0D 26 0D 27 0D 28 0D 29 0D 2A 0D 2B 0D",
+      "output": {
+        "text": "흼흽힁히힉힌힐힘"
+      }
+    },
+    {
+      "name": "values 0x0D2C to 0x0D33",
+      "input": "2C 0D 2D 0D 2E 0D 2F 0D 30 0D 31 0D 32 0D 33 0D",
+      "output": {
+        "text": "힙힛힝￿￿ㄱㄲㄴ"
+      }
+    },
+    {
+      "name": "values 0x0D34 to 0x0D3B",
+      "input": "34 0D 35 0D 36 0D 37 0D 38 0D 39 0D 3A 0D 3B 0D",
+      "output": {
+        "text": "ㄷㄸㄹㅁㅂㅃㅅㅆ"
+      }
+    },
+    {
+      "name": "values 0x0D3C to 0x0D43",
+      "input": "3C 0D 3D 0D 3E 0D 3F 0D 40 0D 41 0D 42 0D 43 0D",
+      "output": {
+        "text": "ㅇㅈㅉㅊㅋㅌㅍㅎ"
+      }
+    },
+    {
+      "name": "values 0x0D44 to 0x0D4B",
+      "input": "44 0D 45 0D 46 0D 47 0D 48 0D 49 0D 4A 0D 4B 0D",
+      "output": {
+        "text": "ㅏㅐㅑㅒㅓㅔㅕㅖ"
+      }
+    },
+    {
+      "name": "values 0x0D4C to 0x0D53",
+      "input": "4C 0D 4D 0D 4E 0D 4F 0D 50 0D 51 0D 52 0D 53 0D",
+      "output": {
+        "text": "ㅗㅛㅜㅠㅡㅣ￿￿"
+      }
+    },
+    {
+      "name": "values 0x0D54 to 0x0D5B",
+      "input": "54 0D 55 0D 56 0D 57 0D 58 0D 59 0D 5A 0D 5B 0D",
+      "output": {
+        "text": "￿￿￿￿￿￿￿￿"
+      }
+    },
+    {
+      "name": "values 0x0D5C to 0x0D63",
+      "input": "5C 0D 5D 0D 5E 0D 5F 0D 60 0D 61 0D 62 0D 63 0D",
+      "output": {
+        "text": "￿￿￿￿￿뢔쌰쎼"
+      }
+    },
+    {
+      "name": "values 0x0D64 to 0x0D65",
+      "input": "64 0D 65 0D FF FF FF FF FF FF FF FF FF FF FF FF",
+      "output": {
+        "text": "쓔쬬"
+      }
+    },
+    {
+      "name": "values with no character",
+      "input": "2B 01 ED 01 FF 03 66 0D FE FF 2B 01 FF FF",
+      "output": {
+        "text": "A￿￿￿￿A"
+      }
+    },
+    {
+      "name": "value 0x0000 ends the text",
+      "input": "2B 01 00 00 2B 01",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "value 0xFFFF ends the text",
+      "input": "2B 01 FF FF 2B 01",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "both widths of ♂ and ♀",
+      "input": "EE 00 EF 00 BB 01 BC 01 FF FF",
+      "output": {
+        "text": "♂♀♂♀"
+      }
+    }
+  ],
+  "encode": [
+    {
+      "name": "the trainer name OPENPKX over the blank Diamond save's",
+      "input": {
+        "text": "OPENPKX"
+      },
+      "previous": "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+      "output": "39 01 3A 01 2F 01 38 01 3A 01 35 01 42 01 FF FF"
+    },
+    {
+      "name": "the trainer name A♂",
+      "input": {
+        "text": "A♂"
+      },
+      "previous": "39 01 3A 01 2F 01 38 01 3A 01 35 01 42 01 FF FF",
+      "output": "2B 01 BB 01 FF FF 00 00 00 00 00 00 00 00 00 00"
+    },
+    {
+      "name": "the trainer name ア♂",
+      "input": {
+        "text": "ア♂"
+      },
+      "previous": "2B 01 BB 01 FF FF 00 00 00 00 00 00 00 00 00 00",
+      "output": "53 00 EE 00 FF FF 00 00 00 00 00 00 00 00 00 00"
+    },
+    {
+      "name": "the trainer name ♂♀",
+      "input": {
+        "text": "♂♀"
+      },
+      "previous": "53 00 EE 00 FF FF 00 00 00 00 00 00 00 00 00 00",
+      "output": "BB 01 BC 01 FF FF 00 00 00 00 00 00 00 00 00 00"
+    },
+    {
+      "name": "the trainer name ぁ　あぃいぅう",
+      "input": {
+        "text": "ぁ　あぃいぅう"
+      },
+      "previous": "BB 01 BC 01 FF FF 00 00 00 00 00 00 00 00 00 00",
+      "output": "02 00 01 00 03 00 04 00 05 00 06 00 07 00 FF FF"
+    },
+    {
+      "name": "the trainer name ぇ*えぉおかが",
+      "input": {
+        "text": "ぇ*えぉおかが"
+      },
+      "previous": "02 00 01 00 03 00 04 00 05 00 06 00 07 00 FF FF",
+      "output": "08 00 BF 01 09 00 0A 00 0B 00 0C 00 0D 00 FF FF"
+    },
+    {
+      "name": "the trainer name き ぎくぐけげ",
+      "input": {
+        "text": "き ぎくぐけげ"
+      },
+      "previous": "08 00 BF 01 09 00 0A 00 0B 00 0C 00 0D 00 FF FF",
+      "output": "0E 00 DE 01 0F 00 10 00 11 00 12 00 13 00 FF FF"
+    },
+    {
+      "name": "the trainer name こごさざしじ",
+      "input": {
+        "text": "こごさざしじ"
+      },
+      "previous": "0E 00 DE 01 0F 00 10 00 11 00 12 00 13 00 FF FF",
+      "output": "14 00 15 00 16 00 17 00 18 00 19 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name すずせぜそぞ",
+      "input": {
+        "text": "すずせぜそぞ"
+      },
+      "previous": "14 00 15 00 16 00 17 00 18 00 19 00 FF FF 00 00",
+      "output": "1A 00 1B 00 1C 00 1D 00 1E 00 1F 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ただちぢっつ",
+      "input": {
+        "text": "ただちぢっつ"
+      },
+      "previous": "1A 00 1B 00 1C 00 1D 00 1E 00 1F 00 FF FF 00 00",
+      "output": "20 00 21 00 22 00 23 00 24 00 25 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name づてでとどな",
+      "input": {
+        "text": "づてでとどな"
+      },
+      "previous": "20 00 21 00 22 00 23 00 24 00 25 00 FF FF 00 00",
+      "output": "26 00 27 00 28 00 29 00 2A 00 2B 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name にぬねのはば",
+      "input": {
+        "text": "にぬねのはば"
+      },
+      "previous": "26 00 27 00 28 00 29 00 2A 00 2B 00 FF FF 00 00",
+      "output": "2C 00 2D 00 2E 00 2F 00 30 00 31 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ぱひびぴふぶ",
+      "input": {
+        "text": "ぱひびぴふぶ"
+      },
+      "previous": "2C 00 2D 00 2E 00 2F 00 30 00 31 00 FF FF 00 00",
+      "output": "32 00 33 00 34 00 35 00 36 00 37 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ぷへべぺほぼ",
+      "input": {
+        "text": "ぷへべぺほぼ"
+      },
+      "previous": "32 00 33 00 34 00 35 00 36 00 37 00 FF FF 00 00",
+      "output": "38 00 39 00 3A 00 3B 00 3C 00 3D 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ぽまみむめも",
+      "input": {
+        "text": "ぽまみむめも"
+      },
+      "previous": "38 00 39 00 3A 00 3B 00 3C 00 3D 00 FF FF 00 00",
+      "output": "3E 00 3F 00 40 00 41 00 42 00 43 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ゃやゅゆょよ",
+      "input": {
+        "text": "ゃやゅゆょよ"
+      },
+      "previous": "3E 00 3F 00 40 00 41 00 42 00 43 00 FF FF 00 00",
+      "output": "44 00 45 00 46 00 47 00 48 00 49 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name らりるれろわ",
+      "input": {
+        "text": "らりるれろわ"
+      },
+      "previous": "44 00 45 00 46 00 47 00 48 00 49 00 FF FF 00 00",
+      "output": "4A 00 4B 00 4C 00 4D 00 4E 00 4F 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name をんァアィイ",
+      "input": {
+        "text": "をんァアィイ"
+      },
+      "previous": "4A 00 4B 00 4C 00 4D 00 4E 00 4F 00 FF FF 00 00",
+      "output": "50 00 51 00 52 00 53 00 54 00 55 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ゥウェエォオ",
+      "input": {
+        "text": "ゥウェエォオ"
+      },
+      "previous": "50 00 51 00 52 00 53 00 54 00 55 00 FF FF 00 00",
+      "output": "56 00 57 00 58 00 59 00 5A 00 5B 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name カガキギクグ",
+      "input": {
+        "text": "カガキギクグ"
+      },
+      "previous": "56 00 57 00 58 00 59 00 5A 00 5B 00 FF FF 00 00",
+      "output": "5C 00 5D 00 5E 00 5F 00 60 00 61 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ケゲコゴサザ",
+      "input": {
+        "text": "ケゲコゴサザ"
+      },
+      "previous": "5C 00 5D 00 5E 00 5F 00 60 00 61 00 FF FF 00 00",
+      "output": "62 00 63 00 64 00 65 00 66 00 67 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name シジスズセゼ",
+      "input": {
+        "text": "シジスズセゼ"
+      },
+      "previous": "62 00 63 00 64 00 65 00 66 00 67 00 FF FF 00 00",
+      "output": "68 00 69 00 6A 00 6B 00 6C 00 6D 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ソゾタダチヂ",
+      "input": {
+        "text": "ソゾタダチヂ"
+      },
+      "previous": "68 00 69 00 6A 00 6B 00 6C 00 6D 00 FF FF 00 00",
+      "output": "6E 00 6F 00 70 00 71 00 72 00 73 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ッツヅテデト",
+      "input": {
+        "text": "ッツヅテデト"
+      },
+      "previous": "6E 00 6F 00 70 00 71 00 72 00 73 00 FF FF 00 00",
+      "output": "74 00 75 00 76 00 77 00 78 00 79 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ドナニヌネノ",
+      "input": {
+        "text": "ドナニヌネノ"
+      },
+      "previous": "74 00 75 00 76 00 77 00 78 00 79 00 FF FF 00 00",
+      "output": "7A 00 7B 00 7C 00 7D 00 7E 00 7F 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ハバパヒビピ",
+      "input": {
+        "text": "ハバパヒビピ"
+      },
+      "previous": "7A 00 7B 00 7C 00 7D 00 7E 00 7F 00 FF FF 00 00",
+      "output": "80 00 81 00 82 00 83 00 84 00 85 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name フブプヘベペ",
+      "input": {
+        "text": "フブプヘベペ"
+      },
+      "previous": "80 00 81 00 82 00 83 00 84 00 85 00 FF FF 00 00",
+      "output": "86 00 87 00 88 00 89 00 8A 00 8B 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ホボポマミム",
+      "input": {
+        "text": "ホボポマミム"
+      },
+      "previous": "86 00 87 00 88 00 89 00 8A 00 8B 00 FF FF 00 00",
+      "output": "8C 00 8D 00 8E 00 8F 00 90 00 91 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name メモャヤュユ",
+      "input": {
+        "text": "メモャヤュユ"
+      },
+      "previous": "8C 00 8D 00 8E 00 8F 00 90 00 91 00 FF FF 00 00",
+      "output": "92 00 93 00 94 00 95 00 96 00 97 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ョヨラリルレ",
+      "input": {
+        "text": "ョヨラリルレ"
+      },
+      "previous": "92 00 93 00 94 00 95 00 96 00 97 00 FF FF 00 00",
+      "output": "98 00 99 00 9A 00 9B 00 9C 00 9D 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ロワヲン０１",
+      "input": {
+        "text": "ロワヲン０１"
+      },
+      "previous": "98 00 99 00 9A 00 9B 00 9C 00 9D 00 FF FF 00 00",
+      "output": "9E 00 9F 00 A0 00 A1 00 A2 00 A3 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ２３４５６７",
+      "input": {
+        "text": "２３４５６７"
+      },
+      "previous": "9E 00 9F 00 A0 00 A1 00 A2 00 A3 00 FF FF 00 00",
+      "output": "A4 00 A5 00 A6 00 A7 00 A8 00 A9 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ８９ＡＢＣＤ",
+      "input": {
+        "text": "８９ＡＢＣＤ"
+      },
+      "previous": "A4 00 A5 00 A6 00 A7 00 A8 00 A9 00 FF FF 00 00",
+      "output": "AA 00 AB 00 AC 00 AD 00 AE 00 AF 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ＥＦＧＨＩＪ",
+      "input": {
+        "text": "ＥＦＧＨＩＪ"
+      },
+      "previous": "AA 00 AB 00 AC 00 AD 00 AE 00 AF 00 FF FF 00 00",
+      "output": "B0 00 B1 00 B2 00 B3 00 B4 00 B5 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ＫＬＭＮＯＰ",
+      "input": {
+        "text": "ＫＬＭＮＯＰ"
+      },
+      "previous": "B0 00 B1 00 B2 00 B3 00 B4 00 B5 00 FF FF 00 00",
+      "output": "B6 00 B7 00 B8 00 B9 00 BA 00 BB 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ＱＲＳＴＵＶ",
+      "input": {
+        "text": "ＱＲＳＴＵＶ"
+      },
+      "previous": "B6 00 B7 00 B8 00 B9 00 BA 00 BB 00 FF FF 00 00",
+      "output": "BC 00 BD 00 BE 00 BF 00 C0 00 C1 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ＷＸＹＺａｂ",
+      "input": {
+        "text": "ＷＸＹＺａｂ"
+      },
+      "previous": "BC 00 BD 00 BE 00 BF 00 C0 00 C1 00 FF FF 00 00",
+      "output": "C2 00 C3 00 C4 00 C5 00 C6 00 C7 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ｃｄｅｆｇｈ",
+      "input": {
+        "text": "ｃｄｅｆｇｈ"
+      },
+      "previous": "C2 00 C3 00 C4 00 C5 00 C6 00 C7 00 FF FF 00 00",
+      "output": "C8 00 C9 00 CA 00 CB 00 CC 00 CD 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ｉｊｋｌｍｎ",
+      "input": {
+        "text": "ｉｊｋｌｍｎ"
+      },
+      "previous": "C8 00 C9 00 CA 00 CB 00 CC 00 CD 00 FF FF 00 00",
+      "output": "CE 00 CF 00 D0 00 D1 00 D2 00 D3 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ｏｐｑｒｓｔ",
+      "input": {
+        "text": "ｏｐｑｒｓｔ"
+      },
+      "previous": "CE 00 CF 00 D0 00 D1 00 D2 00 D3 00 FF FF 00 00",
+      "output": "D4 00 D5 00 D6 00 D7 00 D8 00 D9 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ｕｖｗｘｙｚ",
+      "input": {
+        "text": "ｕｖｗｘｙｚ"
+      },
+      "previous": "D4 00 D5 00 D6 00 D7 00 D8 00 D9 00 FF FF 00 00",
+      "output": "DA 00 DB 00 DC 00 DD 00 DE 00 DF 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ！？、。…・",
+      "input": {
+        "text": "！？、。…・"
+      },
+      "previous": "DA 00 DB 00 DC 00 DD 00 DE 00 DF 00 FF FF 00 00",
+      "output": "E1 00 E2 00 E3 00 E4 00 E5 00 E6 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ／「」『』（",
+      "input": {
+        "text": "／「」『』（"
+      },
+      "previous": "E1 00 E2 00 E3 00 E4 00 E5 00 E6 00 FF FF 00 00",
+      "output": "E7 00 E8 00 E9 00 EA 00 EB 00 EC 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ）♂♀＋ー×",
+      "input": {
+        "text": "）♂♀＋ー×"
+      },
+      "previous": "E7 00 E8 00 E9 00 EA 00 EB 00 EC 00 FF FF 00 00",
+      "output": "ED 00 EE 00 EF 00 F0 00 F1 00 F2 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ÷＝～：；．",
+      "input": {
+        "text": "÷＝～：；．"
+      },
+      "previous": "ED 00 EE 00 EF 00 F0 00 F1 00 F2 00 FF FF 00 00",
+      "output": "F3 00 F4 00 F5 00 F6 00 F7 00 F8 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ，♠♣♥♦★",
+      "input": {
+        "text": "，♠♣♥♦★"
+      },
+      "previous": "F3 00 F4 00 F5 00 F6 00 F7 00 F8 00 FF FF 00 00",
+      "output": "F9 00 FA 00 FB 00 FC 00 FD 00 FE 00 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ◎○□△◇＠",
+      "input": {
+        "text": "◎○□△◇＠"
+      },
+      "previous": "F9 00 FA 00 FB 00 FC 00 FD 00 FE 00 FF FF 00 00",
+      "output": "FF 00 00 01 01 01 02 01 03 01 04 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ♪％☀☁☂☃",
+      "input": {
+        "text": "♪％☀☁☂☃"
+      },
+      "previous": "FF 00 00 01 01 01 02 01 03 01 04 01 FF FF 00 00",
+      "output": "05 01 06 01 07 01 08 01 09 01 0A 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ①②③④⑤⑥",
+      "input": {
+        "text": "①②③④⑤⑥"
+      },
+      "previous": "05 01 06 01 07 01 08 01 09 01 0A 01 FF FF 00 00",
+      "output": "0B 01 0C 01 0D 01 0E 01 0F 01 10 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ⑦円♈♉♊♋",
+      "input": {
+        "text": "⑦円♈♉♊♋"
+      },
+      "previous": "0B 01 0C 01 0D 01 0E 01 0F 01 10 01 FF FF 00 00",
+      "output": "11 01 12 01 13 01 14 01 15 01 16 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ♌♍♎♏←↑",
+      "input": {
+        "text": "♌♍♎♏←↑"
+      },
+      "previous": "11 01 12 01 13 01 14 01 15 01 16 01 FF FF 00 00",
+      "output": "17 01 18 01 19 01 1A 01 1B 01 1C 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ↓→►＆01",
+      "input": {
+        "text": "↓→►＆01"
+      },
+      "previous": "17 01 18 01 19 01 1A 01 1B 01 1C 01 FF FF 00 00",
+      "output": "1D 01 1E 01 1F 01 20 01 21 01 22 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 234567",
+      "input": {
+        "text": "234567"
+      },
+      "previous": "1D 01 1E 01 1F 01 20 01 21 01 22 01 FF FF 00 00",
+      "output": "23 01 24 01 25 01 26 01 27 01 28 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 89ABCD",
+      "input": {
+        "text": "89ABCD"
+      },
+      "previous": "23 01 24 01 25 01 26 01 27 01 28 01 FF FF 00 00",
+      "output": "29 01 2A 01 2B 01 2C 01 2D 01 2E 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name EFGHIJ",
+      "input": {
+        "text": "EFGHIJ"
+      },
+      "previous": "29 01 2A 01 2B 01 2C 01 2D 01 2E 01 FF FF 00 00",
+      "output": "2F 01 30 01 31 01 32 01 33 01 34 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name KLMNOP",
+      "input": {
+        "text": "KLMNOP"
+      },
+      "previous": "2F 01 30 01 31 01 32 01 33 01 34 01 FF FF 00 00",
+      "output": "35 01 36 01 37 01 38 01 39 01 3A 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name QRSTUV",
+      "input": {
+        "text": "QRSTUV"
+      },
+      "previous": "35 01 36 01 37 01 38 01 39 01 3A 01 FF FF 00 00",
+      "output": "3B 01 3C 01 3D 01 3E 01 3F 01 40 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name WXYZab",
+      "input": {
+        "text": "WXYZab"
+      },
+      "previous": "3B 01 3C 01 3D 01 3E 01 3F 01 40 01 FF FF 00 00",
+      "output": "41 01 42 01 43 01 44 01 45 01 46 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name cdefgh",
+      "input": {
+        "text": "cdefgh"
+      },
+      "previous": "41 01 42 01 43 01 44 01 45 01 46 01 FF FF 00 00",
+      "output": "47 01 48 01 49 01 4A 01 4B 01 4C 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ijklmn",
+      "input": {
+        "text": "ijklmn"
+      },
+      "previous": "47 01 48 01 49 01 4A 01 4B 01 4C 01 FF FF 00 00",
+      "output": "4D 01 4E 01 4F 01 50 01 51 01 52 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name opqrst",
+      "input": {
+        "text": "opqrst"
+      },
+      "previous": "4D 01 4E 01 4F 01 50 01 51 01 52 01 FF FF 00 00",
+      "output": "53 01 54 01 55 01 56 01 57 01 58 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name uvwxyz",
+      "input": {
+        "text": "uvwxyz"
+      },
+      "previous": "53 01 54 01 55 01 56 01 57 01 58 01 FF FF 00 00",
+      "output": "59 01 5A 01 5B 01 5C 01 5D 01 5E 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ÀÁÂÃÄÅ",
+      "input": {
+        "text": "ÀÁÂÃÄÅ"
+      },
+      "previous": "59 01 5A 01 5B 01 5C 01 5D 01 5E 01 FF FF 00 00",
+      "output": "5F 01 60 01 61 01 62 01 63 01 64 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ÆÇÈÉÊË",
+      "input": {
+        "text": "ÆÇÈÉÊË"
+      },
+      "previous": "5F 01 60 01 61 01 62 01 63 01 64 01 FF FF 00 00",
+      "output": "65 01 66 01 67 01 68 01 69 01 6A 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ÌÍÎÏÐÑ",
+      "input": {
+        "text": "ÌÍÎÏÐÑ"
+      },
+      "previous": "65 01 66 01 67 01 68 01 69 01 6A 01 FF FF 00 00",
+      "output": "6B 01 6C 01 6D 01 6E 01 6F 01 70 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ÒÓÔÕÖ⑧",
+      "input": {
+        "text": "ÒÓÔÕÖ⑧"
+      },
+      "previous": "6B 01 6C 01 6D 01 6E 01 6F 01 70 01 FF FF 00 00",
+      "output": "71 01 72 01 73 01 74 01 75 01 76 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ØÙÚÛÜÝ",
+      "input": {
+        "text": "ØÙÚÛÜÝ"
+      },
+      "previous": "71 01 72 01 73 01 74 01 75 01 76 01 FF FF 00 00",
+      "output": "77 01 78 01 79 01 7A 01 7B 01 7C 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name Þßàáâã",
+      "input": {
+        "text": "Þßàáâã"
+      },
+      "previous": "77 01 78 01 79 01 7A 01 7B 01 7C 01 FF FF 00 00",
+      "output": "7D 01 7E 01 7F 01 80 01 81 01 82 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name äåæçèé",
+      "input": {
+        "text": "äåæçèé"
+      },
+      "previous": "7D 01 7E 01 7F 01 80 01 81 01 82 01 FF FF 00 00",
+      "output": "83 01 84 01 85 01 86 01 87 01 88 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name êëìíîï",
+      "input": {
+        "text": "êëìíîï"
+      },
+      "previous": "83 01 84 01 85 01 86 01 87 01 88 01 FF FF 00 00",
+      "output": "89 01 8A 01 8B 01 8C 01 8D 01 8E 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ðñòóôõ",
+      "input": {
+        "text": "ðñòóôõ"
+      },
+      "previous": "89 01 8A 01 8B 01 8C 01 8D 01 8E 01 FF FF 00 00",
+      "output": "8F 01 90 01 91 01 92 01 93 01 94 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ö⑨øùúû",
+      "input": {
+        "text": "ö⑨øùúû"
+      },
+      "previous": "8F 01 90 01 91 01 92 01 93 01 94 01 FF FF 00 00",
+      "output": "95 01 96 01 97 01 98 01 99 01 9A 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name üýþÿŒœ",
+      "input": {
+        "text": "üýþÿŒœ"
+      },
+      "previous": "95 01 96 01 97 01 98 01 99 01 9A 01 FF FF 00 00",
+      "output": "9B 01 9C 01 9D 01 9E 01 9F 01 A0 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name Şşªº⑩⑪",
+      "input": {
+        "text": "Şşªº⑩⑪"
+      },
+      "previous": "9B 01 9C 01 9D 01 9E 01 9F 01 A0 01 FF FF 00 00",
+      "output": "A1 01 A2 01 A3 01 A4 01 A5 01 A6 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ⑫$¡¿!?",
+      "input": {
+        "text": "⑫$¡¿!?"
+      },
+      "previous": "A1 01 A2 01 A3 01 A4 01 A5 01 A6 01 FF FF 00 00",
+      "output": "A7 01 A8 01 A9 01 AA 01 AB 01 AC 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ,.⑬･/‘",
+      "input": {
+        "text": ",.⑬･/‘"
+      },
+      "previous": "A7 01 A8 01 A9 01 AA 01 AB 01 AC 01 FF FF 00 00",
+      "output": "AD 01 AE 01 AF 01 B0 01 B1 01 B2 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name '“”„«»",
+      "input": {
+        "text": "'“”„«»"
+      },
+      "previous": "AD 01 AE 01 AF 01 B0 01 B1 01 B2 01 FF FF 00 00",
+      "output": "B3 01 B4 01 B5 01 B6 01 B7 01 B8 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ()+-#=",
+      "input": {
+        "text": "()+-#="
+      },
+      "previous": "B3 01 B4 01 B5 01 B6 01 B7 01 B8 01 FF FF 00 00",
+      "output": "B9 01 BA 01 BD 01 BE 01 C0 01 C1 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name &~:;⑯⑰",
+      "input": {
+        "text": "&~:;⑯⑰"
+      },
+      "previous": "B9 01 BA 01 BD 01 BE 01 C0 01 C1 01 FF FF 00 00",
+      "output": "C2 01 C3 01 C4 01 C5 01 C6 01 C7 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ⑱⑲⑳⑴⑵⑶",
+      "input": {
+        "text": "⑱⑲⑳⑴⑵⑶"
+      },
+      "previous": "C2 01 C3 01 C4 01 C5 01 C6 01 C7 01 FF FF 00 00",
+      "output": "C8 01 C9 01 CA 01 CB 01 CC 01 CD 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ⑷⑸@⑹%⑺",
+      "input": {
+        "text": "⑷⑸@⑹%⑺"
+      },
+      "previous": "C8 01 C9 01 CA 01 CB 01 CC 01 CD 01 FF FF 00 00",
+      "output": "CE 01 CF 01 D0 01 D1 01 D2 01 D3 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ⑻⑼⑽⑾⑿⒀",
+      "input": {
+        "text": "⑻⑼⑽⑾⑿⒀"
+      },
+      "previous": "CE 01 CF 01 D0 01 D1 01 D2 01 D3 01 FF FF 00 00",
+      "output": "D4 01 D5 01 D6 01 D7 01 D8 01 D9 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ⒁⒂⒃⒄⒅⒆",
+      "input": {
+        "text": "⒁⒂⒃⒄⒅⒆"
+      },
+      "previous": "D4 01 D5 01 D6 01 D7 01 D8 01 D9 01 FF FF 00 00",
+      "output": "DA 01 DB 01 DC 01 DD 01 DF 01 E0 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ⒇⒈⒉⒊⒋⒌",
+      "input": {
+        "text": "⒇⒈⒉⒊⒋⒌"
+      },
+      "previous": "DA 01 DB 01 DC 01 DD 01 DF 01 E0 01 FF FF 00 00",
+      "output": "E1 01 E2 01 E3 01 E4 01 E5 01 E6 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ⒍°_＿⒎⒏",
+      "input": {
+        "text": "⒍°_＿⒎⒏"
+      },
+      "previous": "E1 01 E2 01 E3 01 E4 01 E5 01 E6 01 FF FF 00 00",
+      "output": "E7 01 E8 01 E9 01 EA 01 EB 01 EC 01 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 가각간갇갈갉",
+      "input": {
+        "text": "가각간갇갈갉"
+      },
+      "previous": "E7 01 E8 01 E9 01 EA 01 EB 01 EC 01 FF FF 00 00",
+      "output": "01 04 02 04 03 04 04 04 05 04 06 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 갊감갑값갓갔",
+      "input": {
+        "text": "갊감갑값갓갔"
+      },
+      "previous": "01 04 02 04 03 04 04 04 05 04 06 04 FF FF 00 00",
+      "output": "07 04 08 04 09 04 0A 04 0B 04 0C 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 강갖갗같갚갛",
+      "input": {
+        "text": "강갖갗같갚갛"
+      },
+      "previous": "07 04 08 04 09 04 0A 04 0B 04 0C 04 FF FF 00 00",
+      "output": "0D 04 0E 04 0F 04 10 04 11 04 12 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 개객갠갤갬갭",
+      "input": {
+        "text": "개객갠갤갬갭"
+      },
+      "previous": "0D 04 0E 04 0F 04 10 04 11 04 12 04 FF FF 00 00",
+      "output": "13 04 14 04 15 04 16 04 17 04 18 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 갯갰갱갸갹갼",
+      "input": {
+        "text": "갯갰갱갸갹갼"
+      },
+      "previous": "13 04 14 04 15 04 16 04 17 04 18 04 FF FF 00 00",
+      "output": "19 04 1A 04 1B 04 1C 04 1D 04 1E 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 걀걋걍걔걘걜",
+      "input": {
+        "text": "걀걋걍걔걘걜"
+      },
+      "previous": "19 04 1A 04 1B 04 1C 04 1D 04 1E 04 FF FF 00 00",
+      "output": "1F 04 20 04 21 04 22 04 23 04 24 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 거걱건걷걸걺",
+      "input": {
+        "text": "거걱건걷걸걺"
+      },
+      "previous": "1F 04 20 04 21 04 22 04 23 04 24 04 FF FF 00 00",
+      "output": "25 04 26 04 27 04 28 04 29 04 2A 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 검겁것겄겅겆",
+      "input": {
+        "text": "검겁것겄겅겆"
+      },
+      "previous": "25 04 26 04 27 04 28 04 29 04 2A 04 FF FF 00 00",
+      "output": "2B 04 2C 04 2D 04 2E 04 2F 04 30 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 겉겊겋게겐겔",
+      "input": {
+        "text": "겉겊겋게겐겔"
+      },
+      "previous": "2B 04 2C 04 2D 04 2E 04 2F 04 30 04 FF FF 00 00",
+      "output": "31 04 32 04 33 04 34 04 35 04 36 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 겜겝겟겠겡겨",
+      "input": {
+        "text": "겜겝겟겠겡겨"
+      },
+      "previous": "31 04 32 04 33 04 34 04 35 04 36 04 FF FF 00 00",
+      "output": "37 04 38 04 39 04 3A 04 3B 04 3C 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 격겪견겯결겸",
+      "input": {
+        "text": "격겪견겯결겸"
+      },
+      "previous": "37 04 38 04 39 04 3A 04 3B 04 3C 04 FF FF 00 00",
+      "output": "3D 04 3E 04 3F 04 40 04 41 04 42 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 겹겻겼경곁계",
+      "input": {
+        "text": "겹겻겼경곁계"
+      },
+      "previous": "3D 04 3E 04 3F 04 40 04 41 04 42 04 FF FF 00 00",
+      "output": "43 04 44 04 45 04 46 04 47 04 48 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 곈곌곕곗고곡",
+      "input": {
+        "text": "곈곌곕곗고곡"
+      },
+      "previous": "43 04 44 04 45 04 46 04 47 04 48 04 FF FF 00 00",
+      "output": "49 04 4A 04 4B 04 4C 04 4D 04 4E 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 곤곧골곪곬곯",
+      "input": {
+        "text": "곤곧골곪곬곯"
+      },
+      "previous": "49 04 4A 04 4B 04 4C 04 4D 04 4E 04 FF FF 00 00",
+      "output": "4F 04 50 04 51 04 52 04 53 04 54 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 곰곱곳공곶과",
+      "input": {
+        "text": "곰곱곳공곶과"
+      },
+      "previous": "4F 04 50 04 51 04 52 04 53 04 54 04 FF FF 00 00",
+      "output": "55 04 56 04 57 04 58 04 59 04 5A 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 곽관괄괆괌괍",
+      "input": {
+        "text": "곽관괄괆괌괍"
+      },
+      "previous": "55 04 56 04 57 04 58 04 59 04 5A 04 FF FF 00 00",
+      "output": "5B 04 5C 04 5D 04 5E 04 5F 04 60 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 괏광괘괜괠괩",
+      "input": {
+        "text": "괏광괘괜괠괩"
+      },
+      "previous": "5B 04 5C 04 5D 04 5E 04 5F 04 60 04 FF FF 00 00",
+      "output": "61 04 62 04 63 04 64 04 65 04 66 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 괬괭괴괵괸괼",
+      "input": {
+        "text": "괬괭괴괵괸괼"
+      },
+      "previous": "61 04 62 04 63 04 64 04 65 04 66 04 FF FF 00 00",
+      "output": "67 04 68 04 69 04 6A 04 6B 04 6C 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 굄굅굇굉교굔",
+      "input": {
+        "text": "굄굅굇굉교굔"
+      },
+      "previous": "67 04 68 04 69 04 6A 04 6B 04 6C 04 FF FF 00 00",
+      "output": "6D 04 6E 04 6F 04 70 04 71 04 72 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 굘굡굣구국군",
+      "input": {
+        "text": "굘굡굣구국군"
+      },
+      "previous": "6D 04 6E 04 6F 04 70 04 71 04 72 04 FF FF 00 00",
+      "output": "73 04 74 04 75 04 76 04 77 04 78 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 굳굴굵굶굻굼",
+      "input": {
+        "text": "굳굴굵굶굻굼"
+      },
+      "previous": "73 04 74 04 75 04 76 04 77 04 78 04 FF FF 00 00",
+      "output": "79 04 7A 04 7B 04 7C 04 7D 04 7E 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 굽굿궁궂궈궉",
+      "input": {
+        "text": "굽굿궁궂궈궉"
+      },
+      "previous": "79 04 7A 04 7B 04 7C 04 7D 04 7E 04 FF FF 00 00",
+      "output": "7F 04 80 04 81 04 82 04 83 04 84 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 권궐궜궝궤궷",
+      "input": {
+        "text": "권궐궜궝궤궷"
+      },
+      "previous": "7F 04 80 04 81 04 82 04 83 04 84 04 FF FF 00 00",
+      "output": "85 04 86 04 87 04 88 04 89 04 8A 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 귀귁귄귈귐귑",
+      "input": {
+        "text": "귀귁귄귈귐귑"
+      },
+      "previous": "85 04 86 04 87 04 88 04 89 04 8A 04 FF FF 00 00",
+      "output": "8B 04 8C 04 8D 04 8E 04 8F 04 90 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 귓규균귤그극",
+      "input": {
+        "text": "귓규균귤그극"
+      },
+      "previous": "8B 04 8C 04 8D 04 8E 04 8F 04 90 04 FF FF 00 00",
+      "output": "91 04 92 04 93 04 94 04 95 04 96 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 근귿글긁금급",
+      "input": {
+        "text": "근귿글긁금급"
+      },
+      "previous": "91 04 92 04 93 04 94 04 95 04 96 04 FF FF 00 00",
+      "output": "97 04 98 04 99 04 9A 04 9B 04 9C 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 긋긍긔기긱긴",
+      "input": {
+        "text": "긋긍긔기긱긴"
+      },
+      "previous": "97 04 98 04 99 04 9A 04 9B 04 9C 04 FF FF 00 00",
+      "output": "9D 04 9E 04 9F 04 A0 04 A1 04 A2 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 긷길긺김깁깃",
+      "input": {
+        "text": "긷길긺김깁깃"
+      },
+      "previous": "9D 04 9E 04 9F 04 A0 04 A1 04 A2 04 FF FF 00 00",
+      "output": "A3 04 A4 04 A5 04 A6 04 A7 04 A8 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 깅깆깊까깍깎",
+      "input": {
+        "text": "깅깆깊까깍깎"
+      },
+      "previous": "A3 04 A4 04 A5 04 A6 04 A7 04 A8 04 FF FF 00 00",
+      "output": "A9 04 AA 04 AB 04 AC 04 AD 04 AE 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 깐깔깖깜깝깟",
+      "input": {
+        "text": "깐깔깖깜깝깟"
+      },
+      "previous": "A9 04 AA 04 AB 04 AC 04 AD 04 AE 04 FF FF 00 00",
+      "output": "AF 04 B0 04 B1 04 B2 04 B3 04 B4 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 깠깡깥깨깩깬",
+      "input": {
+        "text": "깠깡깥깨깩깬"
+      },
+      "previous": "AF 04 B0 04 B1 04 B2 04 B3 04 B4 04 FF FF 00 00",
+      "output": "B5 04 B6 04 B7 04 B8 04 B9 04 BA 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 깰깸깹깻깼깽",
+      "input": {
+        "text": "깰깸깹깻깼깽"
+      },
+      "previous": "B5 04 B6 04 B7 04 B8 04 B9 04 BA 04 FF FF 00 00",
+      "output": "BB 04 BC 04 BD 04 BE 04 BF 04 C0 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 꺄꺅꺌꺼꺽꺾",
+      "input": {
+        "text": "꺄꺅꺌꺼꺽꺾"
+      },
+      "previous": "BB 04 BC 04 BD 04 BE 04 BF 04 C0 04 FF FF 00 00",
+      "output": "C1 04 C2 04 C3 04 C4 04 C5 04 C6 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 껀껄껌껍껏껐",
+      "input": {
+        "text": "껀껄껌껍껏껐"
+      },
+      "previous": "C1 04 C2 04 C3 04 C4 04 C5 04 C6 04 FF FF 00 00",
+      "output": "C7 04 C8 04 C9 04 CA 04 CB 04 CC 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 껑께껙껜껨껫",
+      "input": {
+        "text": "껑께껙껜껨껫"
+      },
+      "previous": "C7 04 C8 04 C9 04 CA 04 CB 04 CC 04 FF FF 00 00",
+      "output": "CD 04 CE 04 CF 04 D0 04 D1 04 D2 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 껭껴껸껼꼇꼈",
+      "input": {
+        "text": "껭껴껸껼꼇꼈"
+      },
+      "previous": "CD 04 CE 04 CF 04 D0 04 D1 04 D2 04 FF FF 00 00",
+      "output": "D3 04 D4 04 D5 04 D6 04 D7 04 D8 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 꼍꼐꼬꼭꼰꼲",
+      "input": {
+        "text": "꼍꼐꼬꼭꼰꼲"
+      },
+      "previous": "D3 04 D4 04 D5 04 D6 04 D7 04 D8 04 FF FF 00 00",
+      "output": "D9 04 DA 04 DB 04 DC 04 DD 04 DE 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 꼴꼼꼽꼿꽁꽂",
+      "input": {
+        "text": "꼴꼼꼽꼿꽁꽂"
+      },
+      "previous": "D9 04 DA 04 DB 04 DC 04 DD 04 DE 04 FF FF 00 00",
+      "output": "DF 04 E0 04 E1 04 E2 04 E3 04 E4 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 꽃꽈꽉꽐꽜꽝",
+      "input": {
+        "text": "꽃꽈꽉꽐꽜꽝"
+      },
+      "previous": "DF 04 E0 04 E1 04 E2 04 E3 04 E4 04 FF FF 00 00",
+      "output": "E5 04 E6 04 E7 04 E8 04 E9 04 EA 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 꽤꽥꽹꾀꾄꾈",
+      "input": {
+        "text": "꽤꽥꽹꾀꾄꾈"
+      },
+      "previous": "E5 04 E6 04 E7 04 E8 04 E9 04 EA 04 FF FF 00 00",
+      "output": "EB 04 EC 04 ED 04 EE 04 EF 04 F0 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 꾐꾑꾕꾜꾸꾹",
+      "input": {
+        "text": "꾐꾑꾕꾜꾸꾹"
+      },
+      "previous": "EB 04 EC 04 ED 04 EE 04 EF 04 F0 04 FF FF 00 00",
+      "output": "F1 04 F2 04 F3 04 F4 04 F5 04 F6 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 꾼꿀꿇꿈꿉꿋",
+      "input": {
+        "text": "꾼꿀꿇꿈꿉꿋"
+      },
+      "previous": "F1 04 F2 04 F3 04 F4 04 F5 04 F6 04 FF FF 00 00",
+      "output": "F7 04 F8 04 F9 04 FA 04 FB 04 FC 04 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 꿍꿎꿔꿜꿨꿩",
+      "input": {
+        "text": "꿍꿎꿔꿜꿨꿩"
+      },
+      "previous": "F7 04 F8 04 F9 04 FA 04 FB 04 FC 04 FF FF 00 00",
+      "output": "FD 04 FE 04 FF 04 00 05 01 05 02 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 꿰꿱꿴꿸뀀뀁",
+      "input": {
+        "text": "꿰꿱꿴꿸뀀뀁"
+      },
+      "previous": "FD 04 FE 04 FF 04 00 05 01 05 02 05 FF FF 00 00",
+      "output": "03 05 04 05 05 05 06 05 07 05 08 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 뀄뀌뀐뀔뀜뀝",
+      "input": {
+        "text": "뀄뀌뀐뀔뀜뀝"
+      },
+      "previous": "03 05 04 05 05 05 06 05 07 05 08 05 FF FF 00 00",
+      "output": "09 05 0A 05 0B 05 0C 05 0D 05 0E 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 뀨끄끅끈끊끌",
+      "input": {
+        "text": "뀨끄끅끈끊끌"
+      },
+      "previous": "09 05 0A 05 0B 05 0C 05 0D 05 0E 05 FF FF 00 00",
+      "output": "0F 05 10 05 11 05 12 05 13 05 14 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 끎끓끔끕끗끙",
+      "input": {
+        "text": "끎끓끔끕끗끙"
+      },
+      "previous": "0F 05 10 05 11 05 12 05 13 05 14 05 FF FF 00 00",
+      "output": "15 05 16 05 17 05 18 05 19 05 1A 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 끝끼끽낀낄낌",
+      "input": {
+        "text": "끝끼끽낀낄낌"
+      },
+      "previous": "15 05 16 05 17 05 18 05 19 05 1A 05 FF FF 00 00",
+      "output": "1B 05 1C 05 1D 05 1E 05 1F 05 20 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 낍낏낑나낙낚",
+      "input": {
+        "text": "낍낏낑나낙낚"
+      },
+      "previous": "1B 05 1C 05 1D 05 1E 05 1F 05 20 05 FF FF 00 00",
+      "output": "21 05 22 05 23 05 24 05 25 05 26 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 난낟날낡낢남",
+      "input": {
+        "text": "난낟날낡낢남"
+      },
+      "previous": "21 05 22 05 23 05 24 05 25 05 26 05 FF FF 00 00",
+      "output": "27 05 28 05 29 05 2A 05 2B 05 2C 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 납낫났낭낮낯",
+      "input": {
+        "text": "납낫났낭낮낯"
+      },
+      "previous": "27 05 28 05 29 05 2A 05 2B 05 2C 05 FF FF 00 00",
+      "output": "2D 05 2E 05 2F 05 30 05 31 05 32 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 낱낳내낵낸낼",
+      "input": {
+        "text": "낱낳내낵낸낼"
+      },
+      "previous": "2D 05 2E 05 2F 05 30 05 31 05 32 05 FF FF 00 00",
+      "output": "33 05 34 05 35 05 36 05 37 05 38 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 냄냅냇냈냉냐",
+      "input": {
+        "text": "냄냅냇냈냉냐"
+      },
+      "previous": "33 05 34 05 35 05 36 05 37 05 38 05 FF FF 00 00",
+      "output": "39 05 3A 05 3B 05 3C 05 3D 05 3E 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 냑냔냘냠냥너",
+      "input": {
+        "text": "냑냔냘냠냥너"
+      },
+      "previous": "39 05 3A 05 3B 05 3C 05 3D 05 3E 05 FF FF 00 00",
+      "output": "3F 05 40 05 41 05 42 05 43 05 44 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 넉넋넌널넒넓",
+      "input": {
+        "text": "넉넋넌널넒넓"
+      },
+      "previous": "3F 05 40 05 41 05 42 05 43 05 44 05 FF FF 00 00",
+      "output": "45 05 46 05 47 05 48 05 49 05 4A 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 넘넙넛넜넝넣",
+      "input": {
+        "text": "넘넙넛넜넝넣"
+      },
+      "previous": "45 05 46 05 47 05 48 05 49 05 4A 05 FF FF 00 00",
+      "output": "4B 05 4C 05 4D 05 4E 05 4F 05 50 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 네넥넨넬넴넵",
+      "input": {
+        "text": "네넥넨넬넴넵"
+      },
+      "previous": "4B 05 4C 05 4D 05 4E 05 4F 05 50 05 FF FF 00 00",
+      "output": "51 05 52 05 53 05 54 05 55 05 56 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 넷넸넹녀녁년",
+      "input": {
+        "text": "넷넸넹녀녁년"
+      },
+      "previous": "51 05 52 05 53 05 54 05 55 05 56 05 FF FF 00 00",
+      "output": "57 05 58 05 59 05 5A 05 5B 05 5C 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 녈념녑녔녕녘",
+      "input": {
+        "text": "녈념녑녔녕녘"
+      },
+      "previous": "57 05 58 05 59 05 5A 05 5B 05 5C 05 FF FF 00 00",
+      "output": "5D 05 5E 05 5F 05 60 05 61 05 62 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 녜녠노녹논놀",
+      "input": {
+        "text": "녜녠노녹논놀"
+      },
+      "previous": "5D 05 5E 05 5F 05 60 05 61 05 62 05 FF FF 00 00",
+      "output": "63 05 64 05 65 05 66 05 67 05 68 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 놂놈놉놋농높",
+      "input": {
+        "text": "놂놈놉놋농높"
+      },
+      "previous": "63 05 64 05 65 05 66 05 67 05 68 05 FF FF 00 00",
+      "output": "69 05 6A 05 6B 05 6C 05 6D 05 6E 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 놓놔놘놜놨뇌",
+      "input": {
+        "text": "놓놔놘놜놨뇌"
+      },
+      "previous": "69 05 6A 05 6B 05 6C 05 6D 05 6E 05 FF FF 00 00",
+      "output": "6F 05 70 05 71 05 72 05 73 05 74 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 뇐뇔뇜뇝뇟뇨",
+      "input": {
+        "text": "뇐뇔뇜뇝뇟뇨"
+      },
+      "previous": "6F 05 70 05 71 05 72 05 73 05 74 05 FF FF 00 00",
+      "output": "75 05 76 05 77 05 78 05 79 05 7A 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 뇩뇬뇰뇹뇻뇽",
+      "input": {
+        "text": "뇩뇬뇰뇹뇻뇽"
+      },
+      "previous": "75 05 76 05 77 05 78 05 79 05 7A 05 FF FF 00 00",
+      "output": "7B 05 7C 05 7D 05 7E 05 7F 05 80 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 누눅눈눋눌눔",
+      "input": {
+        "text": "누눅눈눋눌눔"
+      },
+      "previous": "7B 05 7C 05 7D 05 7E 05 7F 05 80 05 FF FF 00 00",
+      "output": "81 05 82 05 83 05 84 05 85 05 86 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 눕눗눙눠눴눼",
+      "input": {
+        "text": "눕눗눙눠눴눼"
+      },
+      "previous": "81 05 82 05 83 05 84 05 85 05 86 05 FF FF 00 00",
+      "output": "87 05 88 05 89 05 8A 05 8B 05 8C 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 뉘뉜뉠뉨뉩뉴",
+      "input": {
+        "text": "뉘뉜뉠뉨뉩뉴"
+      },
+      "previous": "87 05 88 05 89 05 8A 05 8B 05 8C 05 FF FF 00 00",
+      "output": "8D 05 8E 05 8F 05 90 05 91 05 92 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 뉵뉼늄늅늉느",
+      "input": {
+        "text": "뉵뉼늄늅늉느"
+      },
+      "previous": "8D 05 8E 05 8F 05 90 05 91 05 92 05 FF FF 00 00",
+      "output": "93 05 94 05 95 05 96 05 97 05 98 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 늑는늘늙늚늠",
+      "input": {
+        "text": "늑는늘늙늚늠"
+      },
+      "previous": "93 05 94 05 95 05 96 05 97 05 98 05 FF FF 00 00",
+      "output": "99 05 9A 05 9B 05 9C 05 9D 05 9E 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 늡늣능늦늪늬",
+      "input": {
+        "text": "늡늣능늦늪늬"
+      },
+      "previous": "99 05 9A 05 9B 05 9C 05 9D 05 9E 05 FF FF 00 00",
+      "output": "9F 05 A0 05 A1 05 A2 05 A3 05 A4 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 늰늴니닉닌닐",
+      "input": {
+        "text": "늰늴니닉닌닐"
+      },
+      "previous": "9F 05 A0 05 A1 05 A2 05 A3 05 A4 05 FF FF 00 00",
+      "output": "A5 05 A6 05 A7 05 A8 05 A9 05 AA 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 닒님닙닛닝닢",
+      "input": {
+        "text": "닒님닙닛닝닢"
+      },
+      "previous": "A5 05 A6 05 A7 05 A8 05 A9 05 AA 05 FF FF 00 00",
+      "output": "AB 05 AC 05 AD 05 AE 05 AF 05 B0 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 다닥닦단닫달",
+      "input": {
+        "text": "다닥닦단닫달"
+      },
+      "previous": "AB 05 AC 05 AD 05 AE 05 AF 05 B0 05 FF FF 00 00",
+      "output": "B1 05 B2 05 B3 05 B4 05 B5 05 B6 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 닭닮닯닳담답",
+      "input": {
+        "text": "닭닮닯닳담답"
+      },
+      "previous": "B1 05 B2 05 B3 05 B4 05 B5 05 B6 05 FF FF 00 00",
+      "output": "B7 05 B8 05 B9 05 BA 05 BB 05 BC 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 닷닸당닺닻닿",
+      "input": {
+        "text": "닷닸당닺닻닿"
+      },
+      "previous": "B7 05 B8 05 B9 05 BA 05 BB 05 BC 05 FF FF 00 00",
+      "output": "BD 05 BE 05 BF 05 C0 05 C1 05 C2 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 대댁댄댈댐댑",
+      "input": {
+        "text": "대댁댄댈댐댑"
+      },
+      "previous": "BD 05 BE 05 BF 05 C0 05 C1 05 C2 05 FF FF 00 00",
+      "output": "C3 05 C4 05 C5 05 C6 05 C7 05 C8 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 댓댔댕댜더덕",
+      "input": {
+        "text": "댓댔댕댜더덕"
+      },
+      "previous": "C3 05 C4 05 C5 05 C6 05 C7 05 C8 05 FF FF 00 00",
+      "output": "C9 05 CA 05 CB 05 CC 05 CD 05 CE 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 덖던덛덜덞덟",
+      "input": {
+        "text": "덖던덛덜덞덟"
+      },
+      "previous": "C9 05 CA 05 CB 05 CC 05 CD 05 CE 05 FF FF 00 00",
+      "output": "CF 05 D0 05 D1 05 D2 05 D3 05 D4 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 덤덥덧덩덫덮",
+      "input": {
+        "text": "덤덥덧덩덫덮"
+      },
+      "previous": "CF 05 D0 05 D1 05 D2 05 D3 05 D4 05 FF FF 00 00",
+      "output": "D5 05 D6 05 D7 05 D8 05 D9 05 DA 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 데덱덴델뎀뎁",
+      "input": {
+        "text": "데덱덴델뎀뎁"
+      },
+      "previous": "D5 05 D6 05 D7 05 D8 05 D9 05 DA 05 FF FF 00 00",
+      "output": "DB 05 DC 05 DD 05 DE 05 DF 05 E0 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 뎃뎄뎅뎌뎐뎔",
+      "input": {
+        "text": "뎃뎄뎅뎌뎐뎔"
+      },
+      "previous": "DB 05 DC 05 DD 05 DE 05 DF 05 E0 05 FF FF 00 00",
+      "output": "E1 05 E2 05 E3 05 E4 05 E5 05 E6 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 뎠뎡뎨뎬도독",
+      "input": {
+        "text": "뎠뎡뎨뎬도독"
+      },
+      "previous": "E1 05 E2 05 E3 05 E4 05 E5 05 E6 05 FF FF 00 00",
+      "output": "E7 05 E8 05 E9 05 EA 05 EB 05 EC 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 돈돋돌돎돐돔",
+      "input": {
+        "text": "돈돋돌돎돐돔"
+      },
+      "previous": "E7 05 E8 05 E9 05 EA 05 EB 05 EC 05 FF FF 00 00",
+      "output": "ED 05 EE 05 EF 05 F0 05 F1 05 F2 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 돕돗동돛돝돠",
+      "input": {
+        "text": "돕돗동돛돝돠"
+      },
+      "previous": "ED 05 EE 05 EF 05 F0 05 F1 05 F2 05 FF FF 00 00",
+      "output": "F3 05 F4 05 F5 05 F6 05 F7 05 F8 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 돤돨돼됐되된",
+      "input": {
+        "text": "돤돨돼됐되된"
+      },
+      "previous": "F3 05 F4 05 F5 05 F6 05 F7 05 F8 05 FF FF 00 00",
+      "output": "F9 05 FA 05 FB 05 FC 05 FD 05 FE 05 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 될됨됩됫됴두",
+      "input": {
+        "text": "될됨됩됫됴두"
+      },
+      "previous": "F9 05 FA 05 FB 05 FC 05 FD 05 FE 05 FF FF 00 00",
+      "output": "FF 05 00 06 01 06 02 06 03 06 04 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 둑둔둘둠둡둣",
+      "input": {
+        "text": "둑둔둘둠둡둣"
+      },
+      "previous": "FF 05 00 06 01 06 02 06 03 06 04 06 FF FF 00 00",
+      "output": "05 06 06 06 07 06 08 06 09 06 0A 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 둥둬뒀뒈뒝뒤",
+      "input": {
+        "text": "둥둬뒀뒈뒝뒤"
+      },
+      "previous": "05 06 06 06 07 06 08 06 09 06 0A 06 FF FF 00 00",
+      "output": "0B 06 0C 06 0D 06 0E 06 0F 06 10 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 뒨뒬뒵뒷뒹듀",
+      "input": {
+        "text": "뒨뒬뒵뒷뒹듀"
+      },
+      "previous": "0B 06 0C 06 0D 06 0E 06 0F 06 10 06 FF FF 00 00",
+      "output": "11 06 12 06 13 06 14 06 15 06 16 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 듄듈듐듕드득",
+      "input": {
+        "text": "듄듈듐듕드득"
+      },
+      "previous": "11 06 12 06 13 06 14 06 15 06 16 06 FF FF 00 00",
+      "output": "17 06 18 06 19 06 1A 06 1B 06 1C 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 든듣들듦듬듭",
+      "input": {
+        "text": "든듣들듦듬듭"
+      },
+      "previous": "17 06 18 06 19 06 1A 06 1B 06 1C 06 FF FF 00 00",
+      "output": "1D 06 1E 06 1F 06 20 06 21 06 22 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 듯등듸디딕딘",
+      "input": {
+        "text": "듯등듸디딕딘"
+      },
+      "previous": "1D 06 1E 06 1F 06 20 06 21 06 22 06 FF FF 00 00",
+      "output": "23 06 24 06 25 06 26 06 27 06 28 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 딛딜딤딥딧딨",
+      "input": {
+        "text": "딛딜딤딥딧딨"
+      },
+      "previous": "23 06 24 06 25 06 26 06 27 06 28 06 FF FF 00 00",
+      "output": "29 06 2A 06 2B 06 2C 06 2D 06 2E 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 딩딪따딱딴딸",
+      "input": {
+        "text": "딩딪따딱딴딸"
+      },
+      "previous": "29 06 2A 06 2B 06 2C 06 2D 06 2E 06 FF FF 00 00",
+      "output": "2F 06 30 06 31 06 32 06 33 06 34 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 땀땁땃땄땅땋",
+      "input": {
+        "text": "땀땁땃땄땅땋"
+      },
+      "previous": "2F 06 30 06 31 06 32 06 33 06 34 06 FF FF 00 00",
+      "output": "35 06 36 06 37 06 38 06 39 06 3A 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 때땍땐땔땜땝",
+      "input": {
+        "text": "때땍땐땔땜땝"
+      },
+      "previous": "35 06 36 06 37 06 38 06 39 06 3A 06 FF FF 00 00",
+      "output": "3B 06 3C 06 3D 06 3E 06 3F 06 40 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 땟땠땡떠떡떤",
+      "input": {
+        "text": "땟땠땡떠떡떤"
+      },
+      "previous": "3B 06 3C 06 3D 06 3E 06 3F 06 40 06 FF FF 00 00",
+      "output": "41 06 42 06 43 06 44 06 45 06 46 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 떨떪떫떰떱떳",
+      "input": {
+        "text": "떨떪떫떰떱떳"
+      },
+      "previous": "41 06 42 06 43 06 44 06 45 06 46 06 FF FF 00 00",
+      "output": "47 06 48 06 49 06 4A 06 4B 06 4C 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 떴떵떻떼떽뗀",
+      "input": {
+        "text": "떴떵떻떼떽뗀"
+      },
+      "previous": "47 06 48 06 49 06 4A 06 4B 06 4C 06 FF FF 00 00",
+      "output": "4D 06 4E 06 4F 06 50 06 51 06 52 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 뗄뗌뗍뗏뗐뗑",
+      "input": {
+        "text": "뗄뗌뗍뗏뗐뗑"
+      },
+      "previous": "4D 06 4E 06 4F 06 50 06 51 06 52 06 FF FF 00 00",
+      "output": "53 06 54 06 55 06 56 06 57 06 58 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 뗘뗬또똑똔똘",
+      "input": {
+        "text": "뗘뗬또똑똔똘"
+      },
+      "previous": "53 06 54 06 55 06 56 06 57 06 58 06 FF FF 00 00",
+      "output": "59 06 5A 06 5B 06 5C 06 5D 06 5E 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 똥똬똴뙈뙤뙨",
+      "input": {
+        "text": "똥똬똴뙈뙤뙨"
+      },
+      "previous": "59 06 5A 06 5B 06 5C 06 5D 06 5E 06 FF FF 00 00",
+      "output": "5F 06 60 06 61 06 62 06 63 06 64 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 뚜뚝뚠뚤뚫뚬",
+      "input": {
+        "text": "뚜뚝뚠뚤뚫뚬"
+      },
+      "previous": "5F 06 60 06 61 06 62 06 63 06 64 06 FF FF 00 00",
+      "output": "65 06 66 06 67 06 68 06 69 06 6A 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 뚱뛔뛰뛴뛸뜀",
+      "input": {
+        "text": "뚱뛔뛰뛴뛸뜀"
+      },
+      "previous": "65 06 66 06 67 06 68 06 69 06 6A 06 FF FF 00 00",
+      "output": "6B 06 6C 06 6D 06 6E 06 6F 06 70 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 뜁뜅뜨뜩뜬뜯",
+      "input": {
+        "text": "뜁뜅뜨뜩뜬뜯"
+      },
+      "previous": "6B 06 6C 06 6D 06 6E 06 6F 06 70 06 FF FF 00 00",
+      "output": "71 06 72 06 73 06 74 06 75 06 76 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 뜰뜸뜹뜻띄띈",
+      "input": {
+        "text": "뜰뜸뜹뜻띄띈"
+      },
+      "previous": "71 06 72 06 73 06 74 06 75 06 76 06 FF FF 00 00",
+      "output": "77 06 78 06 79 06 7A 06 7B 06 7C 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 띌띔띕띠띤띨",
+      "input": {
+        "text": "띌띔띕띠띤띨"
+      },
+      "previous": "77 06 78 06 79 06 7A 06 7B 06 7C 06 FF FF 00 00",
+      "output": "7D 06 7E 06 7F 06 80 06 81 06 82 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 띰띱띳띵라락",
+      "input": {
+        "text": "띰띱띳띵라락"
+      },
+      "previous": "7D 06 7E 06 7F 06 80 06 81 06 82 06 FF FF 00 00",
+      "output": "83 06 84 06 85 06 86 06 87 06 88 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 란랄람랍랏랐",
+      "input": {
+        "text": "란랄람랍랏랐"
+      },
+      "previous": "83 06 84 06 85 06 86 06 87 06 88 06 FF FF 00 00",
+      "output": "89 06 8A 06 8B 06 8C 06 8D 06 8E 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 랑랒랖랗래랙",
+      "input": {
+        "text": "랑랒랖랗래랙"
+      },
+      "previous": "89 06 8A 06 8B 06 8C 06 8D 06 8E 06 FF FF 00 00",
+      "output": "8F 06 90 06 91 06 92 06 93 06 94 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 랜랠램랩랫랬",
+      "input": {
+        "text": "랜랠램랩랫랬"
+      },
+      "previous": "8F 06 90 06 91 06 92 06 93 06 94 06 FF FF 00 00",
+      "output": "95 06 96 06 97 06 98 06 99 06 9A 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 랭랴략랸럇량",
+      "input": {
+        "text": "랭랴략랸럇량"
+      },
+      "previous": "95 06 96 06 97 06 98 06 99 06 9A 06 FF FF 00 00",
+      "output": "9B 06 9C 06 9D 06 9E 06 9F 06 A0 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 러럭런럴럼럽",
+      "input": {
+        "text": "러럭런럴럼럽"
+      },
+      "previous": "9B 06 9C 06 9D 06 9E 06 9F 06 A0 06 FF FF 00 00",
+      "output": "A1 06 A2 06 A3 06 A4 06 A5 06 A6 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 럿렀렁렇레렉",
+      "input": {
+        "text": "럿렀렁렇레렉"
+      },
+      "previous": "A1 06 A2 06 A3 06 A4 06 A5 06 A6 06 FF FF 00 00",
+      "output": "A7 06 A8 06 A9 06 AA 06 AB 06 AC 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 렌렐렘렙렛렝",
+      "input": {
+        "text": "렌렐렘렙렛렝"
+      },
+      "previous": "A7 06 A8 06 A9 06 AA 06 AB 06 AC 06 FF FF 00 00",
+      "output": "AD 06 AE 06 AF 06 B0 06 B1 06 B2 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 려력련렬렴렵",
+      "input": {
+        "text": "려력련렬렴렵"
+      },
+      "previous": "AD 06 AE 06 AF 06 B0 06 B1 06 B2 06 FF FF 00 00",
+      "output": "B3 06 B4 06 B5 06 B6 06 B7 06 B8 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 렷렸령례롄롑",
+      "input": {
+        "text": "렷렸령례롄롑"
+      },
+      "previous": "B3 06 B4 06 B5 06 B6 06 B7 06 B8 06 FF FF 00 00",
+      "output": "B9 06 BA 06 BB 06 BC 06 BD 06 BE 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 롓로록론롤롬",
+      "input": {
+        "text": "롓로록론롤롬"
+      },
+      "previous": "B9 06 BA 06 BB 06 BC 06 BD 06 BE 06 FF FF 00 00",
+      "output": "BF 06 C0 06 C1 06 C2 06 C3 06 C4 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 롭롯롱롸롼뢍",
+      "input": {
+        "text": "롭롯롱롸롼뢍"
+      },
+      "previous": "BF 06 C0 06 C1 06 C2 06 C3 06 C4 06 FF FF 00 00",
+      "output": "C5 06 C6 06 C7 06 C8 06 C9 06 CA 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 뢨뢰뢴뢸룀룁",
+      "input": {
+        "text": "뢨뢰뢴뢸룀룁"
+      },
+      "previous": "C5 06 C6 06 C7 06 C8 06 C9 06 CA 06 FF FF 00 00",
+      "output": "CB 06 CC 06 CD 06 CE 06 CF 06 D0 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 룃룅료룐룔룝",
+      "input": {
+        "text": "룃룅료룐룔룝"
+      },
+      "previous": "CB 06 CC 06 CD 06 CE 06 CF 06 D0 06 FF FF 00 00",
+      "output": "D1 06 D2 06 D3 06 D4 06 D5 06 D6 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 룟룡루룩룬룰",
+      "input": {
+        "text": "룟룡루룩룬룰"
+      },
+      "previous": "D1 06 D2 06 D3 06 D4 06 D5 06 D6 06 FF FF 00 00",
+      "output": "D7 06 D8 06 D9 06 DA 06 DB 06 DC 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 룸룹룻룽뤄뤘",
+      "input": {
+        "text": "룸룹룻룽뤄뤘"
+      },
+      "previous": "D7 06 D8 06 D9 06 DA 06 DB 06 DC 06 FF FF 00 00",
+      "output": "DD 06 DE 06 DF 06 E0 06 E1 06 E2 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 뤠뤼뤽륀륄륌",
+      "input": {
+        "text": "뤠뤼뤽륀륄륌"
+      },
+      "previous": "DD 06 DE 06 DF 06 E0 06 E1 06 E2 06 FF FF 00 00",
+      "output": "E3 06 E4 06 E5 06 E6 06 E7 06 E8 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 륏륑류륙륜률",
+      "input": {
+        "text": "륏륑류륙륜률"
+      },
+      "previous": "E3 06 E4 06 E5 06 E6 06 E7 06 E8 06 FF FF 00 00",
+      "output": "E9 06 EA 06 EB 06 EC 06 ED 06 EE 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 륨륩륫륭르륵",
+      "input": {
+        "text": "륨륩륫륭르륵"
+      },
+      "previous": "E9 06 EA 06 EB 06 EC 06 ED 06 EE 06 FF FF 00 00",
+      "output": "EF 06 F0 06 F1 06 F2 06 F3 06 F4 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 른를름릅릇릉",
+      "input": {
+        "text": "른를름릅릇릉"
+      },
+      "previous": "EF 06 F0 06 F1 06 F2 06 F3 06 F4 06 FF FF 00 00",
+      "output": "F5 06 F6 06 F7 06 F8 06 F9 06 FA 06 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 릊릍릎리릭린",
+      "input": {
+        "text": "릊릍릎리릭린"
+      },
+      "previous": "F5 06 F6 06 F7 06 F8 06 F9 06 FA 06 FF FF 00 00",
+      "output": "FB 06 FC 06 FD 06 FE 06 FF 06 00 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 릴림립릿링마",
+      "input": {
+        "text": "릴림립릿링마"
+      },
+      "previous": "FB 06 FC 06 FD 06 FE 06 FF 06 00 07 FF FF 00 00",
+      "output": "01 07 02 07 03 07 04 07 05 07 06 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 막만많맏말맑",
+      "input": {
+        "text": "막만많맏말맑"
+      },
+      "previous": "01 07 02 07 03 07 04 07 05 07 06 07 FF FF 00 00",
+      "output": "07 07 08 07 09 07 0A 07 0B 07 0C 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 맒맘맙맛망맞",
+      "input": {
+        "text": "맒맘맙맛망맞"
+      },
+      "previous": "07 07 08 07 09 07 0A 07 0B 07 0C 07 FF FF 00 00",
+      "output": "0D 07 0E 07 0F 07 10 07 11 07 12 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 맡맣매맥맨맬",
+      "input": {
+        "text": "맡맣매맥맨맬"
+      },
+      "previous": "0D 07 0E 07 0F 07 10 07 11 07 12 07 FF FF 00 00",
+      "output": "13 07 14 07 15 07 16 07 17 07 18 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 맴맵맷맸맹맺",
+      "input": {
+        "text": "맴맵맷맸맹맺"
+      },
+      "previous": "13 07 14 07 15 07 16 07 17 07 18 07 FF FF 00 00",
+      "output": "19 07 1A 07 1B 07 1C 07 1D 07 1E 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 먀먁먈먕머먹",
+      "input": {
+        "text": "먀먁먈먕머먹"
+      },
+      "previous": "19 07 1A 07 1B 07 1C 07 1D 07 1E 07 FF FF 00 00",
+      "output": "1F 07 20 07 21 07 22 07 23 07 24 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 먼멀멂멈멉멋",
+      "input": {
+        "text": "먼멀멂멈멉멋"
+      },
+      "previous": "1F 07 20 07 21 07 22 07 23 07 24 07 FF FF 00 00",
+      "output": "25 07 26 07 27 07 28 07 29 07 2A 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 멍멎멓메멕멘",
+      "input": {
+        "text": "멍멎멓메멕멘"
+      },
+      "previous": "25 07 26 07 27 07 28 07 29 07 2A 07 FF FF 00 00",
+      "output": "2B 07 2C 07 2D 07 2E 07 2F 07 30 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 멜멤멥멧멨멩",
+      "input": {
+        "text": "멜멤멥멧멨멩"
+      },
+      "previous": "2B 07 2C 07 2D 07 2E 07 2F 07 30 07 FF FF 00 00",
+      "output": "31 07 32 07 33 07 34 07 35 07 36 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 며멱면멸몃몄",
+      "input": {
+        "text": "며멱면멸몃몄"
+      },
+      "previous": "31 07 32 07 33 07 34 07 35 07 36 07 FF FF 00 00",
+      "output": "37 07 38 07 39 07 3A 07 3B 07 3C 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 명몇몌모목몫",
+      "input": {
+        "text": "명몇몌모목몫"
+      },
+      "previous": "37 07 38 07 39 07 3A 07 3B 07 3C 07 FF FF 00 00",
+      "output": "3D 07 3E 07 3F 07 40 07 41 07 42 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 몬몰몲몸몹못",
+      "input": {
+        "text": "몬몰몲몸몹못"
+      },
+      "previous": "3D 07 3E 07 3F 07 40 07 41 07 42 07 FF FF 00 00",
+      "output": "43 07 44 07 45 07 46 07 47 07 48 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 몽뫄뫈뫘뫙뫼",
+      "input": {
+        "text": "몽뫄뫈뫘뫙뫼"
+      },
+      "previous": "43 07 44 07 45 07 46 07 47 07 48 07 FF FF 00 00",
+      "output": "49 07 4A 07 4B 07 4C 07 4D 07 4E 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 묀묄묍묏묑묘",
+      "input": {
+        "text": "묀묄묍묏묑묘"
+      },
+      "previous": "49 07 4A 07 4B 07 4C 07 4D 07 4E 07 FF FF 00 00",
+      "output": "4F 07 50 07 51 07 52 07 53 07 54 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 묜묠묩묫무묵",
+      "input": {
+        "text": "묜묠묩묫무묵"
+      },
+      "previous": "4F 07 50 07 51 07 52 07 53 07 54 07 FF FF 00 00",
+      "output": "55 07 56 07 57 07 58 07 59 07 5A 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 묶문묻물묽묾",
+      "input": {
+        "text": "묶문묻물묽묾"
+      },
+      "previous": "55 07 56 07 57 07 58 07 59 07 5A 07 FF FF 00 00",
+      "output": "5B 07 5C 07 5D 07 5E 07 5F 07 60 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 뭄뭅뭇뭉뭍뭏",
+      "input": {
+        "text": "뭄뭅뭇뭉뭍뭏"
+      },
+      "previous": "5B 07 5C 07 5D 07 5E 07 5F 07 60 07 FF FF 00 00",
+      "output": "61 07 62 07 63 07 64 07 65 07 66 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 뭐뭔뭘뭡뭣뭬",
+      "input": {
+        "text": "뭐뭔뭘뭡뭣뭬"
+      },
+      "previous": "61 07 62 07 63 07 64 07 65 07 66 07 FF FF 00 00",
+      "output": "67 07 68 07 69 07 6A 07 6B 07 6C 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 뮈뮌뮐뮤뮨뮬",
+      "input": {
+        "text": "뮈뮌뮐뮤뮨뮬"
+      },
+      "previous": "67 07 68 07 69 07 6A 07 6B 07 6C 07 FF FF 00 00",
+      "output": "6D 07 6E 07 6F 07 70 07 71 07 72 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 뮴뮷므믄믈믐",
+      "input": {
+        "text": "뮴뮷므믄믈믐"
+      },
+      "previous": "6D 07 6E 07 6F 07 70 07 71 07 72 07 FF FF 00 00",
+      "output": "73 07 74 07 75 07 76 07 77 07 78 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 믓미믹민믿밀",
+      "input": {
+        "text": "믓미믹민믿밀"
+      },
+      "previous": "73 07 74 07 75 07 76 07 77 07 78 07 FF FF 00 00",
+      "output": "79 07 7A 07 7B 07 7C 07 7D 07 7E 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 밂밈밉밋밌밍",
+      "input": {
+        "text": "밂밈밉밋밌밍"
+      },
+      "previous": "79 07 7A 07 7B 07 7C 07 7D 07 7E 07 FF FF 00 00",
+      "output": "7F 07 80 07 81 07 82 07 83 07 84 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 및밑바박밖밗",
+      "input": {
+        "text": "및밑바박밖밗"
+      },
+      "previous": "7F 07 80 07 81 07 82 07 83 07 84 07 FF FF 00 00",
+      "output": "85 07 86 07 87 07 88 07 89 07 8A 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 반받발밝밞밟",
+      "input": {
+        "text": "반받발밝밞밟"
+      },
+      "previous": "85 07 86 07 87 07 88 07 89 07 8A 07 FF FF 00 00",
+      "output": "8B 07 8C 07 8D 07 8E 07 8F 07 90 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 밤밥밧방밭배",
+      "input": {
+        "text": "밤밥밧방밭배"
+      },
+      "previous": "8B 07 8C 07 8D 07 8E 07 8F 07 90 07 FF FF 00 00",
+      "output": "91 07 92 07 93 07 94 07 95 07 96 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 백밴밸뱀뱁뱃",
+      "input": {
+        "text": "백밴밸뱀뱁뱃"
+      },
+      "previous": "91 07 92 07 93 07 94 07 95 07 96 07 FF FF 00 00",
+      "output": "97 07 98 07 99 07 9A 07 9B 07 9C 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 뱄뱅뱉뱌뱍뱐",
+      "input": {
+        "text": "뱄뱅뱉뱌뱍뱐"
+      },
+      "previous": "97 07 98 07 99 07 9A 07 9B 07 9C 07 FF FF 00 00",
+      "output": "9D 07 9E 07 9F 07 A0 07 A1 07 A2 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 뱝버벅번벋벌",
+      "input": {
+        "text": "뱝버벅번벋벌"
+      },
+      "previous": "9D 07 9E 07 9F 07 A0 07 A1 07 A2 07 FF FF 00 00",
+      "output": "A3 07 A4 07 A5 07 A6 07 A7 07 A8 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 벎범법벗벙벚",
+      "input": {
+        "text": "벎범법벗벙벚"
+      },
+      "previous": "A3 07 A4 07 A5 07 A6 07 A7 07 A8 07 FF FF 00 00",
+      "output": "A9 07 AA 07 AB 07 AC 07 AD 07 AE 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 베벡벤벧벨벰",
+      "input": {
+        "text": "베벡벤벧벨벰"
+      },
+      "previous": "A9 07 AA 07 AB 07 AC 07 AD 07 AE 07 FF FF 00 00",
+      "output": "AF 07 B0 07 B1 07 B2 07 B3 07 B4 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 벱벳벴벵벼벽",
+      "input": {
+        "text": "벱벳벴벵벼벽"
+      },
+      "previous": "AF 07 B0 07 B1 07 B2 07 B3 07 B4 07 FF FF 00 00",
+      "output": "B5 07 B6 07 B7 07 B8 07 B9 07 BA 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 변별볍볏볐병",
+      "input": {
+        "text": "변별볍볏볐병"
+      },
+      "previous": "B5 07 B6 07 B7 07 B8 07 B9 07 BA 07 FF FF 00 00",
+      "output": "BB 07 BC 07 BD 07 BE 07 BF 07 C0 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 볕볘볜보복볶",
+      "input": {
+        "text": "볕볘볜보복볶"
+      },
+      "previous": "BB 07 BC 07 BD 07 BE 07 BF 07 C0 07 FF FF 00 00",
+      "output": "C1 07 C2 07 C3 07 C4 07 C5 07 C6 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 본볼봄봅봇봉",
+      "input": {
+        "text": "본볼봄봅봇봉"
+      },
+      "previous": "C1 07 C2 07 C3 07 C4 07 C5 07 C6 07 FF FF 00 00",
+      "output": "C7 07 C8 07 C9 07 CA 07 CB 07 CC 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 봐봔봤봬뵀뵈",
+      "input": {
+        "text": "봐봔봤봬뵀뵈"
+      },
+      "previous": "C7 07 C8 07 C9 07 CA 07 CB 07 CC 07 FF FF 00 00",
+      "output": "CD 07 CE 07 CF 07 D0 07 D1 07 D2 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 뵉뵌뵐뵘뵙뵤",
+      "input": {
+        "text": "뵉뵌뵐뵘뵙뵤"
+      },
+      "previous": "CD 07 CE 07 CF 07 D0 07 D1 07 D2 07 FF FF 00 00",
+      "output": "D3 07 D4 07 D5 07 D6 07 D7 07 D8 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 뵨부북분붇불",
+      "input": {
+        "text": "뵨부북분붇불"
+      },
+      "previous": "D3 07 D4 07 D5 07 D6 07 D7 07 D8 07 FF FF 00 00",
+      "output": "D9 07 DA 07 DB 07 DC 07 DD 07 DE 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 붉붊붐붑붓붕",
+      "input": {
+        "text": "붉붊붐붑붓붕"
+      },
+      "previous": "D9 07 DA 07 DB 07 DC 07 DD 07 DE 07 FF FF 00 00",
+      "output": "DF 07 E0 07 E1 07 E2 07 E3 07 E4 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 붙붚붜붤붰붸",
+      "input": {
+        "text": "붙붚붜붤붰붸"
+      },
+      "previous": "DF 07 E0 07 E1 07 E2 07 E3 07 E4 07 FF FF 00 00",
+      "output": "E5 07 E6 07 E7 07 E8 07 E9 07 EA 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 뷔뷕뷘뷜뷩뷰",
+      "input": {
+        "text": "뷔뷕뷘뷜뷩뷰"
+      },
+      "previous": "E5 07 E6 07 E7 07 E8 07 E9 07 EA 07 FF FF 00 00",
+      "output": "EB 07 EC 07 ED 07 EE 07 EF 07 F0 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 뷴뷸븀븃븅브",
+      "input": {
+        "text": "뷴뷸븀븃븅브"
+      },
+      "previous": "EB 07 EC 07 ED 07 EE 07 EF 07 F0 07 FF FF 00 00",
+      "output": "F1 07 F2 07 F3 07 F4 07 F5 07 F6 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 븍븐블븜븝븟",
+      "input": {
+        "text": "븍븐블븜븝븟"
+      },
+      "previous": "F1 07 F2 07 F3 07 F4 07 F5 07 F6 07 FF FF 00 00",
+      "output": "F7 07 F8 07 F9 07 FA 07 FB 07 FC 07 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 비빅빈빌빎빔",
+      "input": {
+        "text": "비빅빈빌빎빔"
+      },
+      "previous": "F7 07 F8 07 F9 07 FA 07 FB 07 FC 07 FF FF 00 00",
+      "output": "FD 07 FE 07 FF 07 00 08 01 08 02 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 빕빗빙빚빛빠",
+      "input": {
+        "text": "빕빗빙빚빛빠"
+      },
+      "previous": "FD 07 FE 07 FF 07 00 08 01 08 02 08 FF FF 00 00",
+      "output": "03 08 04 08 05 08 06 08 07 08 08 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 빡빤빨빪빰빱",
+      "input": {
+        "text": "빡빤빨빪빰빱"
+      },
+      "previous": "03 08 04 08 05 08 06 08 07 08 08 08 FF FF 00 00",
+      "output": "09 08 0A 08 0B 08 0C 08 0D 08 0E 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 빳빴빵빻빼빽",
+      "input": {
+        "text": "빳빴빵빻빼빽"
+      },
+      "previous": "09 08 0A 08 0B 08 0C 08 0D 08 0E 08 FF FF 00 00",
+      "output": "0F 08 10 08 11 08 12 08 13 08 14 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 뺀뺄뺌뺍뺏뺐",
+      "input": {
+        "text": "뺀뺄뺌뺍뺏뺐"
+      },
+      "previous": "0F 08 10 08 11 08 12 08 13 08 14 08 FF FF 00 00",
+      "output": "15 08 16 08 17 08 18 08 19 08 1A 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 뺑뺘뺙뺨뻐뻑",
+      "input": {
+        "text": "뺑뺘뺙뺨뻐뻑"
+      },
+      "previous": "15 08 16 08 17 08 18 08 19 08 1A 08 FF FF 00 00",
+      "output": "1B 08 1C 08 1D 08 1E 08 1F 08 20 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 뻔뻗뻘뻠뻣뻤",
+      "input": {
+        "text": "뻔뻗뻘뻠뻣뻤"
+      },
+      "previous": "1B 08 1C 08 1D 08 1E 08 1F 08 20 08 FF FF 00 00",
+      "output": "21 08 22 08 23 08 24 08 25 08 26 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 뻥뻬뼁뼈뼉뼘",
+      "input": {
+        "text": "뻥뻬뼁뼈뼉뼘"
+      },
+      "previous": "21 08 22 08 23 08 24 08 25 08 26 08 FF FF 00 00",
+      "output": "27 08 28 08 29 08 2A 08 2B 08 2C 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 뼙뼛뼜뼝뽀뽁",
+      "input": {
+        "text": "뼙뼛뼜뼝뽀뽁"
+      },
+      "previous": "27 08 28 08 29 08 2A 08 2B 08 2C 08 FF FF 00 00",
+      "output": "2D 08 2E 08 2F 08 30 08 31 08 32 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 뽄뽈뽐뽑뽕뾔",
+      "input": {
+        "text": "뽄뽈뽐뽑뽕뾔"
+      },
+      "previous": "2D 08 2E 08 2F 08 30 08 31 08 32 08 FF FF 00 00",
+      "output": "33 08 34 08 35 08 36 08 37 08 38 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 뾰뿅뿌뿍뿐뿔",
+      "input": {
+        "text": "뾰뿅뿌뿍뿐뿔"
+      },
+      "previous": "33 08 34 08 35 08 36 08 37 08 38 08 FF FF 00 00",
+      "output": "39 08 3A 08 3B 08 3C 08 3D 08 3E 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 뿜뿟뿡쀼쁑쁘",
+      "input": {
+        "text": "뿜뿟뿡쀼쁑쁘"
+      },
+      "previous": "39 08 3A 08 3B 08 3C 08 3D 08 3E 08 FF FF 00 00",
+      "output": "3F 08 40 08 41 08 42 08 43 08 44 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 쁜쁠쁨쁩삐삑",
+      "input": {
+        "text": "쁜쁠쁨쁩삐삑"
+      },
+      "previous": "3F 08 40 08 41 08 42 08 43 08 44 08 FF FF 00 00",
+      "output": "45 08 46 08 47 08 48 08 49 08 4A 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 삔삘삠삡삣삥",
+      "input": {
+        "text": "삔삘삠삡삣삥"
+      },
+      "previous": "45 08 46 08 47 08 48 08 49 08 4A 08 FF FF 00 00",
+      "output": "4B 08 4C 08 4D 08 4E 08 4F 08 50 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 사삭삯산삳살",
+      "input": {
+        "text": "사삭삯산삳살"
+      },
+      "previous": "4B 08 4C 08 4D 08 4E 08 4F 08 50 08 FF FF 00 00",
+      "output": "51 08 52 08 53 08 54 08 55 08 56 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 삵삶삼삽삿샀",
+      "input": {
+        "text": "삵삶삼삽삿샀"
+      },
+      "previous": "51 08 52 08 53 08 54 08 55 08 56 08 FF FF 00 00",
+      "output": "57 08 58 08 59 08 5A 08 5B 08 5C 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 상샅새색샌샐",
+      "input": {
+        "text": "상샅새색샌샐"
+      },
+      "previous": "57 08 58 08 59 08 5A 08 5B 08 5C 08 FF FF 00 00",
+      "output": "5D 08 5E 08 5F 08 60 08 61 08 62 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 샘샙샛샜생샤",
+      "input": {
+        "text": "샘샙샛샜생샤"
+      },
+      "previous": "5D 08 5E 08 5F 08 60 08 61 08 62 08 FF FF 00 00",
+      "output": "63 08 64 08 65 08 66 08 67 08 68 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 샥샨샬샴샵샷",
+      "input": {
+        "text": "샥샨샬샴샵샷"
+      },
+      "previous": "63 08 64 08 65 08 66 08 67 08 68 08 FF FF 00 00",
+      "output": "69 08 6A 08 6B 08 6C 08 6D 08 6E 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 샹섀섄섈섐섕",
+      "input": {
+        "text": "샹섀섄섈섐섕"
+      },
+      "previous": "69 08 6A 08 6B 08 6C 08 6D 08 6E 08 FF FF 00 00",
+      "output": "6F 08 70 08 71 08 72 08 73 08 74 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 서석섞섟선섣",
+      "input": {
+        "text": "서석섞섟선섣"
+      },
+      "previous": "6F 08 70 08 71 08 72 08 73 08 74 08 FF FF 00 00",
+      "output": "75 08 76 08 77 08 78 08 79 08 7A 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 설섦섧섬섭섯",
+      "input": {
+        "text": "설섦섧섬섭섯"
+      },
+      "previous": "75 08 76 08 77 08 78 08 79 08 7A 08 FF FF 00 00",
+      "output": "7B 08 7C 08 7D 08 7E 08 7F 08 80 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 섰성섶세섹센",
+      "input": {
+        "text": "섰성섶세섹센"
+      },
+      "previous": "7B 08 7C 08 7D 08 7E 08 7F 08 80 08 FF FF 00 00",
+      "output": "81 08 82 08 83 08 84 08 85 08 86 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 셀셈셉셋셌셍",
+      "input": {
+        "text": "셀셈셉셋셌셍"
+      },
+      "previous": "81 08 82 08 83 08 84 08 85 08 86 08 FF FF 00 00",
+      "output": "87 08 88 08 89 08 8A 08 8B 08 8C 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 셔셕션셜셤셥",
+      "input": {
+        "text": "셔셕션셜셤셥"
+      },
+      "previous": "87 08 88 08 89 08 8A 08 8B 08 8C 08 FF FF 00 00",
+      "output": "8D 08 8E 08 8F 08 90 08 91 08 92 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 셧셨셩셰셴셸",
+      "input": {
+        "text": "셧셨셩셰셴셸"
+      },
+      "previous": "8D 08 8E 08 8F 08 90 08 91 08 92 08 FF FF 00 00",
+      "output": "93 08 94 08 95 08 96 08 97 08 98 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 솅소속솎손솔",
+      "input": {
+        "text": "솅소속솎손솔"
+      },
+      "previous": "93 08 94 08 95 08 96 08 97 08 98 08 FF FF 00 00",
+      "output": "99 08 9A 08 9B 08 9C 08 9D 08 9E 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 솖솜솝솟송솥",
+      "input": {
+        "text": "솖솜솝솟송솥"
+      },
+      "previous": "99 08 9A 08 9B 08 9C 08 9D 08 9E 08 FF FF 00 00",
+      "output": "9F 08 A0 08 A1 08 A2 08 A3 08 A4 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 솨솩솬솰솽쇄",
+      "input": {
+        "text": "솨솩솬솰솽쇄"
+      },
+      "previous": "9F 08 A0 08 A1 08 A2 08 A3 08 A4 08 FF FF 00 00",
+      "output": "A5 08 A6 08 A7 08 A8 08 A9 08 AA 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 쇈쇌쇔쇗쇘쇠",
+      "input": {
+        "text": "쇈쇌쇔쇗쇘쇠"
+      },
+      "previous": "A5 08 A6 08 A7 08 A8 08 A9 08 AA 08 FF FF 00 00",
+      "output": "AB 08 AC 08 AD 08 AE 08 AF 08 B0 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 쇤쇨쇰쇱쇳쇼",
+      "input": {
+        "text": "쇤쇨쇰쇱쇳쇼"
+      },
+      "previous": "AB 08 AC 08 AD 08 AE 08 AF 08 B0 08 FF FF 00 00",
+      "output": "B1 08 B2 08 B3 08 B4 08 B5 08 B6 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 쇽숀숄숌숍숏",
+      "input": {
+        "text": "쇽숀숄숌숍숏"
+      },
+      "previous": "B1 08 B2 08 B3 08 B4 08 B5 08 B6 08 FF FF 00 00",
+      "output": "B7 08 B8 08 B9 08 BA 08 BB 08 BC 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 숑수숙순숟술",
+      "input": {
+        "text": "숑수숙순숟술"
+      },
+      "previous": "B7 08 B8 08 B9 08 BA 08 BB 08 BC 08 FF FF 00 00",
+      "output": "BD 08 BE 08 BF 08 C0 08 C1 08 C2 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 숨숩숫숭숯숱",
+      "input": {
+        "text": "숨숩숫숭숯숱"
+      },
+      "previous": "BD 08 BE 08 BF 08 C0 08 C1 08 C2 08 FF FF 00 00",
+      "output": "C3 08 C4 08 C5 08 C6 08 C7 08 C8 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 숲숴쉈쉐쉑쉔",
+      "input": {
+        "text": "숲숴쉈쉐쉑쉔"
+      },
+      "previous": "C3 08 C4 08 C5 08 C6 08 C7 08 C8 08 FF FF 00 00",
+      "output": "C9 08 CA 08 CB 08 CC 08 CD 08 CE 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 쉘쉠쉥쉬쉭쉰",
+      "input": {
+        "text": "쉘쉠쉥쉬쉭쉰"
+      },
+      "previous": "C9 08 CA 08 CB 08 CC 08 CD 08 CE 08 FF FF 00 00",
+      "output": "CF 08 D0 08 D1 08 D2 08 D3 08 D4 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 쉴쉼쉽쉿슁슈",
+      "input": {
+        "text": "쉴쉼쉽쉿슁슈"
+      },
+      "previous": "CF 08 D0 08 D1 08 D2 08 D3 08 D4 08 FF FF 00 00",
+      "output": "D5 08 D6 08 D7 08 D8 08 D9 08 DA 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 슉슐슘슛슝스",
+      "input": {
+        "text": "슉슐슘슛슝스"
+      },
+      "previous": "D5 08 D6 08 D7 08 D8 08 D9 08 DA 08 FF FF 00 00",
+      "output": "DB 08 DC 08 DD 08 DE 08 DF 08 E0 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 슥슨슬슭슴습",
+      "input": {
+        "text": "슥슨슬슭슴습"
+      },
+      "previous": "DB 08 DC 08 DD 08 DE 08 DF 08 E0 08 FF FF 00 00",
+      "output": "E1 08 E2 08 E3 08 E4 08 E5 08 E6 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 슷승시식신싣",
+      "input": {
+        "text": "슷승시식신싣"
+      },
+      "previous": "E1 08 E2 08 E3 08 E4 08 E5 08 E6 08 FF FF 00 00",
+      "output": "E7 08 E8 08 E9 08 EA 08 EB 08 EC 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 실싫심십싯싱",
+      "input": {
+        "text": "실싫심십싯싱"
+      },
+      "previous": "E7 08 E8 08 E9 08 EA 08 EB 08 EC 08 FF FF 00 00",
+      "output": "ED 08 EE 08 EF 08 F0 08 F1 08 F2 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 싶싸싹싻싼쌀",
+      "input": {
+        "text": "싶싸싹싻싼쌀"
+      },
+      "previous": "ED 08 EE 08 EF 08 F0 08 F1 08 F2 08 FF FF 00 00",
+      "output": "F3 08 F4 08 F5 08 F6 08 F7 08 F8 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 쌈쌉쌌쌍쌓쌔",
+      "input": {
+        "text": "쌈쌉쌌쌍쌓쌔"
+      },
+      "previous": "F3 08 F4 08 F5 08 F6 08 F7 08 F8 08 FF FF 00 00",
+      "output": "F9 08 FA 08 FB 08 FC 08 FD 08 FE 08 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 쌕쌘쌜쌤쌥쌨",
+      "input": {
+        "text": "쌕쌘쌜쌤쌥쌨"
+      },
+      "previous": "F9 08 FA 08 FB 08 FC 08 FD 08 FE 08 FF FF 00 00",
+      "output": "FF 08 00 09 01 09 02 09 03 09 04 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 쌩썅써썩썬썰",
+      "input": {
+        "text": "쌩썅써썩썬썰"
+      },
+      "previous": "FF 08 00 09 01 09 02 09 03 09 04 09 FF FF 00 00",
+      "output": "05 09 06 09 07 09 08 09 09 09 0A 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 썲썸썹썼썽쎄",
+      "input": {
+        "text": "썲썸썹썼썽쎄"
+      },
+      "previous": "05 09 06 09 07 09 08 09 09 09 0A 09 FF FF 00 00",
+      "output": "0B 09 0C 09 0D 09 0E 09 0F 09 10 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 쎈쎌쏀쏘쏙쏜",
+      "input": {
+        "text": "쎈쎌쏀쏘쏙쏜"
+      },
+      "previous": "0B 09 0C 09 0D 09 0E 09 0F 09 10 09 FF FF 00 00",
+      "output": "11 09 12 09 13 09 14 09 15 09 16 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 쏟쏠쏢쏨쏩쏭",
+      "input": {
+        "text": "쏟쏠쏢쏨쏩쏭"
+      },
+      "previous": "11 09 12 09 13 09 14 09 15 09 16 09 FF FF 00 00",
+      "output": "17 09 18 09 19 09 1A 09 1B 09 1C 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 쏴쏵쏸쐈쐐쐤",
+      "input": {
+        "text": "쏴쏵쏸쐈쐐쐤"
+      },
+      "previous": "17 09 18 09 19 09 1A 09 1B 09 1C 09 FF FF 00 00",
+      "output": "1D 09 1E 09 1F 09 20 09 21 09 22 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 쐬쐰쐴쐼쐽쑈",
+      "input": {
+        "text": "쐬쐰쐴쐼쐽쑈"
+      },
+      "previous": "1D 09 1E 09 1F 09 20 09 21 09 22 09 FF FF 00 00",
+      "output": "23 09 24 09 25 09 26 09 27 09 28 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 쑤쑥쑨쑬쑴쑵",
+      "input": {
+        "text": "쑤쑥쑨쑬쑴쑵"
+      },
+      "previous": "23 09 24 09 25 09 26 09 27 09 28 09 FF FF 00 00",
+      "output": "29 09 2A 09 2B 09 2C 09 2D 09 2E 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 쑹쒀쒔쒜쒸쒼",
+      "input": {
+        "text": "쑹쒀쒔쒜쒸쒼"
+      },
+      "previous": "29 09 2A 09 2B 09 2C 09 2D 09 2E 09 FF FF 00 00",
+      "output": "2F 09 30 09 31 09 32 09 33 09 34 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 쓩쓰쓱쓴쓸쓺",
+      "input": {
+        "text": "쓩쓰쓱쓴쓸쓺"
+      },
+      "previous": "2F 09 30 09 31 09 32 09 33 09 34 09 FF FF 00 00",
+      "output": "35 09 36 09 37 09 38 09 39 09 3A 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 쓿씀씁씌씐씔",
+      "input": {
+        "text": "쓿씀씁씌씐씔"
+      },
+      "previous": "35 09 36 09 37 09 38 09 39 09 3A 09 FF FF 00 00",
+      "output": "3B 09 3C 09 3D 09 3E 09 3F 09 40 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 씜씨씩씬씰씸",
+      "input": {
+        "text": "씜씨씩씬씰씸"
+      },
+      "previous": "3B 09 3C 09 3D 09 3E 09 3F 09 40 09 FF FF 00 00",
+      "output": "41 09 42 09 43 09 44 09 45 09 46 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 씹씻씽아악안",
+      "input": {
+        "text": "씹씻씽아악안"
+      },
+      "previous": "41 09 42 09 43 09 44 09 45 09 46 09 FF FF 00 00",
+      "output": "47 09 48 09 49 09 4A 09 4B 09 4C 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 앉않알앍앎앓",
+      "input": {
+        "text": "앉않알앍앎앓"
+      },
+      "previous": "47 09 48 09 49 09 4A 09 4B 09 4C 09 FF FF 00 00",
+      "output": "4D 09 4E 09 4F 09 50 09 51 09 52 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 암압앗았앙앝",
+      "input": {
+        "text": "암압앗았앙앝"
+      },
+      "previous": "4D 09 4E 09 4F 09 50 09 51 09 52 09 FF FF 00 00",
+      "output": "53 09 54 09 55 09 56 09 57 09 58 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 앞애액앤앨앰",
+      "input": {
+        "text": "앞애액앤앨앰"
+      },
+      "previous": "53 09 54 09 55 09 56 09 57 09 58 09 FF FF 00 00",
+      "output": "59 09 5A 09 5B 09 5C 09 5D 09 5E 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 앱앳앴앵야약",
+      "input": {
+        "text": "앱앳앴앵야약"
+      },
+      "previous": "59 09 5A 09 5B 09 5C 09 5D 09 5E 09 FF FF 00 00",
+      "output": "5F 09 60 09 61 09 62 09 63 09 64 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 얀얄얇얌얍얏",
+      "input": {
+        "text": "얀얄얇얌얍얏"
+      },
+      "previous": "5F 09 60 09 61 09 62 09 63 09 64 09 FF FF 00 00",
+      "output": "65 09 66 09 67 09 68 09 69 09 6A 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 양얕얗얘얜얠",
+      "input": {
+        "text": "양얕얗얘얜얠"
+      },
+      "previous": "65 09 66 09 67 09 68 09 69 09 6A 09 FF FF 00 00",
+      "output": "6B 09 6C 09 6D 09 6E 09 6F 09 70 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 얩어억언얹얻",
+      "input": {
+        "text": "얩어억언얹얻"
+      },
+      "previous": "6B 09 6C 09 6D 09 6E 09 6F 09 70 09 FF FF 00 00",
+      "output": "71 09 72 09 73 09 74 09 75 09 76 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 얼얽얾엄업없",
+      "input": {
+        "text": "얼얽얾엄업없"
+      },
+      "previous": "71 09 72 09 73 09 74 09 75 09 76 09 FF FF 00 00",
+      "output": "77 09 78 09 79 09 7A 09 7B 09 7C 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 엇었엉엊엌엎",
+      "input": {
+        "text": "엇었엉엊엌엎"
+      },
+      "previous": "77 09 78 09 79 09 7A 09 7B 09 7C 09 FF FF 00 00",
+      "output": "7D 09 7E 09 7F 09 80 09 81 09 82 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 에엑엔엘엠엡",
+      "input": {
+        "text": "에엑엔엘엠엡"
+      },
+      "previous": "7D 09 7E 09 7F 09 80 09 81 09 82 09 FF FF 00 00",
+      "output": "83 09 84 09 85 09 86 09 87 09 88 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 엣엥여역엮연",
+      "input": {
+        "text": "엣엥여역엮연"
+      },
+      "previous": "83 09 84 09 85 09 86 09 87 09 88 09 FF FF 00 00",
+      "output": "89 09 8A 09 8B 09 8C 09 8D 09 8E 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 열엶엷염엽엾",
+      "input": {
+        "text": "열엶엷염엽엾"
+      },
+      "previous": "89 09 8A 09 8B 09 8C 09 8D 09 8E 09 FF FF 00 00",
+      "output": "8F 09 90 09 91 09 92 09 93 09 94 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 엿였영옅옆옇",
+      "input": {
+        "text": "엿였영옅옆옇"
+      },
+      "previous": "8F 09 90 09 91 09 92 09 93 09 94 09 FF FF 00 00",
+      "output": "95 09 96 09 97 09 98 09 99 09 9A 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 예옌옐옘옙옛",
+      "input": {
+        "text": "예옌옐옘옙옛"
+      },
+      "previous": "95 09 96 09 97 09 98 09 99 09 9A 09 FF FF 00 00",
+      "output": "9B 09 9C 09 9D 09 9E 09 9F 09 A0 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 옜오옥온올옭",
+      "input": {
+        "text": "옜오옥온올옭"
+      },
+      "previous": "9B 09 9C 09 9D 09 9E 09 9F 09 A0 09 FF FF 00 00",
+      "output": "A1 09 A2 09 A3 09 A4 09 A5 09 A6 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 옮옰옳옴옵옷",
+      "input": {
+        "text": "옮옰옳옴옵옷"
+      },
+      "previous": "A1 09 A2 09 A3 09 A4 09 A5 09 A6 09 FF FF 00 00",
+      "output": "A7 09 A8 09 A9 09 AA 09 AB 09 AC 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 옹옻와왁완왈",
+      "input": {
+        "text": "옹옻와왁완왈"
+      },
+      "previous": "A7 09 A8 09 A9 09 AA 09 AB 09 AC 09 FF FF 00 00",
+      "output": "AD 09 AE 09 AF 09 B0 09 B1 09 B2 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 왐왑왓왔왕왜",
+      "input": {
+        "text": "왐왑왓왔왕왜"
+      },
+      "previous": "AD 09 AE 09 AF 09 B0 09 B1 09 B2 09 FF FF 00 00",
+      "output": "B3 09 B4 09 B5 09 B6 09 B7 09 B8 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 왝왠왬왯왱외",
+      "input": {
+        "text": "왝왠왬왯왱외"
+      },
+      "previous": "B3 09 B4 09 B5 09 B6 09 B7 09 B8 09 FF FF 00 00",
+      "output": "B9 09 BA 09 BB 09 BC 09 BD 09 BE 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 왹왼욀욈욉욋",
+      "input": {
+        "text": "왹왼욀욈욉욋"
+      },
+      "previous": "B9 09 BA 09 BB 09 BC 09 BD 09 BE 09 FF FF 00 00",
+      "output": "BF 09 C0 09 C1 09 C2 09 C3 09 C4 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 욍요욕욘욜욤",
+      "input": {
+        "text": "욍요욕욘욜욤"
+      },
+      "previous": "BF 09 C0 09 C1 09 C2 09 C3 09 C4 09 FF FF 00 00",
+      "output": "C5 09 C6 09 C7 09 C8 09 C9 09 CA 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 욥욧용우욱운",
+      "input": {
+        "text": "욥욧용우욱운"
+      },
+      "previous": "C5 09 C6 09 C7 09 C8 09 C9 09 CA 09 FF FF 00 00",
+      "output": "CB 09 CC 09 CD 09 CE 09 CF 09 D0 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 울욹욺움웁웃",
+      "input": {
+        "text": "울욹욺움웁웃"
+      },
+      "previous": "CB 09 CC 09 CD 09 CE 09 CF 09 D0 09 FF FF 00 00",
+      "output": "D1 09 D2 09 D3 09 D4 09 D5 09 D6 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 웅워웍원월웜",
+      "input": {
+        "text": "웅워웍원월웜"
+      },
+      "previous": "D1 09 D2 09 D3 09 D4 09 D5 09 D6 09 FF FF 00 00",
+      "output": "D7 09 D8 09 D9 09 DA 09 DB 09 DC 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 웝웠웡웨웩웬",
+      "input": {
+        "text": "웝웠웡웨웩웬"
+      },
+      "previous": "D7 09 D8 09 D9 09 DA 09 DB 09 DC 09 FF FF 00 00",
+      "output": "DD 09 DE 09 DF 09 E0 09 E1 09 E2 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 웰웸웹웽위윅",
+      "input": {
+        "text": "웰웸웹웽위윅"
+      },
+      "previous": "DD 09 DE 09 DF 09 E0 09 E1 09 E2 09 FF FF 00 00",
+      "output": "E3 09 E4 09 E5 09 E6 09 E7 09 E8 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 윈윌윔윕윗윙",
+      "input": {
+        "text": "윈윌윔윕윗윙"
+      },
+      "previous": "E3 09 E4 09 E5 09 E6 09 E7 09 E8 09 FF FF 00 00",
+      "output": "E9 09 EA 09 EB 09 EC 09 ED 09 EE 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 유육윤율윰윱",
+      "input": {
+        "text": "유육윤율윰윱"
+      },
+      "previous": "E9 09 EA 09 EB 09 EC 09 ED 09 EE 09 FF FF 00 00",
+      "output": "EF 09 F0 09 F1 09 F2 09 F3 09 F4 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 윳융윷으윽은",
+      "input": {
+        "text": "윳융윷으윽은"
+      },
+      "previous": "EF 09 F0 09 F1 09 F2 09 F3 09 F4 09 FF FF 00 00",
+      "output": "F5 09 F6 09 F7 09 F8 09 F9 09 FA 09 FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 을읊음읍읏응",
+      "input": {
+        "text": "을읊음읍읏응"
+      },
+      "previous": "F5 09 F6 09 F7 09 F8 09 F9 09 FA 09 FF FF 00 00",
+      "output": "FB 09 FC 09 FD 09 FE 09 FF 09 00 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 읒읓읔읕읖읗",
+      "input": {
+        "text": "읒읓읔읕읖읗"
+      },
+      "previous": "FB 09 FC 09 FD 09 FE 09 FF 09 00 0A FF FF 00 00",
+      "output": "01 0A 02 0A 03 0A 04 0A 05 0A 06 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 의읜읠읨읫이",
+      "input": {
+        "text": "의읜읠읨읫이"
+      },
+      "previous": "01 0A 02 0A 03 0A 04 0A 05 0A 06 0A FF FF 00 00",
+      "output": "07 0A 08 0A 09 0A 0A 0A 0B 0A 0C 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 익인일읽읾잃",
+      "input": {
+        "text": "익인일읽읾잃"
+      },
+      "previous": "07 0A 08 0A 09 0A 0A 0A 0B 0A 0C 0A FF FF 00 00",
+      "output": "0D 0A 0E 0A 0F 0A 10 0A 11 0A 12 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 임입잇있잉잊",
+      "input": {
+        "text": "임입잇있잉잊"
+      },
+      "previous": "0D 0A 0E 0A 0F 0A 10 0A 11 0A 12 0A FF FF 00 00",
+      "output": "13 0A 14 0A 15 0A 16 0A 17 0A 18 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 잎자작잔잖잗",
+      "input": {
+        "text": "잎자작잔잖잗"
+      },
+      "previous": "13 0A 14 0A 15 0A 16 0A 17 0A 18 0A FF FF 00 00",
+      "output": "19 0A 1A 0A 1B 0A 1C 0A 1D 0A 1E 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 잘잚잠잡잣잤",
+      "input": {
+        "text": "잘잚잠잡잣잤"
+      },
+      "previous": "19 0A 1A 0A 1B 0A 1C 0A 1D 0A 1E 0A FF FF 00 00",
+      "output": "1F 0A 20 0A 21 0A 22 0A 23 0A 24 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 장잦재잭잰잴",
+      "input": {
+        "text": "장잦재잭잰잴"
+      },
+      "previous": "1F 0A 20 0A 21 0A 22 0A 23 0A 24 0A FF FF 00 00",
+      "output": "25 0A 26 0A 27 0A 28 0A 29 0A 2A 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 잼잽잿쟀쟁쟈",
+      "input": {
+        "text": "잼잽잿쟀쟁쟈"
+      },
+      "previous": "25 0A 26 0A 27 0A 28 0A 29 0A 2A 0A FF FF 00 00",
+      "output": "2B 0A 2C 0A 2D 0A 2E 0A 2F 0A 30 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 쟉쟌쟎쟐쟘쟝",
+      "input": {
+        "text": "쟉쟌쟎쟐쟘쟝"
+      },
+      "previous": "2B 0A 2C 0A 2D 0A 2E 0A 2F 0A 30 0A FF FF 00 00",
+      "output": "31 0A 32 0A 33 0A 34 0A 35 0A 36 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 쟤쟨쟬저적전",
+      "input": {
+        "text": "쟤쟨쟬저적전"
+      },
+      "previous": "31 0A 32 0A 33 0A 34 0A 35 0A 36 0A FF FF 00 00",
+      "output": "37 0A 38 0A 39 0A 3A 0A 3B 0A 3C 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 절젊점접젓정",
+      "input": {
+        "text": "절젊점접젓정"
+      },
+      "previous": "37 0A 38 0A 39 0A 3A 0A 3B 0A 3C 0A FF FF 00 00",
+      "output": "3D 0A 3E 0A 3F 0A 40 0A 41 0A 42 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 젖제젝젠젤젬",
+      "input": {
+        "text": "젖제젝젠젤젬"
+      },
+      "previous": "3D 0A 3E 0A 3F 0A 40 0A 41 0A 42 0A FF FF 00 00",
+      "output": "43 0A 44 0A 45 0A 46 0A 47 0A 48 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 젭젯젱져젼졀",
+      "input": {
+        "text": "젭젯젱져젼졀"
+      },
+      "previous": "43 0A 44 0A 45 0A 46 0A 47 0A 48 0A FF FF 00 00",
+      "output": "49 0A 4A 0A 4B 0A 4C 0A 4D 0A 4E 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 졈졉졌졍졔조",
+      "input": {
+        "text": "졈졉졌졍졔조"
+      },
+      "previous": "49 0A 4A 0A 4B 0A 4C 0A 4D 0A 4E 0A FF FF 00 00",
+      "output": "4F 0A 50 0A 51 0A 52 0A 53 0A 54 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 족존졸졺좀좁",
+      "input": {
+        "text": "족존졸졺좀좁"
+      },
+      "previous": "4F 0A 50 0A 51 0A 52 0A 53 0A 54 0A FF FF 00 00",
+      "output": "55 0A 56 0A 57 0A 58 0A 59 0A 5A 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 좃종좆좇좋좌",
+      "input": {
+        "text": "좃종좆좇좋좌"
+      },
+      "previous": "55 0A 56 0A 57 0A 58 0A 59 0A 5A 0A FF FF 00 00",
+      "output": "5B 0A 5C 0A 5D 0A 5E 0A 5F 0A 60 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 좍좔좝좟좡좨",
+      "input": {
+        "text": "좍좔좝좟좡좨"
+      },
+      "previous": "5B 0A 5C 0A 5D 0A 5E 0A 5F 0A 60 0A FF FF 00 00",
+      "output": "61 0A 62 0A 63 0A 64 0A 65 0A 66 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 좼좽죄죈죌죔",
+      "input": {
+        "text": "좼좽죄죈죌죔"
+      },
+      "previous": "61 0A 62 0A 63 0A 64 0A 65 0A 66 0A FF FF 00 00",
+      "output": "67 0A 68 0A 69 0A 6A 0A 6B 0A 6C 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 죕죗죙죠죡죤",
+      "input": {
+        "text": "죕죗죙죠죡죤"
+      },
+      "previous": "67 0A 68 0A 69 0A 6A 0A 6B 0A 6C 0A FF FF 00 00",
+      "output": "6D 0A 6E 0A 6F 0A 70 0A 71 0A 72 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 죵주죽준줄줅",
+      "input": {
+        "text": "죵주죽준줄줅"
+      },
+      "previous": "6D 0A 6E 0A 6F 0A 70 0A 71 0A 72 0A FF FF 00 00",
+      "output": "73 0A 74 0A 75 0A 76 0A 77 0A 78 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 줆줌줍줏중줘",
+      "input": {
+        "text": "줆줌줍줏중줘"
+      },
+      "previous": "73 0A 74 0A 75 0A 76 0A 77 0A 78 0A FF FF 00 00",
+      "output": "79 0A 7A 0A 7B 0A 7C 0A 7D 0A 7E 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 줬줴쥐쥑쥔쥘",
+      "input": {
+        "text": "줬줴쥐쥑쥔쥘"
+      },
+      "previous": "79 0A 7A 0A 7B 0A 7C 0A 7D 0A 7E 0A FF FF 00 00",
+      "output": "7F 0A 80 0A 81 0A 82 0A 83 0A 84 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 쥠쥡쥣쥬쥰쥴",
+      "input": {
+        "text": "쥠쥡쥣쥬쥰쥴"
+      },
+      "previous": "7F 0A 80 0A 81 0A 82 0A 83 0A 84 0A FF FF 00 00",
+      "output": "85 0A 86 0A 87 0A 88 0A 89 0A 8A 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 쥼즈즉즌즐즘",
+      "input": {
+        "text": "쥼즈즉즌즐즘"
+      },
+      "previous": "85 0A 86 0A 87 0A 88 0A 89 0A 8A 0A FF FF 00 00",
+      "output": "8B 0A 8C 0A 8D 0A 8E 0A 8F 0A 90 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 즙즛증지직진",
+      "input": {
+        "text": "즙즛증지직진"
+      },
+      "previous": "8B 0A 8C 0A 8D 0A 8E 0A 8F 0A 90 0A FF FF 00 00",
+      "output": "91 0A 92 0A 93 0A 94 0A 95 0A 96 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 짇질짊짐집짓",
+      "input": {
+        "text": "짇질짊짐집짓"
+      },
+      "previous": "91 0A 92 0A 93 0A 94 0A 95 0A 96 0A FF FF 00 00",
+      "output": "97 0A 98 0A 99 0A 9A 0A 9B 0A 9C 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 징짖짙짚짜짝",
+      "input": {
+        "text": "징짖짙짚짜짝"
+      },
+      "previous": "97 0A 98 0A 99 0A 9A 0A 9B 0A 9C 0A FF FF 00 00",
+      "output": "9D 0A 9E 0A 9F 0A A0 0A A1 0A A2 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 짠짢짤짧짬짭",
+      "input": {
+        "text": "짠짢짤짧짬짭"
+      },
+      "previous": "9D 0A 9E 0A 9F 0A A0 0A A1 0A A2 0A FF FF 00 00",
+      "output": "A3 0A A4 0A A5 0A A6 0A A7 0A A8 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 짯짰짱째짹짼",
+      "input": {
+        "text": "짯짰짱째짹짼"
+      },
+      "previous": "A3 0A A4 0A A5 0A A6 0A A7 0A A8 0A FF FF 00 00",
+      "output": "A9 0A AA 0A AB 0A AC 0A AD 0A AE 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 쨀쨈쨉쨋쨌쨍",
+      "input": {
+        "text": "쨀쨈쨉쨋쨌쨍"
+      },
+      "previous": "A9 0A AA 0A AB 0A AC 0A AD 0A AE 0A FF FF 00 00",
+      "output": "AF 0A B0 0A B1 0A B2 0A B3 0A B4 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 쨔쨘쨩쩌쩍쩐",
+      "input": {
+        "text": "쨔쨘쨩쩌쩍쩐"
+      },
+      "previous": "AF 0A B0 0A B1 0A B2 0A B3 0A B4 0A FF FF 00 00",
+      "output": "B5 0A B6 0A B7 0A B8 0A B9 0A BA 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 쩔쩜쩝쩟쩠쩡",
+      "input": {
+        "text": "쩔쩜쩝쩟쩠쩡"
+      },
+      "previous": "B5 0A B6 0A B7 0A B8 0A B9 0A BA 0A FF FF 00 00",
+      "output": "BB 0A BC 0A BD 0A BE 0A BF 0A C0 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 쩨쩽쪄쪘쪼쪽",
+      "input": {
+        "text": "쩨쩽쪄쪘쪼쪽"
+      },
+      "previous": "BB 0A BC 0A BD 0A BE 0A BF 0A C0 0A FF FF 00 00",
+      "output": "C1 0A C2 0A C3 0A C4 0A C5 0A C6 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 쫀쫄쫌쫍쫏쫑",
+      "input": {
+        "text": "쫀쫄쫌쫍쫏쫑"
+      },
+      "previous": "C1 0A C2 0A C3 0A C4 0A C5 0A C6 0A FF FF 00 00",
+      "output": "C7 0A C8 0A C9 0A CA 0A CB 0A CC 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 쫓쫘쫙쫠쫬쫴",
+      "input": {
+        "text": "쫓쫘쫙쫠쫬쫴"
+      },
+      "previous": "C7 0A C8 0A C9 0A CA 0A CB 0A CC 0A FF FF 00 00",
+      "output": "CD 0A CE 0A CF 0A D0 0A D1 0A D2 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 쬈쬐쬔쬘쬠쬡",
+      "input": {
+        "text": "쬈쬐쬔쬘쬠쬡"
+      },
+      "previous": "CD 0A CE 0A CF 0A D0 0A D1 0A D2 0A FF FF 00 00",
+      "output": "D3 0A D4 0A D5 0A D6 0A D7 0A D8 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 쭁쭈쭉쭌쭐쭘",
+      "input": {
+        "text": "쭁쭈쭉쭌쭐쭘"
+      },
+      "previous": "D3 0A D4 0A D5 0A D6 0A D7 0A D8 0A FF FF 00 00",
+      "output": "D9 0A DA 0A DB 0A DC 0A DD 0A DE 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 쭙쭝쭤쭸쭹쮜",
+      "input": {
+        "text": "쭙쭝쭤쭸쭹쮜"
+      },
+      "previous": "D9 0A DA 0A DB 0A DC 0A DD 0A DE 0A FF FF 00 00",
+      "output": "DF 0A E0 0A E1 0A E2 0A E3 0A E4 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 쮸쯔쯤쯧쯩찌",
+      "input": {
+        "text": "쮸쯔쯤쯧쯩찌"
+      },
+      "previous": "DF 0A E0 0A E1 0A E2 0A E3 0A E4 0A FF FF 00 00",
+      "output": "E5 0A E6 0A E7 0A E8 0A E9 0A EA 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 찍찐찔찜찝찡",
+      "input": {
+        "text": "찍찐찔찜찝찡"
+      },
+      "previous": "E5 0A E6 0A E7 0A E8 0A E9 0A EA 0A FF FF 00 00",
+      "output": "EB 0A EC 0A ED 0A EE 0A EF 0A F0 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 찢찧차착찬찮",
+      "input": {
+        "text": "찢찧차착찬찮"
+      },
+      "previous": "EB 0A EC 0A ED 0A EE 0A EF 0A F0 0A FF FF 00 00",
+      "output": "F1 0A F2 0A F3 0A F4 0A F5 0A F6 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 찰참찹찻찼창",
+      "input": {
+        "text": "찰참찹찻찼창"
+      },
+      "previous": "F1 0A F2 0A F3 0A F4 0A F5 0A F6 0A FF FF 00 00",
+      "output": "F7 0A F8 0A F9 0A FA 0A FB 0A FC 0A FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 찾채책챈챌챔",
+      "input": {
+        "text": "찾채책챈챌챔"
+      },
+      "previous": "F7 0A F8 0A F9 0A FA 0A FB 0A FC 0A FF FF 00 00",
+      "output": "FD 0A FE 0A FF 0A 00 0B 01 0B 02 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 챕챗챘챙챠챤",
+      "input": {
+        "text": "챕챗챘챙챠챤"
+      },
+      "previous": "FD 0A FE 0A FF 0A 00 0B 01 0B 02 0B FF FF 00 00",
+      "output": "03 0B 04 0B 05 0B 06 0B 07 0B 08 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 챦챨챰챵처척",
+      "input": {
+        "text": "챦챨챰챵처척"
+      },
+      "previous": "03 0B 04 0B 05 0B 06 0B 07 0B 08 0B FF FF 00 00",
+      "output": "09 0B 0A 0B 0B 0B 0C 0B 0D 0B 0E 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 천철첨첩첫첬",
+      "input": {
+        "text": "천철첨첩첫첬"
+      },
+      "previous": "09 0B 0A 0B 0B 0B 0C 0B 0D 0B 0E 0B FF FF 00 00",
+      "output": "0F 0B 10 0B 11 0B 12 0B 13 0B 14 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 청체첵첸첼쳄",
+      "input": {
+        "text": "청체첵첸첼쳄"
+      },
+      "previous": "0F 0B 10 0B 11 0B 12 0B 13 0B 14 0B FF FF 00 00",
+      "output": "15 0B 16 0B 17 0B 18 0B 19 0B 1A 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 쳅쳇쳉쳐쳔쳤",
+      "input": {
+        "text": "쳅쳇쳉쳐쳔쳤"
+      },
+      "previous": "15 0B 16 0B 17 0B 18 0B 19 0B 1A 0B FF FF 00 00",
+      "output": "1B 0B 1C 0B 1D 0B 1E 0B 1F 0B 20 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 쳬쳰촁초촉촌",
+      "input": {
+        "text": "쳬쳰촁초촉촌"
+      },
+      "previous": "1B 0B 1C 0B 1D 0B 1E 0B 1F 0B 20 0B FF FF 00 00",
+      "output": "21 0B 22 0B 23 0B 24 0B 25 0B 26 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 촐촘촙촛총촤",
+      "input": {
+        "text": "촐촘촙촛총촤"
+      },
+      "previous": "21 0B 22 0B 23 0B 24 0B 25 0B 26 0B FF FF 00 00",
+      "output": "27 0B 28 0B 29 0B 2A 0B 2B 0B 2C 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 촨촬촹최쵠쵤",
+      "input": {
+        "text": "촨촬촹최쵠쵤"
+      },
+      "previous": "27 0B 28 0B 29 0B 2A 0B 2B 0B 2C 0B FF FF 00 00",
+      "output": "2D 0B 2E 0B 2F 0B 30 0B 31 0B 32 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 쵬쵭쵯쵱쵸춈",
+      "input": {
+        "text": "쵬쵭쵯쵱쵸춈"
+      },
+      "previous": "2D 0B 2E 0B 2F 0B 30 0B 31 0B 32 0B FF FF 00 00",
+      "output": "33 0B 34 0B 35 0B 36 0B 37 0B 38 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 추축춘출춤춥",
+      "input": {
+        "text": "추축춘출춤춥"
+      },
+      "previous": "33 0B 34 0B 35 0B 36 0B 37 0B 38 0B FF FF 00 00",
+      "output": "39 0B 3A 0B 3B 0B 3C 0B 3D 0B 3E 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 춧충춰췄췌췐",
+      "input": {
+        "text": "춧충춰췄췌췐"
+      },
+      "previous": "39 0B 3A 0B 3B 0B 3C 0B 3D 0B 3E 0B FF FF 00 00",
+      "output": "3F 0B 40 0B 41 0B 42 0B 43 0B 44 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 취췬췰췸췹췻",
+      "input": {
+        "text": "취췬췰췸췹췻"
+      },
+      "previous": "3F 0B 40 0B 41 0B 42 0B 43 0B 44 0B FF FF 00 00",
+      "output": "45 0B 46 0B 47 0B 48 0B 49 0B 4A 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 췽츄츈츌츔츙",
+      "input": {
+        "text": "췽츄츈츌츔츙"
+      },
+      "previous": "45 0B 46 0B 47 0B 48 0B 49 0B 4A 0B FF FF 00 00",
+      "output": "4B 0B 4C 0B 4D 0B 4E 0B 4F 0B 50 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 츠측츤츨츰츱",
+      "input": {
+        "text": "츠측츤츨츰츱"
+      },
+      "previous": "4B 0B 4C 0B 4D 0B 4E 0B 4F 0B 50 0B FF FF 00 00",
+      "output": "51 0B 52 0B 53 0B 54 0B 55 0B 56 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 츳층치칙친칟",
+      "input": {
+        "text": "츳층치칙친칟"
+      },
+      "previous": "51 0B 52 0B 53 0B 54 0B 55 0B 56 0B FF FF 00 00",
+      "output": "57 0B 58 0B 59 0B 5A 0B 5B 0B 5C 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 칠칡침칩칫칭",
+      "input": {
+        "text": "칠칡침칩칫칭"
+      },
+      "previous": "57 0B 58 0B 59 0B 5A 0B 5B 0B 5C 0B FF FF 00 00",
+      "output": "5D 0B 5E 0B 5F 0B 60 0B 61 0B 62 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 카칵칸칼캄캅",
+      "input": {
+        "text": "카칵칸칼캄캅"
+      },
+      "previous": "5D 0B 5E 0B 5F 0B 60 0B 61 0B 62 0B FF FF 00 00",
+      "output": "63 0B 64 0B 65 0B 66 0B 67 0B 68 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 캇캉캐캑캔캘",
+      "input": {
+        "text": "캇캉캐캑캔캘"
+      },
+      "previous": "63 0B 64 0B 65 0B 66 0B 67 0B 68 0B FF FF 00 00",
+      "output": "69 0B 6A 0B 6B 0B 6C 0B 6D 0B 6E 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 캠캡캣캤캥캬",
+      "input": {
+        "text": "캠캡캣캤캥캬"
+      },
+      "previous": "69 0B 6A 0B 6B 0B 6C 0B 6D 0B 6E 0B FF FF 00 00",
+      "output": "6F 0B 70 0B 71 0B 72 0B 73 0B 74 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 캭컁커컥컨컫",
+      "input": {
+        "text": "캭컁커컥컨컫"
+      },
+      "previous": "6F 0B 70 0B 71 0B 72 0B 73 0B 74 0B FF FF 00 00",
+      "output": "75 0B 76 0B 77 0B 78 0B 79 0B 7A 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 컬컴컵컷컸컹",
+      "input": {
+        "text": "컬컴컵컷컸컹"
+      },
+      "previous": "75 0B 76 0B 77 0B 78 0B 79 0B 7A 0B FF FF 00 00",
+      "output": "7B 0B 7C 0B 7D 0B 7E 0B 7F 0B 80 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 케켁켄켈켐켑",
+      "input": {
+        "text": "케켁켄켈켐켑"
+      },
+      "previous": "7B 0B 7C 0B 7D 0B 7E 0B 7F 0B 80 0B FF FF 00 00",
+      "output": "81 0B 82 0B 83 0B 84 0B 85 0B 86 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 켓켕켜켠켤켬",
+      "input": {
+        "text": "켓켕켜켠켤켬"
+      },
+      "previous": "81 0B 82 0B 83 0B 84 0B 85 0B 86 0B FF FF 00 00",
+      "output": "87 0B 88 0B 89 0B 8A 0B 8B 0B 8C 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 켭켯켰켱켸코",
+      "input": {
+        "text": "켭켯켰켱켸코"
+      },
+      "previous": "87 0B 88 0B 89 0B 8A 0B 8B 0B 8C 0B FF FF 00 00",
+      "output": "8D 0B 8E 0B 8F 0B 90 0B 91 0B 92 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 콕콘콜콤콥콧",
+      "input": {
+        "text": "콕콘콜콤콥콧"
+      },
+      "previous": "8D 0B 8E 0B 8F 0B 90 0B 91 0B 92 0B FF FF 00 00",
+      "output": "93 0B 94 0B 95 0B 96 0B 97 0B 98 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 콩콰콱콴콸쾀",
+      "input": {
+        "text": "콩콰콱콴콸쾀"
+      },
+      "previous": "93 0B 94 0B 95 0B 96 0B 97 0B 98 0B FF FF 00 00",
+      "output": "99 0B 9A 0B 9B 0B 9C 0B 9D 0B 9E 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 쾅쾌쾡쾨쾰쿄",
+      "input": {
+        "text": "쾅쾌쾡쾨쾰쿄"
+      },
+      "previous": "99 0B 9A 0B 9B 0B 9C 0B 9D 0B 9E 0B FF FF 00 00",
+      "output": "9F 0B A0 0B A1 0B A2 0B A3 0B A4 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 쿠쿡쿤쿨쿰쿱",
+      "input": {
+        "text": "쿠쿡쿤쿨쿰쿱"
+      },
+      "previous": "9F 0B A0 0B A1 0B A2 0B A3 0B A4 0B FF FF 00 00",
+      "output": "A5 0B A6 0B A7 0B A8 0B A9 0B AA 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 쿳쿵쿼퀀퀄퀑",
+      "input": {
+        "text": "쿳쿵쿼퀀퀄퀑"
+      },
+      "previous": "A5 0B A6 0B A7 0B A8 0B A9 0B AA 0B FF FF 00 00",
+      "output": "AB 0B AC 0B AD 0B AE 0B AF 0B B0 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 퀘퀭퀴퀵퀸퀼",
+      "input": {
+        "text": "퀘퀭퀴퀵퀸퀼"
+      },
+      "previous": "AB 0B AC 0B AD 0B AE 0B AF 0B B0 0B FF FF 00 00",
+      "output": "B1 0B B2 0B B3 0B B4 0B B5 0B B6 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 큄큅큇큉큐큔",
+      "input": {
+        "text": "큄큅큇큉큐큔"
+      },
+      "previous": "B1 0B B2 0B B3 0B B4 0B B5 0B B6 0B FF FF 00 00",
+      "output": "B7 0B B8 0B B9 0B BA 0B BB 0B BC 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 큘큠크큭큰클",
+      "input": {
+        "text": "큘큠크큭큰클"
+      },
+      "previous": "B7 0B B8 0B B9 0B BA 0B BB 0B BC 0B FF FF 00 00",
+      "output": "BD 0B BE 0B BF 0B C0 0B C1 0B C2 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 큼큽킁키킥킨",
+      "input": {
+        "text": "큼큽킁키킥킨"
+      },
+      "previous": "BD 0B BE 0B BF 0B C0 0B C1 0B C2 0B FF FF 00 00",
+      "output": "C3 0B C4 0B C5 0B C6 0B C7 0B C8 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 킬킴킵킷킹타",
+      "input": {
+        "text": "킬킴킵킷킹타"
+      },
+      "previous": "C3 0B C4 0B C5 0B C6 0B C7 0B C8 0B FF FF 00 00",
+      "output": "C9 0B CA 0B CB 0B CC 0B CD 0B CE 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 탁탄탈탉탐탑",
+      "input": {
+        "text": "탁탄탈탉탐탑"
+      },
+      "previous": "C9 0B CA 0B CB 0B CC 0B CD 0B CE 0B FF FF 00 00",
+      "output": "CF 0B D0 0B D1 0B D2 0B D3 0B D4 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 탓탔탕태택탠",
+      "input": {
+        "text": "탓탔탕태택탠"
+      },
+      "previous": "CF 0B D0 0B D1 0B D2 0B D3 0B D4 0B FF FF 00 00",
+      "output": "D5 0B D6 0B D7 0B D8 0B D9 0B DA 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 탤탬탭탯탰탱",
+      "input": {
+        "text": "탤탬탭탯탰탱"
+      },
+      "previous": "D5 0B D6 0B D7 0B D8 0B D9 0B DA 0B FF FF 00 00",
+      "output": "DB 0B DC 0B DD 0B DE 0B DF 0B E0 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 탸턍터턱턴털",
+      "input": {
+        "text": "탸턍터턱턴털"
+      },
+      "previous": "DB 0B DC 0B DD 0B DE 0B DF 0B E0 0B FF FF 00 00",
+      "output": "E1 0B E2 0B E3 0B E4 0B E5 0B E6 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 턺텀텁텃텄텅",
+      "input": {
+        "text": "턺텀텁텃텄텅"
+      },
+      "previous": "E1 0B E2 0B E3 0B E4 0B E5 0B E6 0B FF FF 00 00",
+      "output": "E7 0B E8 0B E9 0B EA 0B EB 0B EC 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 테텍텐텔템텝",
+      "input": {
+        "text": "테텍텐텔템텝"
+      },
+      "previous": "E7 0B E8 0B E9 0B EA 0B EB 0B EC 0B FF FF 00 00",
+      "output": "ED 0B EE 0B EF 0B F0 0B F1 0B F2 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 텟텡텨텬텼톄",
+      "input": {
+        "text": "텟텡텨텬텼톄"
+      },
+      "previous": "ED 0B EE 0B EF 0B F0 0B F1 0B F2 0B FF FF 00 00",
+      "output": "F3 0B F4 0B F5 0B F6 0B F7 0B F8 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 톈토톡톤톨톰",
+      "input": {
+        "text": "톈토톡톤톨톰"
+      },
+      "previous": "F3 0B F4 0B F5 0B F6 0B F7 0B F8 0B FF FF 00 00",
+      "output": "F9 0B FA 0B FB 0B FC 0B FD 0B FE 0B FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 톱톳통톺톼퇀",
+      "input": {
+        "text": "톱톳통톺톼퇀"
+      },
+      "previous": "F9 0B FA 0B FB 0B FC 0B FD 0B FE 0B FF FF 00 00",
+      "output": "FF 0B 00 0C 01 0C 02 0C 03 0C 04 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 퇘퇴퇸툇툉툐",
+      "input": {
+        "text": "퇘퇴퇸툇툉툐"
+      },
+      "previous": "FF 0B 00 0C 01 0C 02 0C 03 0C 04 0C FF FF 00 00",
+      "output": "05 0C 06 0C 07 0C 08 0C 09 0C 0A 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 투툭툰툴툼툽",
+      "input": {
+        "text": "투툭툰툴툼툽"
+      },
+      "previous": "05 0C 06 0C 07 0C 08 0C 09 0C 0A 0C FF FF 00 00",
+      "output": "0B 0C 0C 0C 0D 0C 0E 0C 0F 0C 10 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 툿퉁퉈퉜퉤튀",
+      "input": {
+        "text": "툿퉁퉈퉜퉤튀"
+      },
+      "previous": "0B 0C 0C 0C 0D 0C 0E 0C 0F 0C 10 0C FF FF 00 00",
+      "output": "11 0C 12 0C 13 0C 14 0C 15 0C 16 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 튁튄튈튐튑튕",
+      "input": {
+        "text": "튁튄튈튐튑튕"
+      },
+      "previous": "11 0C 12 0C 13 0C 14 0C 15 0C 16 0C FF FF 00 00",
+      "output": "17 0C 18 0C 19 0C 1A 0C 1B 0C 1C 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 튜튠튤튬튱트",
+      "input": {
+        "text": "튜튠튤튬튱트"
+      },
+      "previous": "17 0C 18 0C 19 0C 1A 0C 1B 0C 1C 0C FF FF 00 00",
+      "output": "1D 0C 1E 0C 1F 0C 20 0C 21 0C 22 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 특튼튿틀틂틈",
+      "input": {
+        "text": "특튼튿틀틂틈"
+      },
+      "previous": "1D 0C 1E 0C 1F 0C 20 0C 21 0C 22 0C FF FF 00 00",
+      "output": "23 0C 24 0C 25 0C 26 0C 27 0C 28 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 틉틋틔틘틜틤",
+      "input": {
+        "text": "틉틋틔틘틜틤"
+      },
+      "previous": "23 0C 24 0C 25 0C 26 0C 27 0C 28 0C FF FF 00 00",
+      "output": "29 0C 2A 0C 2B 0C 2C 0C 2D 0C 2E 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 틥티틱틴틸팀",
+      "input": {
+        "text": "틥티틱틴틸팀"
+      },
+      "previous": "29 0C 2A 0C 2B 0C 2C 0C 2D 0C 2E 0C FF FF 00 00",
+      "output": "2F 0C 30 0C 31 0C 32 0C 33 0C 34 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 팁팃팅파팍팎",
+      "input": {
+        "text": "팁팃팅파팍팎"
+      },
+      "previous": "2F 0C 30 0C 31 0C 32 0C 33 0C 34 0C FF FF 00 00",
+      "output": "35 0C 36 0C 37 0C 38 0C 39 0C 3A 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 판팔팖팜팝팟",
+      "input": {
+        "text": "판팔팖팜팝팟"
+      },
+      "previous": "35 0C 36 0C 37 0C 38 0C 39 0C 3A 0C FF FF 00 00",
+      "output": "3B 0C 3C 0C 3D 0C 3E 0C 3F 0C 40 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 팠팡팥패팩팬",
+      "input": {
+        "text": "팠팡팥패팩팬"
+      },
+      "previous": "3B 0C 3C 0C 3D 0C 3E 0C 3F 0C 40 0C FF FF 00 00",
+      "output": "41 0C 42 0C 43 0C 44 0C 45 0C 46 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 팰팸팹팻팼팽",
+      "input": {
+        "text": "팰팸팹팻팼팽"
+      },
+      "previous": "41 0C 42 0C 43 0C 44 0C 45 0C 46 0C FF FF 00 00",
+      "output": "47 0C 48 0C 49 0C 4A 0C 4B 0C 4C 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 퍄퍅퍼퍽펀펄",
+      "input": {
+        "text": "퍄퍅퍼퍽펀펄"
+      },
+      "previous": "47 0C 48 0C 49 0C 4A 0C 4B 0C 4C 0C FF FF 00 00",
+      "output": "4D 0C 4E 0C 4F 0C 50 0C 51 0C 52 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 펌펍펏펐펑페",
+      "input": {
+        "text": "펌펍펏펐펑페"
+      },
+      "previous": "4D 0C 4E 0C 4F 0C 50 0C 51 0C 52 0C FF FF 00 00",
+      "output": "53 0C 54 0C 55 0C 56 0C 57 0C 58 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 펙펜펠펨펩펫",
+      "input": {
+        "text": "펙펜펠펨펩펫"
+      },
+      "previous": "53 0C 54 0C 55 0C 56 0C 57 0C 58 0C FF FF 00 00",
+      "output": "59 0C 5A 0C 5B 0C 5C 0C 5D 0C 5E 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 펭펴편펼폄폅",
+      "input": {
+        "text": "펭펴편펼폄폅"
+      },
+      "previous": "59 0C 5A 0C 5B 0C 5C 0C 5D 0C 5E 0C FF FF 00 00",
+      "output": "5F 0C 60 0C 61 0C 62 0C 63 0C 64 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 폈평폐폘폡폣",
+      "input": {
+        "text": "폈평폐폘폡폣"
+      },
+      "previous": "5F 0C 60 0C 61 0C 62 0C 63 0C 64 0C FF FF 00 00",
+      "output": "65 0C 66 0C 67 0C 68 0C 69 0C 6A 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 포폭폰폴폼폽",
+      "input": {
+        "text": "포폭폰폴폼폽"
+      },
+      "previous": "65 0C 66 0C 67 0C 68 0C 69 0C 6A 0C FF FF 00 00",
+      "output": "6B 0C 6C 0C 6D 0C 6E 0C 6F 0C 70 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 폿퐁퐈퐝푀푄",
+      "input": {
+        "text": "폿퐁퐈퐝푀푄"
+      },
+      "previous": "6B 0C 6C 0C 6D 0C 6E 0C 6F 0C 70 0C FF FF 00 00",
+      "output": "71 0C 72 0C 73 0C 74 0C 75 0C 76 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 표푠푤푭푯푸",
+      "input": {
+        "text": "표푠푤푭푯푸"
+      },
+      "previous": "71 0C 72 0C 73 0C 74 0C 75 0C 76 0C FF FF 00 00",
+      "output": "77 0C 78 0C 79 0C 7A 0C 7B 0C 7C 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 푹푼푿풀풂품",
+      "input": {
+        "text": "푹푼푿풀풂품"
+      },
+      "previous": "77 0C 78 0C 79 0C 7A 0C 7B 0C 7C 0C FF FF 00 00",
+      "output": "7D 0C 7E 0C 7F 0C 80 0C 81 0C 82 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 풉풋풍풔풩퓌",
+      "input": {
+        "text": "풉풋풍풔풩퓌"
+      },
+      "previous": "7D 0C 7E 0C 7F 0C 80 0C 81 0C 82 0C FF FF 00 00",
+      "output": "83 0C 84 0C 85 0C 86 0C 87 0C 88 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 퓐퓔퓜퓟퓨퓬",
+      "input": {
+        "text": "퓐퓔퓜퓟퓨퓬"
+      },
+      "previous": "83 0C 84 0C 85 0C 86 0C 87 0C 88 0C FF FF 00 00",
+      "output": "89 0C 8A 0C 8B 0C 8C 0C 8D 0C 8E 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 퓰퓸퓻퓽프픈",
+      "input": {
+        "text": "퓰퓸퓻퓽프픈"
+      },
+      "previous": "89 0C 8A 0C 8B 0C 8C 0C 8D 0C 8E 0C FF FF 00 00",
+      "output": "8F 0C 90 0C 91 0C 92 0C 93 0C 94 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 플픔픕픗피픽",
+      "input": {
+        "text": "플픔픕픗피픽"
+      },
+      "previous": "8F 0C 90 0C 91 0C 92 0C 93 0C 94 0C FF FF 00 00",
+      "output": "95 0C 96 0C 97 0C 98 0C 99 0C 9A 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 핀필핌핍핏핑",
+      "input": {
+        "text": "핀필핌핍핏핑"
+      },
+      "previous": "95 0C 96 0C 97 0C 98 0C 99 0C 9A 0C FF FF 00 00",
+      "output": "9B 0C 9C 0C 9D 0C 9E 0C 9F 0C A0 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 하학한할핥함",
+      "input": {
+        "text": "하학한할핥함"
+      },
+      "previous": "9B 0C 9C 0C 9D 0C 9E 0C 9F 0C A0 0C FF FF 00 00",
+      "output": "A1 0C A2 0C A3 0C A4 0C A5 0C A6 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 합핫항해핵핸",
+      "input": {
+        "text": "합핫항해핵핸"
+      },
+      "previous": "A1 0C A2 0C A3 0C A4 0C A5 0C A6 0C FF FF 00 00",
+      "output": "A7 0C A8 0C A9 0C AA 0C AB 0C AC 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 핼햄햅햇했행",
+      "input": {
+        "text": "핼햄햅햇했행"
+      },
+      "previous": "A7 0C A8 0C A9 0C AA 0C AB 0C AC 0C FF FF 00 00",
+      "output": "AD 0C AE 0C AF 0C B0 0C B1 0C B2 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 햐향허헉헌헐",
+      "input": {
+        "text": "햐향허헉헌헐"
+      },
+      "previous": "AD 0C AE 0C AF 0C B0 0C B1 0C B2 0C FF FF 00 00",
+      "output": "B3 0C B4 0C B5 0C B6 0C B7 0C B8 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 헒험헙헛헝헤",
+      "input": {
+        "text": "헒험헙헛헝헤"
+      },
+      "previous": "B3 0C B4 0C B5 0C B6 0C B7 0C B8 0C FF FF 00 00",
+      "output": "B9 0C BA 0C BB 0C BC 0C BD 0C BE 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 헥헨헬헴헵헷",
+      "input": {
+        "text": "헥헨헬헴헵헷"
+      },
+      "previous": "B9 0C BA 0C BB 0C BC 0C BD 0C BE 0C FF FF 00 00",
+      "output": "BF 0C C0 0C C1 0C C2 0C C3 0C C4 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 헹혀혁현혈혐",
+      "input": {
+        "text": "헹혀혁현혈혐"
+      },
+      "previous": "BF 0C C0 0C C1 0C C2 0C C3 0C C4 0C FF FF 00 00",
+      "output": "C5 0C C6 0C C7 0C C8 0C C9 0C CA 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 협혓혔형혜혠",
+      "input": {
+        "text": "협혓혔형혜혠"
+      },
+      "previous": "C5 0C C6 0C C7 0C C8 0C C9 0C CA 0C FF FF 00 00",
+      "output": "CB 0C CC 0C CD 0C CE 0C CF 0C D0 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 혤혭호혹혼홀",
+      "input": {
+        "text": "혤혭호혹혼홀"
+      },
+      "previous": "CB 0C CC 0C CD 0C CE 0C CF 0C D0 0C FF FF 00 00",
+      "output": "D1 0C D2 0C D3 0C D4 0C D5 0C D6 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 홅홈홉홋홍홑",
+      "input": {
+        "text": "홅홈홉홋홍홑"
+      },
+      "previous": "D1 0C D2 0C D3 0C D4 0C D5 0C D6 0C FF FF 00 00",
+      "output": "D7 0C D8 0C D9 0C DA 0C DB 0C DC 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 화확환활홧황",
+      "input": {
+        "text": "화확환활홧황"
+      },
+      "previous": "D7 0C D8 0C D9 0C DA 0C DB 0C DC 0C FF FF 00 00",
+      "output": "DD 0C DE 0C DF 0C E0 0C E1 0C E2 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 홰홱홴횃횅회",
+      "input": {
+        "text": "홰홱홴횃횅회"
+      },
+      "previous": "DD 0C DE 0C DF 0C E0 0C E1 0C E2 0C FF FF 00 00",
+      "output": "E3 0C E4 0C E5 0C E6 0C E7 0C E8 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 획횐횔횝횟횡",
+      "input": {
+        "text": "획횐횔횝횟횡"
+      },
+      "previous": "E3 0C E4 0C E5 0C E6 0C E7 0C E8 0C FF FF 00 00",
+      "output": "E9 0C EA 0C EB 0C EC 0C ED 0C EE 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 효횬횰횹횻후",
+      "input": {
+        "text": "효횬횰횹횻후"
+      },
+      "previous": "E9 0C EA 0C EB 0C EC 0C ED 0C EE 0C FF FF 00 00",
+      "output": "EF 0C F0 0C F1 0C F2 0C F3 0C F4 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 훅훈훌훑훔훗",
+      "input": {
+        "text": "훅훈훌훑훔훗"
+      },
+      "previous": "EF 0C F0 0C F1 0C F2 0C F3 0C F4 0C FF FF 00 00",
+      "output": "F5 0C F6 0C F7 0C F8 0C F9 0C FA 0C FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 훙훠훤훨훰훵",
+      "input": {
+        "text": "훙훠훤훨훰훵"
+      },
+      "previous": "F5 0C F6 0C F7 0C F8 0C F9 0C FA 0C FF FF 00 00",
+      "output": "FB 0C FC 0C FD 0C FE 0C FF 0C 00 0D FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 훼훽휀휄휑휘",
+      "input": {
+        "text": "훼훽휀휄휑휘"
+      },
+      "previous": "FB 0C FC 0C FD 0C FE 0C FF 0C 00 0D FF FF 00 00",
+      "output": "01 0D 02 0D 03 0D 04 0D 05 0D 06 0D FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 휙휜휠휨휩휫",
+      "input": {
+        "text": "휙휜휠휨휩휫"
+      },
+      "previous": "01 0D 02 0D 03 0D 04 0D 05 0D 06 0D FF FF 00 00",
+      "output": "07 0D 08 0D 09 0D 0A 0D 0B 0D 0C 0D FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 휭휴휵휸휼흄",
+      "input": {
+        "text": "휭휴휵휸휼흄"
+      },
+      "previous": "07 0D 08 0D 09 0D 0A 0D 0B 0D 0C 0D FF FF 00 00",
+      "output": "0D 0D 0E 0D 0F 0D 10 0D 11 0D 12 0D FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 흇흉흐흑흔흖",
+      "input": {
+        "text": "흇흉흐흑흔흖"
+      },
+      "previous": "0D 0D 0E 0D 0F 0D 10 0D 11 0D 12 0D FF FF 00 00",
+      "output": "13 0D 14 0D 15 0D 16 0D 17 0D 18 0D FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 흗흘흙흠흡흣",
+      "input": {
+        "text": "흗흘흙흠흡흣"
+      },
+      "previous": "13 0D 14 0D 15 0D 16 0D 17 0D 18 0D FF FF 00 00",
+      "output": "19 0D 1A 0D 1B 0D 1C 0D 1D 0D 1E 0D FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 흥흩희흰흴흼",
+      "input": {
+        "text": "흥흩희흰흴흼"
+      },
+      "previous": "19 0D 1A 0D 1B 0D 1C 0D 1D 0D 1E 0D FF FF 00 00",
+      "output": "1F 0D 20 0D 21 0D 22 0D 23 0D 24 0D FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 흽힁히힉힌힐",
+      "input": {
+        "text": "흽힁히힉힌힐"
+      },
+      "previous": "1F 0D 20 0D 21 0D 22 0D 23 0D 24 0D FF FF 00 00",
+      "output": "25 0D 26 0D 27 0D 28 0D 29 0D 2A 0D FF FF 00 00"
+    },
+    {
+      "name": "the trainer name 힘힙힛힝ㄱㄲ",
+      "input": {
+        "text": "힘힙힛힝ㄱㄲ"
+      },
+      "previous": "25 0D 26 0D 27 0D 28 0D 29 0D 2A 0D FF FF 00 00",
+      "output": "2B 0D 2C 0D 2D 0D 2E 0D 31 0D 32 0D FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ㄴㄷㄸㄹㅁㅂ",
+      "input": {
+        "text": "ㄴㄷㄸㄹㅁㅂ"
+      },
+      "previous": "2B 0D 2C 0D 2D 0D 2E 0D 31 0D 32 0D FF FF 00 00",
+      "output": "33 0D 34 0D 35 0D 36 0D 37 0D 38 0D FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ㅃㅅㅆㅇㅈㅉ",
+      "input": {
+        "text": "ㅃㅅㅆㅇㅈㅉ"
+      },
+      "previous": "33 0D 34 0D 35 0D 36 0D 37 0D 38 0D FF FF 00 00",
+      "output": "39 0D 3A 0D 3B 0D 3C 0D 3D 0D 3E 0D FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ㅊㅋㅌㅍㅎㅏ",
+      "input": {
+        "text": "ㅊㅋㅌㅍㅎㅏ"
+      },
+      "previous": "39 0D 3A 0D 3B 0D 3C 0D 3D 0D 3E 0D FF FF 00 00",
+      "output": "3F 0D 40 0D 41 0D 42 0D 43 0D 44 0D FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ㅐㅑㅒㅓㅔㅕ",
+      "input": {
+        "text": "ㅐㅑㅒㅓㅔㅕ"
+      },
+      "previous": "3F 0D 40 0D 41 0D 42 0D 43 0D 44 0D FF FF 00 00",
+      "output": "45 0D 46 0D 47 0D 48 0D 49 0D 4A 0D FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ㅖㅗㅛㅜㅠㅡ",
+      "input": {
+        "text": "ㅖㅗㅛㅜㅠㅡ"
+      },
+      "previous": "45 0D 46 0D 47 0D 48 0D 49 0D 4A 0D FF FF 00 00",
+      "output": "4B 0D 4C 0D 4D 0D 4E 0D 4F 0D 50 0D FF FF 00 00"
+    },
+    {
+      "name": "the trainer name ㅣ뢔쌰쎼쓔쬬",
+      "input": {
+        "text": "ㅣ뢔쌰쎼쓔쬬"
+      },
+      "previous": "4B 0D 4C 0D 4D 0D 4E 0D 4F 0D 50 0D FF FF 00 00",
+      "output": "51 0D 61 0D 62 0D 63 0D 64 0D 65 0D FF FF 00 00"
+    },
+    {
+      "name": "the trainer name Ab over the one before",
+      "input": {
+        "text": "Ab"
+      },
+      "previous": "51 0D 61 0D 62 0D 63 0D 64 0D 65 0D FF FF 00 00",
+      "output": "2B 01 46 01 FF FF 00 00 00 00 00 00 00 00 00 00"
+    }
+  ]
+}

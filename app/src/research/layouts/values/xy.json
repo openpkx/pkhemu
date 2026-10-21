@@ -1,0 +1,26 @@
+{
+  "$schema": "../schema/values.schema.json",
+  "schema": "1.0",
+  "note": "English names for the key items X and Y have and Omega Ruby and Alpha Sapphire don't.",
+  "values": [
+    {"domain": "item", "index": 431, "name": "Poké Radar", "cross": {"id": 431}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt"},
+    {"domain": "item", "index": 442, "name": "Town Map", "cross": {"id": 442}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt"},
+    {"domain": "item", "index": 450, "name": "Bike", "cross": {"id": 450}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt"},
+    {"domain": "item", "index": 641, "name": "Holo Caster", "cross": {"id": 641}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt"},
+    {"domain": "item", "index": 642, "name": "Prof’s Letter", "cross": {"id": 642}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt"},
+    {"domain": "item", "index": 643, "name": "Roller Skates", "cross": {"id": 643}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt"},
+    {"domain": "item", "index": 651, "name": "Poké Flute", "cross": {"id": 651}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt"},
+    {"domain": "item", "index": 689, "name": "Sprinklotad", "cross": {"id": 689}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt"},
+    {"domain": "item", "index": 695, "name": "Power Plant Pass", "cross": {"id": 695}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt"},
+    {"domain": "item", "index": 696, "name": "Mega Ring", "cross": {"id": 696}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt"},
+    {"domain": "item", "index": 698, "name": "Common Stone", "cross": {"id": 698}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt"},
+    {"domain": "item", "index": 700, "name": "Elevator Key", "cross": {"id": 700}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt"},
+    {"domain": "item", "index": 701, "name": "TMV Pass", "cross": {"id": 701}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt"},
+    {"domain": "item", "index": 702, "name": "Honor of Kalos", "cross": {"id": 702}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt"},
+    {"domain": "item", "index": 703, "name": "Adventure Guide", "cross": {"id": 703}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt"},
+    {"domain": "item", "index": 705, "name": "Lens Case", "cross": {"id": 705}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt"},
+    {"domain": "item", "index": 712, "name": "Looker Ticket", "cross": {"id": 712}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt"},
+    {"domain": "item", "index": 713, "name": "Bike (2)", "cross": {"id": 713}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt and pkhex:Game/GameStrings/GameStrings.cs"},
+    {"domain": "item", "index": 714, "name": "Holo Caster (2)", "cross": {"id": 714}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt and pkhex:Game/GameStrings/GameStrings.cs"}
+  ]
+}

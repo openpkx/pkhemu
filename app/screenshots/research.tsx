@@ -12,6 +12,7 @@ const shared: Gen3Edit[] = [
   { section: 0, offset: 0x0000, bytes: [0xc7, 0xbb, 0xd3, 0xff] },
   { section: 1, offset: 0x0234, bytes: le(1, 4) },
   { section: 1, offset: 0x0650, bytes: [...le(4, 2), ...le(10, 2)] },
+  { section: 1, offset: 0x05b0, bytes: [...le(359, 2), ...le(1, 2)] },
 ];
 
 const before: SaveFile = {
@@ -19,6 +20,7 @@ const before: SaveFile = {
     ...shared,
     { section: 0, offset: 0x000e, bytes: [...le(24, 2), 41, 7] },
     { section: 1, offset: 0x0490, bytes: le(3000, 4) },
+    { section: 1, offset: 0x0560, bytes: [...le(79, 2), ...le(92, 2)] },
     { section: 2, offset: 0x061c, bytes: le(17, 4) },
     { section: 4, offset: 0x0c40, bytes: [0x03, 0, 0, 0, 0x47] },
   ]),
@@ -30,6 +32,8 @@ const after: SaveFile = {
     ...shared,
     { section: 0, offset: 0x000e, bytes: [...le(24, 2), 54, 19] },
     { section: 1, offset: 0x0490, bytes: le(2800, 4) },
+    { section: 1, offset: 0x0560, bytes: [...le(79, 2), ...le(93, 2)] },
+    { section: 1, offset: 0x05b4, bytes: [...le(52, 2), ...le(1, 2)] },
     { section: 1, offset: 0x0654, bytes: [...le(3, 2), ...le(1, 2)] },
     { section: 2, offset: 0x061c, bytes: le(18, 4) },
     { section: 2, offset: 0x0880, bytes: [0x01, 0x00, 0x02] },
@@ -68,7 +72,7 @@ const own: Finding[] = [
     rom,
     app,
   },
-  { id: "item:368", kind: "value", domain: "item", index: 368, name: "Devon Scope", confidence: "known", pocket: "Key items", rom, app },
+  { id: "item:52", kind: "value", domain: "item", index: 52, name: "Devon Scope", confidence: "known", pocket: "Key items", rom, app },
 ];
 
 const imported: Finding[] = [
@@ -91,20 +95,14 @@ const imported: Finding[] = [
 
 const withFindings = new Set(["research-findings", "research-export"]);
 
-const keyItems = (count: number) => ({ pocket: "Key items", items: [{ index: 359, count: 1 }, ...(count ? [{ index: 368, count }] : [])] });
-
 function researchHost(screen: string, listeners: Set<(event: HostEvent) => void>): ResearchHost {
   const stored: Record<string, unknown> = {
     compare: compares[screen],
     ...(withFindings.has(screen) && { "findings:emerald-1.0": own, "imported:emerald-1.0": imported }),
   };
   return {
-    context: async () => ({ game: "Emerald", build: "BPEE", format: { id: "emerald", name: "Emerald" }, romSha1: null, romHack: false, app: "0.12.0" }),
+    context: async () => ({ game: "Emerald", build: "BPEE", romSha1: null, romHack: false, app: "0.12.0" }),
     saveFile: async () => before,
-    read: async (bytes) => ({
-      pouches: [keyItems(bytes === after.bytes ? 1 : 0), { pocket: "Items", items: [{ index: 79, count: bytes === after.bytes ? 93 : 92 }] }],
-      held: [],
-    }),
     load: async <T,>(key: string) => stored[key] as T | undefined,
     store: async () => {},
     exportFile: async () => undefined,

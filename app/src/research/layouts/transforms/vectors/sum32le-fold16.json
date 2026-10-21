@@ -282,6 +282,118 @@
       "output": "00 00"
     },
     {
+      "name": "sector holding section 0 of heart-and-soul.sav",
+      "args": {
+        "start": 0,
+        "end": "0x0F34",
+        "at": "0xFF6"
+      },
+      "input": {
+        "file": "heart-and-soul.sav",
+        "offset": "0x17000",
+        "length": "0x1000"
+      },
+      "output": "5C 08"
+    },
+    {
+      "name": "sector holding section 1 of heart-and-soul.sav",
+      "args": {
+        "start": 0,
+        "end": "0x0F80",
+        "at": "0xFF6"
+      },
+      "input": {
+        "file": "heart-and-soul.sav",
+        "offset": "0x18000",
+        "length": "0x1000"
+      },
+      "output": "16 24"
+    },
+    {
+      "name": "sector holding section 5 of heart-and-soul.sav",
+      "args": {
+        "start": 0,
+        "end": "0x0F80",
+        "at": "0xFF6"
+      },
+      "input": {
+        "file": "heart-and-soul.sav",
+        "offset": "0xE000",
+        "length": "0x1000"
+      },
+      "output": "B6 97"
+    },
+    {
+      "name": "sector holding section 13 of heart-and-soul.sav",
+      "args": {
+        "start": 0,
+        "end": "0x0960",
+        "at": "0xFF6"
+      },
+      "input": {
+        "file": "heart-and-soul.sav",
+        "offset": "0x16000",
+        "length": "0x1000"
+      },
+      "output": "00 00"
+    },
+    {
+      "name": "sector holding section 0 of emerald-legacy.sav",
+      "args": {
+        "start": 0,
+        "end": "0xF80",
+        "at": "0xFF6"
+      },
+      "input": {
+        "file": "emerald-legacy.sav",
+        "offset": "0x17000",
+        "length": "0x1000"
+      },
+      "output": "5D 09"
+    },
+    {
+      "name": "sector holding section 1 of emerald-legacy.sav",
+      "args": {
+        "start": 0,
+        "end": "0xF80",
+        "at": "0xFF6"
+      },
+      "input": {
+        "file": "emerald-legacy.sav",
+        "offset": "0x18000",
+        "length": "0x1000"
+      },
+      "output": "F0 C1"
+    },
+    {
+      "name": "sector holding section 5 of emerald-legacy.sav",
+      "args": {
+        "start": 0,
+        "end": "0xF80",
+        "at": "0xFF6"
+      },
+      "input": {
+        "file": "emerald-legacy.sav",
+        "offset": "0xE000",
+        "length": "0x1000"
+      },
+      "output": "B4 97"
+    },
+    {
+      "name": "sector holding section 13 of emerald-legacy.sav",
+      "args": {
+        "start": 0,
+        "end": "0xF80",
+        "at": "0xFF6"
+      },
+      "input": {
+        "file": "emerald-legacy.sav",
+        "offset": "0x16000",
+        "length": "0x1000"
+      },
+      "output": "00 00"
+    },
+    {
       "name": "sector 28 of frlg.sav, holding the bytes of section 5, its checksum at 0xFF4",
       "args": {
         "start": 0,
@@ -440,6 +552,52 @@
         {
           "file": "unbound.sav",
           "offset": "0x14FF8",
+          "length": "0x8"
+        }
+      ]
+    },
+    {
+      "name": "sector holding section 1 of heart-and-soul.sav, with money 654321",
+      "args": {
+        "start": 0,
+        "end": "0x0F80",
+        "at": "0xFF6"
+      },
+      "input": [
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x18000",
+          "length": "0x494"
+        },
+        "2E 60 5E",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x18497",
+          "length": "0xB5F"
+        },
+        "00 00",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x18FF8",
+          "length": "0x8"
+        }
+      ],
+      "output": [
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x18000",
+          "length": "0x494"
+        },
+        "2E 60 5E",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x18497",
+          "length": "0xB5F"
+        },
+        "AD 0A",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x18FF8",
           "length": "0x8"
         }
       ]

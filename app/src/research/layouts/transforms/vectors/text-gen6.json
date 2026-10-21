@@ -1,0 +1,222 @@
+{
+  "step": "text-gen6",
+  "decode": [
+    {
+      "name": "the trainer name OPENPKX the engine writes in X",
+      "input": "4F 00 50 00 45 00 4E 00 50 00 4B 00 58 00 00 00 00 00 00 00 00 00 00 00 00 00",
+      "output": {
+        "text": "OPENPKX"
+      }
+    },
+    {
+      "name": "units 0x0021 to 0x002D",
+      "input": "21 00 22 00 23 00 24 00 25 00 26 00 27 00 28 00 29 00 2A 00 2B 00 2C 00 2D 00",
+      "output": {
+        "text": "!\"#$%&'()*+,-"
+      }
+    },
+    {
+      "name": "units 0x002E to 0x003A",
+      "input": "2E 00 2F 00 30 00 31 00 32 00 33 00 34 00 35 00 36 00 37 00 38 00 39 00 3A 00",
+      "output": {
+        "text": "./0123456789:"
+      }
+    },
+    {
+      "name": "units 0x003B to 0x0047",
+      "input": "3B 00 3C 00 3D 00 3E 00 3F 00 40 00 41 00 42 00 43 00 44 00 45 00 46 00 47 00",
+      "output": {
+        "text": ";<=>?@ABCDEFG"
+      }
+    },
+    {
+      "name": "units 0x0048 to 0x0054",
+      "input": "48 00 49 00 4A 00 4B 00 4C 00 4D 00 4E 00 4F 00 50 00 51 00 52 00 53 00 54 00",
+      "output": {
+        "text": "HIJKLMNOPQRST"
+      }
+    },
+    {
+      "name": "units 0x0055 to 0x0061",
+      "input": "55 00 56 00 57 00 58 00 59 00 5A 00 5B 00 5C 00 5D 00 5E 00 5F 00 60 00 61 00",
+      "output": {
+        "text": "UVWXYZ[\\]^_`a"
+      }
+    },
+    {
+      "name": "units 0x0062 to 0x006E",
+      "input": "62 00 63 00 64 00 65 00 66 00 67 00 68 00 69 00 6A 00 6B 00 6C 00 6D 00 6E 00",
+      "output": {
+        "text": "bcdefghijklmn"
+      }
+    },
+    {
+      "name": "units 0x006F to 0x007B",
+      "input": "6F 00 70 00 71 00 72 00 73 00 74 00 75 00 76 00 77 00 78 00 79 00 7A 00 7B 00",
+      "output": {
+        "text": "opqrstuvwxyz{"
+      }
+    },
+    {
+      "name": "units 0x007C to 0x007E",
+      "input": "7C 00 7D 00 7E 00",
+      "output": {
+        "text": "|}~"
+      }
+    },
+    {
+      "name": "Évoli",
+      "input": "C9 00 76 00 6F 00 6C 00 69 00 00 00",
+      "output": {
+        "text": "Évoli"
+      }
+    },
+    {
+      "name": "ポチエナ",
+      "input": "DD 30 C1 30 A8 30 CA 30 00 00",
+      "output": {
+        "text": "ポチエナ"
+      }
+    },
+    {
+      "name": "가나다",
+      "input": "00 AC 98 B0 E4 B2 00 00",
+      "output": {
+        "text": "가나다"
+      }
+    },
+    {
+      "name": "妙蛙种子",
+      "input": "99 59 D9 86 CD 79 50 5B 00 00",
+      "output": {
+        "text": "妙蛙种子"
+      }
+    },
+    {
+      "name": "the private ♂ and ♀ of Gen 5 and Gen 6, then ♂",
+      "input": "6D 24 6E 24 8E E0 8F E0 42 26 00 00",
+      "output": {
+        "text": "⑭⑮♂♀♂"
+      }
+    },
+    {
+      "name": "a surrogate pair",
+      "input": "3D D8 00 DE 00 00",
+      "output": {
+        "text": "😀"
+      }
+    },
+    {
+      "name": "value 0x0000 after A",
+      "input": "41 00 00 00 41 00 00 00",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "value 0xFFFF after A",
+      "input": "41 00 FF FF 41 00 00 00",
+      "output": {
+        "text": "A￿A"
+      }
+    }
+  ],
+  "encode": [
+    {
+      "name": "the trainer name OPENPKX over the blank X save's",
+      "input": {
+        "text": "OPENPKX"
+      },
+      "previous": "50 00 4B 00 48 00 65 00 58 00 57 00 65 00 62 00 00 00 00 00 00 00 00 00 00 00",
+      "output": "4F 00 50 00 45 00 4E 00 50 00 4B 00 58 00 00 00 00 00 00 00 00 00 00 00 00 00"
+    },
+    {
+      "name": "the trainer name Évoli",
+      "input": {
+        "text": "Évoli"
+      },
+      "previous": "4F 00 50 00 45 00 4E 00 50 00 4B 00 58 00 00 00 00 00 00 00 00 00 00 00 00 00",
+      "output": "C9 00 76 00 6F 00 6C 00 69 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00"
+    },
+    {
+      "name": "the trainer name ポチエナ",
+      "input": {
+        "text": "ポチエナ"
+      },
+      "previous": "C9 00 76 00 6F 00 6C 00 69 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+      "output": "DD 30 C1 30 A8 30 CA 30 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00"
+    },
+    {
+      "name": "the trainer name 가나다",
+      "input": {
+        "text": "가나다"
+      },
+      "previous": "DD 30 C1 30 A8 30 CA 30 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+      "output": "00 AC 98 B0 E4 B2 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00"
+    },
+    {
+      "name": "the trainer name 妙蛙种子",
+      "input": {
+        "text": "妙蛙种子"
+      },
+      "previous": "00 AC 98 B0 E4 B2 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+      "output": "99 59 D9 86 CD 79 50 5B 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00"
+    },
+    {
+      "name": "the trainer name A♂",
+      "input": {
+        "text": "A♂"
+      },
+      "previous": "99 59 D9 86 CD 79 50 5B 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+      "output": "41 00 8E E0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00"
+    },
+    {
+      "name": "the trainer name ア♂",
+      "input": {
+        "text": "ア♂"
+      },
+      "previous": "41 00 8E E0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+      "output": "A2 30 42 26 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00"
+    },
+    {
+      "name": "the trainer name ♂♀",
+      "input": {
+        "text": "♂♀"
+      },
+      "previous": "A2 30 42 26 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+      "output": "8E E0 8F E0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00"
+    },
+    {
+      "name": "the trainer name é♀",
+      "input": {
+        "text": "é♀"
+      },
+      "previous": "8E E0 8F E0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+      "output": "E9 00 8F E0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00"
+    },
+    {
+      "name": "the trainer name 蛋",
+      "input": {
+        "text": "蛋"
+      },
+      "previous": "E9 00 8F E0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+      "output": "CB 86 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00"
+    },
+    {
+      "name": "the trainer name ABCDEFGHIJKL",
+      "input": {
+        "text": "ABCDEFGHIJKL"
+      },
+      "previous": "CB 86 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+      "output": "41 00 42 00 43 00 44 00 45 00 46 00 47 00 48 00 49 00 4A 00 4B 00 4C 00 00 00"
+    },
+    {
+      "name": "the trainer name Ab over the one before",
+      "input": {
+        "text": "Ab"
+      },
+      "previous": "41 00 42 00 43 00 44 00 45 00 46 00 47 00 48 00 49 00 4A 00 4B 00 4C 00 00 00",
+      "output": "41 00 62 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00"
+    }
+  ]
+}

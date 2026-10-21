@@ -1,15 +1,10 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createEngine, EngineError, wasmHost, type Engine } from "@pkhex-everywhere/engine";
-import { layoutFormat } from "@/research/layout";
+import { detectSave } from "@/research/layout";
+import { detect } from "@/research/layouts/parsers/detect.ts";
 
 export const data = fileURLToPath(new URL("../../../data/", import.meta.url));
-const dotnet = new URL("../../node_modules/@pkhex-everywhere/engine/_framework/dotnet.js", import.meta.url).href;
-
-export const testEngine = () =>
-  createEngine({ host: wasmHost({ dotnetUrl: dotnet, load: (url) => import(/* @vite-ignore */ url) }) });
-
 export const files = (dir: string): string[] =>
   existsSync(dir)
     ? readdirSync(dir)
@@ -17,22 +12,15 @@ export const files = (dir: string): string[] =>
         .flatMap((name) => (statSync(join(dir, name)).isDirectory() ? files(join(dir, name)) : [join(dir, name)]))
     : [];
 
-async function load(engine: Engine, save: Uint8Array, format: string) {
-  try {
-    await engine.game.load(save);
-  } catch (error) {
-    if (!(error instanceof EngineError && error.candidates?.some(({ id }) => id === format))) return false;
-    return engine.game.load(save, undefined, format).then(() => true, () => false);
-  }
-  return true;
-}
-
-export async function findSave(engine: Engine, format: string) {
-  for (const path of files(`${data}saves`).filter((path) => path.endsWith(".sav"))) {
-    const save = readFileSync(path);
-    const loaded = await load(engine, save, format);
-    const version = loaded && (await engine.game.version());
-    if (version && layoutFormat(version) === format) return { path, save: new Uint8Array(save) };
+// A ROM's SHA-1 picks its layout whatever the file holds, and a hack can keep its base game's detection,
+// so the save must pass the format's own tests and be the one certain match with the ROM.
+// A 3DS save keeps the name of the file in the game's save archive, such as main.
+export function findSave(format: string, romSha1?: string) {
+  for (const path of files(`${data}saves`).filter((path) => /(\.(sav|raw)|\bmain)$/.test(path))) {
+    const save = new Uint8Array(readFileSync(path));
+    if (!detect(save).some((found) => found.format === format)) continue;
+    const found = detectSave(save, romSha1);
+    if (found.length === 1 && found[0].format === format && found[0].match === "certain") return { path, save };
   }
 }
 

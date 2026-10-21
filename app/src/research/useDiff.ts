@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
 import { diffReadings, diffSpaces, type SpaceChanges, type ValueCandidate } from "./diff";
-import type { ResearchHost, SaveFile } from "./host";
+import type { SaveFile } from "./host";
 import { decodeSpaces, type PickedLayout } from "./layout";
+import { readValues } from "./values";
 
 export type Diff =
   | { state: "ready"; changes: SpaceChanges[]; values: ValueCandidate[]; pockets: string[]; spaces: number; checked: boolean }
   | { state: "no-layout" }
   | { state: "unreadable" };
 
-export function useDiff(host: ResearchHost, picked: PickedLayout | undefined, saves?: { baseline: SaveFile; after: SaveFile }) {
+export function useDiff(picked: PickedLayout | undefined, saves?: { baseline: SaveFile; after: SaveFile }) {
   const [diff, setDiff] = useState<Diff>();
 
   useEffect(() => {
@@ -16,11 +17,11 @@ export function useDiff(host: ResearchHost, picked: PickedLayout | undefined, sa
     if (!saves) return;
     let live = true;
     void (async (): Promise<Diff> => {
-      const values = Promise.all([host.read(saves.baseline.bytes), host.read(saves.after.bytes)]).then(
+      if (!picked) return { state: "no-layout" };
+      const values = Promise.all([readValues(saves.baseline.bytes, picked.layout), readValues(saves.after.bytes, picked.layout)]).then(
         ([before, after]) => ({ values: diffReadings(before, after), pockets: after.pouches.map(({ pocket }) => pocket) }),
         () => ({ values: [], pockets: [] }),
       );
-      if (!picked) return { state: "no-layout" };
       try {
         const [before, after] = await Promise.all([decodeSpaces(saves.baseline.bytes, picked.layout), decodeSpaces(saves.after.bytes, picked.layout)]);
         const changes = diffSpaces(before, after);
@@ -34,7 +35,7 @@ export function useDiff(host: ResearchHost, picked: PickedLayout | undefined, sa
     return () => {
       live = false;
     };
-  }, [host, picked, saves]);
+  }, [picked, saves]);
 
   return diff;
 }

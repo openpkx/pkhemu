@@ -1,0 +1,225 @@
+{
+  "step": "gen2-backup",
+  "decode": [
+    {
+      "name": "crystal.sav, whose backup matches its main data",
+      "args": {
+        "copies": [
+          {
+            "from": "0x2009",
+            "to": "0x1209",
+            "length": "0x0B7A"
+          }
+        ]
+      },
+      "input": {
+        "file": "crystal.sav"
+      },
+      "output": {
+        "file": "crystal.sav"
+      }
+    },
+    {
+      "name": "gold.sav, whose backup matches its main data",
+      "args": {
+        "copies": [
+          {
+            "from": "0x2009",
+            "to": "0x15C7",
+            "length": "0x0226"
+          },
+          {
+            "from": "0x222F",
+            "to": "0x3D69",
+            "length": "0x01AA"
+          },
+          {
+            "from": "0x23D9",
+            "to": "0x0C6B",
+            "length": "0x047D"
+          },
+          {
+            "from": "0x2856",
+            "to": "0x7E39",
+            "length": "0x0034"
+          },
+          {
+            "from": "0x288A",
+            "to": "0x10E8",
+            "length": "0x04DF"
+          }
+        ]
+      },
+      "input": {
+        "file": "gold.sav"
+      },
+      "output": {
+        "file": "gold.sav"
+      }
+    }
+  ],
+  "encode": [
+    {
+      "name": "crystal.sav with money 654321 from the engine and its backup as it was",
+      "args": {
+        "copies": [
+          {
+            "from": "0x2009",
+            "to": "0x1209",
+            "length": "0x0B7A"
+          }
+        ]
+      },
+      "input": [
+        {
+          "file": "crystal.sav",
+          "offset": "0x0",
+          "length": "0x1F0D"
+        },
+        "D3",
+        {
+          "file": "crystal.sav",
+          "offset": "0x1F0E",
+          "length": "0x4CE"
+        },
+        "09 FB F1",
+        {
+          "file": "crystal.sav",
+          "offset": "0x23DF",
+          "length": "0x92E"
+        },
+        "D3",
+        {
+          "file": "crystal.sav",
+          "offset": "0x2D0E",
+          "length": "0x52F2"
+        }
+      ],
+      "previous": {
+        "file": "crystal.sav"
+      },
+      "output": [
+        {
+          "file": "crystal.sav",
+          "offset": "0x0",
+          "length": "0x15DC"
+        },
+        "09 FB F1",
+        {
+          "file": "crystal.sav",
+          "offset": "0x15DF",
+          "length": "0x92E"
+        },
+        "D3",
+        {
+          "file": "crystal.sav",
+          "offset": "0x1F0E",
+          "length": "0x4CE"
+        },
+        "09 FB F1",
+        {
+          "file": "crystal.sav",
+          "offset": "0x23DF",
+          "length": "0x92E"
+        },
+        "D3",
+        {
+          "file": "crystal.sav",
+          "offset": "0x2D0E",
+          "length": "0x52F2"
+        }
+      ]
+    },
+    {
+      "name": "gold.sav with money 654321 from the engine and its backup as it was",
+      "args": {
+        "copies": [
+          {
+            "from": "0x2009",
+            "to": "0x15C7",
+            "length": "0x0226"
+          },
+          {
+            "from": "0x222F",
+            "to": "0x3D69",
+            "length": "0x01AA"
+          },
+          {
+            "from": "0x23D9",
+            "to": "0x0C6B",
+            "length": "0x047D"
+          },
+          {
+            "from": "0x2856",
+            "to": "0x7E39",
+            "length": "0x0034"
+          },
+          {
+            "from": "0x288A",
+            "to": "0x10E8",
+            "length": "0x04DF"
+          }
+        ]
+      },
+      "input": [
+        {
+          "file": "gold.sav",
+          "offset": "0x0",
+          "length": "0x23DB"
+        },
+        "09 FB F1",
+        {
+          "file": "gold.sav",
+          "offset": "0x23DE",
+          "length": "0x98B"
+        },
+        "01 19",
+        {
+          "file": "gold.sav",
+          "offset": "0x2D6B",
+          "length": "0x5102"
+        },
+        "01 19",
+        {
+          "file": "gold.sav",
+          "offset": "0x7E6F",
+          "length": "0x191"
+        }
+      ],
+      "previous": {
+        "file": "gold.sav"
+      },
+      "output": [
+        {
+          "file": "gold.sav",
+          "offset": "0x0",
+          "length": "0xC6D"
+        },
+        "09 FB F1",
+        {
+          "file": "gold.sav",
+          "offset": "0xC70",
+          "length": "0x176B"
+        },
+        "09 FB F1",
+        {
+          "file": "gold.sav",
+          "offset": "0x23DE",
+          "length": "0x98B"
+        },
+        "01 19",
+        {
+          "file": "gold.sav",
+          "offset": "0x2D6B",
+          "length": "0x5102"
+        },
+        "01 19",
+        {
+          "file": "gold.sav",
+          "offset": "0x7E6F",
+          "length": "0x191"
+        }
+      ]
+    }
+  ]
+}

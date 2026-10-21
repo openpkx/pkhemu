@@ -1,6 +1,6 @@
-import type { EngineReading, ItemReading } from "./host";
 import type { DecodedSpace, Range } from "./layout";
 import { bytesText, hex, plural } from "./text";
+import type { ItemReading, ValueReading } from "./values";
 
 export type KnownRange = Omit<Range, "count" | "stride">;
 
@@ -89,7 +89,7 @@ export function diffSpaces(before: DecodedSpace[], after: DecodedSpace[]): Space
 
 type Unnamed = Pick<ValueCandidate, "index" | "pocket" | "holder"> & { count: number };
 
-function unnamed({ pouches, held }: EngineReading) {
+function unnamed({ pouches, held }: ValueReading) {
   const found = new Map<string, Unnamed>();
   const add = (key: string, { index, name, count }: ItemReading, where: Omit<Unnamed, "index" | "count">) => {
     if (name !== undefined || !index) return;
@@ -102,7 +102,7 @@ function unnamed({ pouches, held }: EngineReading) {
   return found;
 }
 
-export function diffReadings(before: EngineReading, after: EngineReading): ValueCandidate[] {
+export function diffReadings(before: ValueReading, after: ValueReading): ValueCandidate[] {
   const was = unnamed(before);
   const now = unnamed(after);
   return [...new Set([...was.keys(), ...now.keys()])]

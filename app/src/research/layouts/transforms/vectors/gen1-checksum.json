@@ -1,0 +1,185 @@
+{
+  "step": "gen1-checksum",
+  "decode": [
+    {
+      "name": "red.sav",
+      "args": {
+        "start": "0x2598",
+        "end": "0x3523",
+        "at": "0x3523"
+      },
+      "input": {
+        "file": "red.sav"
+      },
+      "output": "6B"
+    },
+    {
+      "name": "red-boxes.sav",
+      "args": {
+        "start": "0x2598",
+        "end": "0x3523",
+        "at": "0x3523"
+      },
+      "input": {
+        "file": "red-boxes.sav"
+      },
+      "output": "AC"
+    },
+    {
+      "name": "blue-jpn.sav",
+      "args": {
+        "start": "0x2598",
+        "end": "0x3594",
+        "at": "0x3594"
+      },
+      "input": {
+        "file": "blue-jpn.sav"
+      },
+      "output": "4E"
+    }
+  ],
+  "encode": [
+    {
+      "name": "red.sav with money 654321 from the engine, its checksum zeroed",
+      "args": {
+        "start": "0x2598",
+        "end": "0x3523",
+        "at": "0x3523"
+      },
+      "input": [
+        {
+          "file": "red.sav",
+          "offset": "0x0",
+          "length": "0x25F3"
+        },
+        "65 43 21",
+        {
+          "file": "red.sav",
+          "offset": "0x25F6",
+          "length": "0x96C"
+        },
+        "00 00",
+        {
+          "file": "red.sav",
+          "offset": "0x2F64",
+          "length": "0x1D"
+        },
+        "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        {
+          "file": "red.sav",
+          "offset": "0x2F90",
+          "length": "0x1D"
+        },
+        "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        {
+          "file": "red.sav",
+          "offset": "0x2FBC",
+          "length": "0x1D"
+        },
+        "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        {
+          "file": "red.sav",
+          "offset": "0x2FE8",
+          "length": "0x1D"
+        },
+        "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        {
+          "file": "red.sav",
+          "offset": "0x3014",
+          "length": "0x1D"
+        },
+        "00 00 00 00 00 00 00 00 00 00 00",
+        {
+          "file": "red.sav",
+          "offset": "0x303C",
+          "length": "0xB"
+        },
+        "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        {
+          "file": "red.sav",
+          "offset": "0x307E",
+          "length": "0xB"
+        },
+        "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        {
+          "file": "red.sav",
+          "offset": "0x30C0",
+          "length": "0x463"
+        },
+        "00",
+        {
+          "file": "red.sav",
+          "offset": "0x3524",
+          "length": "0x4ADC"
+        }
+      ],
+      "output": [
+        {
+          "file": "red.sav",
+          "offset": "0x0",
+          "length": "0x25F3"
+        },
+        "65 43 21",
+        {
+          "file": "red.sav",
+          "offset": "0x25F6",
+          "length": "0x96C"
+        },
+        "00 00",
+        {
+          "file": "red.sav",
+          "offset": "0x2F64",
+          "length": "0x1D"
+        },
+        "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        {
+          "file": "red.sav",
+          "offset": "0x2F90",
+          "length": "0x1D"
+        },
+        "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        {
+          "file": "red.sav",
+          "offset": "0x2FBC",
+          "length": "0x1D"
+        },
+        "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        {
+          "file": "red.sav",
+          "offset": "0x2FE8",
+          "length": "0x1D"
+        },
+        "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        {
+          "file": "red.sav",
+          "offset": "0x3014",
+          "length": "0x1D"
+        },
+        "00 00 00 00 00 00 00 00 00 00 00",
+        {
+          "file": "red.sav",
+          "offset": "0x303C",
+          "length": "0xB"
+        },
+        "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        {
+          "file": "red.sav",
+          "offset": "0x307E",
+          "length": "0xB"
+        },
+        "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        {
+          "file": "red.sav",
+          "offset": "0x30C0",
+          "length": "0x463"
+        },
+        "7A",
+        {
+          "file": "red.sav",
+          "offset": "0x3524",
+          "length": "0x4ADC"
+        }
+      ]
+    }
+  ]
+}

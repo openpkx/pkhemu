@@ -1,4 +1,5 @@
-import { expand } from "./layouts/tools/parser/runtime.ts";
+import { layouts } from "./layouts/parsers/detect.ts";
+import { detectIn, expand } from "./layouts/tools/parser/runtime.ts";
 import { uint, type Uint } from "./layouts/tools/steps/bytes.ts";
 
 export const SCHEMA = "1.0";
@@ -20,11 +21,18 @@ export type LayoutRange = {
 
 export type LayoutSpace = { name: string; kind?: string; ranges?: LayoutRange[] };
 
+export type Value = { domain: string; index: number; name: string };
+
+type ModelField = { space?: string; range?: string; object?: { fields: Record<string, ModelField> } };
+
 export type Layout = {
   schema: string;
   target: { kind: string; format: string; version: string; roms?: { sha1: string; name: string }[] };
+  valueFiles?: string[];
+  values?: Value[];
   kinds?: Record<string, { ranges: LayoutRange[] }>;
   spaces?: LayoutSpace[];
+  model?: { root: ModelField & { fields: Record<string, ModelField> } };
 };
 
 export type Range = Omit<LayoutRange, "offset" | "length" | "count" | "stride"> & {
@@ -41,11 +49,11 @@ export type PickedLayout = { layout: Layout; checked: boolean };
 type Parsed = { space(name: string): { bytes: Uint8Array } };
 
 const files = import.meta.glob<Layout>("./layouts/known/*.json", { import: "default" });
-const parsers = import.meta.glob<(file: Uint8Array) => Parsed>("./layouts/parsers/*.ts", { import: "read" });
+const parsers = import.meta.glob<(file: Uint8Array) => Parsed>(["./layouts/parsers/*.ts", "!./layouts/parsers/detect.ts"], { import: "read" });
+
+export const knownLayout = ({ format, version }: { format: string; version: string }) => files[`./layouts/known/${format}-${version}.json`]?.();
 
 const parserOf = ({ target }: Layout) => parsers[`./layouts/parsers/${target.format}-${target.version}.ts`];
-
-export const knownLayouts = async () => (await Promise.all(Object.values(files).map((load) => load()))).filter(parserOf);
 
 const newer = (a: string, b: string) => {
   const [x, y] = [a, b].map((version) => version.split(".").map(Number));
@@ -54,11 +62,8 @@ const newer = (a: string, b: string) => {
   return false;
 };
 
-const readable = ({ schema, target }: Layout) => target.kind === "save" && !newer(schema, SCHEMA);
-
-const RETAIL: Record<number, string> = { 1: "rs", 2: "rs", 3: "emerald", 4: "frlg", 5: "frlg" };
-
-const retailFormat = (layout: Layout) => Object.values(RETAIL).includes(layout.target.format);
+// Layouts don't mark a hack's format, so any other format counts as retail, whose known ranges a patched ROM may not keep.
+const HACKS = ["unbound", "radicalred", "emerald-imperium", "heart-and-soul", "emerald-legacy"];
 
 const unmapped = ({ kinds, spaces, ...layout }: Layout): Layout => ({
   ...layout,
@@ -66,20 +71,19 @@ const unmapped = ({ kinds, spaces, ...layout }: Layout): Layout => ({
   ...(spaces && { spaces: spaces.map((space) => (space.ranges ? { ...space, ranges: [] } : space)) }),
 });
 
-export function pickLayout(layouts: Layout[], game: { format: string; romSha1: string; romHack?: boolean }): PickedLayout | undefined {
-  const romSha1 = game.romSha1.toLowerCase();
-  const candidates = layouts.filter(readable);
-  const checked = candidates.find(({ target }) => target.roms?.some(({ sha1 }) => sha1 === romSha1));
-  const fallback = candidates.filter(({ target }) => target.format === game.format).reduce<Layout | undefined>(
-    (newest, layout) => (newest && !newer(layout.target.version, newest.target.version) ? newest : layout),
-    undefined,
-  );
-  const picked = checked ? { layout: checked, checked: true } : fallback && { layout: fallback, checked: false };
-  return picked && game.romHack && retailFormat(picked.layout) ? { layout: unmapped(picked.layout), checked: false } : picked;
-}
+const saveLayouts = layouts.filter(({ kind }) => kind === "save");
 
-export function layoutFormat(version: { versionId: number; formatId: string | null }) {
-  return version.formatId ?? RETAIL[version.versionId];
+// A ROM layout can list the game's SHA-1 too, which would leave detection no save layout to try.
+export const detectSave = (save: Uint8Array, romSha1?: string) => detectIn(saveLayouts, save, romSha1);
+
+export async function pickLayout(save: Uint8Array, rom: { romSha1: string | null; romHack: boolean }): Promise<PickedLayout | undefined> {
+  const found = detectSave(save, rom.romSha1 ?? undefined);
+  if (found.length !== 1 || found[0].match !== "certain") return;
+  const [{ format, version, by }] = found;
+  const layout = await knownLayout({ format, version });
+  if (!layout || newer(layout.schema, SCHEMA)) return;
+  const checked = by === "rom";
+  return { layout: rom.romHack && !checked && !HACKS.includes(format) ? unmapped(layout) : layout, checked };
 }
 
 function rangesOf(layout: Layout, space: LayoutSpace): Range[] {

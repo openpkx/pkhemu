@@ -1,0 +1,920 @@
+{
+  "$schema": "../schema/layout.schema.json",
+  "schema": "1.0",
+  "valueFiles": ["gen3"],
+  "target": {
+    "kind": "save",
+    "format": "emerald-legacy",
+    "version": "1.x",
+    "roms": [
+      {"sha1": "38722b2ec3e21765cd7eee91f9de5df9dd66dbd6", "name": "Pokémon Emerald Legacy V1.0.0, patched onto Pokemon - Emerald Version (USA, Europe)"},
+      {"sha1": "f12ab79349eeca72540cd4caeba3e2e248c0c46d", "name": "Pokémon Emerald Legacy V1.1.0, patched onto Pokemon - Emerald Version (USA, Europe)"},
+      {"sha1": "cbd71af65ee3dcd53280a6a12014bfb11e8f626a", "name": "Pokémon Emerald Legacy V1.1.4, patched onto Pokemon - Emerald Version (USA, Europe)"}
+    ],
+    "detect": {
+      "match": "possible",
+      "sizes": ["0x20000"],
+      "steps": [
+        {"step": "gen3-signature", "args": {"signatures": ["0x08012025"]}},
+        {"step": "imperium-checksums", "args": {"lengths": [2572, 4084, 4084, 4084, 2152, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4084, 4084, 4084, 4084, 4084, 4084, 4084, 4084, 1472, 0, 0]}, "passes": false},
+        {"step": "imperium-checksums", "args": {"lengths": [2940, 4084, 4084, 4084, 772, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4084, 4084, 4084, 4084, 4084, 4084, 4084, 4084, 4084, 4084, 4084, 4084, 1512, 0]}, "passes": false},
+        {"step": "emerald-legacy-blocks"}
+      ],
+      "checks": [
+        {"space": "section:2", "offset": "0x0160", "type": "u32le", "not": "0xE8F828BC"}
+      ],
+      "source": "engine:src/PKHeX.Everywhere.RomHacks/Legacy/EmeraldLegacyFormat.cs and engine:src/PKHeX.Everywhere.RomHacks/Expansion/Imperium/ImperiumFormat.cs and engine:src/PKHeX.Everywhere.RomHacks/Expansion/HeartAndSoul/HeartAndSoulFormat.cs",
+      "note": "Emerald Legacy keeps Emerald's signature and sections, so an Emerald save can pass too. The Pokédex's seen flags, which agree at Legacy's offsets and not at Emerald's, and the counts in its pockets tell it apart. Imperium's checksums and Heart & Soul's magic rule out the saves those formats claim first."
+    }
+  },
+  "note": "Emerald Legacy is Emerald with three constants changed: 120 slots in the items pocket, 96 more trainer flags and one more event variable. SaveBlock1 grows to 0x3D98 bytes, so everything after the items pocket moves. SaveBlock2, the boxes and the Pokémon are Emerald's, and so are the species, item and move indexes. 1.x covers V1.0.0 to V1.1.4, which keep this save.",
+  "kinds": {
+    "pk3": {
+      "length": 80,
+      "checksums": [
+        {"step": "sum16le", "start": "0x20", "end": "0x50", "range": "checksum", "source": "pkhex:PKM/PK3.cs"}
+      ],
+      "note": "A stored Pokémon after pk3-crypt, its substructures in the order Growth, Attacks, EVs and Condition, Miscellaneous.",
+      "ranges": [
+        {"id": "pid", "offset": "0x00", "length": 4, "type": "u32le", "name": "PID", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "original-trainer-id", "offset": "0x04", "length": 4, "type": "u32le", "name": "Original trainer ID (TID low, SID high)", "confidence": "known", "source": "pkhex:PKM/PK3.cs", "bits": [{"id": "tid", "bit": 0, "width": 16, "name": "Trainer ID"}, {"id": "sid", "bit": 16, "width": 16, "name": "Secret ID"}]},
+        {"id": "nickname", "offset": "0x08", "length": 10, "type": "text-gen3-intl", "name": "Nickname", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "language", "offset": "0x12", "length": 1, "type": "u8", "name": "Language", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "egg-and-species-flags", "offset": "0x13", "length": 1, "type": "u8", "name": "Egg and species flags", "confidence": "known", "source": "pkhex:PKM/PK3.cs", "bits": [{"id": "bad-egg", "bit": 0, "width": 1, "name": "Bad egg"}, {"id": "has-species", "bit": 1, "width": 1, "name": "Has species"}, {"id": "is-egg", "bit": 2, "width": 1, "name": "Is egg"}]},
+        {"id": "original-trainer-name", "offset": "0x14", "length": 7, "type": "text-gen3-intl", "name": "Original trainer name", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "markings", "offset": "0x1B", "length": 1, "type": "u8", "name": "Markings", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "checksum", "offset": "0x1C", "length": 2, "type": "u16le", "name": "Checksum of bytes 0x20 to 0x4F", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "sanity", "offset": "0x1E", "length": 2, "type": "u16le", "name": "Sanity (unused)", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "species", "offset": "0x20", "length": 2, "type": "u16le", "name": "Species (game index)", "domain": "species", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "held-item", "offset": "0x22", "length": 2, "type": "u16le", "name": "Held item", "domain": "item", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "experience", "offset": "0x24", "length": 4, "type": "u32le", "name": "Experience", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "pp-ups", "offset": "0x28", "length": 1, "type": "u8", "name": "PP Ups", "confidence": "known", "source": "pkhex:PKM/PK3.cs", "bits": [{"id": "move-1", "bit": 0, "width": 2, "name": "Move 1"}, {"id": "move-2", "bit": 2, "width": 2, "name": "Move 2"}, {"id": "move-3", "bit": 4, "width": 2, "name": "Move 3"}, {"id": "move-4", "bit": 6, "width": 2, "name": "Move 4"}]},
+        {"id": "friendship", "offset": "0x29", "length": 1, "type": "u8", "name": "Friendship", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "unused", "offset": "0x2A", "length": 2, "type": "bytes", "name": "Unused", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "moves", "offset": "0x2C", "length": 2, "type": "u16le", "name": "Moves", "domain": "move", "confidence": "known", "source": "pkhex:PKM/PK3.cs", "count": 4, "stride": 2},
+        {"id": "pp", "offset": "0x34", "length": 1, "type": "u8", "name": "PP", "confidence": "known", "source": "pkhex:PKM/PK3.cs", "count": 4, "stride": 1},
+        {"id": "evs", "offset": "0x38", "length": 1, "type": "u8", "name": "EVs: HP, Attack, Defense, Speed, Sp. Atk, Sp. Def", "confidence": "known", "source": "pkhex:PKM/PK3.cs", "count": 6, "stride": 1},
+        {"id": "contest-stats", "offset": "0x3E", "length": 1, "type": "u8", "name": "Contest stats: Cool, Beauty, Cute, Smart, Tough, Sheen", "confidence": "known", "source": "pkhex:PKM/PK3.cs", "count": 6, "stride": 1},
+        {"id": "pokerus", "offset": "0x44", "length": 1, "type": "u8", "name": "Pokérus", "confidence": "known", "source": "pkhex:PKM/PK3.cs", "bits": [{"id": "days", "bit": 0, "width": 4, "name": "Days"}, {"id": "strain", "bit": 4, "width": 4, "name": "Strain"}]},
+        {"id": "met-location", "offset": "0x45", "length": 1, "type": "u8", "name": "Met location", "domain": "location", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "origins", "offset": "0x46", "length": 2, "type": "u16le", "name": "Origins", "confidence": "known", "source": "pkhex:PKM/PK3.cs", "bits": [{"id": "met-level", "bit": 0, "width": 7, "name": "Met level"}, {"id": "origin-game", "bit": 7, "width": 4, "name": "Origin game"}, {"id": "ball", "bit": 11, "width": 4, "name": "Ball"}, {"id": "trainer-gender", "bit": 15, "width": 1, "name": "Trainer gender"}]},
+        {"id": "ivs-egg-and-ability", "offset": "0x48", "length": 4, "type": "u32le", "name": "IVs, egg and ability", "confidence": "known", "source": "pkhex:PKM/PK3.cs", "bits": [{"id": "hp-iv", "bit": 0, "width": 5, "name": "HP IV"}, {"id": "attack-iv", "bit": 5, "width": 5, "name": "Attack IV"}, {"id": "defense-iv", "bit": 10, "width": 5, "name": "Defense IV"}, {"id": "speed-iv", "bit": 15, "width": 5, "name": "Speed IV"}, {"id": "sp-atk-iv", "bit": 20, "width": 5, "name": "Sp. Atk IV"}, {"id": "sp-def-iv", "bit": 25, "width": 5, "name": "Sp. Def IV"}, {"id": "is-egg", "bit": 30, "width": 1, "name": "Is egg"}, {"id": "ability", "bit": 31, "width": 1, "name": "Ability"}]},
+        {"id": "ribbons", "offset": "0x4C", "length": 4, "type": "u32le", "name": "Ribbons", "confidence": "known", "source": "pkhex:PKM/PK3.cs", "bits": [{"id": "cool", "bit": 0, "width": 3, "name": "Cool"}, {"id": "beauty", "bit": 3, "width": 3, "name": "Beauty"}, {"id": "cute", "bit": 6, "width": 3, "name": "Cute"}, {"id": "smart", "bit": 9, "width": 3, "name": "Smart"}, {"id": "tough", "bit": 12, "width": 3, "name": "Tough"}, {"id": "champion", "bit": 15, "width": 1, "name": "Champion"}, {"id": "winning", "bit": 16, "width": 1, "name": "Winning"}, {"id": "victory", "bit": 17, "width": 1, "name": "Victory"}, {"id": "artist", "bit": 18, "width": 1, "name": "Artist"}, {"id": "effort", "bit": 19, "width": 1, "name": "Effort"}, {"id": "battle-champion", "bit": 20, "width": 1, "name": "Battle Champion"}, {"id": "regional-champion", "bit": 21, "width": 1, "name": "Regional Champion"}, {"id": "national-champion", "bit": 22, "width": 1, "name": "National Champion"}, {"id": "country", "bit": 23, "width": 1, "name": "Country"}, {"id": "national", "bit": 24, "width": 1, "name": "National"}, {"id": "earth", "bit": 25, "width": 1, "name": "Earth"}, {"id": "world", "bit": 26, "width": 1, "name": "World"}, {"id": "fateful-encounter", "bit": 31, "width": 1, "name": "Fateful encounter"}]}
+      ]
+    },
+    "pk3-party": {
+      "length": 100,
+      "checksums": [
+        {"step": "sum16le", "start": "0x20", "end": "0x50", "range": "checksum", "source": "pkhex:PKM/PK3.cs"}
+      ],
+      "note": "A party Pokémon after pk3-crypt: the 80 stored bytes and the battle stats.",
+      "ranges": [
+        {"id": "pid", "offset": "0x00", "length": 4, "type": "u32le", "name": "PID", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "original-trainer-id", "offset": "0x04", "length": 4, "type": "u32le", "name": "Original trainer ID (TID low, SID high)", "confidence": "known", "source": "pkhex:PKM/PK3.cs", "bits": [{"id": "tid", "bit": 0, "width": 16, "name": "Trainer ID"}, {"id": "sid", "bit": 16, "width": 16, "name": "Secret ID"}]},
+        {"id": "nickname", "offset": "0x08", "length": 10, "type": "text-gen3-intl", "name": "Nickname", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "language", "offset": "0x12", "length": 1, "type": "u8", "name": "Language", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "egg-and-species-flags", "offset": "0x13", "length": 1, "type": "u8", "name": "Egg and species flags", "confidence": "known", "source": "pkhex:PKM/PK3.cs", "bits": [{"id": "bad-egg", "bit": 0, "width": 1, "name": "Bad egg"}, {"id": "has-species", "bit": 1, "width": 1, "name": "Has species"}, {"id": "is-egg", "bit": 2, "width": 1, "name": "Is egg"}]},
+        {"id": "original-trainer-name", "offset": "0x14", "length": 7, "type": "text-gen3-intl", "name": "Original trainer name", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "markings", "offset": "0x1B", "length": 1, "type": "u8", "name": "Markings", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "checksum", "offset": "0x1C", "length": 2, "type": "u16le", "name": "Checksum of bytes 0x20 to 0x4F", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "sanity", "offset": "0x1E", "length": 2, "type": "u16le", "name": "Sanity (unused)", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "species", "offset": "0x20", "length": 2, "type": "u16le", "name": "Species (game index)", "domain": "species", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "held-item", "offset": "0x22", "length": 2, "type": "u16le", "name": "Held item", "domain": "item", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "experience", "offset": "0x24", "length": 4, "type": "u32le", "name": "Experience", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "pp-ups", "offset": "0x28", "length": 1, "type": "u8", "name": "PP Ups", "confidence": "known", "source": "pkhex:PKM/PK3.cs", "bits": [{"id": "move-1", "bit": 0, "width": 2, "name": "Move 1"}, {"id": "move-2", "bit": 2, "width": 2, "name": "Move 2"}, {"id": "move-3", "bit": 4, "width": 2, "name": "Move 3"}, {"id": "move-4", "bit": 6, "width": 2, "name": "Move 4"}]},
+        {"id": "friendship", "offset": "0x29", "length": 1, "type": "u8", "name": "Friendship", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "unused", "offset": "0x2A", "length": 2, "type": "bytes", "name": "Unused", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "moves", "offset": "0x2C", "length": 2, "type": "u16le", "name": "Moves", "domain": "move", "confidence": "known", "source": "pkhex:PKM/PK3.cs", "count": 4, "stride": 2},
+        {"id": "pp", "offset": "0x34", "length": 1, "type": "u8", "name": "PP", "confidence": "known", "source": "pkhex:PKM/PK3.cs", "count": 4, "stride": 1},
+        {"id": "evs", "offset": "0x38", "length": 1, "type": "u8", "name": "EVs: HP, Attack, Defense, Speed, Sp. Atk, Sp. Def", "confidence": "known", "source": "pkhex:PKM/PK3.cs", "count": 6, "stride": 1},
+        {"id": "contest-stats", "offset": "0x3E", "length": 1, "type": "u8", "name": "Contest stats: Cool, Beauty, Cute, Smart, Tough, Sheen", "confidence": "known", "source": "pkhex:PKM/PK3.cs", "count": 6, "stride": 1},
+        {"id": "pokerus", "offset": "0x44", "length": 1, "type": "u8", "name": "Pokérus", "confidence": "known", "source": "pkhex:PKM/PK3.cs", "bits": [{"id": "days", "bit": 0, "width": 4, "name": "Days"}, {"id": "strain", "bit": 4, "width": 4, "name": "Strain"}]},
+        {"id": "met-location", "offset": "0x45", "length": 1, "type": "u8", "name": "Met location", "domain": "location", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "origins", "offset": "0x46", "length": 2, "type": "u16le", "name": "Origins", "confidence": "known", "source": "pkhex:PKM/PK3.cs", "bits": [{"id": "met-level", "bit": 0, "width": 7, "name": "Met level"}, {"id": "origin-game", "bit": 7, "width": 4, "name": "Origin game"}, {"id": "ball", "bit": 11, "width": 4, "name": "Ball"}, {"id": "trainer-gender", "bit": 15, "width": 1, "name": "Trainer gender"}]},
+        {"id": "ivs-egg-and-ability", "offset": "0x48", "length": 4, "type": "u32le", "name": "IVs, egg and ability", "confidence": "known", "source": "pkhex:PKM/PK3.cs", "bits": [{"id": "hp-iv", "bit": 0, "width": 5, "name": "HP IV"}, {"id": "attack-iv", "bit": 5, "width": 5, "name": "Attack IV"}, {"id": "defense-iv", "bit": 10, "width": 5, "name": "Defense IV"}, {"id": "speed-iv", "bit": 15, "width": 5, "name": "Speed IV"}, {"id": "sp-atk-iv", "bit": 20, "width": 5, "name": "Sp. Atk IV"}, {"id": "sp-def-iv", "bit": 25, "width": 5, "name": "Sp. Def IV"}, {"id": "is-egg", "bit": 30, "width": 1, "name": "Is egg"}, {"id": "ability", "bit": 31, "width": 1, "name": "Ability"}]},
+        {"id": "ribbons", "offset": "0x4C", "length": 4, "type": "u32le", "name": "Ribbons", "confidence": "known", "source": "pkhex:PKM/PK3.cs", "bits": [{"id": "cool", "bit": 0, "width": 3, "name": "Cool"}, {"id": "beauty", "bit": 3, "width": 3, "name": "Beauty"}, {"id": "cute", "bit": 6, "width": 3, "name": "Cute"}, {"id": "smart", "bit": 9, "width": 3, "name": "Smart"}, {"id": "tough", "bit": 12, "width": 3, "name": "Tough"}, {"id": "champion", "bit": 15, "width": 1, "name": "Champion"}, {"id": "winning", "bit": 16, "width": 1, "name": "Winning"}, {"id": "victory", "bit": 17, "width": 1, "name": "Victory"}, {"id": "artist", "bit": 18, "width": 1, "name": "Artist"}, {"id": "effort", "bit": 19, "width": 1, "name": "Effort"}, {"id": "battle-champion", "bit": 20, "width": 1, "name": "Battle Champion"}, {"id": "regional-champion", "bit": 21, "width": 1, "name": "Regional Champion"}, {"id": "national-champion", "bit": 22, "width": 1, "name": "National Champion"}, {"id": "country", "bit": 23, "width": 1, "name": "Country"}, {"id": "national", "bit": 24, "width": 1, "name": "National"}, {"id": "earth", "bit": 25, "width": 1, "name": "Earth"}, {"id": "world", "bit": 26, "width": 1, "name": "World"}, {"id": "fateful-encounter", "bit": 31, "width": 1, "name": "Fateful encounter"}]},
+        {"id": "status-condition", "offset": "0x50", "length": 4, "type": "u32le", "name": "Status condition", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "level", "offset": "0x54", "length": 1, "type": "u8", "name": "Level", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "mail-id", "offset": "0x55", "length": 1, "type": "u8", "name": "Mail ID", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "current-hp", "offset": "0x56", "length": 2, "type": "u16le", "name": "Current HP", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "stats", "offset": "0x58", "length": 2, "type": "u16le", "name": "Stats: max HP, Attack, Defense, Speed, Sp. Atk, Sp. Def", "confidence": "known", "source": "pkhex:PKM/PK3.cs", "count": 6, "stride": 2}
+      ]
+    }
+  },
+  "spaces": [
+    {
+      "name": "section:0",
+      "length": "0xF80",
+      "transform": "gen3-sections",
+      "args": {"section": 0},
+      "checksums": [
+        {"step": "sum32le-fold16", "start": 0, "end": "0xF80", "source": "pkhex:Saves/SAV3.cs"}
+      ],
+      "ranges": [
+        {"id": "trainer-name", "offset": "0x0000", "length": 8, "type": "text-gen3-intl", "name": "Trainer name", "confidence": "known", "source": "pkhex:Saves/Blocks/Gen3/SaveBlock3SmallE.cs"},
+        {"id": "trainer-gender", "offset": "0x0008", "length": 1, "type": "u8", "name": "Trainer gender", "confidence": "known", "source": "pkhex:Saves/Blocks/Gen3/SaveBlock3SmallE.cs"},
+        {"id": "trainer-id", "offset": "0x000A", "length": 2, "type": "u16le", "name": "Trainer ID", "confidence": "known", "source": "pkhex:Saves/Blocks/Gen3/SaveBlock3SmallE.cs"},
+        {"id": "secret-id", "offset": "0x000C", "length": 2, "type": "u16le", "name": "Secret ID", "confidence": "known", "source": "pkhex:Saves/Blocks/Gen3/SaveBlock3SmallE.cs"},
+        {"id": "play-time-hours", "offset": "0x000E", "length": 2, "type": "u16le", "name": "Play time hours", "confidence": "known", "source": "pkhex:Saves/Blocks/Gen3/SaveBlock3SmallE.cs"},
+        {"id": "play-time-minutes", "offset": "0x0010", "length": 1, "type": "u8", "name": "Play time minutes", "confidence": "known", "source": "pkhex:Saves/Blocks/Gen3/SaveBlock3SmallE.cs"},
+        {"id": "play-time-seconds", "offset": "0x0011", "length": 1, "type": "u8", "name": "Play time seconds", "confidence": "known", "source": "pkhex:Saves/Blocks/Gen3/SaveBlock3SmallE.cs"},
+        {"id": "play-time-frames", "offset": "0x0012", "length": 1, "type": "u8", "name": "Play time frames", "confidence": "known", "source": "pkhex:Saves/Blocks/Gen3/SaveBlock3SmallE.cs"},
+        {"id": "button-mode-option", "offset": "0x0013", "length": 1, "type": "u8", "name": "Button mode option", "confidence": "known", "source": "pkhex:Saves/Blocks/Gen3/SaveBlock3SmallE.cs"},
+        {"id": "options", "offset": "0x0014", "length": 4, "type": "u32le", "name": "Options", "confidence": "known", "source": "pkhex:Saves/Blocks/Gen3/SaveBlock3SmallE.cs", "bits": [{"id": "text-speed", "bit": 0, "width": 3, "name": "Text speed"}, {"id": "window-frame", "bit": 3, "width": 5, "name": "Window frame"}, {"id": "sound", "bit": 8, "width": 1, "name": "Sound"}, {"id": "battle-style", "bit": 9, "width": 1, "name": "Battle style"}, {"id": "battle-scene", "bit": 10, "width": 1, "name": "Battle scene"}, {"id": "region-map-zoom", "bit": 11, "width": 1, "name": "Region map zoom"}]},
+        {"id": "pokedex-sort-order", "offset": "0x0018", "length": 1, "type": "u8", "name": "Pokédex sort order", "confidence": "known", "source": "pkhex:Saves/Blocks/Gen3/SaveBlock3SmallE.cs"},
+        {"id": "pokedex-mode", "offset": "0x0019", "length": 1, "type": "u8", "name": "Pokédex mode", "confidence": "known", "source": "pkhex:Saves/Blocks/Gen3/SaveBlock3SmallE.cs"},
+        {"id": "national-pokedex-magic", "offset": "0x001A", "length": 1, "type": "u8", "name": "National Pokédex magic", "confidence": "known", "source": "pkhex:Saves/Blocks/Gen3/SaveBlock3SmallE.cs", "note": "0xDA when the National Pokédex is unlocked."},
+        {"id": "pokedex-unown-pid", "offset": "0x001C", "length": 4, "type": "u32le", "name": "Pokédex Unown PID", "confidence": "known", "source": "pkhex:Saves/Blocks/Gen3/SaveBlock3SmallE.cs"},
+        {"id": "pokedex-spinda-pid", "offset": "0x0020", "length": 4, "type": "u32le", "name": "Pokédex Spinda PID", "confidence": "known", "source": "pkhex:Saves/Blocks/Gen3/SaveBlock3SmallE.cs"},
+        {"id": "pokedex-owned-flags", "offset": "0x0028", "length": 49, "type": "flags", "name": "Pokédex owned flags", "confidence": "known", "source": "pkhex:Saves/SAV3.cs", "note": "Bit n-1 is National Pokédex number n, for 1 to 386."},
+        {"id": "pokedex-seen-flags", "offset": "0x005C", "length": 49, "type": "flags", "name": "Pokédex seen flags", "confidence": "known", "source": "pkhex:Saves/SAV3.cs", "note": "Bit n-1 is National Pokédex number n, for 1 to 386."},
+        {"id": "clock-offset-days", "offset": "0x0098", "length": 2, "type": "u16le", "name": "Clock offset days", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/RTC3.cs"},
+        {"id": "clock-offset-hours", "offset": "0x009A", "length": 1, "type": "u8", "name": "Clock offset hours", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/RTC3.cs"},
+        {"id": "clock-offset-minutes", "offset": "0x009B", "length": 1, "type": "u8", "name": "Clock offset minutes", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/RTC3.cs"},
+        {"id": "clock-offset-seconds", "offset": "0x009C", "length": 1, "type": "u8", "name": "Clock offset seconds", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/RTC3.cs"},
+        {"id": "last-berry-update-days", "offset": "0x00A0", "length": 2, "type": "u16le", "name": "Last berry update days", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/RTC3.cs"},
+        {"id": "last-berry-update-hours", "offset": "0x00A2", "length": 1, "type": "u8", "name": "Last berry update hours", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/RTC3.cs"},
+        {"id": "last-berry-update-minutes", "offset": "0x00A3", "length": 1, "type": "u8", "name": "Last berry update minutes", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/RTC3.cs"},
+        {"id": "last-berry-update-seconds", "offset": "0x00A4", "length": 1, "type": "u8", "name": "Last berry update seconds", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/RTC3.cs"},
+        {"id": "link-flags", "offset": "0x00A8", "length": 4, "type": "u32le", "name": "Link flags", "confidence": "known", "source": "pkhex:Saves/Blocks/Gen3/SaveBlock3SmallE.cs"},
+        {"id": "security-key", "offset": "0x00AC", "length": 4, "type": "u32le", "name": "Security key", "confidence": "known", "source": "pkhex:Saves/Blocks/Gen3/SaveBlock3SmallE.cs"},
+        {"id": "players-apprentice", "offset": "0x00B0", "length": 44, "type": "bytes", "name": "Player's apprentice", "confidence": "guess", "source": "pkhex:Saves/Blocks/Gen3/SaveBlock3SmallE.cs", "note": "Ends where the apprentices start."},
+        {"id": "apprentices", "offset": "0x00DC", "length": 272, "type": "bytes", "name": "Apprentices", "confidence": "guess", "source": "pkhex:Saves/Blocks/Gen3/SaveBlock3SmallE.cs", "note": "Ends where the Berry Crush records start."},
+        {"id": "berry-crush-best-press-speeds", "offset": "0x01EC", "length": 2, "type": "u16le", "name": "Berry Crush best press speeds", "confidence": "known", "source": "pkhex:Saves/Blocks/Gen3/SaveBlock3SmallE.cs", "count": 4, "stride": 2},
+        {"id": "berry-powder", "offset": "0x01F4", "length": 4, "type": "u32le", "name": "Berry powder", "confidence": "known", "source": "pkhex:Saves/Blocks/Gen3/SaveBlock3SmallE.cs", "note": "XORed with the security key at section:0 0x00AC."},
+        {"id": "pokemon-jump-jumps-in-a-row", "offset": "0x01FC", "length": 2, "type": "u16le", "name": "Pokémon Jump jumps in a row", "confidence": "known", "source": "pkhex:Saves/Blocks/Gen3/SaveBlock3SmallE.cs"},
+        {"id": "pokemon-jump-five-player-jumps-in-a-row", "offset": "0x0200", "length": 2, "type": "u16le", "name": "Pokémon Jump five-player jumps in a row", "confidence": "known", "source": "pkhex:Saves/Blocks/Gen3/SaveBlock3SmallE.cs"},
+        {"id": "pokemon-jump-games-with-the-most-players", "offset": "0x0202", "length": 2, "type": "u16le", "name": "Pokémon Jump games with the most players", "confidence": "known", "source": "pkhex:Saves/Blocks/Gen3/SaveBlock3SmallE.cs"},
+        {"id": "pokemon-jump-best-score", "offset": "0x0208", "length": 4, "type": "u32le", "name": "Pokémon Jump best score", "confidence": "known", "source": "pkhex:Saves/Blocks/Gen3/SaveBlock3SmallE.cs"},
+        {"id": "dodrio-berry-picking-best-score", "offset": "0x020C", "length": 4, "type": "u32le", "name": "Dodrio Berry Picking best score", "confidence": "known", "source": "pkhex:Saves/Blocks/Gen3/SaveBlock3SmallE.cs"},
+        {"id": "dodrio-berry-picking-berries-in-a-row", "offset": "0x0210", "length": 2, "type": "u16le", "name": "Dodrio Berry Picking berries in a row", "confidence": "known", "source": "pkhex:Saves/Blocks/Gen3/SaveBlock3SmallE.cs"},
+        {"id": "dodrio-berry-picking-five-player-berries-in-a-row", "offset": "0x0212", "length": 2, "type": "u16le", "name": "Dodrio Berry Picking five-player berries in a row", "confidence": "known", "source": "pkhex:Saves/Blocks/Gen3/SaveBlock3SmallE.cs"},
+        {"id": "e-reader-trainer", "offset": "0x0BEC", "length": 188, "type": "bytes", "name": "e-Reader trainer", "confidence": "known", "source": "pkhex:Saves/Blocks/Gen3/SaveBlock3SmallE.cs"},
+        {"id": "battle-frontier-streak-continue-flags", "offset": "0x0CDC", "length": 4, "type": "u32le", "name": "Battle Frontier streak continue flags", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/BattleFrontier3/BattleFrontier3.cs", "bits": [{"id": "tower-singles", "bit": 0, "width": 2, "name": "Tower singles"}, {"id": "dome-singles", "bit": 2, "width": 2, "name": "Dome singles"}, {"id": "palace-singles", "bit": 4, "width": 2, "name": "Palace singles"}, {"id": "arena", "bit": 6, "width": 2, "name": "Arena"}, {"id": "factory-singles", "bit": 8, "width": 2, "name": "Factory singles"}, {"id": "pike", "bit": 10, "width": 2, "name": "Pike"}, {"id": "pyramid", "bit": 12, "width": 2, "name": "Pyramid"}, {"id": "tower-doubles", "bit": 14, "width": 2, "name": "Tower doubles"}, {"id": "tower-multi", "bit": 16, "width": 2, "name": "Tower multi"}, {"id": "tower-linked", "bit": 18, "width": 2, "name": "Tower linked"}, {"id": "dome-doubles", "bit": 20, "width": 2, "name": "Dome doubles"}, {"id": "palace-doubles", "bit": 22, "width": 2, "name": "Palace doubles"}, {"id": "factory-doubles", "bit": 24, "width": 2, "name": "Factory doubles"}], "note": "Two bits per mode: Lv. 50, then Open Level."},
+        {"id": "battle-tower-current-streaks", "offset": "0x0CE0", "length": 2, "type": "u16le", "name": "Battle Tower current streaks", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/BattleFrontier3/BattleFrontier3.cs", "count": 8, "stride": 2, "note": "Modes singles, doubles, multi, linked; Lv. 50 and Open Level for each mode in turn."},
+        {"id": "battle-tower-record-streaks", "offset": "0x0CF0", "length": 2, "type": "u16le", "name": "Battle Tower record streaks", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/BattleFrontier3/BattleFrontier3.cs", "count": 8, "stride": 2, "note": "Modes singles, doubles, multi, linked; Lv. 50 and Open Level for each mode in turn."},
+        {"id": "battle-dome-current-streaks", "offset": "0x0D0C", "length": 2, "type": "u16le", "name": "Battle Dome current streaks", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/BattleFrontier3/BattleFrontier3.cs", "count": 4, "stride": 2, "note": "Modes singles, doubles; Lv. 50 and Open Level for each mode in turn."},
+        {"id": "battle-dome-record-streaks", "offset": "0x0D14", "length": 2, "type": "u16le", "name": "Battle Dome record streaks", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/BattleFrontier3/BattleFrontier3.cs", "count": 4, "stride": 2, "note": "Modes singles, doubles; Lv. 50 and Open Level for each mode in turn."},
+        {"id": "battle-dome-championships", "offset": "0x0D1C", "length": 2, "type": "u16le", "name": "Battle Dome championships", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/BattleFrontier3/BattleFrontier3.cs", "count": 4, "stride": 2, "note": "Modes singles, doubles; Lv. 50 and Open Level for each mode in turn."},
+        {"id": "battle-palace-current-streaks", "offset": "0x0DC8", "length": 2, "type": "u16le", "name": "Battle Palace current streaks", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/BattleFrontier3/BattleFrontier3.cs", "count": 4, "stride": 2, "note": "Modes singles, doubles; Lv. 50 and Open Level for each mode in turn."},
+        {"id": "battle-palace-record-streaks", "offset": "0x0DD0", "length": 2, "type": "u16le", "name": "Battle Palace record streaks", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/BattleFrontier3/BattleFrontier3.cs", "count": 4, "stride": 2, "note": "Modes singles, doubles; Lv. 50 and Open Level for each mode in turn."},
+        {"id": "battle-arena-current-streaks", "offset": "0x0DDA", "length": 2, "type": "u16le", "name": "Battle Arena current streaks", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/BattleFrontier3/BattleFrontier3.cs", "count": 2, "stride": 2, "note": "Lv. 50, then Open Level."},
+        {"id": "battle-arena-record-streaks", "offset": "0x0DDE", "length": 2, "type": "u16le", "name": "Battle Arena record streaks", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/BattleFrontier3/BattleFrontier3.cs", "count": 2, "stride": 2, "note": "Lv. 50, then Open Level."},
+        {"id": "battle-factory-current-streaks", "offset": "0x0DE2", "length": 2, "type": "u16le", "name": "Battle Factory current streaks", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/BattleFrontier3/BattleFrontier3.cs", "count": 4, "stride": 2, "note": "Modes singles, doubles; Lv. 50 and Open Level for each mode in turn."},
+        {"id": "battle-factory-record-streaks", "offset": "0x0DEA", "length": 2, "type": "u16le", "name": "Battle Factory record streaks", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/BattleFrontier3/BattleFrontier3.cs", "count": 4, "stride": 2, "note": "Modes singles, doubles; Lv. 50 and Open Level for each mode in turn."},
+        {"id": "battle-factory-current-swaps", "offset": "0x0DF2", "length": 2, "type": "u16le", "name": "Battle Factory current swaps", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/BattleFrontier3/BattleFrontier3.cs", "count": 4, "stride": 2, "note": "Modes singles, doubles; Lv. 50 and Open Level for each mode in turn."},
+        {"id": "battle-factory-record-swaps", "offset": "0x0DFA", "length": 2, "type": "u16le", "name": "Battle Factory record swaps", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/BattleFrontier3/BattleFrontier3.cs", "count": 4, "stride": 2, "note": "Modes singles, doubles; Lv. 50 and Open Level for each mode in turn."},
+        {"id": "battle-pike-current-streaks", "offset": "0x0E04", "length": 2, "type": "u16le", "name": "Battle Pike current streaks", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/BattleFrontier3/BattleFrontier3.cs", "count": 2, "stride": 2, "note": "Lv. 50, then Open Level."},
+        {"id": "battle-pike-record-streaks", "offset": "0x0E08", "length": 2, "type": "u16le", "name": "Battle Pike record streaks", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/BattleFrontier3/BattleFrontier3.cs", "count": 2, "stride": 2, "note": "Lv. 50, then Open Level."},
+        {"id": "battle-pike-rooms-cleared-record", "offset": "0x0E0C", "length": 2, "type": "u16le", "name": "Battle Pike rooms cleared record", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/BattleFrontier3/BattleFrontier3.cs", "count": 2, "stride": 2, "note": "Lv. 50, then Open Level."},
+        {"id": "battle-pyramid-current-streaks", "offset": "0x0E1A", "length": 2, "type": "u16le", "name": "Battle Pyramid current streaks", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/BattleFrontier3/BattleFrontier3.cs", "count": 2, "stride": 2, "note": "Lv. 50, then Open Level."},
+        {"id": "battle-pyramid-record-streaks", "offset": "0x0E1E", "length": 2, "type": "u16le", "name": "Battle Pyramid record streaks", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/BattleFrontier3/BattleFrontier3.cs", "count": 2, "stride": 2, "note": "Lv. 50, then Open Level."},
+        {"id": "battle-points", "offset": "0x0EB8", "length": 2, "type": "u16le", "name": "Battle Points", "confidence": "known", "source": "pkhex:Saves/Blocks/Gen3/SaveBlock3SmallE.cs"},
+        {"id": "battle-points-earned", "offset": "0x0EBA", "length": 2, "type": "u16le", "name": "Battle Points earned", "confidence": "known", "source": "pkhex:Saves/Blocks/Gen3/SaveBlock3SmallE.cs"}
+      ]
+    },
+    {
+      "name": "section:1",
+      "length": "0xF80",
+      "transform": "gen3-sections",
+      "args": {"section": 1},
+      "checksums": [
+        {"step": "sum32le-fold16", "start": 0, "end": "0xF80", "source": "pkhex:Saves/SAV3.cs"}
+      ],
+      "ranges": [
+        {"id": "player-x-position", "offset": "0x0000", "length": 2, "type": "u16le", "name": "Player X position", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Legacy/EmeraldLegacyBlockLarge.cs"},
+        {"id": "player-y-position", "offset": "0x0002", "length": 2, "type": "u16le", "name": "Player Y position", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Legacy/EmeraldLegacyBlockLarge.cs"},
+        {"id": "party-count", "offset": "0x0234", "length": 1, "type": "u8", "name": "Party count", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Legacy/EmeraldLegacyBlockLarge.cs"},
+        {"id": "party-pokemon", "offset": "0x0238", "length": 600, "type": "bytes", "name": "Party Pokémon (decoded in party spaces)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Legacy/EmeraldLegacyBlockLarge.cs"},
+        {"id": "money", "offset": "0x0490", "length": 4, "type": "u32le", "name": "Money", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Legacy/EmeraldLegacyBlockLarge.cs", "note": "XORed with the security key at section:0 0x00AC."},
+        {"id": "coins", "offset": "0x0494", "length": 2, "type": "u16le", "name": "Coins", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Legacy/EmeraldLegacyBlockLarge.cs", "note": "XORed with the low 16 bits of the security key at section:0 0x00AC."},
+        {"id": "registered-item", "offset": "0x0496", "length": 2, "type": "u16le", "name": "Registered item", "domain": "item", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Legacy/EmeraldLegacyBlockLarge.cs"},
+        {"id": "pc-items", "offset": "0x0498", "length": 4, "type": "u32le", "name": "PC items", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Legacy/EmeraldLegacyBag.cs and engine:src/PKHeX.Everywhere.RomHacks/Legacy/EmeraldLegacyBlockLarge.cs", "count": 50, "stride": 4, "bits": [{"id": "item", "bit": 0, "width": 16, "name": "Item", "domain": "item"}, {"id": "quantity", "bit": 16, "width": 16, "name": "Quantity"}]},
+        {"id": "items-pocket", "offset": "0x0560", "length": 4, "type": "u32le", "name": "Items pocket", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Legacy/EmeraldLegacyBag.cs and engine:src/PKHeX.Everywhere.RomHacks/Legacy/EmeraldLegacyBlockLarge.cs", "count": 120, "stride": 4, "bits": [{"id": "item", "bit": 0, "width": 16, "name": "Item", "domain": "item"}, {"id": "quantity", "bit": 16, "width": 16, "name": "Quantity"}], "note": "Quantity is XORed with the low 16 bits of the security key at section:0 0x00AC."},
+        {"id": "key-items-pocket", "offset": "0x0740", "length": 4, "type": "u32le", "name": "Key items pocket", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Legacy/EmeraldLegacyBag.cs and engine:src/PKHeX.Everywhere.RomHacks/Legacy/EmeraldLegacyBlockLarge.cs", "count": 30, "stride": 4, "bits": [{"id": "item", "bit": 0, "width": 16, "name": "Item", "domain": "item"}, {"id": "quantity", "bit": 16, "width": 16, "name": "Quantity"}], "note": "Quantity is XORed with the low 16 bits of the security key at section:0 0x00AC."},
+        {"id": "poke-balls-pocket", "offset": "0x07B8", "length": 4, "type": "u32le", "name": "Poké Balls pocket", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Legacy/EmeraldLegacyBag.cs and engine:src/PKHeX.Everywhere.RomHacks/Legacy/EmeraldLegacyBlockLarge.cs", "count": 16, "stride": 4, "bits": [{"id": "item", "bit": 0, "width": 16, "name": "Item", "domain": "item"}, {"id": "quantity", "bit": 16, "width": 16, "name": "Quantity"}], "note": "Quantity is XORed with the low 16 bits of the security key at section:0 0x00AC."},
+        {"id": "tms-and-hms-pocket", "offset": "0x07F8", "length": 4, "type": "u32le", "name": "TMs and HMs pocket", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Legacy/EmeraldLegacyBag.cs and engine:src/PKHeX.Everywhere.RomHacks/Legacy/EmeraldLegacyBlockLarge.cs", "count": 64, "stride": 4, "bits": [{"id": "item", "bit": 0, "width": 16, "name": "Item", "domain": "item"}, {"id": "quantity", "bit": 16, "width": 16, "name": "Quantity"}], "note": "Quantity is XORed with the low 16 bits of the security key at section:0 0x00AC."},
+        {"id": "berries-pocket", "offset": "0x08F8", "length": 4, "type": "u32le", "name": "Berries pocket", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Legacy/EmeraldLegacyBag.cs and engine:src/PKHeX.Everywhere.RomHacks/Legacy/EmeraldLegacyBlockLarge.cs", "count": 46, "stride": 4, "bits": [{"id": "item", "bit": 0, "width": 16, "name": "Item", "domain": "item"}, {"id": "quantity", "bit": 16, "width": 16, "name": "Quantity"}], "note": "Quantity is XORed with the low 16 bits of the security key at section:0 0x00AC."},
+        {"id": "pokeblock-color", "offset": "0x09B0", "length": 1, "type": "u8", "name": "Pokéblock color", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Legacy/EmeraldLegacyBlockLarge.cs and pkhex:Saves/Substructures/Gen3/PokeBlock3.cs", "count": 40, "stride": 8},
+        {"id": "pokeblock-spicy", "offset": "0x09B1", "length": 1, "type": "u8", "name": "Pokéblock spicy", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Legacy/EmeraldLegacyBlockLarge.cs and pkhex:Saves/Substructures/Gen3/PokeBlock3.cs", "count": 40, "stride": 8},
+        {"id": "pokeblock-dry", "offset": "0x09B2", "length": 1, "type": "u8", "name": "Pokéblock dry", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Legacy/EmeraldLegacyBlockLarge.cs and pkhex:Saves/Substructures/Gen3/PokeBlock3.cs", "count": 40, "stride": 8},
+        {"id": "pokeblock-sweet", "offset": "0x09B3", "length": 1, "type": "u8", "name": "Pokéblock sweet", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Legacy/EmeraldLegacyBlockLarge.cs and pkhex:Saves/Substructures/Gen3/PokeBlock3.cs", "count": 40, "stride": 8},
+        {"id": "pokeblock-bitter", "offset": "0x09B4", "length": 1, "type": "u8", "name": "Pokéblock bitter", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Legacy/EmeraldLegacyBlockLarge.cs and pkhex:Saves/Substructures/Gen3/PokeBlock3.cs", "count": 40, "stride": 8},
+        {"id": "pokeblock-sour", "offset": "0x09B5", "length": 1, "type": "u8", "name": "Pokéblock sour", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Legacy/EmeraldLegacyBlockLarge.cs and pkhex:Saves/Substructures/Gen3/PokeBlock3.cs", "count": 40, "stride": 8},
+        {"id": "pokeblock-feel", "offset": "0x09B6", "length": 1, "type": "u8", "name": "Pokéblock feel", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Legacy/EmeraldLegacyBlockLarge.cs and pkhex:Saves/Substructures/Gen3/PokeBlock3.cs", "count": 40, "stride": 8},
+        {"id": "pokedex-seen-flags-copy-2", "offset": "0x0AF0", "length": 49, "type": "flags", "name": "Pokédex seen flags (copy 2)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Legacy/EmeraldLegacyBlockLarge.cs and pkhex:Saves/SAV3.cs", "note": "Mirror of the seen flags at section:0 0x005C. Emerald keeps it at 0x988."},
+        {"id": "berry-blender-best-speeds", "offset": "0x0B24", "length": 2, "type": "u16le", "name": "Berry Blender best speeds", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Legacy/EmeraldLegacyBlockLarge.cs", "count": 3, "stride": 2, "note": "2, 3 and 4 players, in 0.01 RPM."}
+      ]
+    },
+    {
+      "name": "section:2",
+      "length": "0xF80",
+      "transform": "gen3-sections",
+      "args": {"section": 2},
+      "checksums": [
+        {"step": "sum32le-fold16", "start": 0, "end": "0xF80", "source": "pkhex:Saves/SAV3.cs"}
+      ],
+      "ranges": [
+        {"id": "event-flags", "offset": "0x0458", "length": 312, "type": "flags", "name": "Event flags", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Legacy/EmeraldLegacyBlockLarge.cs", "note": "2,496 flags, 96 more trainer flags than Emerald's, which move the system flags from 0x860 to 0x8C0. The eight badges are flags 0x8C7 to 0x8CE."},
+        {"id": "event-variables", "offset": "0x0590", "length": 2, "type": "u16le", "name": "Event variables", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Legacy/EmeraldLegacyBlockLarge.cs", "count": 257, "stride": 2},
+        {"id": "game-stats", "offset": "0x0794", "length": 4, "type": "u32le", "name": "Game stats", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Legacy/EmeraldLegacyBlockLarge.cs and pkhex:Saves/Blocks/Gen3/SaveBlock3LargeE.cs", "count": 64, "stride": 4, "note": "XORed with the security key at section:0 0x00AC."}
+      ]
+    },
+    {
+      "name": "section:3",
+      "length": "0xF80",
+      "transform": "gen3-sections",
+      "args": {"section": 3},
+      "checksums": [
+        {"step": "sum32le-fold16", "start": 0, "end": "0xF80", "source": "pkhex:Saves/SAV3.cs"}
+      ],
+      "ranges": []
+    },
+    {
+      "name": "section:4",
+      "length": "0xF80",
+      "transform": "gen3-sections",
+      "args": {"section": 4},
+      "checksums": [
+        {"step": "sum32le-fold16", "start": 0, "end": "0xF80", "source": "pkhex:Saves/SAV3.cs"}
+      ],
+      "ranges": [
+        {"id": "pokedex-seen-flags-copy-3", "offset": "0x0CB4", "length": 49, "type": "flags", "name": "Pokédex seen flags (copy 3)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Legacy/EmeraldLegacyBlockLarge.cs and pkhex:Saves/SAV3.cs", "note": "Mirror of the seen flags at section:0 0x005C. Emerald keeps it at 0x3B24."}
+      ]
+    },
+    {
+      "name": "section:5",
+      "length": "0xF80",
+      "transform": "gen3-sections",
+      "args": {"section": 5},
+      "checksums": [
+        {"step": "sum32le-fold16", "start": 0, "end": "0xF80", "source": "pkhex:Saves/SAV3.cs"}
+      ],
+      "ranges": [
+        {"id": "current-box", "offset": "0x0000", "length": 1, "type": "u8", "name": "Current box", "confidence": "known", "source": "pkhex:Saves/SAV3.cs"},
+        {"id": "box-pokemon", "offset": "0x0004", "length": 3964, "type": "bytes", "name": "Box Pokémon (decoded in box spaces)", "confidence": "known", "source": "pkhex:Saves/SAV3.cs"}
+      ]
+    },
+    {
+      "name": "section:6",
+      "length": "0xF80",
+      "transform": "gen3-sections",
+      "args": {"section": 6},
+      "checksums": [
+        {"step": "sum32le-fold16", "start": 0, "end": "0xF80", "source": "pkhex:Saves/SAV3.cs"}
+      ],
+      "ranges": [
+        {"id": "box-pokemon", "offset": "0x0000", "length": 3968, "type": "bytes", "name": "Box Pokémon (decoded in box spaces)", "confidence": "known", "source": "pkhex:Saves/SAV3.cs"}
+      ]
+    },
+    {
+      "name": "section:7",
+      "length": "0xF80",
+      "transform": "gen3-sections",
+      "args": {"section": 7},
+      "checksums": [
+        {"step": "sum32le-fold16", "start": 0, "end": "0xF80", "source": "pkhex:Saves/SAV3.cs"}
+      ],
+      "ranges": [
+        {"id": "box-pokemon", "offset": "0x0000", "length": 3968, "type": "bytes", "name": "Box Pokémon (decoded in box spaces)", "confidence": "known", "source": "pkhex:Saves/SAV3.cs"}
+      ]
+    },
+    {
+      "name": "section:8",
+      "length": "0xF80",
+      "transform": "gen3-sections",
+      "args": {"section": 8},
+      "checksums": [
+        {"step": "sum32le-fold16", "start": 0, "end": "0xF80", "source": "pkhex:Saves/SAV3.cs"}
+      ],
+      "ranges": [
+        {"id": "box-pokemon", "offset": "0x0000", "length": 3968, "type": "bytes", "name": "Box Pokémon (decoded in box spaces)", "confidence": "known", "source": "pkhex:Saves/SAV3.cs"}
+      ]
+    },
+    {
+      "name": "section:9",
+      "length": "0xF80",
+      "transform": "gen3-sections",
+      "args": {"section": 9},
+      "checksums": [
+        {"step": "sum32le-fold16", "start": 0, "end": "0xF80", "source": "pkhex:Saves/SAV3.cs"}
+      ],
+      "ranges": [
+        {"id": "box-pokemon", "offset": "0x0000", "length": 3968, "type": "bytes", "name": "Box Pokémon (decoded in box spaces)", "confidence": "known", "source": "pkhex:Saves/SAV3.cs"}
+      ]
+    },
+    {
+      "name": "section:10",
+      "length": "0xF80",
+      "transform": "gen3-sections",
+      "args": {"section": 10},
+      "checksums": [
+        {"step": "sum32le-fold16", "start": 0, "end": "0xF80", "source": "pkhex:Saves/SAV3.cs"}
+      ],
+      "ranges": [
+        {"id": "box-pokemon", "offset": "0x0000", "length": 3968, "type": "bytes", "name": "Box Pokémon (decoded in box spaces)", "confidence": "known", "source": "pkhex:Saves/SAV3.cs"}
+      ]
+    },
+    {
+      "name": "section:11",
+      "length": "0xF80",
+      "transform": "gen3-sections",
+      "args": {"section": 11},
+      "checksums": [
+        {"step": "sum32le-fold16", "start": 0, "end": "0xF80", "source": "pkhex:Saves/SAV3.cs"}
+      ],
+      "ranges": [
+        {"id": "box-pokemon", "offset": "0x0000", "length": 3968, "type": "bytes", "name": "Box Pokémon (decoded in box spaces)", "confidence": "known", "source": "pkhex:Saves/SAV3.cs"}
+      ]
+    },
+    {
+      "name": "section:12",
+      "length": "0xF80",
+      "transform": "gen3-sections",
+      "args": {"section": 12},
+      "checksums": [
+        {"step": "sum32le-fold16", "start": 0, "end": "0xF80", "source": "pkhex:Saves/SAV3.cs"}
+      ],
+      "ranges": [
+        {"id": "box-pokemon", "offset": "0x0000", "length": 3968, "type": "bytes", "name": "Box Pokémon (decoded in box spaces)", "confidence": "known", "source": "pkhex:Saves/SAV3.cs"}
+      ]
+    },
+    {
+      "name": "section:13",
+      "length": "0xF80",
+      "transform": "gen3-sections",
+      "args": {"section": 13},
+      "checksums": [
+        {"step": "sum32le-fold16", "start": 0, "end": "0xF80", "source": "pkhex:Saves/SAV3.cs"}
+      ],
+      "ranges": [
+        {"id": "box-pokemon", "offset": "0x0000", "length": 1860, "type": "bytes", "name": "Box Pokémon (decoded in box spaces)", "confidence": "known", "source": "pkhex:Saves/SAV3.cs"},
+        {"id": "box-names", "offset": "0x0744", "length": 9, "type": "text-gen3-intl", "name": "Box names", "confidence": "known", "source": "pkhex:Saves/SAV3.cs", "count": 14, "stride": 9},
+        {"id": "box-wallpapers", "offset": "0x07C2", "length": 1, "type": "u8", "name": "Box wallpapers", "confidence": "known", "source": "pkhex:Saves/SAV3.cs", "count": 14, "stride": 1}
+      ]
+    },
+    {
+      "name": "sector:28",
+      "length": "0xF80",
+      "transform": "gen3-sections",
+      "args": {"sector": 28},
+      "checksums": [
+        {"step": "sum32le-fold16", "start": 0, "end": "0xF80", "source": "pkhex:Saves/SAV3.cs"}
+      ],
+      "ranges": [
+        {"id": "hall-of-fame-trainer-id", "offset": "0x0000", "length": 2, "type": "u16le", "name": "Hall of Fame trainer ID", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/HallFame3.cs", "count": 199, "stride": 20, "note": "50 teams of six; sector:29 continues sector:28."},
+        {"id": "hall-of-fame-secret-id", "offset": "0x0002", "length": 2, "type": "u16le", "name": "Hall of Fame secret ID", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/HallFame3.cs", "count": 199, "stride": 20, "note": "50 teams of six; sector:29 continues sector:28."},
+        {"id": "hall-of-fame-pid", "offset": "0x0004", "length": 4, "type": "u32le", "name": "Hall of Fame PID", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/HallFame3.cs", "count": 199, "stride": 20, "note": "50 teams of six; sector:29 continues sector:28."},
+        {"id": "hall-of-fame-species-and-level", "offset": "0x0008", "length": 2, "type": "u16le", "name": "Hall of Fame species and level", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/HallFame3.cs", "count": 198, "stride": 20, "bits": [{"id": "species", "bit": 0, "width": 9, "name": "Species (game index)", "domain": "species"}, {"id": "level", "bit": 9, "width": 7, "name": "Level"}], "note": "50 teams of six; sector:29 continues sector:28."},
+        {"id": "hall-of-fame-nickname", "offset": "0x000A", "length": 10, "type": "text-gen3-intl", "name": "Hall of Fame nickname", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/HallFame3.cs", "count": 198, "stride": 20, "note": "50 teams of six; sector:29 continues sector:28."}
+      ]
+    },
+    {
+      "name": "sector:29",
+      "length": "0xF80",
+      "transform": "gen3-sections",
+      "args": {"sector": 29},
+      "checksums": [
+        {"step": "sum32le-fold16", "start": 0, "end": "0xF80", "source": "pkhex:Saves/SAV3.cs"}
+      ],
+      "ranges": [
+        {"id": "hall-of-fame-species-and-level", "offset": "0x0000", "length": 2, "type": "u16le", "name": "Hall of Fame species and level", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/HallFame3.cs", "count": 102, "stride": 20, "bits": [{"id": "species", "bit": 0, "width": 9, "name": "Species (game index)", "domain": "species"}, {"id": "level", "bit": 9, "width": 7, "name": "Level"}], "note": "50 teams of six; sector:29 continues sector:28."},
+        {"id": "hall-of-fame-nickname", "offset": "0x0002", "length": 10, "type": "text-gen3-intl", "name": "Hall of Fame nickname", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/HallFame3.cs", "count": 102, "stride": 20, "note": "50 teams of six; sector:29 continues sector:28."},
+        {"id": "hall-of-fame-trainer-id", "offset": "0x000C", "length": 2, "type": "u16le", "name": "Hall of Fame trainer ID", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/HallFame3.cs", "count": 101, "stride": 20, "note": "50 teams of six; sector:29 continues sector:28."},
+        {"id": "hall-of-fame-secret-id", "offset": "0x000E", "length": 2, "type": "u16le", "name": "Hall of Fame secret ID", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/HallFame3.cs", "count": 101, "stride": 20, "note": "50 teams of six; sector:29 continues sector:28."},
+        {"id": "hall-of-fame-pid", "offset": "0x0010", "length": 4, "type": "u32le", "name": "Hall of Fame PID", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/HallFame3.cs", "count": 101, "stride": 20, "note": "50 teams of six; sector:29 continues sector:28."}
+      ]
+    },
+    {
+      "name": "sector:30",
+      "length": "0xF80",
+      "transform": "gen3-sections",
+      "args": {"sector": 30},
+      "checksums": [
+        {"step": "sum32le-fold16", "start": 0, "end": "0xF80", "source": "pkhex:Saves/SAV3.cs"}
+      ],
+      "ranges": [
+        {"id": "e-reader-data", "offset": "0x0000", "length": 3968, "type": "bytes", "name": "e-Reader data", "confidence": "known", "source": "pkhex:Saves/SAV3.cs", "note": "PKHeX reads the sector whole and says only the Japanese game uses it."}
+      ]
+    },
+    {
+      "name": "sector:31",
+      "length": "0xF80",
+      "transform": "gen3-sections",
+      "args": {"sector": 31},
+      "checksums": [
+        {"step": "sum32le-fold16", "start": 0, "end": "0xF80", "source": "pkhex:Saves/SAV3.cs"}
+      ],
+      "ranges": [
+        {"id": "recorded-battle-marker", "offset": "0x0000", "length": 4, "type": "u32le", "name": "Recorded battle marker", "confidence": "known", "source": "pkhex:Saves/SAV3E.cs", "note": "0x0000B39D when a recorded battle is saved."},
+        {"id": "recorded-battle-pokemon", "offset": "0x0004", "length": 100, "type": "bytes", "name": "Recorded battle Pokémon", "confidence": "known", "source": "pkhex:Saves/Substructures/Battle Videos/BattleVideo3.cs", "count": 12, "stride": 100, "note": "Two teams of six, encrypted like party Pokémon (pk3-crypt)."},
+        {"id": "recorded-battle-trainer-names", "offset": "0x04B4", "length": 8, "type": "text-gen3-intl", "name": "Recorded battle trainer names", "confidence": "guess", "source": "pkhex:Saves/Substructures/Battle Videos/BattleVideo3.cs", "count": 4, "stride": 8},
+        {"id": "recorded-battle-trainer-genders", "offset": "0x04D4", "length": 1, "type": "u8", "name": "Recorded battle trainer genders", "confidence": "guess", "source": "pkhex:Saves/Substructures/Battle Videos/BattleVideo3.cs", "count": 4, "stride": 1},
+        {"id": "recorded-battle-trainer-ids", "offset": "0x04D8", "length": 4, "type": "u32le", "name": "Recorded battle trainer IDs", "confidence": "guess", "source": "pkhex:Saves/Substructures/Battle Videos/BattleVideo3.cs", "count": 4, "stride": 4},
+        {"id": "recorded-battle-trainer-languages", "offset": "0x04E8", "length": 1, "type": "u8", "name": "Recorded battle trainer languages", "confidence": "guess", "source": "pkhex:Saves/Substructures/Battle Videos/BattleVideo3.cs", "count": 4, "stride": 1},
+        {"id": "recorded-battle-seed", "offset": "0x04EC", "length": 4, "type": "u32le", "name": "Recorded battle seed", "confidence": "known", "source": "pkhex:Saves/Substructures/Battle Videos/BattleVideo3.cs"},
+        {"id": "recorded-battle-mode", "offset": "0x04F0", "length": 4, "type": "u32le", "name": "Recorded battle mode", "confidence": "known", "source": "pkhex:Saves/Substructures/Battle Videos/BattleVideo3.cs"},
+        {"id": "recorded-battle-checksum", "offset": "0x0F7C", "length": 4, "type": "u32le", "name": "Recorded battle checksum", "confidence": "known", "source": "pkhex:Saves/Substructures/Battle Videos/BattleVideo3.cs", "note": "Sum of the bytes from 0x0004 to 0x0F7B."}
+      ]
+    },
+    {
+      "name": "party:{1..6}",
+      "length": 100,
+      "transform": "pk3-crypt",
+      "source": {
+        "regions": [
+          {"space": "section:1", "start": 0, "end": "0xF80"}
+        ],
+        "offset": "0x0238",
+        "stride": 100
+      },
+      "kind": "pk3-party"
+    },
+    {
+      "name": "box:{1..14}:{1..30}",
+      "length": 80,
+      "transform": "pk3-crypt",
+      "source": {
+        "regions": [
+          {"space": "section:5", "start": 0, "end": "0xF80"},
+          {"space": "section:6", "start": 0, "end": "0xF80"},
+          {"space": "section:7", "start": 0, "end": "0xF80"},
+          {"space": "section:8", "start": 0, "end": "0xF80"},
+          {"space": "section:9", "start": 0, "end": "0xF80"},
+          {"space": "section:10", "start": 0, "end": "0xF80"},
+          {"space": "section:11", "start": 0, "end": "0xF80"},
+          {"space": "section:12", "start": 0, "end": "0xF80"},
+          {"space": "section:13", "start": 0, "end": "0xF80"}
+        ],
+        "offset": "0x0004",
+        "stride": 80
+      },
+      "kind": "pk3"
+    }
+  ],
+  "model": {
+    "root": {
+      "fields": {
+        "trainer": {
+          "object": {
+            "fields": {
+              "name": {
+                "space": "section:0",
+                "range": "trainer-name"
+              },
+              "gender": {
+                "space": "section:0",
+                "range": "trainer-gender"
+              },
+              "tid": {
+                "space": "section:0",
+                "range": "trainer-id"
+              },
+              "sid": {
+                "space": "section:0",
+                "range": "secret-id"
+              },
+              "money": {
+                "step": "xor-key",
+                "args": {"value": {"space": "section:1", "range": "money"}, "key": {"space": "section:0", "range": "security-key"}}
+              },
+              "coins": {
+                "step": "xor-key",
+                "args": {"value": {"space": "section:1", "range": "coins"}, "key": {"space": "section:0", "range": "security-key"}},
+                "extra": true
+              }
+            }
+          }
+        },
+        "play-time": {
+          "object": {
+            "fields": {
+              "hours": {
+                "space": "section:0",
+                "range": "play-time-hours"
+              },
+              "minutes": {
+                "space": "section:0",
+                "range": "play-time-minutes"
+              },
+              "seconds": {
+                "space": "section:0",
+                "range": "play-time-seconds"
+              }
+            }
+          }
+        },
+        "party": {
+          "list": "party-pokemon",
+          "spaces": "party:{1..6}",
+          "length": {
+            "space": "section:1",
+            "range": "party-count"
+          }
+        },
+        "boxes": {
+          "list": {
+            "fields": {
+              "name": {
+                "space": "section:13",
+                "range": "box-names",
+                "element": "each"
+              },
+              "wallpaper": {
+                "space": "section:13",
+                "range": "box-wallpapers",
+                "element": "each",
+                "extra": true
+              },
+              "slots": {
+                "list": "pokemon",
+                "spaces": ":{1..30}"
+              }
+            }
+          },
+          "spaces": "box:{1..14}"
+        },
+        "bag": {
+          "object": {
+            "fields": {
+              "items": {
+                "list": "pocket-item",
+                "space": "section:1",
+                "range": "items-pocket"
+              },
+              "key-items": {
+                "list": "pocket-item",
+                "space": "section:1",
+                "range": "key-items-pocket"
+              },
+              "balls": {
+                "list": "pocket-item",
+                "space": "section:1",
+                "range": "poke-balls-pocket"
+              },
+              "tms-hms": {
+                "list": "pocket-item",
+                "space": "section:1",
+                "range": "tms-and-hms-pocket"
+              },
+              "berries": {
+                "list": "pocket-item",
+                "space": "section:1",
+                "range": "berries-pocket"
+              },
+              "pc-items": {
+                "list": "item",
+                "space": "section:1",
+                "range": "pc-items"
+              }
+            }
+          }
+        },
+        "badges": {
+          "object": {
+            "fields": {
+              "badge-1": {
+                "space": "section:2",
+                "range": "event-flags",
+                "element": "0x8C7",
+                "note": "Stone Badge"
+              },
+              "badge-2": {
+                "space": "section:2",
+                "range": "event-flags",
+                "element": "0x8C8",
+                "note": "Knuckle Badge"
+              },
+              "badge-3": {
+                "space": "section:2",
+                "range": "event-flags",
+                "element": "0x8C9",
+                "note": "Dynamo Badge"
+              },
+              "badge-4": {
+                "space": "section:2",
+                "range": "event-flags",
+                "element": "0x8CA",
+                "note": "Heat Badge"
+              },
+              "badge-5": {
+                "space": "section:2",
+                "range": "event-flags",
+                "element": "0x8CB",
+                "note": "Balance Badge"
+              },
+              "badge-6": {
+                "space": "section:2",
+                "range": "event-flags",
+                "element": "0x8CC",
+                "note": "Feather Badge"
+              },
+              "badge-7": {
+                "space": "section:2",
+                "range": "event-flags",
+                "element": "0x8CD",
+                "note": "Mind Badge"
+              },
+              "badge-8": {
+                "space": "section:2",
+                "range": "event-flags",
+                "element": "0x8CE",
+                "note": "Rain Badge"
+              }
+            }
+          }
+        },
+        "pokedex": {
+          "object": {
+            "fields": {
+              "owned": {
+                "space": "section:0",
+                "range": "pokedex-owned-flags"
+              },
+              "seen": {
+                "space": "section:0",
+                "range": "pokedex-seen-flags"
+              },
+              "seen-copy-2": {
+                "space": "section:1",
+                "range": "pokedex-seen-flags-copy-2",
+                "extra": true,
+                "note": "The game counts a species as seen only when all three copies have its flag."
+              },
+              "seen-copy-3": {
+                "space": "section:4",
+                "range": "pokedex-seen-flags-copy-3",
+                "extra": true,
+                "note": "The game counts a species as seen only when all three copies have its flag."
+              }
+            }
+          }
+        },
+        "events": {
+          "object": {
+            "fields": {
+              "flags": {
+                "space": "section:2",
+                "range": "event-flags"
+              },
+              "work": {
+                "list": {
+                  "fields": {
+                    "value": {
+                      "range": "event-variables",
+                      "element": "each"
+                    }
+                  }
+                },
+                "space": "section:2",
+                "range": "event-variables"
+              }
+            }
+          }
+        }
+      }
+    },
+    "objects": {
+      "item": {
+        "fields": {
+          "item": {
+            "bit": "item"
+          },
+          "count": {
+            "bit": "quantity"
+          }
+        }
+      },
+      "pocket-item": {
+        "extends": "item",
+        "fields": {
+          "count": {
+            "step": "xor-key",
+            "args": {"value": {"bit": "quantity"}, "key": {"space": "section:0", "range": "security-key"}}
+          }
+        }
+      },
+      "pokemon": {
+        "fields": {
+          "pid": {
+            "range": "pid"
+          },
+          "species": {
+            "range": "species"
+          },
+          "nickname": {
+            "range": "nickname"
+          },
+          "experience": {
+            "range": "experience"
+          },
+          "held-item": {
+            "range": "held-item"
+          },
+          "friendship": {
+            "range": "friendship"
+          },
+          "ball": {
+            "range": "origins",
+            "bit": "ball"
+          },
+          "language": {
+            "range": "language"
+          },
+          "evs": {
+            "object": {
+              "fields": {
+                "health": {
+                  "range": "evs",
+                  "element": 0
+                },
+                "attack": {
+                  "range": "evs",
+                  "element": 1
+                },
+                "defense": {
+                  "range": "evs",
+                  "element": 2
+                },
+                "speed": {
+                  "range": "evs",
+                  "element": 3
+                },
+                "special-attack": {
+                  "range": "evs",
+                  "element": 4
+                },
+                "special-defense": {
+                  "range": "evs",
+                  "element": 5
+                }
+              }
+            }
+          },
+          "ivs": {
+            "object": {
+              "fields": {
+                "health": {
+                  "range": "ivs-egg-and-ability",
+                  "bit": "hp-iv"
+                },
+                "attack": {
+                  "range": "ivs-egg-and-ability",
+                  "bit": "attack-iv"
+                },
+                "defense": {
+                  "range": "ivs-egg-and-ability",
+                  "bit": "defense-iv"
+                },
+                "speed": {
+                  "range": "ivs-egg-and-ability",
+                  "bit": "speed-iv"
+                },
+                "special-attack": {
+                  "range": "ivs-egg-and-ability",
+                  "bit": "sp-atk-iv"
+                },
+                "special-defense": {
+                  "range": "ivs-egg-and-ability",
+                  "bit": "sp-def-iv"
+                }
+              }
+            }
+          },
+          "moves": {
+            "list": {
+              "fields": {
+                "move": {
+                  "range": "moves",
+                  "element": "each"
+                },
+                "pp": {
+                  "range": "pp",
+                  "element": "each"
+                }
+              }
+            },
+            "range": "moves"
+          },
+          "owner": {
+            "object": {
+              "fields": {
+                "tid": {
+                  "range": "original-trainer-id",
+                  "bit": "tid"
+                },
+                "sid": {
+                  "range": "original-trainer-id",
+                  "bit": "sid"
+                },
+                "name": {
+                  "range": "original-trainer-name"
+                },
+                "gender": {
+                  "range": "origins",
+                  "bit": "trainer-gender"
+                }
+              }
+            }
+          },
+          "met-conditions": {
+            "object": {
+              "fields": {
+                "location": {
+                  "range": "met-location"
+                },
+                "level": {
+                  "range": "origins",
+                  "bit": "met-level"
+                },
+                "version": {
+                  "range": "origins",
+                  "bit": "origin-game"
+                },
+                "fateful-encounter": {
+                  "range": "ribbons",
+                  "bit": "fateful-encounter"
+                }
+              }
+            }
+          },
+          "egg": {
+            "object": {
+              "fields": {
+                "is-egg": {
+                  "range": "ivs-egg-and-ability",
+                  "bit": "is-egg",
+                  "note": "egg-and-species-flags at 0x13 has an is-egg bit too."
+                },
+                "hatch-counter": {
+                  "range": "friendship",
+                  "note": "An egg keeps its hatch counter in the friendship byte."
+                }
+              }
+            }
+          },
+          "pokerus": {
+            "object": {
+              "fields": {
+                "strain": {
+                  "range": "pokerus",
+                  "bit": "strain"
+                },
+                "days": {
+                  "range": "pokerus",
+                  "bit": "days"
+                }
+              }
+            }
+          }
+        }
+      },
+      "party-pokemon": {
+        "extends": "pokemon",
+        "fields": {
+          "level": {
+            "range": "level"
+          },
+          "stats": {
+            "object": {
+              "fields": {
+                "health": {
+                  "range": "stats",
+                  "element": 0
+                },
+                "attack": {
+                  "range": "stats",
+                  "element": 1
+                },
+                "defense": {
+                  "range": "stats",
+                  "element": 2
+                },
+                "speed": {
+                  "range": "stats",
+                  "element": 3
+                },
+                "special-attack": {
+                  "range": "stats",
+                  "element": 4
+                },
+                "special-defense": {
+                  "range": "stats",
+                  "element": 5
+                }
+              }
+            }
+          },
+          "current-hp": {
+            "range": "current-hp",
+            "extra": true
+          },
+          "status-condition": {
+            "range": "status-condition",
+            "extra": true
+          }
+        }
+      }
+    }
+  }
+}

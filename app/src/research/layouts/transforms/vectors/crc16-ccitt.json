@@ -1,0 +1,255 @@
+{
+  "step": "crc16-ccitt",
+  "decode": [
+    {
+      "name": "the general block of dp.sav, in slot B",
+      "args": {
+        "start": 0,
+        "end": "0xC0EC",
+        "at": "0xC0FE"
+      },
+      "input": {
+        "file": "dp.sav",
+        "offset": "0x40000",
+        "length": "0xC100"
+      },
+      "output": "2B 49"
+    },
+    {
+      "name": "the storage block of dp.sav, in slot A",
+      "args": {
+        "start": 0,
+        "end": "0x121CC",
+        "at": "0x121DE"
+      },
+      "input": {
+        "file": "dp.sav",
+        "offset": "0xC100",
+        "length": "0x121E0"
+      },
+      "output": "2A 50"
+    },
+    {
+      "name": "the box 1 block of bw.sav, its checksum in its footer",
+      "args": {
+        "start": 0,
+        "end": "0xFF0",
+        "at": "0xFF2"
+      },
+      "input": {
+        "file": "bw.sav",
+        "offset": "0x400",
+        "length": "0xFF4"
+      },
+      "output": "52 1F"
+    },
+    {
+      "name": "the party block of bw.sav, its checksum in its footer",
+      "args": {
+        "start": 0,
+        "end": "0x534",
+        "at": "0x536"
+      },
+      "input": {
+        "file": "bw.sav",
+        "offset": "0x18E00",
+        "length": "0x538"
+      },
+      "output": "23 27"
+    },
+    {
+      "name": "the party block of bw.sav, its checksum in the checksum block",
+      "args": {
+        "start": "0x18E00",
+        "end": "0x19334",
+        "at": "0x23F34"
+      },
+      "input": {
+        "file": "bw.sav"
+      },
+      "output": "23 27"
+    },
+    {
+      "name": "the party block of xy.sav, block 18",
+      "args": {
+        "start": "0x14200",
+        "end": "0x1481C",
+        "at": "0x654AA"
+      },
+      "input": {
+        "file": "xy.sav"
+      },
+      "output": "B7 C5"
+    },
+    {
+      "name": "the box block of xy.sav, block 53",
+      "args": {
+        "start": "0x22600",
+        "end": "0x570D0",
+        "at": "0x655C2"
+      },
+      "input": {
+        "file": "xy.sav"
+      },
+      "output": "07 B2"
+    }
+  ],
+  "encode": [
+    {
+      "name": "the general block of dp.sav, in slot B, its checksum zeroed",
+      "args": {
+        "start": 0,
+        "end": "0xC0EC",
+        "at": "0xC0FE"
+      },
+      "input": [
+        {
+          "file": "dp.sav",
+          "offset": "0x40000",
+          "length": "0xC0FE"
+        },
+        "00 00"
+      ],
+      "output": {
+        "file": "dp.sav",
+        "offset": "0x40000",
+        "length": "0xC100"
+      }
+    },
+    {
+      "name": "the storage block of dp.sav, in slot A, its checksum zeroed",
+      "args": {
+        "start": 0,
+        "end": "0x121CC",
+        "at": "0x121DE"
+      },
+      "input": [
+        {
+          "file": "dp.sav",
+          "offset": "0xC100",
+          "length": "0x121DE"
+        },
+        "00 00"
+      ],
+      "output": {
+        "file": "dp.sav",
+        "offset": "0xC100",
+        "length": "0x121E0"
+      }
+    },
+    {
+      "name": "the box 1 block of bw.sav, its checksum in its footer, its checksum zeroed",
+      "args": {
+        "start": 0,
+        "end": "0xFF0",
+        "at": "0xFF2"
+      },
+      "input": [
+        {
+          "file": "bw.sav",
+          "offset": "0x400",
+          "length": "0xFF2"
+        },
+        "00 00"
+      ],
+      "output": {
+        "file": "bw.sav",
+        "offset": "0x400",
+        "length": "0xFF4"
+      }
+    },
+    {
+      "name": "the party block of bw.sav, its checksum in its footer, its checksum zeroed",
+      "args": {
+        "start": 0,
+        "end": "0x534",
+        "at": "0x536"
+      },
+      "input": [
+        {
+          "file": "bw.sav",
+          "offset": "0x18E00",
+          "length": "0x536"
+        },
+        "00 00"
+      ],
+      "output": {
+        "file": "bw.sav",
+        "offset": "0x18E00",
+        "length": "0x538"
+      }
+    },
+    {
+      "name": "the party block of bw.sav, its checksum in the checksum block, its checksum zeroed",
+      "args": {
+        "start": "0x18E00",
+        "end": "0x19334",
+        "at": "0x23F34"
+      },
+      "input": [
+        {
+          "file": "bw.sav",
+          "offset": "0x0",
+          "length": "0x23F34"
+        },
+        "00 00",
+        {
+          "file": "bw.sav",
+          "offset": "0x23F36",
+          "length": "0x5C0CA"
+        }
+      ],
+      "output": {
+        "file": "bw.sav"
+      }
+    },
+    {
+      "name": "the party block of xy.sav, block 18, its checksum zeroed",
+      "args": {
+        "start": "0x14200",
+        "end": "0x1481C",
+        "at": "0x654AA"
+      },
+      "input": [
+        {
+          "file": "xy.sav",
+          "offset": "0x0",
+          "length": "0x654AA"
+        },
+        "00 00",
+        {
+          "file": "xy.sav",
+          "offset": "0x654AC",
+          "length": "0x154"
+        }
+      ],
+      "output": {
+        "file": "xy.sav"
+      }
+    },
+    {
+      "name": "the box block of xy.sav, block 53, its checksum zeroed",
+      "args": {
+        "start": "0x22600",
+        "end": "0x570D0",
+        "at": "0x655C2"
+      },
+      "input": [
+        {
+          "file": "xy.sav",
+          "offset": "0x0",
+          "length": "0x655C2"
+        },
+        "00 00",
+        {
+          "file": "xy.sav",
+          "offset": "0x655C4",
+          "length": "0x3C"
+        }
+      ],
+      "output": {
+        "file": "xy.sav"
+      }
+    }
+  ]
+}

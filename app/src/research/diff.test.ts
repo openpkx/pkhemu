@@ -63,18 +63,18 @@ it("names sections from 0, as the layout does, and boxes and slots from 1", () =
   expect(["section:0", "sector:28", "party:1", "box:14:30"].map(spaceTitle)).toEqual(["Section 0", "Sector 28", "Party slot 1", "Box 14, slot 30"]);
 });
 
-it("counts an unknown held item across Pokémon wherever they move, and leaves out items the engine names", () => {
+it("counts an unnamed held item across Pokémon wherever they move, and leaves out items the layout names", () => {
   const potion = { index: 13, name: "Potion", count: 1 };
-  const unknown = { index: 368, count: 1 };
+  const unnamed = { index: 368, count: 1 };
   const before = {
-    pouches: [{ pocket: "Items", items: [potion, unknown] }],
-    held: [{ slot: "Box 1, slot 1", species: "Latias", item: unknown }],
+    pouches: [{ pocket: "Items", items: [potion, unnamed] }],
+    held: [{ slot: "Box 1, slot 1", species: "Latias", item: unnamed }],
   };
   const after = {
     pouches: [{ pocket: "Items", items: [{ ...potion, count: 5 }] }],
     held: [
-      { slot: "Party slot 1", species: "Latias", item: unknown },
-      { slot: "Party slot 2", species: "Kyogre", item: unknown },
+      { slot: "Party slot 1", species: "Latias", item: unnamed },
+      { slot: "Party slot 2", species: "Kyogre", item: unnamed },
       { slot: "Party slot 3", species: "Pikachu", item: { index: 202, name: "Light Ball", count: 1 } },
     ],
   };

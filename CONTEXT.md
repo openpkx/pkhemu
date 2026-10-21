@@ -225,7 +225,7 @@ _Avoid_: Region, block (on its own)
 Bytes in a space whose meaning a layout gives and cites, such as Money in Gen 3 section 1.
 
 **Finding**:
-What a player works out with research. A range finding names bytes that no known range covers. A value finding names a value that a known range holds but the engine can't name, such as Unbound's item 368. The player exports findings as a file and shares it however they like.
+What a player works out with research. A range finding names bytes that no known range covers. A value finding names a value that a known range holds but the layout can't name, such as Unbound's item 368. The player exports findings as a file and shares it however they like.
 _Avoid_: Discovery, mapping
 
 **Layout**:

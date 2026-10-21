@@ -7,8 +7,13 @@ export function gen3Save(edits: Gen3Edit[] = []) {
   const view = new DataView(save.buffer);
   for (let section = 0; section < 14; section++) {
     view.setUint16(section * SECTOR + 0xff4, section, true);
+    view.setUint32(section * SECTOR + 0xff8, 0x08012025, true);
     view.setUint32(section * SECTOR + 0xffc, 1, true);
   }
   for (const { section, offset, bytes } of edits) save.set(bytes, section * SECTOR + offset);
   return save;
 }
+
+// Emerald's detection wants a security key and a Pokédex.
+export const emeraldSave = (edits: Gen3Edit[] = []) =>
+  gen3Save([{ section: 0, offset: 0xac, bytes: [1, 2, 3, 4] }, { section: 0, offset: 0x890, bytes: [1] }, ...edits]);

@@ -1,0 +1,79 @@
+{
+  "step": "memecrypto-sign",
+  "decode": [
+    {
+      "name": "the signature of sm.sav, over Sun and Moon' checksum table",
+      "args": {
+        "start": "0x6BC00",
+        "end": "0x6BD40",
+        "at": "0x6BB00"
+      },
+      "input": {
+        "file": "sm.sav"
+      },
+      "output": "AC 28 B0 A4 67 43 1F 40 4A F0 B9 E7 F8 C0 82 82 66 20 72 89 C3 5E 22 90 DC 89 2A 69 8A 70 51 A9 05 A3 30 03 98 E8 16 43 79 E4 84 20 76 C0 F9 04 53 92 89 81 56 FB 59 3C 9D 81 42 2F C6 8A 77 57 3D EB E3 38 B3 A8 FE 34 94 63 99 09 F9 9A 0E 2C 5C 98 90 A0 0B 95 ED DE 86 40 A0 50 4E 82 54 66 9A 68 CC 03 BC 10 9B A9 9D B7 85 7D C3 E6 17 72 6D F4 48 73 26 FD ED B6 07 77 73 5D 87 BE 79 3C"
+    },
+    {
+      "name": "the signature of usum.sav, over Ultra Sun and Ultra Moon' checksum table",
+      "args": {
+        "start": "0x6CA00",
+        "end": "0x6CB50",
+        "at": "0x6C100"
+      },
+      "input": {
+        "file": "usum.sav"
+      },
+      "output": "A6 C6 F8 6B 46 D6 B9 20 20 2C 70 CB 35 4D D5 BA 00 21 65 2A BC 52 68 0F BD 87 C2 5F AC 95 12 9E AF 3E B0 5F A2 66 19 29 BA 86 60 FC 1B A6 D5 A9 BF 59 23 36 66 AF C2 78 C4 33 B8 EC 46 AE B5 17 79 DA 9C B4 97 EC BB 7F 86 BD 14 73 D0 C3 B6 57 78 99 BD F5 A1 E2 9E 27 4C CC C0 E1 95 ED FC B6 9B 20 48 55 28 15 56 57 3A 88 D6 36 D7 B9 0F C6 27 D2 29 2D 89 DD DB 91 0C 00 3D 9A B3 56 E4 1B"
+    }
+  ],
+  "encode": [
+    {
+      "name": "sm.sav with its signature zeroed",
+      "args": {
+        "start": "0x6BC00",
+        "end": "0x6BD40",
+        "at": "0x6BB00"
+      },
+      "input": [
+        {
+          "file": "sm.sav",
+          "offset": "0x0",
+          "length": "0x6BB00"
+        },
+        "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        {
+          "file": "sm.sav",
+          "offset": "0x6BB80",
+          "length": "0x280"
+        }
+      ],
+      "output": {
+        "file": "sm.sav"
+      }
+    },
+    {
+      "name": "usum.sav with its signature zeroed",
+      "args": {
+        "start": "0x6CA00",
+        "end": "0x6CB50",
+        "at": "0x6C100"
+      },
+      "input": [
+        {
+          "file": "usum.sav",
+          "offset": "0x0",
+          "length": "0x6C100"
+        },
+        "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+        {
+          "file": "usum.sav",
+          "offset": "0x6C180",
+          "length": "0xA80"
+        }
+      ],
+      "output": {
+        "file": "usum.sav"
+      }
+    }
+  ]
+}

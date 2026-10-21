@@ -68,7 +68,7 @@ export function PauseMenu({
   /** The skin and look, as in "Classic grey · Moulded". Undefined hides the entry, as while the touch controls are off. */
   skin?: string;
   onSkin(): void;
-  /** Research's status, as in "Compare two saves". Undefined hides the entry, as on games that aren't Gen 3. */
+  /** Research's status, as in "Compare two saves". Undefined hides the entry, as on games whose save no layout reads. */
   research?: string;
   onResearch?(): void;
   onSettings(): void;

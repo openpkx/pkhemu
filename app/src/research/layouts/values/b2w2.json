@@ -1,0 +1,21 @@
+{
+  "$schema": "../schema/values.schema.json",
+  "schema": "1.0",
+  "note": "English names for the items Black 2 and White 2 add to Black and White's.",
+  "values": [
+    {"domain": "item", "index": 453, "name": "Lunar Feather", "cross": {"id": 453}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt"},
+    {"domain": "item", "index": 458, "name": "Magma Stone", "cross": {"id": 458}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt"},
+    {"domain": "item", "index": 627, "name": "Medal Box", "cross": {"id": 627}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt"},
+    {"domain": "item", "index": 628, "name": "DNA Splicers", "cross": {"id": 628}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt"},
+    {"domain": "item", "index": 629, "name": "DNA Splicers (2)", "cross": {"id": 629}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt and pkhex:Game/GameStrings/GameStrings.cs"},
+    {"domain": "item", "index": 630, "name": "Permit", "cross": {"id": 630}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt"},
+    {"domain": "item", "index": 631, "name": "Oval Charm", "cross": {"id": 631}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt"},
+    {"domain": "item", "index": 632, "name": "Shiny Charm", "cross": {"id": 632}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt"},
+    {"domain": "item", "index": 633, "name": "Plasma Card", "cross": {"id": 633}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt"},
+    {"domain": "item", "index": 634, "name": "Grubby Hanky", "cross": {"id": 634}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt"},
+    {"domain": "item", "index": 635, "name": "Colress Machine", "cross": {"id": 635}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt"},
+    {"domain": "item", "index": 636, "name": "Dropped Item (M)", "cross": {"id": 636}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt and pkhex:Game/GameStrings/GameStrings.cs"},
+    {"domain": "item", "index": 637, "name": "Dropped Item (F)", "cross": {"id": 637}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt and pkhex:Game/GameStrings/GameStrings.cs"},
+    {"domain": "item", "index": 638, "name": "Reveal Glass", "cross": {"id": 638}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt"}
+  ]
+}

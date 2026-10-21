@@ -1,0 +1,79 @@
+{
+  "step": "crc16-usb",
+  "decode": [
+    {
+      "name": "the party block of sm.sav, block 4",
+      "args": {
+        "start": "0x1400",
+        "end": "0x1A1C",
+        "at": "0x6BC3A"
+      },
+      "input": {
+        "file": "sm.sav"
+      },
+      "output": "0A A0"
+    },
+    {
+      "name": "the box block of sm.sav, block 14",
+      "args": {
+        "start": "0x4E00",
+        "end": "0x3B400",
+        "at": "0x6BC8A"
+      },
+      "input": {
+        "file": "sm.sav"
+      },
+      "output": "A2 CE"
+    }
+  ],
+  "encode": [
+    {
+      "name": "the party block of sm.sav, block 4, its checksum zeroed",
+      "args": {
+        "start": "0x1400",
+        "end": "0x1A1C",
+        "at": "0x6BC3A"
+      },
+      "input": [
+        {
+          "file": "sm.sav",
+          "offset": "0x0",
+          "length": "0x6BC3A"
+        },
+        "00 00",
+        {
+          "file": "sm.sav",
+          "offset": "0x6BC3C",
+          "length": "0x1C4"
+        }
+      ],
+      "output": {
+        "file": "sm.sav"
+      }
+    },
+    {
+      "name": "the box block of sm.sav, block 14, its checksum zeroed",
+      "args": {
+        "start": "0x4E00",
+        "end": "0x3B400",
+        "at": "0x6BC8A"
+      },
+      "input": [
+        {
+          "file": "sm.sav",
+          "offset": "0x0",
+          "length": "0x6BC8A"
+        },
+        "00 00",
+        {
+          "file": "sm.sav",
+          "offset": "0x6BC8C",
+          "length": "0x174"
+        }
+      ],
+      "output": {
+        "file": "sm.sav"
+      }
+    }
+  ]
+}

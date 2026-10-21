@@ -13,13 +13,16 @@
       "sizes": ["0x20000"],
       "steps": [
         {"step": "gen3-signature", "args": {"signatures": ["0x08012025"]}},
+        {"step": "imperium-checksums", "args": {"lengths": [2572, 4084, 4084, 4084, 2152, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4084, 4084, 4084, 4084, 4084, 4084, 4084, 4084, 1472, 0, 0]}, "passes": false},
+        {"step": "imperium-checksums", "args": {"lengths": [2940, 4084, 4084, 4084, 772, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4084, 4084, 4084, 4084, 4084, 4084, 4084, 4084, 4084, 4084, 4084, 4084, 1512, 0]}, "passes": false},
         {"step": "frlg-key-mismatch"}
       ],
       "checks": [
+        {"space": "section:2", "offset": "0x0160", "type": "u32le", "not": "0xE8F828BC"},
         {"space": "section:0", "offset": "0x00AC", "type": "u32le", "equals": 1}
       ],
-      "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/RadicalRed/RadicalRedFormat.cs and engine:src/PKHeX.Everywhere.RomHacks/Cfru/RadicalRed/RadicalRedSave.cs",
-      "note": "Radical Red keeps FireRed's signature and its 1 at section 0 0xAC, so a FireRed save whose security key is 0 or out of step with its copy passes too."
+      "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/RadicalRed/RadicalRedFormat.cs and engine:src/PKHeX.Everywhere.RomHacks/Cfru/RadicalRed/RadicalRedSave.cs and engine:src/PKHeX.Everywhere.RomHacks/Expansion/Imperium/ImperiumFormat.cs and engine:src/PKHeX.Everywhere.RomHacks/Expansion/HeartAndSoul/HeartAndSoulFormat.cs",
+      "note": "Radical Red keeps FireRed's signature and its 1 at section 0 0xAC, so a FireRed save whose security key is 0 or out of step with its copy passes too. Imperium's checksums and Heart & Soul's magic rule out the saves those formats claim first."
     }
   },
   "note": "Radical Red is built on the Complete FireRed Upgrade, which keeps FireRed's 14 sections but fills each up to 0xFF0, stores Pokémon unencrypted with the hack's own indexes, packs boxed Pokémon into 58 bytes and spreads 25 boxes and a 450-slot items pocket over sectors 30 and 31, outside both save slots. It signs its sections 0x08012025, as FireRed does, and leaves the security key at 0.",

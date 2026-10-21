@@ -1,0 +1,389 @@
+{
+  "$schema": "../schema/layout.schema.json",
+  "schema": "1.0",
+  "valueFiles": ["gen2"],
+  "target": {
+    "kind": "save",
+    "format": "crystal",
+    "version": "1.0",
+    "roms": [
+      {"sha1": "f4cd194bdee0d04ca4eac29e09b8e4e9d818c133", "name": "Pokemon - Crystal Version (USA)"},
+      {"sha1": "f2f52230b536214ef7c9924f483392993e226cfb", "name": "Pokemon - Crystal Version (USA, Europe) (Rev 1)"},
+      {"sha1": "a0fc810f1d4e124434f7be2c989ab5b5892ddf36", "name": "Pokemon - Crystal Version (Australia)"},
+      {"sha1": "accb584293ba056152f1fd908439b019017ff2fe", "name": "Pokemon - Kristall-Edition (Germany)"},
+      {"sha1": "c055992b16b7399c687647725cdd1f4f13a2f75c", "name": "Pokemon - Version Cristal (France)"},
+      {"sha1": "6cee05e5b95beeae74b8365ad18ec4a07a8c4af8", "name": "Pokemon - Versione Cristallo (Italy)"},
+      {"sha1": "889a06fc0bb863666865aa69def0adf97945ac2a", "name": "Pokemon - Edicion Cristal (Spain)"}
+    ],
+    "detect": {
+      "match": "certain",
+      "sizes": ["0x8000"],
+      "steps": [
+        {"step": "gen12-lists", "args": {"lists": [{"offset": "0x2ED5", "max": 30}, {"offset": "0x302D", "max": 30}]}, "passes": false},
+        {"step": "gen12-lists", "args": {"lists": [{"offset": "0x2F2C", "max": 20}, {"offset": "0x30C0", "max": 20}]}, "passes": false},
+        {"step": "gen12-lists", "args": {"lists": [{"offset": "0x288A", "max": 20}, {"offset": "0x2D6C", "max": 20}]}, "passes": false},
+        {"step": "gen12-lists", "args": {"lists": [{"offset": "0x2865", "max": 20}, {"offset": "0x2D10", "max": 20}]}}
+      ],
+      "possible": [
+        {
+          "sizes": ["0x10000"],
+          "steps": [
+            {"step": "gen12-lists", "args": {"lists": [{"offset": "0x288A", "max": 20}, {"offset": "0x2D6C", "max": 20}]}, "passes": false},
+            {"step": "gen12-lists", "args": {"lists": [{"offset": "0x2865", "max": 20}, {"offset": "0x2D10", "max": 20}]}, "passes": false},
+            {"step": "gen12-lists", "args": {"lists": [{"offset": "0x2D10", "max": 30}, {"offset": "0x283E", "max": 30}]}, "passes": false},
+            {"step": "gen12-lists", "args": {"lists": [{"offset": "0x2D10", "max": 30}, {"offset": "0x281A", "max": 30}]}}
+          ],
+          "note": "A Japanese Crystal save, which PKHeX reads as the same game. It's 64 KiB, and its lists sit elsewhere and hold 30 Pokémon a box, so this layout doesn't fit it."
+        },
+        {
+          "sizes": ["0x10000"],
+          "steps": [
+            {"step": "gen12-lists", "args": {"lists": [{"offset": "0x288A", "max": 20}, {"offset": "0x2D6C", "max": 20}]}, "passes": false},
+            {"step": "gen12-lists", "args": {"lists": [{"offset": "0x2865", "max": 20}, {"offset": "0x2D10", "max": 20}]}}
+          ],
+          "note": "A 64 KiB save, the size PKHeX gives a blank Gen 2 save. The cartridge keeps 32 KiB, which is all this layout reads."
+        }
+      ],
+      "source": "pkhex:Saves/Util/SaveUtil.cs",
+      "note": "PKHeX checks for Gen 1 saves first, which are the same size, then for Gold and Silver before Crystal, and for the international games before the Japanese and Korean ones."
+    }
+  },
+  "container": [
+    {"transform": "gen2-backup", "args": {"copies": [{"from": "0x2009", "to": "0x1209", "length": "0x0B7A"}]}}
+  ],
+  "kinds": {
+    "pk2": {
+      "length": 73,
+      "note": "A party Pokémon as a single-slot list, as gen1-list decodes it and a .pk2 file holds it: the count, the species and the end of the list, the Pokémon, its original trainer name and its nickname.",
+      "ranges": [
+        {"id": "list-count", "offset": "0x0000", "length": 1, "type": "u8", "name": "Count of the single-slot list", "confidence": "known", "source": "pkhex:PKM/Shared/PokeList2.cs", "note": "1 for a Pokémon in its list's count, 0 for a slot past it."},
+        {"id": "list-species", "offset": "0x0001", "length": 1, "type": "u8", "name": "Species in the list's header", "domain": "species", "confidence": "known", "source": "pkhex:PKM/Shared/PokeList2.cs", "note": "0xFD for an egg and 0xFF for an empty slot. Otherwise the game keeps it the same as the Pokémon's species."},
+        {"id": "list-end", "offset": "0x0002", "length": 1, "type": "u8", "name": "End of the single-slot list's species", "confidence": "known", "source": "pkhex:PKM/Shared/PokeList2.cs", "note": "Always 0xFF."},
+        {"id": "species", "offset": "0x0003", "length": 1, "type": "u8", "name": "Species", "domain": "species", "confidence": "known", "source": "pkhex:PKM/PK2.cs"},
+        {"id": "held-item", "offset": "0x0004", "length": 1, "type": "u8", "name": "Held item", "domain": "item", "confidence": "known", "source": "pkhex:PKM/PK2.cs"},
+        {"id": "moves", "offset": "0x0005", "length": 1, "type": "u8", "name": "Moves", "domain": "move", "confidence": "known", "source": "pkhex:PKM/PK2.cs", "count": 4, "stride": 1},
+        {"id": "original-trainer-id", "offset": "0x0009", "length": 2, "type": "u16be", "name": "Original trainer ID", "confidence": "known", "source": "pkhex:PKM/PK2.cs"},
+        {"id": "experience", "offset": "0x000B", "length": 3, "type": "u24be", "name": "Experience", "confidence": "known", "source": "pkhex:PKM/PK2.cs"},
+        {"id": "evs", "offset": "0x000E", "length": 2, "type": "u16be", "name": "EVs: HP, Attack, Defense, Speed, Special", "confidence": "known", "source": "pkhex:PKM/PK2.cs", "count": 5, "stride": 2},
+        {"id": "dvs", "offset": "0x0018", "length": 2, "type": "u16be", "name": "DVs", "confidence": "known", "source": "pkhex:PKM/PK2.cs and pkhex:PKM/Shared/GBPKM.cs", "bits": [{"id": "special", "bit": 0, "width": 4, "name": "Special DV"}, {"id": "speed", "bit": 4, "width": 4, "name": "Speed DV"}, {"id": "defense", "bit": 8, "width": 4, "name": "Defense DV"}, {"id": "attack", "bit": 12, "width": 4, "name": "Attack DV"}], "note": "The HP DV is worked out from the others, and gender, shininess and Unown's letter from them all."},
+        {"id": "pp", "offset": "0x001A", "length": 1, "type": "u8", "name": "PP and PP Ups", "confidence": "known", "source": "pkhex:PKM/PK2.cs", "count": 4, "stride": 1, "bits": [{"id": "pp", "bit": 0, "width": 6, "name": "PP"}, {"id": "pp-ups", "bit": 6, "width": 2, "name": "PP Ups"}]},
+        {"id": "friendship", "offset": "0x001E", "length": 1, "type": "u8", "name": "Friendship", "confidence": "known", "source": "pkhex:PKM/PK2.cs", "note": "An egg keeps the steps left to hatch here."},
+        {"id": "pokerus", "offset": "0x001F", "length": 1, "type": "u8", "name": "Pokérus", "confidence": "known", "source": "pkhex:PKM/PK2.cs", "bits": [{"id": "days", "bit": 0, "width": 4, "name": "Days left"}, {"id": "strain", "bit": 4, "width": 4, "name": "Strain"}]},
+        {"id": "caught-data", "offset": "0x0020", "length": 2, "type": "u16be", "name": "Where, when and at what level it was caught", "confidence": "known", "source": "pkhex:PKM/PK2.cs", "bits": [{"id": "met-location", "bit": 0, "width": 7, "name": "Met location", "domain": "location"}, {"id": "trainer-gender", "bit": 7, "width": 1, "name": "Original trainer is female"}, {"id": "met-level", "bit": 8, "width": 6, "name": "Met level"}, {"id": "time-of-day", "bit": 14, "width": 2, "name": "Time of day it was caught"}], "note": "PKHeX calls it Crystal's, and reads it in Gold and Silver too."},
+        {"id": "level", "offset": "0x0022", "length": 1, "type": "u8", "name": "Level", "confidence": "known", "source": "pkhex:PKM/PK2.cs"},
+        {"id": "status-condition", "offset": "0x0023", "length": 1, "type": "u8", "name": "Status condition", "confidence": "known", "source": "pkhex:PKM/PK2.cs"},
+        {"id": "current-hp", "offset": "0x0025", "length": 2, "type": "u16be", "name": "Current HP", "confidence": "known", "source": "pkhex:PKM/PK2.cs"},
+        {"id": "stats", "offset": "0x0027", "length": 2, "type": "u16be", "name": "Stats: max HP, Attack, Defense, Speed, Sp. Atk, Sp. Def", "confidence": "known", "source": "pkhex:PKM/PK2.cs", "count": 6, "stride": 2},
+        {"id": "original-trainer-name", "offset": "0x0033", "length": 11, "type": "text-gen2-intl", "name": "Original trainer name", "confidence": "known", "source": "pkhex:PKM/PK2.cs and pkhex:PKM/Shared/PokeList2.cs"},
+        {"id": "nickname", "offset": "0x003E", "length": 11, "type": "text-gen2-intl", "name": "Nickname", "confidence": "known", "source": "pkhex:PKM/PK2.cs and pkhex:PKM/Shared/PokeList2.cs"}
+      ]
+    },
+    "pk2-boxed": {
+      "length": 73,
+      "note": "A boxed Pokémon as a single-slot list, as gen1-list decodes it. A box keeps the first 32 bytes of a Pokémon, so 0x23 to 0x32 stay 0.",
+      "ranges": [
+        {"id": "list-count", "offset": "0x0000", "length": 1, "type": "u8", "name": "Count of the single-slot list", "confidence": "known", "source": "pkhex:PKM/Shared/PokeList2.cs", "note": "1 for a Pokémon in its list's count, 0 for a slot past it."},
+        {"id": "list-species", "offset": "0x0001", "length": 1, "type": "u8", "name": "Species in the list's header", "domain": "species", "confidence": "known", "source": "pkhex:PKM/Shared/PokeList2.cs", "note": "0xFD for an egg and 0xFF for an empty slot. Otherwise the game keeps it the same as the Pokémon's species."},
+        {"id": "list-end", "offset": "0x0002", "length": 1, "type": "u8", "name": "End of the single-slot list's species", "confidence": "known", "source": "pkhex:PKM/Shared/PokeList2.cs", "note": "Always 0xFF."},
+        {"id": "species", "offset": "0x0003", "length": 1, "type": "u8", "name": "Species", "domain": "species", "confidence": "known", "source": "pkhex:PKM/PK2.cs"},
+        {"id": "held-item", "offset": "0x0004", "length": 1, "type": "u8", "name": "Held item", "domain": "item", "confidence": "known", "source": "pkhex:PKM/PK2.cs"},
+        {"id": "moves", "offset": "0x0005", "length": 1, "type": "u8", "name": "Moves", "domain": "move", "confidence": "known", "source": "pkhex:PKM/PK2.cs", "count": 4, "stride": 1},
+        {"id": "original-trainer-id", "offset": "0x0009", "length": 2, "type": "u16be", "name": "Original trainer ID", "confidence": "known", "source": "pkhex:PKM/PK2.cs"},
+        {"id": "experience", "offset": "0x000B", "length": 3, "type": "u24be", "name": "Experience", "confidence": "known", "source": "pkhex:PKM/PK2.cs"},
+        {"id": "evs", "offset": "0x000E", "length": 2, "type": "u16be", "name": "EVs: HP, Attack, Defense, Speed, Special", "confidence": "known", "source": "pkhex:PKM/PK2.cs", "count": 5, "stride": 2},
+        {"id": "dvs", "offset": "0x0018", "length": 2, "type": "u16be", "name": "DVs", "confidence": "known", "source": "pkhex:PKM/PK2.cs and pkhex:PKM/Shared/GBPKM.cs", "bits": [{"id": "special", "bit": 0, "width": 4, "name": "Special DV"}, {"id": "speed", "bit": 4, "width": 4, "name": "Speed DV"}, {"id": "defense", "bit": 8, "width": 4, "name": "Defense DV"}, {"id": "attack", "bit": 12, "width": 4, "name": "Attack DV"}], "note": "The HP DV is worked out from the others, and gender, shininess and Unown's letter from them all."},
+        {"id": "pp", "offset": "0x001A", "length": 1, "type": "u8", "name": "PP and PP Ups", "confidence": "known", "source": "pkhex:PKM/PK2.cs", "count": 4, "stride": 1, "bits": [{"id": "pp", "bit": 0, "width": 6, "name": "PP"}, {"id": "pp-ups", "bit": 6, "width": 2, "name": "PP Ups"}]},
+        {"id": "friendship", "offset": "0x001E", "length": 1, "type": "u8", "name": "Friendship", "confidence": "known", "source": "pkhex:PKM/PK2.cs", "note": "An egg keeps the steps left to hatch here."},
+        {"id": "pokerus", "offset": "0x001F", "length": 1, "type": "u8", "name": "Pokérus", "confidence": "known", "source": "pkhex:PKM/PK2.cs", "bits": [{"id": "days", "bit": 0, "width": 4, "name": "Days left"}, {"id": "strain", "bit": 4, "width": 4, "name": "Strain"}]},
+        {"id": "caught-data", "offset": "0x0020", "length": 2, "type": "u16be", "name": "Where, when and at what level it was caught", "confidence": "known", "source": "pkhex:PKM/PK2.cs", "bits": [{"id": "met-location", "bit": 0, "width": 7, "name": "Met location", "domain": "location"}, {"id": "trainer-gender", "bit": 7, "width": 1, "name": "Original trainer is female"}, {"id": "met-level", "bit": 8, "width": 6, "name": "Met level"}, {"id": "time-of-day", "bit": 14, "width": 2, "name": "Time of day it was caught"}], "note": "PKHeX calls it Crystal's, and reads it in Gold and Silver too."},
+        {"id": "level", "offset": "0x0022", "length": 1, "type": "u8", "name": "Level", "confidence": "known", "source": "pkhex:PKM/PK2.cs"},
+        {"id": "original-trainer-name", "offset": "0x0033", "length": 11, "type": "text-gen2-intl", "name": "Original trainer name", "confidence": "known", "source": "pkhex:PKM/PK2.cs and pkhex:PKM/Shared/PokeList2.cs"},
+        {"id": "nickname", "offset": "0x003E", "length": 11, "type": "text-gen2-intl", "name": "Nickname", "confidence": "known", "source": "pkhex:PKM/PK2.cs and pkhex:PKM/Shared/PokeList2.cs"}
+      ]
+    }
+  },
+  "spaces": [
+    {
+      "name": "sram",
+      "length": "0x8000",
+      "checksums": [
+        {"step": "gen2-checksum", "start": "0x2009", "end": "0x2B83", "range": "checksum", "source": "pkhex:Saves/SAV2.cs"},
+        {"step": "gen2-checksum", "start": "0x2009", "end": "0x2B83", "range": "backup-checksum", "source": "pkhex:Saves/SAV2.cs"}
+      ],
+      "note": "The whole save, as the game keeps it in its cartridge's memory. gen2-backup writes the backup copy of the main data when a writer changes it.",
+      "ranges": [
+        {"id": "mystery-gift-unlocked", "offset": "0x0BE3", "length": 1, "type": "u8", "name": "Mystery Gift unlocked", "confidence": "known", "source": "pkhex:Saves/SAV2.cs and pkhex:Saves/Substructures/Gen12/SAV2Offsets.cs", "note": "0xFF while locked. PKHeX writes 0 here and at 0xBE5 to unlock it."},
+        {"id": "mystery-gift-item", "offset": "0x0BE4", "length": 1, "type": "u8", "name": "Mystery Gift item waiting at the Pokémon Center", "domain": "item", "confidence": "known", "source": "pkhex:Saves/SAV2.cs and pkhex:Saves/Substructures/Gen12/SAV2Offsets.cs", "note": "PKHeX reads it only while event flag 1809 is clear."},
+        {"id": "mystery-gift-unlocked-copy", "offset": "0x0BE5", "length": 1, "type": "u8", "name": "Mystery Gift unlocked, again", "confidence": "known", "source": "pkhex:Saves/SAV2.cs and pkhex:Saves/Substructures/Gen12/SAV2Offsets.cs"},
+        {"id": "rtc-flags", "offset": "0x0C60", "length": 1, "type": "u8", "name": "Clock flags", "confidence": "known", "source": "pkhex:Saves/SAV2.cs and pkhex:Saves/Substructures/Gen12/SAV2Offsets.cs", "bits": [{"id": "time-not-set", "bit": 7, "width": 1, "name": "Time not set"}], "note": "PKHeX sets bit 7 to have the game ask for the time again."},
+        {"id": "backup", "offset": "0x1209", "length": 2938, "type": "bytes", "name": "Backup copy of 0x2009 to 0x2B82", "confidence": "known", "source": "pkhex:Saves/SAV2.cs", "note": "PKHeX writes it when it writes the save. It reads only the main data."},
+        {"id": "backup-checksum", "offset": "0x1F0D", "length": 2, "type": "u16le", "name": "Checksum of the backup, the same as the main one", "confidence": "known", "source": "pkhex:Saves/SAV2.cs"},
+        {"id": "options", "offset": "0x2000", "length": 1, "type": "u8", "name": "Options", "confidence": "known", "source": "pkhex:Saves/SAV2.cs and pkhex:Saves/Substructures/Gen12/SAV2Offsets.cs", "bits": [{"id": "text-speed", "bit": 0, "width": 3, "name": "Text speed"}, {"id": "sound", "bit": 4, "width": 2, "name": "Sound"}, {"id": "battle-style-set", "bit": 6, "width": 1, "name": "Battle style Set"}, {"id": "battle-effects-off", "bit": 7, "width": 1, "name": "Battle effects off"}]},
+        {"id": "save-file-exists", "offset": "0x2001", "length": 1, "type": "u8", "name": "Save file exists", "confidence": "known", "source": "pkhex:Saves/SAV2.cs and pkhex:Saves/Substructures/Gen12/SAV2Offsets.cs", "note": "1 once the game has saved."},
+        {"id": "text-box-frame", "offset": "0x2002", "length": 1, "type": "u8", "name": "Text box frame", "confidence": "known", "source": "pkhex:Saves/SAV2.cs and pkhex:Saves/Substructures/Gen12/SAV2Offsets.cs", "bits": [{"id": "frame", "bit": 0, "width": 3, "name": "Frame"}]},
+        {"id": "text-box-flags", "offset": "0x2003", "length": 1, "type": "u8", "name": "Text box flags", "confidence": "known", "source": "pkhex:Saves/SAV2.cs and pkhex:Saves/Substructures/Gen12/SAV2Offsets.cs", "bits": [{"id": "frame-delay-1", "bit": 0, "width": 1, "name": "One frame of text delay"}, {"id": "frame-delay-none", "bit": 4, "width": 1, "name": "No text delay"}]},
+        {"id": "printer-brightness", "offset": "0x2004", "length": 1, "type": "u8", "name": "Game Boy Printer brightness", "confidence": "known", "source": "pkhex:Saves/SAV2.cs and pkhex:Saves/Substructures/Gen12/SAV2Offsets.cs"},
+        {"id": "menu-account", "offset": "0x2005", "length": 1, "type": "u8", "name": "Menu account on", "confidence": "known", "source": "pkhex:Saves/SAV2.cs and pkhex:Saves/Substructures/Gen12/SAV2Offsets.cs"},
+        {"id": "trainer-id", "offset": "0x2009", "length": 2, "type": "u16be", "name": "Trainer ID", "confidence": "known", "source": "pkhex:Saves/SAV2.cs and pkhex:Saves/Substructures/Gen12/SAV2Offsets.cs"},
+        {"id": "trainer-name", "offset": "0x200B", "length": 11, "type": "text-gen2-intl", "name": "Trainer name", "confidence": "known", "source": "pkhex:Saves/SAV2.cs and pkhex:Saves/Substructures/Gen12/SAV2Offsets.cs", "note": "7 characters, then 0x50. PKHeX reads the first 7 bytes."},
+        {"id": "rival-name", "offset": "0x2021", "length": 11, "type": "text-gen2-intl", "name": "Rival name", "confidence": "known", "source": "pkhex:Saves/SAV2.cs and pkhex:Saves/Substructures/Gen12/SAV2Offsets.cs", "note": "7 characters, then 0x50. PKHeX reads the first 7 bytes."},
+        {"id": "play-time-hours", "offset": "0x2052", "length": 2, "type": "u16be", "name": "Play time hours", "confidence": "known", "source": "pkhex:Saves/SAV2.cs and pkhex:Saves/Substructures/Gen12/SAV2Offsets.cs"},
+        {"id": "play-time-minutes", "offset": "0x2054", "length": 1, "type": "u8", "name": "Play time minutes", "confidence": "known", "source": "pkhex:Saves/SAV2.cs and pkhex:Saves/Substructures/Gen12/SAV2Offsets.cs"},
+        {"id": "play-time-seconds", "offset": "0x2055", "length": 1, "type": "u8", "name": "Play time seconds", "confidence": "known", "source": "pkhex:Saves/SAV2.cs and pkhex:Saves/Substructures/Gen12/SAV2Offsets.cs"},
+        {"id": "palette", "offset": "0x206A", "length": 1, "type": "u8", "name": "Player's palette", "confidence": "known", "source": "pkhex:Saves/SAV2.cs and pkhex:Saves/Substructures/Gen12/SAV2Offsets.cs", "note": "PKHeX sets it with the player's gender in Crystal."},
+        {"id": "money", "offset": "0x23DC", "length": 3, "type": "u24be", "name": "Money", "confidence": "known", "source": "pkhex:Saves/SAV2.cs and pkhex:Saves/Substructures/Gen12/SAV2Offsets.cs"},
+        {"id": "coins", "offset": "0x23E3", "length": 2, "type": "u16be", "name": "Coins", "confidence": "known", "source": "pkhex:Saves/SAV2.cs and pkhex:Saves/Substructures/Gen12/SAV2Offsets.cs"},
+        {"id": "badges", "offset": "0x23E5", "length": 2, "type": "u16le", "name": "Badges", "confidence": "known", "source": "pkhex:Saves/SAV2.cs and pkhex:Saves/Substructures/Gen12/SAV2Offsets.cs", "bits": [{"id": "zephyr", "bit": 0, "width": 1, "name": "Zephyr Badge"}, {"id": "hive", "bit": 1, "width": 1, "name": "Hive Badge"}, {"id": "plain", "bit": 2, "width": 1, "name": "Plain Badge"}, {"id": "fog", "bit": 3, "width": 1, "name": "Fog Badge"}, {"id": "storm", "bit": 4, "width": 1, "name": "Storm Badge"}, {"id": "mineral", "bit": 5, "width": 1, "name": "Mineral Badge"}, {"id": "glacier", "bit": 6, "width": 1, "name": "Glacier Badge"}, {"id": "rising", "bit": 7, "width": 1, "name": "Rising Badge"}, {"id": "boulder", "bit": 8, "width": 1, "name": "Boulder Badge"}, {"id": "cascade", "bit": 9, "width": 1, "name": "Cascade Badge"}, {"id": "thunder", "bit": 10, "width": 1, "name": "Thunder Badge"}, {"id": "rainbow", "bit": 11, "width": 1, "name": "Rainbow Badge"}, {"id": "soul", "bit": 12, "width": 1, "name": "Soul Badge"}, {"id": "marsh", "bit": 13, "width": 1, "name": "Marsh Badge"}, {"id": "volcano", "bit": 14, "width": 1, "name": "Volcano Badge"}, {"id": "earth", "bit": 15, "width": 1, "name": "Earth Badge"}], "note": "Johto's 8 in the first byte, Kanto's in the second."},
+        {"id": "tms-and-hms-pocket", "offset": "0x23E7", "length": 1, "type": "u8", "name": "TMs and HMs", "confidence": "known", "source": "pkhex:Items/Bags/PlayerBag2.cs and pkhex:Saves/Substructures/Inventory/Pouch/InventoryPouchGB.cs and pkhex:Items/ItemStorage2.cs", "count": 57, "stride": 1, "note": "A count for each, TM01 to TM50 then HM01 to HM07. The item is its place in the list."},
+        {"id": "items-count", "offset": "0x2420", "length": 1, "type": "u8", "name": "Items in the bag", "confidence": "known", "source": "pkhex:Items/Bags/PlayerBag2.cs and pkhex:Saves/Substructures/Inventory/Pouch/InventoryPouchGB.cs"},
+        {"id": "items-pocket", "offset": "0x2421", "length": 2, "type": "u16le", "name": "Bag items", "confidence": "known", "source": "pkhex:Items/Bags/PlayerBag2.cs and pkhex:Saves/Substructures/Inventory/Pouch/InventoryPouchGB.cs", "count": 20, "stride": 2, "bits": [{"id": "item", "bit": 0, "width": 8, "name": "Item", "domain": "item"}, {"id": "quantity", "bit": 8, "width": 8, "name": "Quantity"}], "note": "0xFF after the last item ends the list."},
+        {"id": "items-end", "offset": "0x2449", "length": 1, "type": "u8", "name": "End of a full items pocket", "confidence": "known", "source": "pkhex:Items/Bags/PlayerBag2.cs and pkhex:Saves/Substructures/Inventory/Pouch/InventoryPouchGB.cs"},
+        {"id": "key-items-count", "offset": "0x244A", "length": 1, "type": "u8", "name": "Key items in the bag", "confidence": "known", "source": "pkhex:Items/Bags/PlayerBag2.cs and pkhex:Saves/Substructures/Inventory/Pouch/InventoryPouchGB.cs"},
+        {"id": "key-items-pocket", "offset": "0x244B", "length": 1, "type": "u8", "name": "Key items", "domain": "item", "confidence": "known", "source": "pkhex:Items/Bags/PlayerBag2.cs and pkhex:Saves/Substructures/Inventory/Pouch/InventoryPouchGB.cs", "count": 25, "stride": 1, "note": "One byte an item, with no quantity. 0xFF after the last ends the list. The pocket holds 25, which is all the room before the Poké Balls pocket leaves."},
+        {"id": "key-items-end", "offset": "0x2464", "length": 1, "type": "u8", "name": "End of a full key items pocket", "confidence": "known", "source": "pkhex:Items/Bags/PlayerBag2.cs and pkhex:Saves/Substructures/Inventory/Pouch/InventoryPouchGB.cs"},
+        {"id": "poke-balls-count", "offset": "0x2465", "length": 1, "type": "u8", "name": "Poké Balls in the bag", "confidence": "known", "source": "pkhex:Items/Bags/PlayerBag2.cs and pkhex:Saves/Substructures/Inventory/Pouch/InventoryPouchGB.cs"},
+        {"id": "poke-balls-pocket", "offset": "0x2466", "length": 2, "type": "u16le", "name": "Poké Balls", "confidence": "known", "source": "pkhex:Items/Bags/PlayerBag2.cs and pkhex:Saves/Substructures/Inventory/Pouch/InventoryPouchGB.cs", "count": 12, "stride": 2, "bits": [{"id": "item", "bit": 0, "width": 8, "name": "Item", "domain": "item"}, {"id": "quantity", "bit": 8, "width": 8, "name": "Quantity"}], "note": "0xFF after the last item ends the list."},
+        {"id": "poke-balls-end", "offset": "0x247E", "length": 1, "type": "u8", "name": "End of a full Poké Balls pocket", "confidence": "known", "source": "pkhex:Items/Bags/PlayerBag2.cs and pkhex:Saves/Substructures/Inventory/Pouch/InventoryPouchGB.cs"},
+        {"id": "pc-items-count", "offset": "0x247F", "length": 1, "type": "u8", "name": "Items in the PC", "confidence": "known", "source": "pkhex:Items/Bags/PlayerBag2.cs and pkhex:Saves/Substructures/Inventory/Pouch/InventoryPouchGB.cs"},
+        {"id": "pc-items", "offset": "0x2480", "length": 2, "type": "u16le", "name": "PC items", "confidence": "known", "source": "pkhex:Items/Bags/PlayerBag2.cs and pkhex:Saves/Substructures/Inventory/Pouch/InventoryPouchGB.cs", "count": 50, "stride": 2, "bits": [{"id": "item", "bit": 0, "width": 8, "name": "Item", "domain": "item"}, {"id": "quantity", "bit": 8, "width": 8, "name": "Quantity"}], "note": "0xFF after the last item ends the list."},
+        {"id": "pc-items-end", "offset": "0x24E4", "length": 1, "type": "u8", "name": "End of a full PC", "confidence": "known", "source": "pkhex:Items/Bags/PlayerBag2.cs and pkhex:Saves/Substructures/Inventory/Pouch/InventoryPouchGB.cs"},
+        {"id": "event-work", "offset": "0x2500", "length": 1, "type": "u8", "name": "Event work", "confidence": "known", "source": "pkhex:Saves/SAV2.cs and pkhex:Saves/Substructures/Gen12/SAV2Offsets.cs", "count": 256, "stride": 1},
+        {"id": "event-flags", "offset": "0x2600", "length": 250, "type": "flags", "name": "Event flags", "confidence": "known", "source": "pkhex:Saves/SAV2.cs and pkhex:Saves/Substructures/Gen12/SAV2Offsets.cs", "note": "2,000 flags."},
+        {"id": "current-box", "offset": "0x2700", "length": 1, "type": "u8", "name": "Current box", "confidence": "known", "source": "pkhex:Saves/SAV2.cs and pkhex:Saves/Substructures/Gen12/SAV2Offsets.cs", "note": "From 0."},
+        {"id": "box-names", "offset": "0x2703", "length": 9, "type": "text-gen2-intl", "name": "Box names", "confidence": "known", "source": "pkhex:Saves/SAV2.cs and pkhex:Saves/Substructures/Gen12/SAV2Offsets.cs", "count": 14, "stride": 9},
+        {"id": "blue-card-points", "offset": "0x27D9", "length": 1, "type": "u8", "name": "Blue Card points", "confidence": "known", "source": "pkhex:Saves/SAV2.cs and pkhex:Saves/Substructures/Gen12/SAV2Offsets.cs"},
+        {"id": "party-count", "offset": "0x2865", "length": 1, "type": "u8", "name": "Party count", "confidence": "known", "source": "pkhex:PKM/Shared/PokeList2.cs"},
+        {"id": "party-species", "offset": "0x2866", "length": 1, "type": "u8", "name": "Party species", "domain": "species", "confidence": "known", "source": "pkhex:PKM/Shared/PokeList2.cs", "count": 7, "stride": 1, "note": "One a Pokémon, 0xFD for an egg, then 0xFF."},
+        {"id": "party-pokemon", "offset": "0x286D", "length": 48, "type": "bytes", "name": "Party Pokémon (decoded in party spaces)", "confidence": "known", "source": "pkhex:PKM/Shared/PokeList2.cs", "count": 6, "stride": 48},
+        {"id": "party-original-trainer-names", "offset": "0x298D", "length": 11, "type": "text-gen2-intl", "name": "Party original trainer names", "confidence": "known", "source": "pkhex:PKM/Shared/PokeList2.cs", "count": 6, "stride": 11},
+        {"id": "party-nicknames", "offset": "0x29CF", "length": 11, "type": "text-gen2-intl", "name": "Party nicknames", "confidence": "known", "source": "pkhex:PKM/Shared/PokeList2.cs", "count": 6, "stride": 11},
+        {"id": "pokedex-owned-flags", "offset": "0x2A27", "length": 32, "type": "flags", "name": "Pokédex owned flags", "confidence": "known", "source": "pkhex:Saves/SAV2.cs and pkhex:Saves/Substructures/Gen12/SAV2Offsets.cs", "note": "Bit per National Pokédex number, species 1 at bit 0 of the first byte."},
+        {"id": "pokedex-seen-flags", "offset": "0x2A47", "length": 32, "type": "flags", "name": "Pokédex seen flags", "confidence": "known", "source": "pkhex:Saves/SAV2.cs and pkhex:Saves/Substructures/Gen12/SAV2Offsets.cs", "note": "Bit per National Pokédex number, species 1 at bit 0 of the first byte."},
+        {"id": "unown-caught", "offset": "0x2A67", "length": 1, "type": "u8", "name": "Unown letters caught", "confidence": "known", "source": "pkhex:Saves/SAV2.cs", "count": 26, "stride": 1, "note": "1 for A to 26 for Z, in the order caught. PKHeX fills it in order when it marks Unown caught, so the Pokédex can show them."},
+        {"id": "unown-unlocked", "offset": "0x2A81", "length": 1, "type": "u8", "name": "Unown letters in the wild", "confidence": "known", "source": "pkhex:Saves/SAV2.cs", "bits": [{"id": "a-to-k", "bit": 0, "width": 1, "name": "A to K"}, {"id": "l-to-r", "bit": 1, "width": 1, "name": "L to R"}, {"id": "s-to-w", "bit": 2, "width": 1, "name": "S to W"}, {"id": "x-to-z", "bit": 3, "width": 1, "name": "X to Z"}]},
+        {"id": "unown-first-seen", "offset": "0x2A82", "length": 1, "type": "u8", "name": "Unown letter the Pokédex shows", "confidence": "known", "source": "pkhex:Saves/SAV2.cs", "note": "1 for A."},
+        {"id": "daycare-man", "offset": "0x2A83", "length": 1, "type": "u8", "name": "Day Care Man", "confidence": "known", "source": "pkhex:Saves/SAV2.cs", "bits": [{"id": "occupied", "bit": 0, "width": 1, "name": "Holds a Pokémon"}, {"id": "egg-ready", "bit": 6, "width": 1, "name": "An egg is ready"}]},
+        {"id": "daycare-1-nickname", "offset": "0x2A84", "length": 11, "type": "text-gen2-intl", "name": "Day Care Man's Pokémon's nickname", "confidence": "known", "source": "pkhex:Saves/SAV2.cs and pkhex:PKM/Shared/PokeList2.cs"},
+        {"id": "daycare-1-original-trainer-name", "offset": "0x2A8F", "length": 11, "type": "text-gen2-intl", "name": "Day Care Man's Pokémon's original trainer name", "confidence": "known", "source": "pkhex:Saves/SAV2.cs and pkhex:PKM/Shared/PokeList2.cs"},
+        {"id": "daycare-1-pokemon", "offset": "0x2A9A", "length": 32, "type": "bytes", "name": "Day Care Man's Pokémon", "confidence": "known", "source": "pkhex:Saves/SAV2.cs and pkhex:PKM/Shared/PokeList2.cs", "note": "Laid out as a boxed Pokémon's first 32 bytes."},
+        {"id": "daycare-lady", "offset": "0x2ABA", "length": 1, "type": "u8", "name": "Day Care Lady", "confidence": "known", "source": "pkhex:Saves/SAV2.cs", "bits": [{"id": "occupied", "bit": 0, "width": 1, "name": "Holds a Pokémon"}]},
+        {"id": "daycare-steps-to-egg", "offset": "0x2ABB", "length": 1, "type": "u8", "name": "Steps until the next egg check", "confidence": "known", "source": "pkhex:Saves/SAV2.cs"},
+        {"id": "daycare-compatibility", "offset": "0x2ABC", "length": 1, "type": "u8", "name": "Breeding state of the two Pokémon", "confidence": "known", "source": "pkhex:Saves/SAV2.cs"},
+        {"id": "daycare-2-nickname", "offset": "0x2ABD", "length": 11, "type": "text-gen2-intl", "name": "Day Care Lady's Pokémon's nickname", "confidence": "known", "source": "pkhex:Saves/SAV2.cs and pkhex:PKM/Shared/PokeList2.cs"},
+        {"id": "daycare-2-original-trainer-name", "offset": "0x2AC8", "length": 11, "type": "text-gen2-intl", "name": "Day Care Lady's Pokémon's original trainer name", "confidence": "known", "source": "pkhex:Saves/SAV2.cs and pkhex:PKM/Shared/PokeList2.cs"},
+        {"id": "daycare-2-pokemon", "offset": "0x2AD3", "length": 32, "type": "bytes", "name": "Day Care Lady's Pokémon", "confidence": "known", "source": "pkhex:Saves/SAV2.cs and pkhex:PKM/Shared/PokeList2.cs", "note": "Laid out as a boxed Pokémon's first 32 bytes."},
+        {"id": "daycare-egg-nickname", "offset": "0x2AF3", "length": 11, "type": "text-gen2-intl", "name": "Egg's nickname", "confidence": "known", "source": "pkhex:Saves/SAV2.cs and pkhex:PKM/Shared/PokeList2.cs"},
+        {"id": "daycare-egg-original-trainer-name", "offset": "0x2AFE", "length": 11, "type": "text-gen2-intl", "name": "Egg's original trainer name", "confidence": "known", "source": "pkhex:Saves/SAV2.cs and pkhex:PKM/Shared/PokeList2.cs"},
+        {"id": "daycare-egg-pokemon", "offset": "0x2B09", "length": 32, "type": "bytes", "name": "Egg the Day Care Man holds", "confidence": "known", "source": "pkhex:Saves/SAV2.cs and pkhex:PKM/Shared/PokeList2.cs", "note": "Laid out as a boxed Pokémon's first 32 bytes."},
+        {"id": "checksum", "offset": "0x2D0D", "length": 2, "type": "u16le", "name": "Checksum of bytes 0x2009 to 0x2B82", "confidence": "known", "source": "pkhex:Saves/SAV2.cs"},
+        {"id": "current-box-count", "offset": "0x2D10", "length": 1, "type": "u8", "name": "Current box count", "confidence": "known", "source": "pkhex:PKM/Shared/PokeList2.cs"},
+        {"id": "current-box-species", "offset": "0x2D11", "length": 1, "type": "u8", "name": "Current box species", "domain": "species", "confidence": "known", "source": "pkhex:PKM/Shared/PokeList2.cs", "count": 21, "stride": 1, "note": "One a Pokémon, 0xFD for an egg, then 0xFF."},
+        {"id": "current-box-pokemon", "offset": "0x2D26", "length": 32, "type": "bytes", "name": "Current box Pokémon (a copy of the current box's bank)", "confidence": "known", "source": "pkhex:PKM/Shared/PokeList2.cs", "count": 20, "stride": 32},
+        {"id": "current-box-original-trainer-names", "offset": "0x2FA6", "length": 11, "type": "text-gen2-intl", "name": "Current box original trainer names", "confidence": "known", "source": "pkhex:PKM/Shared/PokeList2.cs", "count": 20, "stride": 11},
+        {"id": "current-box-nicknames", "offset": "0x3082", "length": 11, "type": "text-gen2-intl", "name": "Current box nicknames", "confidence": "known", "source": "pkhex:PKM/Shared/PokeList2.cs", "count": 20, "stride": 11},
+        {"id": "gs-ball-event", "offset": "0x3E3C", "length": 1, "type": "u8", "name": "GS Ball event", "confidence": "known", "source": "pkhex:Saves/SAV2.cs", "note": "0x0B once the GS Ball can be given."},
+        {"id": "trainer-gender", "offset": "0x3E3D", "length": 1, "type": "u8", "name": "Player's gender", "confidence": "known", "source": "pkhex:Saves/SAV2.cs and pkhex:Saves/Substructures/Gen12/SAV2Offsets.cs", "note": "0 for male, 1 for female."},
+        {"id": "gs-ball-event-copy", "offset": "0x3E44", "length": 1, "type": "u8", "name": "GS Ball event, again", "confidence": "known", "source": "pkhex:Saves/SAV2.cs"},
+        {"id": "boxes-1-to-7", "offset": "0x4000", "length": 1102, "type": "bytes", "name": "Boxes 1 to 7 (decoded in box spaces)", "confidence": "known", "source": "pkhex:Saves/SAV2.cs", "count": 7, "stride": 1104, "note": "2 bytes after each box are padding."},
+        {"id": "boxes-8-to-14", "offset": "0x6000", "length": 1102, "type": "bytes", "name": "Boxes 8 to 14 (decoded in box spaces)", "confidence": "known", "source": "pkhex:Saves/SAV2.cs", "count": 7, "stride": 1104, "note": "2 bytes after each box are padding."}
+      ]
+    },
+    {"name": "box:{1..14}", "length": "0x44E", "transform": "gen2-box-banks", "args": {"banks": ["0x4000", "0x6000"], "boxes": 14, "length": "0x44E", "stride": "0x450", "current": "0x2D10", "selected": "0x2700"}, "source": {"regions": [{"space": "sram", "start": 0, "end": "0x8000"}], "offset": 0, "length": "0x8000"}, "ranges": [{"id": "count", "offset": "0x0000", "length": 1, "type": "u8", "name": "Count", "confidence": "known", "source": "pkhex:PKM/Shared/PokeList2.cs"}, {"id": "species", "offset": "0x0001", "length": 1, "type": "u8", "name": "Species", "domain": "species", "confidence": "known", "source": "pkhex:PKM/Shared/PokeList2.cs", "count": 21, "stride": 1, "note": "One a Pokémon, 0xFD for an egg, then 0xFF."}, {"id": "pokemon", "offset": "0x0016", "length": 32, "type": "bytes", "name": "Pokémon (decoded in box slot spaces)", "confidence": "known", "source": "pkhex:PKM/Shared/PokeList2.cs", "count": 20, "stride": 32}, {"id": "original-trainer-names", "offset": "0x0296", "length": 11, "type": "text-gen2-intl", "name": "Original trainer names", "confidence": "known", "source": "pkhex:PKM/Shared/PokeList2.cs", "count": 20, "stride": 11}, {"id": "nicknames", "offset": "0x0372", "length": 11, "type": "text-gen2-intl", "name": "Nicknames", "confidence": "known", "source": "pkhex:PKM/Shared/PokeList2.cs", "count": 20, "stride": 11}]},
+    {"name": "party:{1..6}", "length": 73, "transform": "gen1-list", "args": {"capacity": 6, "stored": 48, "party": 48, "names": 11}, "source": {"regions": [{"space": "sram", "start": 0, "end": "0x8000"}], "offset": "0x2865", "length": "0x1AC"}, "kind": "pk2"},
+    {"name": "box:{1..14}:{1..20}", "length": 73, "transform": "gen1-list", "args": {"capacity": 20, "stored": 32, "party": 48, "names": 11}, "source": {"regions": [{"space": "box:1", "start": 0, "end": "0x44E"}, {"space": "box:2", "start": 0, "end": "0x44E"}, {"space": "box:3", "start": 0, "end": "0x44E"}, {"space": "box:4", "start": 0, "end": "0x44E"}, {"space": "box:5", "start": 0, "end": "0x44E"}, {"space": "box:6", "start": 0, "end": "0x44E"}, {"space": "box:7", "start": 0, "end": "0x44E"}, {"space": "box:8", "start": 0, "end": "0x44E"}, {"space": "box:9", "start": 0, "end": "0x44E"}, {"space": "box:10", "start": 0, "end": "0x44E"}, {"space": "box:11", "start": 0, "end": "0x44E"}, {"space": "box:12", "start": 0, "end": "0x44E"}, {"space": "box:13", "start": 0, "end": "0x44E"}, {"space": "box:14", "start": 0, "end": "0x44E"}], "offset": 0, "length": "0x3C44"}, "kind": "pk2-boxed"}
+  ],
+  "model": {
+    "root": {
+      "fields": {
+        "trainer": {
+          "object": {
+            "fields": {
+              "name": {"space": "sram", "range": "trainer-name"},
+              "gender": {"space": "sram", "range": "trainer-gender"},
+              "tid": {"space": "sram", "range": "trainer-id"},
+              "money": {"space": "sram", "range": "money"},
+              "rival-name": {"space": "sram", "range": "rival-name"},
+              "coins": {"space": "sram", "range": "coins", "extra": true}
+            }
+          }
+        },
+        "play-time": {
+          "object": {
+            "fields": {
+              "hours": {"space": "sram", "range": "play-time-hours"},
+              "minutes": {"space": "sram", "range": "play-time-minutes"},
+              "seconds": {"space": "sram", "range": "play-time-seconds"}
+            }
+          }
+        },
+        "party": {
+          "list": "party-pokemon",
+          "spaces": "party:{1..6}",
+          "length": {"space": "sram", "range": "party-count"}
+        },
+        "boxes": {
+          "list": {
+            "fields": {
+              "name": {"space": "sram", "range": "box-names", "element": "each"},
+              "slots": {
+                "list": "pokemon",
+                "spaces": ":{1..20}",
+                "length": {"range": "count"}
+              }
+            }
+          },
+          "spaces": "box:{1..14}"
+        },
+        "current-box": {"space": "sram", "range": "current-box", "extra": true, "note": "From 0. The game keeps a copy of this box at 0x2D10."},
+        "bag": {
+          "object": {
+            "fields": {
+              "items": {"list": "item", "space": "sram", "range": "items-pocket", "length": {"space": "sram", "range": "items-count"}},
+              "key-items": {"list": "key-item", "space": "sram", "range": "key-items-pocket", "length": {"space": "sram", "range": "key-items-count"}},
+              "tms-hms": {"list": "machine", "space": "sram", "range": "tms-and-hms-pocket", "note": "One element a TM or HM, TM01 to TM50 then HM01 to HM07, holding how many the player has."},
+              "balls": {"list": "item", "space": "sram", "range": "poke-balls-pocket", "length": {"space": "sram", "range": "poke-balls-count"}},
+              "pc-items": {"list": "item", "space": "sram", "range": "pc-items", "length": {"space": "sram", "range": "pc-items-count"}}
+            }
+          }
+        },
+        "badges": {
+          "object": {
+            "fields": {
+              "badge-1": {"space": "sram", "range": "badges", "bit": "zephyr", "note": "Zephyr Badge"},
+              "badge-2": {"space": "sram", "range": "badges", "bit": "hive", "note": "Hive Badge"},
+              "badge-3": {"space": "sram", "range": "badges", "bit": "plain", "note": "Plain Badge"},
+              "badge-4": {"space": "sram", "range": "badges", "bit": "fog", "note": "Fog Badge"},
+              "badge-5": {"space": "sram", "range": "badges", "bit": "storm", "note": "Storm Badge"},
+              "badge-6": {"space": "sram", "range": "badges", "bit": "mineral", "note": "Mineral Badge"},
+              "badge-7": {"space": "sram", "range": "badges", "bit": "glacier", "note": "Glacier Badge"},
+              "badge-8": {"space": "sram", "range": "badges", "bit": "rising", "note": "Rising Badge"},
+              "badge-9": {"space": "sram", "range": "badges", "bit": "boulder", "note": "Boulder Badge"},
+              "badge-10": {"space": "sram", "range": "badges", "bit": "cascade", "note": "Cascade Badge"},
+              "badge-11": {"space": "sram", "range": "badges", "bit": "thunder", "note": "Thunder Badge"},
+              "badge-12": {"space": "sram", "range": "badges", "bit": "rainbow", "note": "Rainbow Badge"},
+              "badge-13": {"space": "sram", "range": "badges", "bit": "soul", "note": "Soul Badge"},
+              "badge-14": {"space": "sram", "range": "badges", "bit": "marsh", "note": "Marsh Badge"},
+              "badge-15": {"space": "sram", "range": "badges", "bit": "volcano", "note": "Volcano Badge"},
+              "badge-16": {"space": "sram", "range": "badges", "bit": "earth", "note": "Earth Badge"}
+            }
+          }
+        },
+        "pokedex": {
+          "object": {
+            "fields": {
+              "owned": {"space": "sram", "range": "pokedex-owned-flags"},
+              "seen": {"space": "sram", "range": "pokedex-seen-flags"}
+            }
+          }
+        },
+        "events": {
+          "object": {
+            "fields": {
+              "flags": {"space": "sram", "range": "event-flags"},
+              "work": {"list": {"fields": {"value": {"range": "event-work", "element": "each"}}}, "space": "sram", "range": "event-work"}
+            }
+          }
+        }
+      }
+    },
+    "objects": {
+      "item": {
+        "fields": {
+          "item": {"bit": "item"},
+          "count": {"bit": "quantity"}
+        }
+      },
+      "key-item": {
+        "fields": {
+          "item": {"range": "key-items-pocket", "element": "each"}
+        }
+      },
+      "machine": {
+        "fields": {
+          "count": {"range": "tms-and-hms-pocket", "element": "each"}
+        }
+      },
+      "pokemon": {
+        "fields": {
+          "species": {"range": "species"},
+          "nickname": {"range": "nickname"},
+          "level": {"range": "level"},
+          "experience": {"range": "experience"},
+          "held-item": {"range": "held-item"},
+          "friendship": {"range": "friendship"},
+          "evs": {
+            "object": {
+              "fields": {
+                "health": {"range": "evs", "element": 0},
+                "attack": {"range": "evs", "element": 1},
+                "defense": {"range": "evs", "element": 2},
+                "speed": {"range": "evs", "element": 3},
+                "special-attack": {"range": "evs", "element": 4, "note": "Gen 2 keeps one Special EV for both."},
+                "special-defense": {"range": "evs", "element": 4, "note": "Gen 2 keeps one Special EV for both."}
+              }
+            }
+          },
+          "ivs": {
+            "object": {
+              "fields": {
+                "attack": {"range": "dvs", "bit": "attack"},
+                "defense": {"range": "dvs", "bit": "defense"},
+                "speed": {"range": "dvs", "bit": "speed"},
+                "special-attack": {"range": "dvs", "bit": "special", "note": "Gen 2 keeps one Special DV for both."},
+                "special-defense": {"range": "dvs", "bit": "special", "note": "Gen 2 keeps one Special DV for both."}
+              }
+            },
+            "note": "Gen 2 calls them DVs. The HP DV is worked out from the others, so the model leaves it out."
+          },
+          "moves": {"list": {"fields": {"move": {"range": "moves", "element": "each"}, "pp": {"range": "pp", "element": "each", "bit": "pp"}, "pp-ups": {"range": "pp", "element": "each", "bit": "pp-ups", "extra": true}}}, "range": "moves"},
+          "owner": {
+            "object": {
+              "fields": {
+                "tid": {"range": "original-trainer-id"},
+                "name": {"range": "original-trainer-name"},
+                "gender": {"range": "caught-data", "bit": "trainer-gender"}
+              }
+            }
+          },
+          "met-conditions": {
+            "object": {
+              "fields": {
+                "location": {"range": "caught-data", "bit": "met-location"},
+                "level": {"range": "caught-data", "bit": "met-level"},
+                "time-of-day": {"range": "caught-data", "bit": "time-of-day", "extra": true}
+              }
+            }
+          },
+          "pokerus": {
+            "object": {
+              "fields": {
+                "strain": {"range": "pokerus", "bit": "strain"},
+                "days": {"range": "pokerus", "bit": "days"}
+              }
+            }
+          },
+          "list-species": {"range": "list-species", "extra": true, "note": "The species again, in the list's header, or 0xFD for an egg."}
+        }
+      },
+      "party-pokemon": {
+        "extends": "pokemon",
+        "fields": {
+          "stats": {
+            "object": {
+              "fields": {
+                "health": {"range": "stats", "element": 0},
+                "attack": {"range": "stats", "element": 1},
+                "defense": {"range": "stats", "element": 2},
+                "speed": {"range": "stats", "element": 3},
+                "special-attack": {"range": "stats", "element": 4},
+                "special-defense": {"range": "stats", "element": 5}
+              }
+            }
+          },
+          "current-hp": {"range": "current-hp", "extra": true},
+          "status-condition": {"range": "status-condition", "extra": true}
+        }
+      }
+    }
+  }
+}

@@ -464,6 +464,182 @@
       }
     },
     {
+      "name": "section 0 of heart-and-soul.sav",
+      "args": {
+        "section": 0,
+        "length": "0xFF4",
+        "checksum": {
+          "step": "sum32le-fold16",
+          "start": 0,
+          "end": "0x0F34"
+        }
+      },
+      "input": {
+        "file": "heart-and-soul.sav",
+        "offset": "0xE000",
+        "length": "0x12000"
+      },
+      "output": {
+        "file": "heart-and-soul.sav",
+        "offset": "0x17000",
+        "length": "0xFF4"
+      }
+    },
+    {
+      "name": "section 1 of heart-and-soul.sav",
+      "args": {
+        "section": 1,
+        "length": "0xFF4",
+        "checksum": {
+          "step": "sum32le-fold16",
+          "start": 0,
+          "end": "0x0F80"
+        }
+      },
+      "input": {
+        "file": "heart-and-soul.sav",
+        "offset": "0xE000",
+        "length": "0x12000"
+      },
+      "output": {
+        "file": "heart-and-soul.sav",
+        "offset": "0x18000",
+        "length": "0xFF4"
+      }
+    },
+    {
+      "name": "section 5 of heart-and-soul.sav",
+      "args": {
+        "section": 5,
+        "length": "0xFF4",
+        "checksum": {
+          "step": "sum32le-fold16",
+          "start": 0,
+          "end": "0x0F80"
+        }
+      },
+      "input": {
+        "file": "heart-and-soul.sav",
+        "offset": "0xE000",
+        "length": "0x12000"
+      },
+      "output": {
+        "file": "heart-and-soul.sav",
+        "offset": "0xE000",
+        "length": "0xFF4"
+      }
+    },
+    {
+      "name": "section 13 of heart-and-soul.sav",
+      "args": {
+        "section": 13,
+        "length": "0xFF4",
+        "checksum": {
+          "step": "sum32le-fold16",
+          "start": 0,
+          "end": "0x0960"
+        }
+      },
+      "input": {
+        "file": "heart-and-soul.sav",
+        "offset": "0xE000",
+        "length": "0x12000"
+      },
+      "output": {
+        "file": "heart-and-soul.sav",
+        "offset": "0x16000",
+        "length": "0xFF4"
+      }
+    },
+    {
+      "name": "section 0 of emerald-legacy.sav",
+      "args": {
+        "section": 0,
+        "length": "0xF80",
+        "checksum": {
+          "step": "sum32le-fold16",
+          "start": 0,
+          "end": "0xF80"
+        }
+      },
+      "input": {
+        "file": "emerald-legacy.sav",
+        "offset": "0xE000",
+        "length": "0x12000"
+      },
+      "output": {
+        "file": "emerald-legacy.sav",
+        "offset": "0x17000",
+        "length": "0xF80"
+      }
+    },
+    {
+      "name": "section 1 of emerald-legacy.sav",
+      "args": {
+        "section": 1,
+        "length": "0xF80",
+        "checksum": {
+          "step": "sum32le-fold16",
+          "start": 0,
+          "end": "0xF80"
+        }
+      },
+      "input": {
+        "file": "emerald-legacy.sav",
+        "offset": "0xE000",
+        "length": "0x12000"
+      },
+      "output": {
+        "file": "emerald-legacy.sav",
+        "offset": "0x18000",
+        "length": "0xF80"
+      }
+    },
+    {
+      "name": "section 5 of emerald-legacy.sav",
+      "args": {
+        "section": 5,
+        "length": "0xF80",
+        "checksum": {
+          "step": "sum32le-fold16",
+          "start": 0,
+          "end": "0xF80"
+        }
+      },
+      "input": {
+        "file": "emerald-legacy.sav",
+        "offset": "0xE000",
+        "length": "0x12000"
+      },
+      "output": {
+        "file": "emerald-legacy.sav",
+        "offset": "0xE000",
+        "length": "0xF80"
+      }
+    },
+    {
+      "name": "section 13 of emerald-legacy.sav",
+      "args": {
+        "section": 13,
+        "length": "0xF80",
+        "checksum": {
+          "step": "sum32le-fold16",
+          "start": 0,
+          "end": "0xF80"
+        }
+      },
+      "input": {
+        "file": "emerald-legacy.sav",
+        "offset": "0xE000",
+        "length": "0x12000"
+      },
+      "output": {
+        "file": "emerald-legacy.sav",
+        "offset": "0x16000",
+        "length": "0xF80"
+      }
+    },
+    {
       "name": "sector 28 of frlg.sav",
       "args": {
         "sector": 28,
@@ -697,6 +873,55 @@
           "file": "wrap.sav",
           "offset": "0x1AFF8",
           "length": "0x5008"
+        }
+      ]
+    },
+    {
+      "name": "money 654321 in section 1 of heart-and-soul.sav",
+      "args": {
+        "section": 1,
+        "length": "0xFF4",
+        "checksum": {
+          "step": "sum32le-fold16",
+          "start": 0,
+          "end": "0x0F80"
+        }
+      },
+      "input": [
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x18000",
+          "length": "0x494"
+        },
+        "2E 60 5E",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x18497",
+          "length": "0xB5D"
+        }
+      ],
+      "previous": {
+        "file": "heart-and-soul.sav",
+        "offset": "0xE000",
+        "length": "0x12000"
+      },
+      "output": [
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0xE000",
+          "length": "0xA494"
+        },
+        "2E 60 5E",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x18497",
+          "length": "0xB5F"
+        },
+        "AD 0A",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x18FF8",
+          "length": "0x7008"
         }
       ]
     },

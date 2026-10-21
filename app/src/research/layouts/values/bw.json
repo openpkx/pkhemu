@@ -1,0 +1,13 @@
+{
+  "$schema": "../schema/values.schema.json",
+  "schema": "1.0",
+  "note": "English names for the items Black and White have and Black 2 and White 2 don't.",
+  "values": [
+    {"domain": "item", "index": 533, "name": "Lock Capsule", "cross": {"id": 533}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt"},
+    {"domain": "item", "index": 574, "name": "Liberty Pass", "cross": {"id": 574}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt"},
+    {"domain": "item", "index": 579, "name": "Dragon Skull", "cross": {"id": 579}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt"},
+    {"domain": "item", "index": 623, "name": "Gram 1", "cross": {"id": 623}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt"},
+    {"domain": "item", "index": 624, "name": "Gram 2", "cross": {"id": 624}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt"},
+    {"domain": "item", "index": 625, "name": "Gram 3", "cross": {"id": 625}, "confidence": "known", "source": "pkhex:Resources/text/items/text_Items_en.txt"}
+  ]
+}

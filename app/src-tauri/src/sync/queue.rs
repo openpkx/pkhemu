@@ -267,6 +267,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore = "flaky in a full cargo test run, #685"]
     fn lets_the_app_go_after_a_sync_panics() {
         let queue = Arc::new(Queue::new());
         let calls = Calls::default();

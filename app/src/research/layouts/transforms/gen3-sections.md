@@ -8,7 +8,7 @@ A transform that reads one section, or one sector outside the slots, from the sa
 | --- | --- |
 | `section` | The section id to read, 0 to 13. |
 | `sector` | A sector outside the slots to read, 28 to 31. |
-| `length` | How many bytes to take from the start of the sector, which is the space's `length`. The retail games use the first 0xF80 bytes of a section. Unbound uses up to 0xFF0. |
+| `length` | How many bytes to take from the start of the sector, which is the space's `length`. The retail games use the first 0xF80 bytes of a section. Unbound uses up to 0xFF0, and Heart & Soul up to 0xFF4, the footer's start. |
 | `checksum` | The space's checksum without a `range`, as `{"step", "start", "end"}`. Encoding writes it to the footer. |
 
 A layout gives `section` or `sector` in the space's `args`. `length` and `checksum` come from the space itself.
@@ -30,4 +30,4 @@ A section's footer keeps its id, signature and counter. `gen3-slots` sets the co
 
 ## Vectors
 
-[`vectors/gen3-sections.json`](vectors/gen3-sections.json): sections 0, 1, 5 and 13 of each save in `vectors/`, sectors 28 and 30, money of 654321 written to section 1 of four saves as the engine writes it, and a write to sector 28 with the checksum the engine gives it.
+[`vectors/gen3-sections.json`](vectors/gen3-sections.json): sections 0, 1, 5 and 13 of each save in `vectors/` with two slots, sectors 28 and 30, money of 654321 written to section 1 of five saves as the engine writes it, and a write to sector 28 with the checksum the engine gives it.

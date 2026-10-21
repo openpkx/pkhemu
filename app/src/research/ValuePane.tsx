@@ -31,7 +31,7 @@ function ValueFacts({ change }: { change: ValueCandidate }) {
           {change.before} <span aria-label="to">→</span> {change.after}
         </dd>
       </dl>
-      <p className="text-sm text-muted-foreground">The engine reads this item but has no name for it.</p>
+      <p className="text-sm text-muted-foreground">The layout has no name for this item.</p>
     </>
   );
 }
@@ -44,7 +44,7 @@ export function ValuePane({ change, findings, onName }: { change: ValueCandidate
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="grid min-w-0 gap-1.5">
             <Badge variant="outline" className="border-warning/40 text-warning">
-              Unknown item
+              Unnamed item
             </Badge>
             <h2 className="font-mono text-base font-medium tabular-nums">{valueName(change)}</h2>
           </div>

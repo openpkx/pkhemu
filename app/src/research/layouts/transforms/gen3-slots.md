@@ -40,4 +40,4 @@ PKHeX and the engine write a save back over the slot they read, without moving i
 
 ## Vectors
 
-[`vectors/gen3-slots.json`](vectors/gen3-slots.json): the newer slot of each save in `vectors/`, and money of 654321 written to slot A of four of them, which makes slot A the newer copy.
+[`vectors/gen3-slots.json`](vectors/gen3-slots.json): the newer slot of each save in `vectors/` with two slots, and money of 654321 written to slot A of five of them, which makes slot A the newer copy.

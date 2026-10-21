@@ -2,7 +2,8 @@
 import { readdirSync, readFileSync } from "node:fs";
 import Ajv2020 from "ajv/dist/2020";
 import { expect, it } from "vitest";
-import { decodeSpaces, knownLayouts, layoutFormat, pickLayout, type DecodedSpace, type Layout } from "./layout";
+import { diffSpaces } from "./diff";
+import { decodeSpaces, pickLayout, readSave, type DecodedSpace, type Layout, type PickedLayout } from "./layout";
 import colosseum from "./layouts/known/memory-card-colosseum-1.0.json";
 import frlg from "./layouts/known/frlg-1.0.json";
 import unbound from "./layouts/known/unbound-2.1.json";
@@ -15,63 +16,75 @@ it.for(readdirSync(known))("checks %s against the copy's schema", (file) => {
   expect(validate(JSON.parse(readFileSync(new URL(file, known), "utf8"))), JSON.stringify(validate.errors)).toBe(true);
 });
 
-const fireRedRev1 = "dd5945db9b930750cb39d00c84da8571feebf417";
-const unknownRom = "0000000000000000000000000000000000000000";
-
-const layout = (format: string, version: string, roms: string[] = [], schema = "1.0"): Layout => ({
-  schema,
-  target: { kind: "save", format, version, roms: roms.map((sha1) => ({ sha1, name: sha1 })) },
-  spaces: [],
-});
-
-it("picks the known layout whose ROMs hold the game's SHA-1", async () => {
-  const picked = pickLayout(await knownLayouts(), { format: "frlg", romSha1: fireRedRev1 });
-
-  expect(picked?.layout.target).toMatchObject({ format: "frlg", version: "1.0" });
-  expect(picked?.checked).toBe(true);
-  expect(pickLayout(await knownLayouts(), { format: "frlg", romSha1: fireRedRev1.toUpperCase() })?.checked).toBe(true);
-});
-
-it("prefers the SHA-1 over the save format", () => {
-  const hotfix = layout("unbound", "2.0", ["a".repeat(40)]);
-  const picked = pickLayout([layout("unbound", "2.1"), hotfix], { format: "unbound", romSha1: "a".repeat(40) });
-  expect(picked).toEqual({ layout: hotfix, checked: true });
-});
-
-it("falls back to the newest layout for the save format, not checked against the ROM", () => {
-  const newest = layout("unbound", "2.10");
-  const picked = pickLayout([layout("unbound", "2.9"), newest, layout("frlg", "3.0")], { format: "unbound", romSha1: unknownRom });
-  expect(picked).toEqual({ layout: newest, checked: false });
-});
-
-it("keeps a hack format's own layout for a ROM the library patched", () => {
-  const unbound = layout("unbound", "2.1");
-  expect(pickLayout([unbound], { format: "unbound", romSha1: unknownRom, romHack: true })).toEqual({ layout: unbound, checked: false });
-});
-
-it("skips a layout whose schema is newer than Research understands", () => {
-  const understood = layout("unbound", "2.1", ["a".repeat(40)]);
-  const newer = layout("unbound", "2.2", ["a".repeat(40)], "1.1");
-  expect(pickLayout([newer, understood], { format: "unbound", romSha1: "a".repeat(40) })).toEqual({ layout: understood, checked: true });
-  expect(pickLayout([layout("unbound", "3.0", [], "2.0"), understood], { format: "unbound", romSha1: unknownRom })).toEqual({ layout: understood, checked: false });
-  expect(pickLayout([newer], { format: "unbound", romSha1: "a".repeat(40) })).toBeUndefined();
-});
-
-it("has no layout for a game with neither", async () => {
-  expect(pickLayout(await knownLayouts(), { format: "emerald-imperium", romSha1: unknownRom })).toBeUndefined();
-});
-
-it("names the layout format of the engine's save version", () => {
-  expect(layoutFormat({ versionId: 1, formatId: null })).toBe("rs");
-  expect(layoutFormat({ versionId: 2, formatId: null })).toBe("rs");
-  expect(layoutFormat({ versionId: 3, formatId: null })).toBe("emerald");
-  expect(layoutFormat({ versionId: 4, formatId: null })).toBe("frlg");
-  expect(layoutFormat({ versionId: 5, formatId: null })).toBe("frlg");
-  expect(layoutFormat({ versionId: 4, formatId: "unbound" })).toBe("unbound");
-  expect(layoutFormat({ versionId: 10, formatId: null })).toBeUndefined();
-});
-
 const vector = (name: string) => new Uint8Array(readFileSync(new URL(`./layouts/transforms/vectors/${name}`, import.meta.url)));
+const EMERALD = "f3ae088181bf583e55daf962a92bb46f4f1d07b7";
+const retail = { romSha1: null, romHack: false };
+
+it("picks a Red save's layout by detection, not checked against the ROM", async () => {
+  expect(await pickLayout(vector("red.sav"), retail)).toMatchObject({ checked: false, layout: { target: { format: "rby", version: "1.0" } } });
+});
+
+it("picks a Colosseum memory card's layout", async () => {
+  expect(await pickLayout(vector("colosseum.raw"), retail)).toMatchObject({ layout: { target: { format: "memory-card-colosseum" } } });
+});
+
+it("picks the layout whose ROMs hold the game's SHA-1, checked against it", async () => {
+  const picked = await pickLayout(vector("emerald.sav"), { romSha1: EMERALD.toUpperCase(), romHack: false });
+  expect(picked).toMatchObject({ checked: true, layout: { target: { format: "emerald" } } });
+});
+
+it("picks a save's layout by detection when only a ROM layout lists the game's SHA-1", async () => {
+  const imperiumRom = "1d20091c4d936f5eb122db8780554dd0829ffb63";
+  const picked = await pickLayout(vector("imperium.sav"), { romSha1: imperiumRom, romHack: true });
+  expect(picked).toMatchObject({ checked: false, layout: { target: { format: "emerald-imperium" } } });
+});
+
+it.for([
+  ["gold.sav", "gs"],
+  ["crystal.sav", "crystal"],
+  ["dp.sav", "dp"],
+  ["bw.sav", "bw"],
+  ["b2w2.sav", "b2w2"],
+  ["xy.sav", "xy"],
+  ["sm.sav", "sm"],
+  ["usum.sav", "usum"],
+])("picks %s's layout, %s, by detection", async ([file, format]) => {
+  expect(await pickLayout(vector(file), retail)).toMatchObject({ checked: false, layout: { target: { format } } });
+});
+
+it("picks no layout for a save no layout reads", async () => {
+  expect(await pickLayout(new Uint8Array(0x80000), retail)).toBeUndefined();
+});
+
+it.for([
+  ["a Japanese Gen 1 save, a possible match", "blue-jpn.sav"],
+  ["a Korean Gen 2 save, a possible match", "gold-kor.sav"],
+  ["an Emerald Legacy save, which Emerald matches too", "emerald-legacy.sav"],
+  ["a card holding both Colosseum and XD", "gamecube.raw"],
+])("picks no layout for %s", async ([, file]) => {
+  expect(await pickLayout(vector(file), retail)).toBeUndefined();
+});
+
+const rangeCount = ({ layout }: PickedLayout) =>
+  [...Object.values(layout.kinds ?? {}), ...(layout.spaces ?? [])].reduce((count, { ranges }) => count + (ranges?.length ?? 0), 0);
+
+it("drops a retail layout's ranges for a patched ROM it wasn't checked against", async () => {
+  const picked = (await pickLayout(vector("emerald.sav"), { romSha1: null, romHack: true }))!;
+  expect(picked).toMatchObject({ checked: false, layout: { target: { format: "emerald" } } });
+  expect(picked.layout.spaces?.length).toBeGreaterThan(0);
+  expect(rangeCount(picked)).toBe(0);
+});
+
+it.for(["unbound.sav", "imperium.sav"])("keeps a hack format's ranges for a patched ROM, as in %s", async (file) => {
+  expect(rangeCount((await pickLayout(vector(file), { romSha1: null, romHack: true }))!)).toBeGreaterThan(0);
+});
+
+it("keeps a retail layout's ranges for a patched ROM whose SHA-1 it lists", async () => {
+  const picked = (await pickLayout(vector("emerald.sav"), { romSha1: EMERALD, romHack: true }))!;
+  expect(picked.checked).toBe(true);
+  expect(rangeCount(picked)).toBeGreaterThan(0);
+});
+
 const hexBytes = (text: string) => Uint8Array.from(text.split(" "), (pair) => parseInt(pair, 16));
 const space = (spaces: DecodedSpace[], name: string) => spaces.find((space) => space.name === name)!;
 
@@ -121,6 +134,33 @@ it("finds a Colosseum save on a memory card", async () => {
   expect(space(spaces, "slot").bytes).toHaveLength(0x1e000);
 });
 
+it("reads a Red save's money and boxes through the layout detection picks", async () => {
+  const save = vector("red.sav");
+  const spaces = await decodeSpaces(save, (await pickLayout(save, retail))!.layout);
+
+  expect(space(spaces, "sram").bytes).toEqual(save);
+  expect(space(spaces, "sram").ranges).toContainEqual(expect.objectContaining({ id: "money", type: "bcd24be" }));
+  expect(spaces.filter(({ name }) => /^box:\d+:\d+$/.test(name))).toHaveLength(12 * 20);
+});
+
 it("refuses a file the layout can't decode", async () => {
   await expect(decodeSpaces(new Uint8Array(0x20000), frlg as Layout)).rejects.toThrow();
+});
+
+type Shopper = { trainer: { money: number }; bag: { balls: { item: number; count: number }[] }; write(): Uint8Array };
+
+it.for(["emerald", "frlg", "rs"])("shows the money a %s save spent on a Poké Ball as a known change", async (format) => {
+  const before = vector(`${format}.sav`);
+  const { layout } = (await pickLayout(before, retail))!;
+  const save = (await readSave(before, layout)) as unknown as Shopper;
+  save.trainer.money = 1000;
+  Object.assign(save.bag.balls[0], { item: 4, count: 1 });
+  const after = save.write();
+
+  const changes = diffSpaces(await decodeSpaces(before, layout), await decodeSpaces(after, layout));
+
+  const known = changes.flatMap(({ space, known }) => known.map(({ name }) => `${space.name} ${name}`));
+  expect(known).toContain("section:1 Money");
+  expect(known.some((name) => name.startsWith("section:1 Poké Balls pocket"))).toBe(true);
+  expect(changes.flatMap(({ candidates }) => candidates)).toEqual([]);
 });

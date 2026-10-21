@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/openpkx/layouts/schema/vectors.schema.json",
   "title": "Step vectors",
-  "description": "Test vectors for one named step in transforms/. A transform or checksum has decode and encode vectors, a detect step has test vectors.",
+  "description": "Test vectors for one named step in transforms/. A transform or checksum has decode and encode vectors, a read step decode vectors alone, and a detect step test vectors.",
   "type": "object",
   "required": ["step"],
   "additionalProperties": false,
@@ -12,7 +12,11 @@
     "encode": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/vector" } },
     "test": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/test" } }
   },
-  "oneOf": [{ "required": ["decode", "encode"] }, { "required": ["test"] }],
+  "oneOf": [
+    { "required": ["decode", "encode"] },
+    { "required": ["decode"], "not": { "anyOf": [{ "required": ["encode"] }, { "required": ["test"] }] } },
+    { "required": ["test"] }
+  ],
   "$defs": {
     "uint": { "$ref": "layout.schema.json#/$defs/uint" },
     "bytes": {

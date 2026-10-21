@@ -1,0 +1,114 @@
+{
+  "step": "imperium-sections",
+  "decode": [
+    {
+      "name": "section 0 of imperium.sav",
+      "args": {
+        "section": 0,
+        "length": "0xFF4",
+        "checksum": {
+          "step": "sum32le-fold16",
+          "start": 0,
+          "end": "0x0A0C"
+        }
+      },
+      "input": {
+        "file": "imperium.sav"
+      },
+      "output": {
+        "file": "imperium.sav",
+        "offset": "0x19000",
+        "length": "0xFF4"
+      }
+    },
+    {
+      "name": "section 1 of imperium.sav",
+      "args": {
+        "section": 1,
+        "length": "0xFF4",
+        "checksum": {
+          "step": "sum32le-fold16",
+          "start": 0,
+          "end": "0x0FF4"
+        }
+      },
+      "input": {
+        "file": "imperium.sav"
+      },
+      "output": {
+        "file": "imperium.sav",
+        "offset": "0x1A000",
+        "length": "0xFF4"
+      }
+    },
+    {
+      "name": "section 17 of imperium.sav",
+      "args": {
+        "section": 17,
+        "length": "0xFF4",
+        "checksum": {
+          "step": "sum32le-fold16",
+          "start": 0,
+          "end": "0x0FF4"
+        }
+      },
+      "input": {
+        "file": "imperium.sav"
+      },
+      "output": {
+        "file": "imperium.sav",
+        "offset": "0xE000",
+        "length": "0xFF4"
+      }
+    }
+  ],
+  "encode": [
+    {
+      "name": "money 654321 in section 1 of imperium.sav",
+      "args": {
+        "section": 1,
+        "length": "0xFF4",
+        "checksum": {
+          "step": "sum32le-fold16",
+          "start": 0,
+          "end": "0x0FF4"
+        }
+      },
+      "input": [
+        {
+          "file": "imperium.sav",
+          "offset": "0x1A000",
+          "length": "0x490"
+        },
+        "2E 60 5E",
+        {
+          "file": "imperium.sav",
+          "offset": "0x1A493",
+          "length": "0xB61"
+        }
+      ],
+      "previous": {
+        "file": "imperium.sav"
+      },
+      "output": [
+        {
+          "file": "imperium.sav",
+          "offset": "0x0",
+          "length": "0x1A490"
+        },
+        "2E 60 5E",
+        {
+          "file": "imperium.sav",
+          "offset": "0x1A493",
+          "length": "0xB63"
+        },
+        "A8 0A",
+        {
+          "file": "imperium.sav",
+          "offset": "0x1AFF8",
+          "length": "0x5008"
+        }
+      ]
+    }
+  ]
+}

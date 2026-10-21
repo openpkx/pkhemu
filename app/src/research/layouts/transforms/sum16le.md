@@ -1,6 +1,6 @@
 # sum16le
 
-A checksum that adds little-endian 16-bit words and keeps the low 16 bits. Gen 3 Pokémon use it.
+A checksum that adds little-endian 16-bit words and keeps the low 16 bits. Gen 3 to 7 Pokémon use it.
 
 ## Use
 

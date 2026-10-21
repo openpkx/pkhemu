@@ -1,0 +1,491 @@
+{
+  "step": "gen12-lists",
+  "test": [
+    {
+      "name": "red.sav with the international lists",
+      "args": {
+        "lists": [
+          {
+            "offset": "0x2F2C",
+            "max": 20
+          },
+          {
+            "offset": "0x30C0",
+            "max": 20
+          }
+        ]
+      },
+      "input": {
+        "file": "red.sav"
+      },
+      "passes": true
+    },
+    {
+      "name": "red.sav with the Japanese lists",
+      "args": {
+        "lists": [
+          {
+            "offset": "0x2ED5",
+            "max": 30
+          },
+          {
+            "offset": "0x302D",
+            "max": 30
+          }
+        ]
+      },
+      "input": {
+        "file": "red.sav"
+      },
+      "passes": false
+    },
+    {
+      "name": "red-boxes.sav with the international lists",
+      "args": {
+        "lists": [
+          {
+            "offset": "0x2F2C",
+            "max": 20
+          },
+          {
+            "offset": "0x30C0",
+            "max": 20
+          }
+        ]
+      },
+      "input": {
+        "file": "red-boxes.sav"
+      },
+      "passes": true
+    },
+    {
+      "name": "red-boxes.sav with the Japanese lists",
+      "args": {
+        "lists": [
+          {
+            "offset": "0x2ED5",
+            "max": 30
+          },
+          {
+            "offset": "0x302D",
+            "max": 30
+          }
+        ]
+      },
+      "input": {
+        "file": "red-boxes.sav"
+      },
+      "passes": false
+    },
+    {
+      "name": "blue-jpn.sav with the international lists",
+      "args": {
+        "lists": [
+          {
+            "offset": "0x2F2C",
+            "max": 20
+          },
+          {
+            "offset": "0x30C0",
+            "max": 20
+          }
+        ]
+      },
+      "input": {
+        "file": "blue-jpn.sav"
+      },
+      "passes": false
+    },
+    {
+      "name": "blue-jpn.sav with the Japanese lists",
+      "args": {
+        "lists": [
+          {
+            "offset": "0x2ED5",
+            "max": 30
+          },
+          {
+            "offset": "0x302D",
+            "max": 30
+          }
+        ]
+      },
+      "input": {
+        "file": "blue-jpn.sav"
+      },
+      "passes": true
+    },
+    {
+      "name": "red.sav with its party's species list not ended",
+      "args": {
+        "lists": [
+          {
+            "offset": "0x2F2C",
+            "max": 20
+          },
+          {
+            "offset": "0x30C0",
+            "max": 20
+          }
+        ]
+      },
+      "input": [
+        {
+          "file": "red.sav",
+          "offset": "0x0",
+          "length": "0x2F2E"
+        },
+        "00",
+        {
+          "file": "red.sav",
+          "offset": "0x2F2F",
+          "length": "0x50D1"
+        }
+      ],
+      "passes": false
+    },
+    {
+      "name": "a file of zeros",
+      "args": {
+        "lists": [
+          {
+            "offset": "0x2F2C",
+            "max": 20
+          },
+          {
+            "offset": "0x30C0",
+            "max": 20
+          }
+        ]
+      },
+      "input": {
+        "fill": "00",
+        "length": "0x8000"
+      },
+      "passes": false
+    },
+    {
+      "name": "gold.sav with the lists of Gold and Silver",
+      "args": {
+        "lists": [
+          {
+            "offset": "0x288A",
+            "max": 20
+          },
+          {
+            "offset": "0x2D6C",
+            "max": 20
+          }
+        ]
+      },
+      "input": {
+        "file": "gold.sav"
+      },
+      "passes": true
+    },
+    {
+      "name": "crystal.sav with the lists of Gold and Silver",
+      "args": {
+        "lists": [
+          {
+            "offset": "0x288A",
+            "max": 20
+          },
+          {
+            "offset": "0x2D6C",
+            "max": 20
+          }
+        ]
+      },
+      "input": {
+        "file": "crystal.sav"
+      },
+      "passes": false
+    },
+    {
+      "name": "crystal.sav with the lists of Crystal",
+      "args": {
+        "lists": [
+          {
+            "offset": "0x2865",
+            "max": 20
+          },
+          {
+            "offset": "0x2D10",
+            "max": 20
+          }
+        ]
+      },
+      "input": {
+        "file": "crystal.sav"
+      },
+      "passes": true
+    },
+    {
+      "name": "crystal-boxes.sav with the lists of Gold and Silver",
+      "args": {
+        "lists": [
+          {
+            "offset": "0x288A",
+            "max": 20
+          },
+          {
+            "offset": "0x2D6C",
+            "max": 20
+          }
+        ]
+      },
+      "input": {
+        "file": "crystal-boxes.sav"
+      },
+      "passes": false
+    },
+    {
+      "name": "crystal-boxes.sav with the lists of Crystal",
+      "args": {
+        "lists": [
+          {
+            "offset": "0x2865",
+            "max": 20
+          },
+          {
+            "offset": "0x2D10",
+            "max": 20
+          }
+        ]
+      },
+      "input": {
+        "file": "crystal-boxes.sav"
+      },
+      "passes": true
+    },
+    {
+      "name": "gold-jpn.sav with the lists of Gold and Silver",
+      "args": {
+        "lists": [
+          {
+            "offset": "0x288A",
+            "max": 20
+          },
+          {
+            "offset": "0x2D6C",
+            "max": 20
+          }
+        ]
+      },
+      "input": {
+        "file": "gold-jpn.sav"
+      },
+      "passes": false
+    },
+    {
+      "name": "gold-jpn.sav with the lists of Crystal",
+      "args": {
+        "lists": [
+          {
+            "offset": "0x2865",
+            "max": 20
+          },
+          {
+            "offset": "0x2D10",
+            "max": 20
+          }
+        ]
+      },
+      "input": {
+        "file": "gold-jpn.sav"
+      },
+      "passes": false
+    },
+    {
+      "name": "gold-jpn.sav with the lists of Japanese Gold and Silver",
+      "args": {
+        "lists": [
+          {
+            "offset": "0x2D10",
+            "max": 30
+          },
+          {
+            "offset": "0x283E",
+            "max": 30
+          }
+        ]
+      },
+      "input": {
+        "file": "gold-jpn.sav"
+      },
+      "passes": true
+    },
+    {
+      "name": "crystal-jpn.sav with the lists of Gold and Silver",
+      "args": {
+        "lists": [
+          {
+            "offset": "0x288A",
+            "max": 20
+          },
+          {
+            "offset": "0x2D6C",
+            "max": 20
+          }
+        ]
+      },
+      "input": {
+        "file": "crystal-jpn.sav"
+      },
+      "passes": false
+    },
+    {
+      "name": "crystal-jpn.sav with the lists of Crystal",
+      "args": {
+        "lists": [
+          {
+            "offset": "0x2865",
+            "max": 20
+          },
+          {
+            "offset": "0x2D10",
+            "max": 20
+          }
+        ]
+      },
+      "input": {
+        "file": "crystal-jpn.sav"
+      },
+      "passes": false
+    },
+    {
+      "name": "crystal-jpn.sav with the lists of Japanese Gold and Silver",
+      "args": {
+        "lists": [
+          {
+            "offset": "0x2D10",
+            "max": 30
+          },
+          {
+            "offset": "0x283E",
+            "max": 30
+          }
+        ]
+      },
+      "input": {
+        "file": "crystal-jpn.sav"
+      },
+      "passes": false
+    },
+    {
+      "name": "crystal-jpn.sav with the lists of Japanese Crystal",
+      "args": {
+        "lists": [
+          {
+            "offset": "0x2D10",
+            "max": 30
+          },
+          {
+            "offset": "0x281A",
+            "max": 30
+          }
+        ]
+      },
+      "input": {
+        "file": "crystal-jpn.sav"
+      },
+      "passes": true
+    },
+    {
+      "name": "gold-kor.sav with the lists of Gold and Silver",
+      "args": {
+        "lists": [
+          {
+            "offset": "0x288A",
+            "max": 20
+          },
+          {
+            "offset": "0x2D6C",
+            "max": 20
+          }
+        ]
+      },
+      "input": {
+        "file": "gold-kor.sav"
+      },
+      "passes": false
+    },
+    {
+      "name": "gold-kor.sav with the lists of Crystal",
+      "args": {
+        "lists": [
+          {
+            "offset": "0x2865",
+            "max": 20
+          },
+          {
+            "offset": "0x2D10",
+            "max": 20
+          }
+        ]
+      },
+      "input": {
+        "file": "gold-kor.sav"
+      },
+      "passes": false
+    },
+    {
+      "name": "gold-kor.sav with the lists of Japanese Gold and Silver",
+      "args": {
+        "lists": [
+          {
+            "offset": "0x2D10",
+            "max": 30
+          },
+          {
+            "offset": "0x283E",
+            "max": 30
+          }
+        ]
+      },
+      "input": {
+        "file": "gold-kor.sav"
+      },
+      "passes": false
+    },
+    {
+      "name": "gold-kor.sav with the lists of Japanese Crystal",
+      "args": {
+        "lists": [
+          {
+            "offset": "0x2D10",
+            "max": 30
+          },
+          {
+            "offset": "0x281A",
+            "max": 30
+          }
+        ]
+      },
+      "input": {
+        "file": "gold-kor.sav"
+      },
+      "passes": false
+    },
+    {
+      "name": "gold-kor.sav with the lists of Korean Gold and Silver",
+      "args": {
+        "lists": [
+          {
+            "offset": "0x2DAE",
+            "max": 20
+          },
+          {
+            "offset": "0x28CC",
+            "max": 20
+          }
+        ]
+      },
+      "input": {
+        "file": "gold-kor.sav"
+      },
+      "passes": true
+    }
+  ]
+}

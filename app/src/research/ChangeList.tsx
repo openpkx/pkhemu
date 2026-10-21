@@ -68,7 +68,7 @@ export function ChangeList({
       <CompareCard baseline={baseline} after={after} latest={latest} onNew={onNew} onClose={onClose}>
         <dl className="grid grid-cols-3 gap-2">
           <Stat label="Unmapped" value={counts.unmapped} tone={counts.unmapped > 0} />
-          <Stat label="Unknown" value={values.length} tone={values.length > 0} />
+          <Stat label="Unnamed" value={values.length} tone={values.length > 0} />
           <Stat label="Known" value={counts.known} />
         </dl>
         {!checked && (
@@ -90,7 +90,7 @@ export function ChangeList({
       )}
 
       {values.length > 0 && (
-        <Group title="Unknown items" line="Items the engine reads but can't name">
+        <Group title="Unnamed items" line="Items the layout has no name for">
           <ul className="grid gap-0.5">{values.map(row)}</ul>
         </Group>
       )}

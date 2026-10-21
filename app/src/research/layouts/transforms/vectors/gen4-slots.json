@@ -1,0 +1,177 @@
+{
+  "step": "gen4-slots",
+  "decode": [
+    {
+      "name": "the general block of dp.sav, newer in slot B",
+      "args": {
+        "start": "0x0",
+        "length": "0xC100"
+      },
+      "input": {
+        "file": "dp.sav"
+      },
+      "output": {
+        "file": "dp.sav",
+        "offset": "0x40000",
+        "length": "0xC100"
+      }
+    },
+    {
+      "name": "the storage block of dp.sav, newer in slot A",
+      "args": {
+        "start": "0xC100",
+        "length": "0x121E0"
+      },
+      "input": {
+        "file": "dp.sav"
+      },
+      "output": {
+        "file": "dp.sav",
+        "offset": "0xC100",
+        "length": "0x121E0"
+      }
+    },
+    {
+      "name": "the general block of dp.sav, major counters 0xFFFFFFFF in slot B and 0x1 in slot A",
+      "args": {
+        "start": "0x0",
+        "length": "0xC100"
+      },
+      "input": [
+        {
+          "file": "dp.sav",
+          "offset": "0x0",
+          "length": "0x4C0EC"
+        },
+        "FF FF FF FF",
+        {
+          "file": "dp.sav",
+          "offset": "0x4C0F0",
+          "length": "0x33F10"
+        }
+      ],
+      "output": {
+        "file": "dp.sav",
+        "offset": "0x0",
+        "length": "0xC100"
+      }
+    },
+    {
+      "name": "the general block of dp.sav, major counters 0xFFFFFFFF in slot B and 0xFFFFFFFE in slot A",
+      "args": {
+        "start": "0x0",
+        "length": "0xC100"
+      },
+      "input": [
+        {
+          "file": "dp.sav",
+          "offset": "0x0",
+          "length": "0xC0EC"
+        },
+        "FE FF FF FF",
+        {
+          "file": "dp.sav",
+          "offset": "0xC0F0",
+          "length": "0x3FFFC"
+        },
+        "FF FF FF FF",
+        {
+          "file": "dp.sav",
+          "offset": "0x4C0F0",
+          "length": "0x33F10"
+        }
+      ],
+      "output": [
+        {
+          "file": "dp.sav",
+          "offset": "0x40000",
+          "length": "0xC0EC"
+        },
+        "FF FF FF FF",
+        {
+          "file": "dp.sav",
+          "offset": "0x4C0F0",
+          "length": "0x10"
+        }
+      ]
+    },
+    {
+      "name": "the general block of dp.sav, major counters 0x2 in slot B and 0x2 in slot A, minor counters equal",
+      "args": {
+        "start": "0x0",
+        "length": "0xC100"
+      },
+      "input": [
+        {
+          "file": "dp.sav",
+          "offset": "0x0",
+          "length": "0xC0EC"
+        },
+        "02",
+        {
+          "file": "dp.sav",
+          "offset": "0xC0ED",
+          "length": "0x73F13"
+        }
+      ],
+      "output": [
+        {
+          "file": "dp.sav",
+          "offset": "0x0",
+          "length": "0xC0EC"
+        },
+        "02",
+        {
+          "file": "dp.sav",
+          "offset": "0xC0ED",
+          "length": "0x13"
+        }
+      ]
+    }
+  ],
+  "encode": [
+    {
+      "name": "money 654321 in the general block of dp.sav",
+      "args": {
+        "start": "0x0",
+        "length": "0xC100"
+      },
+      "input": [
+        {
+          "file": "dp.sav",
+          "offset": "0x40000",
+          "length": "0x78"
+        },
+        "F1 FB 09",
+        {
+          "file": "dp.sav",
+          "offset": "0x4007B",
+          "length": "0xC083"
+        },
+        "D2 AE"
+      ],
+      "previous": {
+        "file": "dp.sav"
+      },
+      "output": [
+        {
+          "file": "dp.sav",
+          "offset": "0x0",
+          "length": "0x40078"
+        },
+        "F1 FB 09",
+        {
+          "file": "dp.sav",
+          "offset": "0x4007B",
+          "length": "0xC083"
+        },
+        "D2 AE",
+        {
+          "file": "dp.sav",
+          "offset": "0x4C100",
+          "length": "0x33F00"
+        }
+      ]
+    }
+  ]
+}

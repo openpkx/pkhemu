@@ -1,0 +1,13 @@
+{
+  "$schema": "../schema/layout.schema.json",
+  "schema": "1.0",
+  "target": {
+    "kind": "pokemon",
+    "format": "pk2",
+    "version": "1.0",
+    "uses": [
+      {"format": "crystal", "version": "1.0", "kind": "pk2"}
+    ],
+    "detect": {"match": "certain", "sizes": [73], "source": "pkhex:PKM/Shared/PokeList2.cs", "note": "Gold, Silver and Crystal keep a Pokémon the same way, so a .pk2 reads through Crystal's kind."}
+  }
+}

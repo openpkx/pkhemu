@@ -26,13 +26,16 @@
       "match": "certain",
       "sizes": ["0x20000"],
       "steps": [
-        {"step": "gen3-signature", "args": {"signatures": ["0x08012025"]}}
+        {"step": "gen3-signature", "args": {"signatures": ["0x08012025"]}},
+        {"step": "imperium-checksums", "args": {"lengths": [2572, 4084, 4084, 4084, 2152, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4084, 4084, 4084, 4084, 4084, 4084, 4084, 4084, 1472, 0, 0]}, "passes": false},
+        {"step": "imperium-checksums", "args": {"lengths": [2940, 4084, 4084, 4084, 772, 0, 0, 0, 0, 0, 0, 0, 0, 0, 4084, 4084, 4084, 4084, 4084, 4084, 4084, 4084, 4084, 4084, 4084, 4084, 1512, 0]}, "passes": false}
       ],
       "checks": [
+        {"space": "section:2", "offset": "0x0160", "type": "u32le", "not": "0xE8F828BC"},
         {"space": "section:0", "offset": "0x00AC", "type": "u32le", "equals": 1}
       ],
-      "source": "pkhex:Saves/Util/SaveUtil.cs and engine:src/PKHeX.Everywhere.RomHacks/Cfru/RadicalRed/RadicalRedSave.cs",
-      "note": "PKHeX doesn't check the signature. The engine's hack formats claim saves signed their own way before PKHeX reads them, which the signature stands in for here."
+      "source": "pkhex:Saves/Util/SaveUtil.cs and engine:src/PKHeX.Everywhere.RomHacks/Cfru/RadicalRed/RadicalRedSave.cs and engine:src/PKHeX.Everywhere.RomHacks/Expansion/Imperium/ImperiumFormat.cs and engine:src/PKHeX.Everywhere.RomHacks/Expansion/HeartAndSoul/HeartAndSoulFormat.cs",
+      "note": "PKHeX doesn't check the signature. The engine's hack formats claim saves signed their own way before PKHeX reads them, which the signature stands in for here. Imperium's checksums and Heart & Soul's magic rule out the saves those formats claim, including the versions the engine refuses."
     }
   },
   "kinds": {

@@ -1,0 +1,82 @@
+{
+  "step": "rom-text",
+  "decode": [
+    {
+      "name": "POTION, stored in the 10-byte field at 0x04",
+      "args": {
+        "at": "0x04",
+        "length": 10,
+        "type": "text-gen3-intl"
+      },
+      "input": [
+        "00 00 00 00 CA C9 CE C3 C9 C8 FF FF FF FF",
+        {
+          "fill": "00",
+          "length": "0x32"
+        }
+      ],
+      "output": {
+        "text": "POTION"
+      }
+    },
+    {
+      "name": "PORTABLE PC SYSTEM, too long for the field, which holds a pointer to it at 0x20",
+      "args": {
+        "at": "0x04",
+        "length": 10,
+        "type": "text-gen3-intl"
+      },
+      "input": [
+        "00 00 00 00 20 00 00 08 00 00 00 00 00 00",
+        {
+          "fill": "00",
+          "length": "0x12"
+        },
+        "CA C9 CC CE BB BC C6 BF 00 CA BD 00 CD D3 CD CE BF C7 FF",
+        {
+          "fill": "00",
+          "length": "0x0D"
+        }
+      ],
+      "output": {
+        "text": "PORTABLE PC SYSTEM"
+      }
+    },
+    {
+      "name": "a field whose first 4 bytes would point past the ROM's 0x40 bytes, which holds its text",
+      "args": {
+        "at": "0x04",
+        "length": 4,
+        "type": "text-gen3-intl"
+      },
+      "input": [
+        "00 00 00 00 00 01 00 08",
+        {
+          "fill": "00",
+          "length": "0x38"
+        }
+      ],
+      "output": {
+        "text": " À Ë"
+      }
+    },
+    {
+      "name": "ABC in a 4-byte field",
+      "args": {
+        "at": "0x04",
+        "length": 4,
+        "type": "text-gen3-intl"
+      },
+      "input": [
+        "00 00 00 00 BB BC BD FF",
+        {
+          "fill": "00",
+          "length": "0x38"
+        }
+      ],
+      "output": {
+        "text": "ABC"
+      }
+    }
+  ]
+}

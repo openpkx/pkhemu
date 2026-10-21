@@ -1,0 +1,457 @@
+{
+  "step": "gen1-list",
+  "decode": [
+    {
+      "name": "party:1 of red.sav",
+      "args": {
+        "capacity": 6,
+        "stored": 44,
+        "party": 44,
+        "names": 11,
+        "index": 0
+      },
+      "input": {
+        "file": "red.sav",
+        "offset": "0x2F2C",
+        "length": "0x194"
+      },
+      "output": "01 54 FF 54 00 0F 03 00 17 17 BE 54 2D 00 00 30 39 00 00 1B 00 00 00 00 00 00 00 00 00 00 62 6C 1E 28 00 00 03 00 0F 00 08 00 06 00 0A 00 08 8E 8F 84 8D 8F 8A 97 50 50 50 50 8F 88 8A 80 50 50 50 50 50 50 50"
+    },
+    {
+      "name": "party:2 of red.sav, past the count",
+      "args": {
+        "capacity": 6,
+        "stored": 44,
+        "party": 44,
+        "names": 11,
+        "index": 1
+      },
+      "input": {
+        "file": "red.sav",
+        "offset": "0x2F2C",
+        "length": "0x194"
+      },
+      "output": "00 FF FF 00 00 0B 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01 00 0B 00 05 00 05 00 05 00 05 50 50 50 50 50 50 50 50 50 50 50 50 50 50 50 50 50 50 50 50 50 50"
+    },
+    {
+      "name": "box:1:2 of red-boxes.sav",
+      "args": {
+        "capacity": 20,
+        "stored": 33,
+        "party": 44,
+        "names": 11,
+        "index": 1
+      },
+      "input": [
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x4000",
+          "length": "0x462"
+        },
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x30C0",
+          "length": "0x462"
+        },
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x48C4",
+          "length": "0x462"
+        },
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x4D26",
+          "length": "0x462"
+        },
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x5188",
+          "length": "0x462"
+        },
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x55EA",
+          "length": "0x462"
+        },
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x6000",
+          "length": "0x462"
+        },
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x6462",
+          "length": "0x462"
+        },
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x68C4",
+          "length": "0x462"
+        },
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x6D26",
+          "length": "0x462"
+        },
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x7188",
+          "length": "0x462"
+        },
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x75EA",
+          "length": "0x462"
+        }
+      ],
+      "output": "01 54 FF 54 00 0F 03 00 17 17 BE 54 2D 00 00 30 39 00 00 1B 00 00 00 00 00 00 00 00 00 00 D9 02 1E 28 00 00 00 00 00 00 00 00 00 00 00 00 00 8E 8F 84 8D 8F 8A 97 50 50 50 50 8F 88 8A 80 82 87 94 50 50 50 50"
+    },
+    {
+      "name": "box:2:2 of red-boxes.sav",
+      "args": {
+        "capacity": 20,
+        "stored": 33,
+        "party": 44,
+        "names": 11,
+        "index": 21
+      },
+      "input": [
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x4000",
+          "length": "0x462"
+        },
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x30C0",
+          "length": "0x462"
+        },
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x48C4",
+          "length": "0x462"
+        },
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x4D26",
+          "length": "0x462"
+        },
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x5188",
+          "length": "0x462"
+        },
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x55EA",
+          "length": "0x462"
+        },
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x6000",
+          "length": "0x462"
+        },
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x6462",
+          "length": "0x462"
+        },
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x68C4",
+          "length": "0x462"
+        },
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x6D26",
+          "length": "0x462"
+        },
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x7188",
+          "length": "0x462"
+        },
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x75EA",
+          "length": "0x462"
+        }
+      ],
+      "output": "01 54 FF 54 00 0F 03 00 17 17 BE 54 2D 00 00 30 39 00 00 1B 00 00 00 00 00 00 00 00 00 00 63 B6 1E 28 00 00 00 00 00 00 00 00 00 00 00 00 00 8E 8F 84 8D 8F 8A 97 50 50 50 50 8F 88 8A 80 82 87 94 50 50 50 50"
+    },
+    {
+      "name": "box:2:3 of red-boxes.sav, past the count",
+      "args": {
+        "capacity": 20,
+        "stored": 33,
+        "party": 44,
+        "names": 11,
+        "index": 22
+      },
+      "input": [
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x4000",
+          "length": "0x462"
+        },
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x30C0",
+          "length": "0x462"
+        },
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x48C4",
+          "length": "0x462"
+        },
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x4D26",
+          "length": "0x462"
+        },
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x5188",
+          "length": "0x462"
+        },
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x55EA",
+          "length": "0x462"
+        },
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x6000",
+          "length": "0x462"
+        },
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x6462",
+          "length": "0x462"
+        },
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x68C4",
+          "length": "0x462"
+        },
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x6D26",
+          "length": "0x462"
+        },
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x7188",
+          "length": "0x462"
+        },
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x75EA",
+          "length": "0x462"
+        }
+      ],
+      "output": "00 FF FF 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00"
+    },
+    {
+      "name": "party:1 of crystal.sav",
+      "args": {
+        "capacity": 6,
+        "stored": 48,
+        "party": 48,
+        "names": 11,
+        "index": 0
+      },
+      "input": {
+        "file": "crystal.sav",
+        "offset": "0x2865",
+        "length": "0x1AC"
+      },
+      "output": "01 19 FF 19 00 54 2D 00 00 30 39 00 00 40 00 00 00 00 00 00 00 00 00 00 D8 9E 1E 28 00 00 46 00 44 32 04 00 00 00 11 00 11 00 0A 00 08 00 0C 00 0A 00 09 8E 8F 84 8D 8F 8A 97 50 50 50 50 8F 88 8A 80 50 50 50 50 50 50 50"
+    },
+    {
+      "name": "box:1:1 of crystal.sav",
+      "args": {
+        "capacity": 20,
+        "stored": 32,
+        "party": 48,
+        "names": 11,
+        "index": 0
+      },
+      "input": {
+        "file": "crystal.sav",
+        "offset": "0x4000",
+        "length": "0x44E"
+      },
+      "output": "01 19 FF 19 00 54 2D 00 00 30 39 00 00 40 00 00 00 00 00 00 00 00 00 00 D8 9E 1E 28 00 00 46 00 44 32 04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 8E 8F 84 8D 8F 8A 97 50 50 50 50 8F 88 8A 80 82 87 94 50 50 50 50"
+    }
+  ],
+  "encode": [
+    {
+      "name": "party:1 of red.sav, nicknamed Ab by the engine",
+      "args": {
+        "capacity": 6,
+        "stored": 44,
+        "party": 44,
+        "names": 11,
+        "index": 0
+      },
+      "input": "01 54 FF 54 00 0F 03 00 17 17 BE 54 2D 00 00 30 39 00 00 1B 00 00 00 00 00 00 00 00 00 00 62 6C 1E 28 00 00 03 00 0F 00 08 00 06 00 0A 00 08 8E 8F 84 8D 8F 8A 97 50 50 50 50 80 A1 50 50 50 50 50 50 50 50 50",
+      "previous": {
+        "file": "red.sav",
+        "offset": "0x2F2C",
+        "length": "0x194"
+      },
+      "output": [
+        {
+          "file": "red.sav",
+          "offset": "0x2F2C",
+          "length": "0x152"
+        },
+        "80 A1 50 50",
+        {
+          "file": "red.sav",
+          "offset": "0x3082",
+          "length": "0x3E"
+        }
+      ]
+    },
+    {
+      "name": "box:1:1 of red.sav, nicknamed Ab by the engine",
+      "args": {
+        "capacity": 20,
+        "stored": 33,
+        "party": 44,
+        "names": 11,
+        "index": 0
+      },
+      "input": "01 54 FF 54 00 0F 03 00 17 17 BE 54 2D 00 00 30 39 00 00 1B 00 00 00 00 00 00 00 00 00 00 62 6C 1E 28 00 00 00 00 00 00 00 00 00 00 00 00 00 8E 8F 84 8D 8F 8A 97 50 50 50 50 80 A1 50 50 50 50 50 50 50 50 50",
+      "previous": {
+        "file": "red.sav",
+        "offset": "0x30C0",
+        "length": "0x462"
+      },
+      "output": [
+        {
+          "file": "red.sav",
+          "offset": "0x30C0",
+          "length": "0x386"
+        },
+        "80 A1 50 50 50 50 50",
+        {
+          "file": "red.sav",
+          "offset": "0x344D",
+          "length": "0xD5"
+        }
+      ]
+    },
+    {
+      "name": "box:1:2 of red.sav, the count raised to 2 first",
+      "args": {
+        "capacity": 20,
+        "stored": 33,
+        "party": 44,
+        "names": 11,
+        "index": 1
+      },
+      "input": "01 54 FF 54 00 0F 03 00 17 17 BE 54 2D 00 00 30 39 00 00 1B 00 00 00 00 00 00 00 00 00 00 62 6C 1E 28 00 00 00 00 00 00 00 00 00 00 00 00 00 8E 8F 84 8D 8F 8A 97 50 50 50 50 80 A1 50 50 50 50 50 50 50 50 50",
+      "previous": [
+        "02",
+        {
+          "file": "red.sav",
+          "offset": "0x30C1",
+          "length": "0x461"
+        }
+      ],
+      "output": [
+        "02 54 54",
+        {
+          "file": "red.sav",
+          "offset": "0x30C3",
+          "length": "0x34"
+        },
+        "54 00 0F 03 00 17 17 BE 54 2D 00 00 30 39 00 00 1B",
+        {
+          "file": "red.sav",
+          "offset": "0x3108",
+          "length": "0xA"
+        },
+        "62 6C 1E 28",
+        {
+          "file": "red.sav",
+          "offset": "0x3116",
+          "length": "0x25F"
+        },
+        "8E 8F 84 8D 8F 8A 97 50 50 50 50",
+        {
+          "file": "red.sav",
+          "offset": "0x3380",
+          "length": "0xD1"
+        },
+        "80 A1 50 50 50 50 50 50 50 50 50",
+        {
+          "file": "red.sav",
+          "offset": "0x345C",
+          "length": "0xC6"
+        }
+      ]
+    },
+    {
+      "name": "party:1 of crystal.sav, nicknamed Ab by the engine",
+      "args": {
+        "capacity": 6,
+        "stored": 48,
+        "party": 48,
+        "names": 11,
+        "index": 0
+      },
+      "input": "01 19 FF 19 00 54 2D 00 00 30 39 00 00 40 00 00 00 00 00 00 00 00 00 00 D8 9E 1E 28 00 00 46 00 44 32 04 00 00 00 11 00 11 00 0A 00 08 00 0C 00 0A 00 09 8E 8F 84 8D 8F 8A 97 50 50 50 50 80 A1 50 50 50 50 50 50 50 50 50",
+      "previous": {
+        "file": "crystal.sav",
+        "offset": "0x2865",
+        "length": "0x1AC"
+      },
+      "output": [
+        {
+          "file": "crystal.sav",
+          "offset": "0x2865",
+          "length": "0x16A"
+        },
+        "80 A1 50 50",
+        {
+          "file": "crystal.sav",
+          "offset": "0x29D3",
+          "length": "0x3E"
+        }
+      ]
+    },
+    {
+      "name": "box:1:1 of crystal.sav, nicknamed Ab by the engine",
+      "args": {
+        "capacity": 20,
+        "stored": 32,
+        "party": 48,
+        "names": 11,
+        "index": 0
+      },
+      "input": "01 19 FF 19 00 54 2D 00 00 30 39 00 00 40 00 00 00 00 00 00 00 00 00 00 D8 9E 1E 28 00 00 46 00 44 32 04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 8E 8F 84 8D 8F 8A 97 50 50 50 50 80 A1 50 50 50 50 50 50 50 50 50",
+      "previous": {
+        "file": "crystal.sav",
+        "offset": "0x4000",
+        "length": "0x44E"
+      },
+      "output": [
+        {
+          "file": "crystal.sav",
+          "offset": "0x4000",
+          "length": "0x372"
+        },
+        "80 A1 50 50 50 50 50",
+        {
+          "file": "crystal.sav",
+          "offset": "0x4379",
+          "length": "0xD5"
+        }
+      ]
+    }
+  ]
+}

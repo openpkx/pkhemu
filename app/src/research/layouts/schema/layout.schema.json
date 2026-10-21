@@ -74,9 +74,14 @@
       "pattern": "^[0-9A-F]{2}( [0-9A-F]{2})*$"
     },
     "source": {
-      "description": "Where something comes from: pkhex:<file in PKHeX.Core>, engine:<file in PKHeX Everywhere>, dpe:<file in the Dynamic Pokémon Expansion's Unbound branch> or finding:<findings file>. Join several with \" and \".",
+      "description": "Where something comes from: pkhex:<file in PKHeX.Core>, engine:<file in PKHeX Everywhere>, dpe:<file in the Dynamic Pokémon Expansion's Unbound branch>, finding:<findings file> or rom:<SHA-1 of the ROM it was read from>. Join several with \" and \".",
       "type": "string",
-      "pattern": "^(pkhex|engine|dpe|finding):\\S.*$"
+      "pattern": "^(pkhex|engine|dpe|finding|rom):\\S.*$",
+      "not": { "pattern": "(^| )rom:(?![0-9a-f]{40}( |$))" }
+    },
+    "pocket": {
+      "description": "The bag pocket an item goes in, from one list for every game. A ROM layout maps its family's pocket numbers to these.",
+      "enum": ["items", "key-items", "balls", "tms", "berries", "mega-stones"]
     },
     "confidence": {
       "description": "known: a source or a second compare backs it. guess: one observation or a reading of code that isn't certain.",
@@ -87,27 +92,29 @@
       "enum": ["species", "item", "move", "ability", "ball", "location"]
     },
     "type": {
-      "description": "How to read one element. Numbers say their byte order, and packed fields list their bits. f32be and f64be are IEEE 754 floating-point numbers. flags is an array of one-bit flags, lowest bit first. Text types name their generation and character set, and each is a step in transforms/: text-gen3-intl is the table the English, French, German, Italian and Spanish games share, text-gen3-jpn the Japanese one, and text-gen3-gc the UTF-16 text of Colosseum and XD.",
+      "description": "How to read one element. Numbers say their byte order, and packed fields list their bits. u24be is a 3-byte number, as Gen 1 keeps experience. f32be and f64be are IEEE 754 floating-point numbers. bcd16le, bcd16be and bcd24be are binary-coded decimal, two digits a byte with the high nibble first, as Gen 1 keeps money and coins. flags is an array of one-bit flags, lowest bit first. Text types name their generation and character set, and each is a step in transforms/: text-gen3-intl is the table the English, French, German, Italian and Spanish games share, text-gen3-jpn the Japanese one, and text-gen3-gc the UTF-16 text of Colosseum and XD. text-gen1-intl and text-gen2-intl are the tables of the Gen 1 and Gen 2 games outside Japan and Korea, text-gen4 is Gen 4's 16-bit table for every language, and text-gen5, text-gen6 and text-gen7 are the UTF-16 text of Gen 5, Gen 6 and Gen 7.",
       "enum": [
-        "u8", "u16le", "u32le", "u64le", "i8", "i16le", "i32le", "u16be", "u32be", "i32be", "f32be", "f64be", "flags",
-        "bytes", "text-gen3-intl", "text-gen3-jpn", "text-gen3-gc"
+        "u8", "u16le", "u32le", "u64le", "i8", "i16le", "i32le", "u16be", "u24be", "u32be", "i32be", "f32be", "f64be", "bcd16le", "bcd16be",
+        "bcd24be", "flags",
+        "bytes", "text-gen1-intl", "text-gen2-intl", "text-gen3-intl", "text-gen3-jpn", "text-gen3-gc", "text-gen4", "text-gen5",
+        "text-gen6", "text-gen7"
       ]
     },
     "transform": {
-      "description": "A decoder described in transforms/<name>.md. gen3-sections reads from the save gen3-slots decodes, and box-blocks from the layout's container. swishcrypto-block is designed for the Switch games and not built yet.",
-      "enum": ["gen3-sections", "box-blocks", "pk3-crypt", "cfru-box", "swishcrypto-block"]
+      "description": "A decoder described in transforms/<name>.md. gen3-sections reads from the save gen3-slots decodes, imperium-sections and gen4-slots from the file, and box-blocks from the layout's container. gen1-box-banks, gen2-box-banks and gen1-list read a source and take the index of the space a pattern names. swishcrypto-block is designed for the Switch games and not built yet.",
+      "enum": ["gen3-sections", "imperium-sections", "gen4-slots", "box-blocks", "pk3-crypt", "pk45-crypt", "pk67-crypt", "cfru-box", "gen1-box-banks", "gen2-box-banks", "gen1-list", "swishcrypto-block"]
     },
     "containerTransform": {
       "description": "A transform described in transforms/<name>.md that decodes a whole file or the save inside it.",
-      "enum": ["gc-memory-card", "colosseum-slots", "xd-slots", "box-slots"]
+      "enum": ["gc-memory-card", "colosseum-slots", "xd-slots", "box-slots", "gen2-backup"]
     },
     "checksumStep": {
-      "description": "A checksum described in transforms/<name>.md.",
-      "enum": ["sum16le", "sum32le-fold16", "sha1", "colosseum-header", "xd-header", "xd-body", "box-sum"]
+      "description": "A checksum described in transforms/<name>.md. memecrypto-sign needs a key, which a writer takes from its caller.",
+      "enum": ["sum16le", "sum32le-fold16", "sha1", "colosseum-header", "xd-header", "xd-body", "box-sum", "crc16-ccitt", "crc16-usb", "gen1-checksum", "gen2-checksum", "memecrypto-sign"]
     },
     "detectStep": {
       "description": "A detection test described in transforms/<name>.md, for what byte checks can't say. swishcrypto-hash is designed for the Switch games and not built yet.",
-      "enum": ["gen3-signature", "frlg-key-mismatch", "gc-memory-card-file", "swishcrypto-hash"]
+      "enum": ["gen3-signature", "frlg-key-mismatch", "imperium-checksums", "emerald-legacy-blocks", "gc-memory-card-file", "gen12-lists", "gen5-checksums", "swishcrypto-hash"]
     },
     "spaceName": {
       "description": "A space's name, or a pattern of names: \"section:1\", \"party:{1..6}\", \"box:{1..14}:{1..30}\", \"block:my-status\".",
@@ -156,6 +163,43 @@
         }
       ]
     },
+    "entryCheck": {
+      "description": "A value read from a table entry, at an offset from the entry's start. equals, not and zero work as in a detect check. pointer passes when the u32le is a ROM address inside the file, as rom-table describes.",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["any"],
+          "additionalProperties": false,
+          "properties": {
+            "any": {
+              "type": "array",
+              "minItems": 2,
+              "items": { "$ref": "#/$defs/entryCheck" }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["offset", "type"],
+          "additionalProperties": false,
+          "oneOf": [
+            { "required": ["equals"] },
+            { "required": ["not"] },
+            { "required": ["zero"] },
+            { "required": ["pointer"] }
+          ],
+          "properties": {
+            "offset": { "$ref": "#/$defs/uint" },
+            "length": { "$ref": "#/$defs/uint" },
+            "type": { "$ref": "#/$defs/type" },
+            "equals": { "$ref": "#/$defs/numbers" },
+            "not": { "$ref": "#/$defs/numbers" },
+            "zero": { "type": "boolean" },
+            "pointer": { "const": true }
+          }
+        }
+      ]
+    },
     "detect": {
       "type": "object",
       "description": "What tells a file in this format from others. Every part must pass. A reader runs every layout's detect: one certain match and nothing else names the format, and otherwise every match is a candidate to choose from.",
@@ -165,7 +209,8 @@
         { "required": ["sizes"] },
         { "required": ["magic"] },
         { "required": ["steps"] },
-        { "required": ["checks"] }
+        { "required": ["checks"] },
+        { "required": ["tables"] }
       ],
       "properties": {
         "match": {
@@ -210,6 +255,10 @@
               "args": {
                 "type": "object",
                 "description": "The step's arguments, as its doc lists them."
+              },
+              "passes": {
+                "const": false,
+                "description": "The step must fail, as a retail save must not be one a hack's format claims first."
               }
             }
           }
@@ -218,6 +267,43 @@
           "type": "array",
           "minItems": 1,
           "items": { "$ref": "#/$defs/check" }
+        },
+        "tables": {
+          "type": "array",
+          "minItems": 1,
+          "description": "For a ROM, tables whose pointer lands inside the file and whose first entries pass their checks.",
+          "items": {
+            "type": "object",
+            "required": ["space", "entries"],
+            "additionalProperties": false,
+            "properties": {
+              "space": { "$ref": "#/$defs/spaceName" },
+              "entries": { "type": "integer", "minimum": 1, "description": "How many entries from the first must pass." }
+            }
+          }
+        },
+        "possible": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Sets of tests, each of which makes a file failing the ones above a possible match, as a Japanese Gen 1 save is for rby: the same game, which the layout doesn't fit.",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["note"],
+            "anyOf": [
+              { "required": ["sizes"] },
+              { "required": ["magic"] },
+              { "required": ["steps"] },
+              { "required": ["checks"] }
+            ],
+            "properties": {
+              "sizes": { "$ref": "#/$defs/detect/properties/sizes" },
+              "magic": { "$ref": "#/$defs/detect/properties/magic" },
+              "steps": { "$ref": "#/$defs/detect/properties/steps" },
+              "checks": { "$ref": "#/$defs/detect/properties/checks" },
+              "note": { "type": "string" }
+            }
+          }
         },
         "source": { "$ref": "#/$defs/source" },
         "note": { "type": "string" }
@@ -259,6 +345,11 @@
                   "name": {
                     "type": "string",
                     "minLength": 1
+                  },
+                  "titleId": {
+                    "type": "string",
+                    "pattern": "^[0-9A-F]{16}$",
+                    "description": "The title ID in a 3DS game's header. Every region's release of a game shares it."
                   }
                 }
               }
@@ -279,6 +370,37 @@
               "type": "array",
               "minItems": 1,
               "items": { "$ref": "#/$defs/layoutRef" }
+            },
+            "detect": { "$ref": "#/$defs/detect" }
+          }
+        },
+        {
+          "type": "object",
+          "description": "A ROM's own tables, such as its item names, for a family of games that keeps them the same way. Its spaces are tables. A parser only reads it.",
+          "required": ["kind", "format", "version"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "const": "rom" },
+            "format": { "$ref": "#/$defs/id" },
+            "version": { "type": "string", "minLength": 1 },
+            "roms": {
+              "description": "The ROMs this layout is known to fit, with the number of entries in each table. A ROM not listed reads each table to its stop rule.",
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["sha1", "name", "counts"],
+                "additionalProperties": false,
+                "properties": {
+                  "sha1": { "$ref": "#/$defs/sha1" },
+                  "name": { "type": "string", "minLength": 1 },
+                  "counts": {
+                    "type": "object",
+                    "description": "Entries in each table, by the table's space name.",
+                    "propertyNames": { "$ref": "#/$defs/id" },
+                    "additionalProperties": { "type": "integer", "minimum": 1 }
+                  }
+                }
+              }
             },
             "detect": { "$ref": "#/$defs/detect" }
           }
@@ -346,6 +468,17 @@
           }
         },
         "domain": { "$ref": "#/$defs/domain" },
+        "storage": {
+          "const": "inline-or-pointer",
+          "description": "For text in a ROM table: the field holds the text, or a ROM pointer to it, as rom-text describes."
+        },
+        "pockets": {
+          "description": "For a number that says an item's pocket, the pocket each number means. A number not listed has none.",
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": { "pattern": "^(0|[1-9][0-9]*)$" },
+          "additionalProperties": { "$ref": "#/$defs/pocket" }
+        },
         "note": { "type": "string" }
       }
     },
@@ -379,11 +512,36 @@
     },
     "space": {
       "type": "object",
-      "required": ["name", "length"],
+      "required": ["name"],
       "additionalProperties": false,
       "not": { "required": ["kind", "ranges"] },
       "dependentRequired": { "args": ["transform"] },
+      "if": { "required": ["table"] },
+      "then": {
+        "not": {
+          "anyOf": [
+            { "required": ["length"] },
+            { "required": ["transform"] },
+            { "required": ["source"] },
+            { "required": ["kind"] },
+            { "required": ["ranges"] },
+            { "required": ["checksums"] }
+          ]
+        }
+      },
+      "else": { "required": ["length"] },
       "properties": {
+        "table": {
+          "description": "A ROM's table: entries of one kind, one after another from where the u32le ROM pointer at pointer points, as rom-table describes. A known ROM gives the count, and any other ends the table at the first entry that fails the checks.",
+          "type": "object",
+          "required": ["pointer", "kind", "checks"],
+          "additionalProperties": false,
+          "properties": {
+            "pointer": { "$ref": "#/$defs/uint", "description": "The offset in the ROM of the pointer to the table." },
+            "kind": { "$ref": "#/$defs/id", "description": "The kind of each entry." },
+            "checks": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/entryCheck" } }
+          }
+        },
         "name": { "$ref": "#/$defs/spaceName" },
         "length": {
           "$ref": "#/$defs/uint",
@@ -395,7 +553,7 @@
           "description": "The transform's arguments, as its doc lists them. swishcrypto-block takes the block's key and type, such as {\"key\": \"0x0D66012C\", \"type\": \"object\"}."
         },
         "source": {
-          "description": "Where a space's bytes sit in other spaces. The regions are joined into one stream, and the space a pattern names at index i starts at offset + i * stride, counting i from 0 with the first placeholder outermost.",
+          "description": "Where a space's bytes sit in other spaces. The regions are joined into one stream, and the space a pattern names at index i starts at offset + i * stride, counting i from 0 with the first placeholder outermost. A transform that takes the index, such as gen1-list, finds its place itself, so its stride is 0.",
           "type": "object",
           "required": ["regions", "offset"],
           "additionalProperties": false,
@@ -553,11 +711,11 @@
         },
         {
           "type": "object",
-          "description": "A list of objects: one per space a pattern names, or one per element of a range with a count. A pattern can stop short of a space's name, as box:{1..14} does for box:{1..14}:{1..30}, and a list inside it starts its pattern with a colon, as :{1..30}.",
+          "description": "A list of objects: one per space a pattern names, one per element of a range with a count, or one per entry of a table. A pattern can stop short of a space's name, as box:{1..14} does for box:{1..14}:{1..30}, and a list inside it starts its pattern with a colon, as :{1..30}.",
           "required": ["list"],
           "additionalProperties": false,
-          "oneOf": [{ "required": ["spaces"] }, { "required": ["range"] }],
-          "dependentRequired": { "space": ["range"], "length": ["spaces"] },
+          "oneOf": [{ "required": ["spaces"] }, { "required": ["range"] }, { "required": ["table"] }],
+          "dependentRequired": { "space": ["range"] },
           "properties": {
             "list": { "$ref": "#/$defs/modelRef" },
             "spaces": {
@@ -565,10 +723,11 @@
               "pattern": "^:?([a-z0-9-]+|\\{[0-9]+\\.\\.[0-9]+\\})(:([a-z0-9-]+|\\{[0-9]+\\.\\.[0-9]+\\}))*$"
             },
             "range": { "$ref": "#/$defs/id" },
+            "table": { "$ref": "#/$defs/id", "description": "A table space, with one element per entry. Its fields read the entry's ranges." },
             "space": { "$ref": "#/$defs/spaceName" },
             "length": {
               "$ref": "#/$defs/modelRead",
-              "description": "The range that holds how many elements are in use, such as the party count. The rest are empty."
+              "description": "The range that holds how many elements are in use, such as the party count or the number of items in a Gen 1 pocket. The rest are empty."
             },
             "extra": { "$ref": "#/$defs/extra" },
             "note": { "type": "string" }
@@ -602,8 +761,7 @@
         "confidence": { "$ref": "#/$defs/confidence" },
         "source": { "$ref": "#/$defs/source" },
         "pocket": {
-          "type": "string",
-          "minLength": 1,
+          "$ref": "#/$defs/pocket",
           "description": "For items, the bag pocket the game puts it in."
         },
         "note": { "type": "string" }

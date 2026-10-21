@@ -1,0 +1,90 @@
+{
+  "$schema": "../schema/layout.schema.json",
+  "schema": "1.0",
+  "target": {
+    "kind": "rom",
+    "format": "expansion",
+    "version": "1.9",
+    "roms": [
+      {"sha1": "1d20091c4d936f5eb122db8780554dd0829ffb63", "name": "Emerald Imperium v1.3.1", "counts": {"items": 1002, "species": 1537, "moves": 938, "abilities": 328}}
+    ],
+    "detect": {
+      "match": "possible",
+      "tables": [
+        {"space": "items", "entries": 16},
+        {"space": "species", "entries": 16},
+        {"space": "moves", "entries": 16},
+        {"space": "abilities", "entries": 16}
+      ],
+      "source": "rom:1d20091c4d936f5eb122db8780554dd0829ffb63 and rom:79ee6df0869c1773c8c6a5f764afc1f8d833d8bb",
+      "note": "Retail Emerald, FireRed and the Complete FireRed Upgrade hacks fail. Heart & Soul v2.0.6 fails too: it's built on pokeemerald-expansion 1.15.2, whose item entries hold name pointers, and its RHH header sits at 0x204, so 0x20C holds no pointer. Another hack on 1.9 to 1.12 with the same structures would pass, so the match is possible."
+    }
+  },
+  "note": "The tables of hacks built on pokeemerald-expansion 1.9 to 1.12, such as Emerald Imperium, which keep item, species and ability names in each entry. From 1.13 the item entries hold name pointers. The GF header at 0x100 points at the species (0x1BC), items (0x1C8) and moves (0x1CC), and the RHH header, which Imperium has at 0x1FC, points at the abilities. Imperium is built on 1.10.0, which the RHH header gives at 0x202. Entry sizes follow from the build's options, so a hack built with others has tables of other sizes.",
+  "kinds": {
+    "item": {
+      "length": 80,
+      "ranges": [
+        {"id": "description", "offset": "0x0C", "length": 4, "type": "u32le", "name": "Description pointer", "confidence": "known", "source": "rom:1d20091c4d936f5eb122db8780554dd0829ffb63"},
+        {"id": "name", "offset": "0x14", "length": 20, "type": "text-gen3-intl", "name": "Name", "confidence": "known", "source": "rom:1d20091c4d936f5eb122db8780554dd0829ffb63", "note": "Imperium's items 956 and 957 are all zeros, so they read as blank."},
+        {"id": "pocket", "offset": "0x41", "length": 1, "type": "u8", "pockets": {"1": "items", "2": "mega-stones", "3": "balls", "4": "tms", "5": "berries", "6": "key-items"}, "name": "Pocket", "confidence": "known", "source": "rom:1d20091c4d936f5eb122db8780554dd0829ffb63", "note": "Imperium's numbers. It adds a Mega Stones pocket at 2 and moves Key Items to 6, so a hack that keeps pokeemerald-expansion's five pockets reads with the wrong names."}
+      ]
+    },
+    "species": {
+      "length": 260,
+      "note": "The table's checks read the name's last byte, 0x38, which is its terminator or padding.",
+      "ranges": [
+        {"id": "name", "offset": "0x2C", "length": 13, "type": "text-gen3-intl", "name": "Name", "confidence": "known", "source": "rom:1d20091c4d936f5eb122db8780554dd0829ffb63", "note": "Imperium's species 1435 is all zeros, and the Egg, 1536, has no name, so both read as blank."},
+        {"id": "front-pic", "offset": "0x58", "length": 4, "type": "u32le", "name": "Front picture pointer", "confidence": "guess", "source": "rom:1d20091c4d936f5eb122db8780554dd0829ffb63", "note": "A pointer to LZ77-compressed graphics in every entry Imperium fills, the Egg too. That it's the front picture is a guess."}
+      ]
+    },
+    "move": {
+      "length": 52,
+      "note": "Moves from 851 to the end of Imperium's table are Z-Moves and Max Moves, which no Pokémon knows.",
+      "ranges": [
+        {"id": "name", "offset": "0x00", "length": 4, "type": "text-gen3-intl", "storage": "inline-or-pointer", "name": "Name", "confidence": "known", "source": "rom:1d20091c4d936f5eb122db8780554dd0829ffb63", "note": "Always a pointer to the name."},
+        {"id": "description", "offset": "0x04", "length": 4, "type": "u32le", "name": "Description pointer", "confidence": "known", "source": "rom:1d20091c4d936f5eb122db8780554dd0829ffb63"}
+      ]
+    },
+    "ability": {
+      "length": 28,
+      "ranges": [
+        {"id": "name", "offset": "0x00", "length": 17, "type": "text-gen3-intl", "name": "Name", "confidence": "known", "source": "rom:1d20091c4d936f5eb122db8780554dd0829ffb63"},
+        {"id": "description", "offset": "0x14", "length": 4, "type": "u32le", "name": "Description pointer", "confidence": "known", "source": "rom:1d20091c4d936f5eb122db8780554dd0829ffb63"}
+      ]
+    }
+  },
+  "spaces": [
+    {"name": "items", "table": {"pointer": "0x1C8", "kind": "item", "checks": [
+      {"offset": "0x41", "type": "u8", "equals": [0, 1, 2, 3, 4, 5, 6]},
+      {"any": [{"offset": "0x0C", "type": "u32le", "pointer": true}, {"offset": "0x00", "length": 80, "type": "bytes", "zero": true}]}
+    ]}},
+    {"name": "species", "table": {"pointer": "0x1BC", "kind": "species", "checks": [
+      {"offset": "0x38", "type": "u8", "equals": [0, 255]},
+      {"any": [{"offset": "0x58", "type": "u32le", "pointer": true}, {"offset": "0x00", "length": 260, "type": "bytes", "zero": true}]}
+    ]}},
+    {"name": "moves", "table": {"pointer": "0x1CC", "kind": "move", "checks": [
+      {"offset": "0x00", "type": "u32le", "pointer": true},
+      {"offset": "0x04", "type": "u32le", "pointer": true}
+    ]}},
+    {"name": "abilities", "table": {"pointer": "0x20C", "kind": "ability", "checks": [
+      {"offset": "0x14", "type": "u32le", "pointer": true}
+    ]}}
+  ],
+  "model": {
+    "root": {
+      "fields": {
+        "items": {"list": "item", "table": "items"},
+        "species": {"list": "species", "table": "species"},
+        "moves": {"list": "move", "table": "moves"},
+        "abilities": {"list": "ability", "table": "abilities"}
+      }
+    },
+    "objects": {
+      "item": {"fields": {"name": {"range": "name"}, "pocket": {"range": "pocket"}}},
+      "species": {"fields": {"name": {"range": "name"}}},
+      "move": {"fields": {"name": {"range": "name"}}},
+      "ability": {"fields": {"name": {"range": "name"}}}
+    }
+  }
+}

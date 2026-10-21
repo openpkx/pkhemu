@@ -1,0 +1,393 @@
+{
+  "step": "gen1-box-banks",
+  "decode": [
+    {
+      "name": "box 1 of red.sav, the current box",
+      "args": {
+        "banks": [
+          "0x4000",
+          "0x6000"
+        ],
+        "boxes": 12,
+        "length": "0x462",
+        "current": "0x30C0",
+        "selected": "0x284C",
+        "index": 0
+      },
+      "input": {
+        "file": "red.sav"
+      },
+      "output": {
+        "file": "red.sav",
+        "offset": "0x30C0",
+        "length": "0x462"
+      }
+    },
+    {
+      "name": "box 2 of red.sav, before the boxes are set up",
+      "args": {
+        "banks": [
+          "0x4000",
+          "0x6000"
+        ],
+        "boxes": 12,
+        "length": "0x462",
+        "current": "0x30C0",
+        "selected": "0x284C",
+        "index": 1
+      },
+      "input": {
+        "file": "red.sav"
+      },
+      "output": [
+        "00 FF",
+        {
+          "file": "red.sav",
+          "offset": "0x4464",
+          "length": "0x460"
+        }
+      ]
+    },
+    {
+      "name": "box 7 of red.sav, before the boxes are set up",
+      "args": {
+        "banks": [
+          "0x4000",
+          "0x6000"
+        ],
+        "boxes": 12,
+        "length": "0x462",
+        "current": "0x30C0",
+        "selected": "0x284C",
+        "index": 6
+      },
+      "input": {
+        "file": "red.sav"
+      },
+      "output": [
+        "00 FF",
+        {
+          "file": "red.sav",
+          "offset": "0x6002",
+          "length": "0x460"
+        }
+      ]
+    },
+    {
+      "name": "box 1 of red-boxes.sav, in its bank",
+      "args": {
+        "banks": [
+          "0x4000",
+          "0x6000"
+        ],
+        "boxes": 12,
+        "length": "0x462",
+        "current": "0x30C0",
+        "selected": "0x284C",
+        "index": 0
+      },
+      "input": {
+        "file": "red-boxes.sav"
+      },
+      "output": {
+        "file": "red-boxes.sav",
+        "offset": "0x4000",
+        "length": "0x462"
+      }
+    },
+    {
+      "name": "box 2 of red-boxes.sav, the current box, not its stale copy",
+      "args": {
+        "banks": [
+          "0x4000",
+          "0x6000"
+        ],
+        "boxes": 12,
+        "length": "0x462",
+        "current": "0x30C0",
+        "selected": "0x284C",
+        "index": 1
+      },
+      "input": {
+        "file": "red-boxes.sav"
+      },
+      "output": {
+        "file": "red-boxes.sav",
+        "offset": "0x30C0",
+        "length": "0x462"
+      }
+    },
+    {
+      "name": "box 7 of red-boxes.sav, in the second bank",
+      "args": {
+        "banks": [
+          "0x4000",
+          "0x6000"
+        ],
+        "boxes": 12,
+        "length": "0x462",
+        "current": "0x30C0",
+        "selected": "0x284C",
+        "index": 6
+      },
+      "input": {
+        "file": "red-boxes.sav"
+      },
+      "output": {
+        "file": "red-boxes.sav",
+        "offset": "0x6000",
+        "length": "0x462"
+      }
+    }
+  ],
+  "encode": [
+    {
+      "name": "box 1 of red.sav, the current box, its Pikachu nicknamed Ab",
+      "args": {
+        "banks": [
+          "0x4000",
+          "0x6000"
+        ],
+        "boxes": 12,
+        "length": "0x462",
+        "current": "0x30C0",
+        "selected": "0x284C",
+        "index": 0
+      },
+      "input": [
+        {
+          "file": "red.sav",
+          "offset": "0x30C0",
+          "length": "0x386"
+        },
+        "80 A1 50 50 50 50 50",
+        {
+          "file": "red.sav",
+          "offset": "0x344D",
+          "length": "0xD5"
+        }
+      ],
+      "previous": {
+        "file": "red.sav"
+      },
+      "output": [
+        {
+          "file": "red.sav",
+          "offset": "0x0",
+          "length": "0x3446"
+        },
+        "80 A1 50 50 50 50 50",
+        {
+          "file": "red.sav",
+          "offset": "0x344D",
+          "length": "0x4BB3"
+        }
+      ]
+    },
+    {
+      "name": "box 1 of red.sav's Pikachu in box 2, which sets up the boxes",
+      "args": {
+        "banks": [
+          "0x4000",
+          "0x6000"
+        ],
+        "boxes": 12,
+        "length": "0x462",
+        "current": "0x30C0",
+        "selected": "0x284C",
+        "index": 1
+      },
+      "input": {
+        "file": "red.sav",
+        "offset": "0x30C0",
+        "length": "0x462"
+      },
+      "previous": {
+        "file": "red.sav"
+      },
+      "output": [
+        {
+          "file": "red.sav",
+          "offset": "0x0",
+          "length": "0x284C"
+        },
+        "80",
+        {
+          "file": "red.sav",
+          "offset": "0x284D",
+          "length": "0x1C15"
+        },
+        "01 54 FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF FF 54 00 0F 03 00 17 17 BE 54 2D 00 00 30 39 00 00 1B",
+        {
+          "file": "red.sav",
+          "offset": "0x4489",
+          "length": "0xA"
+        },
+        "62 6C 1E 28",
+        {
+          "file": "red.sav",
+          "offset": "0x4497",
+          "length": "0x275"
+        },
+        "8E 8F 84 8D 8F 8A 97 50 50 50 50",
+        {
+          "file": "red.sav",
+          "offset": "0x4717",
+          "length": "0xD1"
+        },
+        "8F 88 8A 80 82 87 94 50 50 50 50",
+        {
+          "file": "red.sav",
+          "offset": "0x47F3",
+          "length": "0xD2"
+        },
+        "FF",
+        {
+          "file": "red.sav",
+          "offset": "0x48C6",
+          "length": "0x461"
+        },
+        "FF",
+        {
+          "file": "red.sav",
+          "offset": "0x4D28",
+          "length": "0x461"
+        },
+        "FF",
+        {
+          "file": "red.sav",
+          "offset": "0x518A",
+          "length": "0x461"
+        },
+        "FF",
+        {
+          "file": "red.sav",
+          "offset": "0x55EC",
+          "length": "0xA15"
+        },
+        "FF",
+        {
+          "file": "red.sav",
+          "offset": "0x6002",
+          "length": "0x461"
+        },
+        "FF",
+        {
+          "file": "red.sav",
+          "offset": "0x6464",
+          "length": "0x461"
+        },
+        "FF",
+        {
+          "file": "red.sav",
+          "offset": "0x68C6",
+          "length": "0x461"
+        },
+        "FF",
+        {
+          "file": "red.sav",
+          "offset": "0x6D28",
+          "length": "0x461"
+        },
+        "FF",
+        {
+          "file": "red.sav",
+          "offset": "0x718A",
+          "length": "0x461"
+        },
+        "FF",
+        {
+          "file": "red.sav",
+          "offset": "0x75EC",
+          "length": "0xA14"
+        }
+      ]
+    },
+    {
+      "name": "box 1 of red-boxes.sav, in its bank, its first Pikachu nicknamed Ab",
+      "args": {
+        "banks": [
+          "0x4000",
+          "0x6000"
+        ],
+        "boxes": 12,
+        "length": "0x462",
+        "current": "0x30C0",
+        "selected": "0x284C",
+        "index": 0
+      },
+      "input": [
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x4000",
+          "length": "0x386"
+        },
+        "80 A1 50 50 50 50 50",
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x438D",
+          "length": "0xD5"
+        }
+      ],
+      "previous": {
+        "file": "red-boxes.sav"
+      },
+      "output": [
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x0",
+          "length": "0x4386"
+        },
+        "80 A1 50 50 50 50 50",
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x438D",
+          "length": "0x3C73"
+        }
+      ]
+    },
+    {
+      "name": "box 2 of red-boxes.sav, the current box, its first Pikachu nicknamed Ab",
+      "args": {
+        "banks": [
+          "0x4000",
+          "0x6000"
+        ],
+        "boxes": 12,
+        "length": "0x462",
+        "current": "0x30C0",
+        "selected": "0x284C",
+        "index": 1
+      },
+      "input": [
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x30C0",
+          "length": "0x386"
+        },
+        "80 A1 50 50 50 50 50",
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x344D",
+          "length": "0xD5"
+        }
+      ],
+      "previous": {
+        "file": "red-boxes.sav"
+      },
+      "output": [
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x0",
+          "length": "0x3446"
+        },
+        "80 A1 50 50 50 50 50",
+        {
+          "file": "red-boxes.sav",
+          "offset": "0x344D",
+          "length": "0x4BB3"
+        }
+      ]
+    }
+  ]
+}

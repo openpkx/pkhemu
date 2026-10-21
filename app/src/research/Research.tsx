@@ -38,7 +38,7 @@ export function Research({ host }: { host: ResearchHost }) {
   const { compare, start, end } = useCompare(host);
   const game = useGame(host);
   const findings = useFindings(host, game);
-  const diff = useDiff(host, game?.picked, compare?.stage === "open" && game !== undefined ? compare : undefined);
+  const diff = useDiff(game?.picked, compare?.stage === "open" && game !== undefined ? compare : undefined);
   const [tab, setTab] = useState<"compare" | "findings">("compare");
   const [confirming, setConfirming] = useState<"new" | "close">();
   const [drilled, setDrilled] = useState<string>();
@@ -131,11 +131,11 @@ export function Research({ host }: { host: ResearchHost }) {
           )}
         </TabsContent>
         <TabsContent value="findings" className="flex min-h-0 flex-col">
-          {game && (
+          {game?.picked && (
             <FindingsTab
               host={host}
               findings={findings}
-              format={game.context.format.name}
+              format={`${game.picked.layout.target.format} ${game.picked.layout.target.version}`}
               exporting={exporting}
               onExporting={setExporting}
               onEdit={(finding) => setDraft({ kind: "edit", finding })}

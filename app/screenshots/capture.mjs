@@ -263,7 +263,7 @@ try {
             await page.waitForTimeout(500);
           }
           if (screen === "research-value") {
-            await page.getByRole("button", { name: /Item 368/ }).click();
+            await page.getByRole("button", { name: /Item 52/ }).click();
             await page.waitForTimeout(500);
           }
           if (screen === "research-name") {

@@ -17,4 +17,4 @@ The retail games sign their sectors 0x08012025. Unbound uses 0x01122000, 0x01121
 
 ## Vectors
 
-[`vectors/gen3-signature.json`](vectors/gen3-signature.json): each save in `vectors/` with the retail and the Unbound signatures, and a file of zeros. The retail saves pass with 0x08012025 and `unbound.sav` with Unbound's.
+[`vectors/gen3-signature.json`](vectors/gen3-signature.json): each save in `vectors/` with two slots, with the retail and the Unbound signatures, and a file of zeros. The retail saves, `heart-and-soul.sav` and `emerald-legacy.sav` pass with 0x08012025 and `unbound.sav` with Unbound's.

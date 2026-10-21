@@ -1,0 +1,88 @@
+{
+  "step": "gen5-checksums",
+  "test": [
+    {
+      "name": "bw.sav with the checksums of Black and White",
+      "args": {
+        "start": "0x23F00",
+        "end": "0x23F8C",
+        "at": "0x23F9A"
+      },
+      "input": {
+        "file": "bw.sav"
+      },
+      "passes": true
+    },
+    {
+      "name": "bw.sav with the checksums of Black 2 and White 2",
+      "args": {
+        "start": "0x25F00",
+        "end": "0x25F94",
+        "at": "0x25FA2"
+      },
+      "input": {
+        "file": "bw.sav"
+      },
+      "passes": false
+    },
+    {
+      "name": "b2w2.sav with the checksums of Black and White",
+      "args": {
+        "start": "0x23F00",
+        "end": "0x23F8C",
+        "at": "0x23F9A"
+      },
+      "input": {
+        "file": "b2w2.sav"
+      },
+      "passes": false
+    },
+    {
+      "name": "b2w2.sav with the checksums of Black 2 and White 2",
+      "args": {
+        "start": "0x25F00",
+        "end": "0x25F94",
+        "at": "0x25FA2"
+      },
+      "input": {
+        "file": "b2w2.sav"
+      },
+      "passes": true
+    },
+    {
+      "name": "bw.sav with a byte of its checksum block changed",
+      "args": {
+        "start": "0x23F00",
+        "end": "0x23F8C",
+        "at": "0x23F9A"
+      },
+      "input": [
+        {
+          "file": "bw.sav",
+          "offset": "0x0",
+          "length": "0x23F00"
+        },
+        "39",
+        {
+          "file": "bw.sav",
+          "offset": "0x23F01",
+          "length": "0x5C0FF"
+        }
+      ],
+      "passes": false
+    },
+    {
+      "name": "a file of zeros",
+      "args": {
+        "start": "0x23F00",
+        "end": "0x23F8C",
+        "at": "0x23F9A"
+      },
+      "input": {
+        "fill": "00",
+        "length": "0x80000"
+      },
+      "passes": false
+    }
+  ]
+}

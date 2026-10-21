@@ -158,6 +158,58 @@
       "passes": false
     },
     {
+      "name": "heart-and-soul.sav with 0x08012025",
+      "args": {
+        "signatures": [
+          "0x08012025"
+        ]
+      },
+      "input": {
+        "file": "heart-and-soul.sav"
+      },
+      "passes": true
+    },
+    {
+      "name": "heart-and-soul.sav with 0x01122000, 0x01121999, 0x01121998",
+      "args": {
+        "signatures": [
+          "0x01122000",
+          "0x01121999",
+          "0x01121998"
+        ]
+      },
+      "input": {
+        "file": "heart-and-soul.sav"
+      },
+      "passes": false
+    },
+    {
+      "name": "emerald-legacy.sav with 0x08012025",
+      "args": {
+        "signatures": [
+          "0x08012025"
+        ]
+      },
+      "input": {
+        "file": "emerald-legacy.sav"
+      },
+      "passes": true
+    },
+    {
+      "name": "emerald-legacy.sav with 0x01122000, 0x01121999, 0x01121998",
+      "args": {
+        "signatures": [
+          "0x01122000",
+          "0x01121999",
+          "0x01121998"
+        ]
+      },
+      "input": {
+        "file": "emerald-legacy.sav"
+      },
+      "passes": false
+    },
+    {
       "name": "a file of zeros",
       "args": {
         "signatures": [

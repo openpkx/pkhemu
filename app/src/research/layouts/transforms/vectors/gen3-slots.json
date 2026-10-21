@@ -68,6 +68,28 @@
       }
     },
     {
+      "name": "heart-and-soul.sav, slot B newer",
+      "input": {
+        "file": "heart-and-soul.sav"
+      },
+      "output": {
+        "file": "heart-and-soul.sav",
+        "offset": "0xE000",
+        "length": "0x12000"
+      }
+    },
+    {
+      "name": "emerald-legacy.sav, slot B newer",
+      "input": {
+        "file": "emerald-legacy.sav"
+      },
+      "output": {
+        "file": "emerald-legacy.sav",
+        "offset": "0xE000",
+        "length": "0x12000"
+      }
+    },
+    {
       "name": "frlg.sav after gen3-slots wrote slot A",
       "input": [
         {
@@ -854,6 +876,203 @@
           "length": "0x4003"
         }
       ]
+    },
+    {
+      "name": "heart-and-soul.sav after gen3-slots wrote slot A",
+      "input": [
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0xE000",
+          "length": "0xFFC"
+        },
+        "03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0xEFFD",
+          "length": "0xFFF"
+        },
+        "03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0xFFFD",
+          "length": "0xFFF"
+        },
+        "03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x10FFD",
+          "length": "0xFFF"
+        },
+        "03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x11FFD",
+          "length": "0xFFF"
+        },
+        "03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x12FFD",
+          "length": "0xFFF"
+        },
+        "03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x13FFD",
+          "length": "0xFFF"
+        },
+        "03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x14FFD",
+          "length": "0xFFF"
+        },
+        "03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x15FFD",
+          "length": "0xFFF"
+        },
+        "03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x16FFD",
+          "length": "0xFFF"
+        },
+        "03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x17FFD",
+          "length": "0x497"
+        },
+        "2E 60 5E",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x18497",
+          "length": "0xB5F"
+        },
+        "AD 0A 25 20 01 08 03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x18FFD",
+          "length": "0xFFF"
+        },
+        "03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x19FFD",
+          "length": "0xFFF"
+        },
+        "03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x1AFFD",
+          "length": "0xFFF"
+        },
+        "03 00 00 00",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0xE000",
+          "length": "0x12000"
+        }
+      ],
+      "output": [
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0xE000",
+          "length": "0xFFC"
+        },
+        "03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0xEFFD",
+          "length": "0xFFF"
+        },
+        "03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0xFFFD",
+          "length": "0xFFF"
+        },
+        "03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x10FFD",
+          "length": "0xFFF"
+        },
+        "03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x11FFD",
+          "length": "0xFFF"
+        },
+        "03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x12FFD",
+          "length": "0xFFF"
+        },
+        "03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x13FFD",
+          "length": "0xFFF"
+        },
+        "03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x14FFD",
+          "length": "0xFFF"
+        },
+        "03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x15FFD",
+          "length": "0xFFF"
+        },
+        "03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x16FFD",
+          "length": "0xFFF"
+        },
+        "03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x17FFD",
+          "length": "0x497"
+        },
+        "2E 60 5E",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x18497",
+          "length": "0xB5F"
+        },
+        "AD 0A 25 20 01 08 03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x18FFD",
+          "length": "0xFFF"
+        },
+        "03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x19FFD",
+          "length": "0xFFF"
+        },
+        "03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x1AFFD",
+          "length": "0xFFF"
+        },
+        "03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x1BFFD",
+          "length": "0x4003"
+        }
+      ]
     }
   ],
   "encode": [
@@ -1340,6 +1559,128 @@
         "01 00 00 00",
         {
           "file": "wrap.sav",
+          "offset": "0xE000",
+          "length": "0x12000"
+        }
+      ]
+    },
+    {
+      "name": "heart-and-soul.sav with money 654321, written to slot A with counter 0x3",
+      "input": [
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0xE000",
+          "length": "0xA494"
+        },
+        "2E 60 5E",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x18497",
+          "length": "0xB5F"
+        },
+        "AD 0A",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x18FF8",
+          "length": "0x7008"
+        }
+      ],
+      "previous": {
+        "file": "heart-and-soul.sav"
+      },
+      "output": [
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0xE000",
+          "length": "0xFFC"
+        },
+        "03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0xEFFD",
+          "length": "0xFFF"
+        },
+        "03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0xFFFD",
+          "length": "0xFFF"
+        },
+        "03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x10FFD",
+          "length": "0xFFF"
+        },
+        "03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x11FFD",
+          "length": "0xFFF"
+        },
+        "03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x12FFD",
+          "length": "0xFFF"
+        },
+        "03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x13FFD",
+          "length": "0xFFF"
+        },
+        "03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x14FFD",
+          "length": "0xFFF"
+        },
+        "03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x15FFD",
+          "length": "0xFFF"
+        },
+        "03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x16FFD",
+          "length": "0xFFF"
+        },
+        "03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x17FFD",
+          "length": "0x497"
+        },
+        "2E 60 5E",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x18497",
+          "length": "0xB5F"
+        },
+        "AD 0A 25 20 01 08 03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x18FFD",
+          "length": "0xFFF"
+        },
+        "03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x19FFD",
+          "length": "0xFFF"
+        },
+        "03",
+        {
+          "file": "heart-and-soul.sav",
+          "offset": "0x1AFFD",
+          "length": "0xFFF"
+        },
+        "03 00 00 00",
+        {
+          "file": "heart-and-soul.sav",
           "offset": "0xE000",
           "length": "0x12000"
         }

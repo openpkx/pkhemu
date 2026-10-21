@@ -2,8 +2,9 @@ import { act, cleanup, fireEvent, render, screen, within } from "@testing-librar
 import Ajv2020 from "ajv/dist/2020";
 import { afterEach, expect, it } from "vitest";
 import { KitProvider } from "@/plugin-kit/host";
-import { gen3Save } from "@/testing/gen3Save";
+import { emeraldSave } from "@/testing/gen3Save";
 import type { HostEvent, ResearchHost, SaveFile } from "./host";
+import { read as readEmerald } from "./layouts/parsers/emerald-1.0.ts";
 import schema from "./layouts/schema/layout.schema.json";
 import { Research } from "./Research";
 
@@ -19,9 +20,8 @@ function fakeHost({
   const listeners = new Set<(event: HostEvent) => void>();
   const calls = { status: [] as string[], notices: [] as string[], closed: 0, resumed: 0, exported: [] as { name: string; text: string }[] };
   const host: ResearchHost = {
-    context: async () => ({ game: "Emerald", build: "BPEE", format: { id: "emerald", name: "Emerald" }, romSha1, romHack, app: "0.12.0" }),
+    context: async () => ({ game: "Emerald", build: "BPEE", romSha1, romHack, app: "0.12.0" }),
     saveFile: async () => saveFile,
-    read: async () => ({ pouches: [], held: [] }),
     load: async <T,>(key: string) => structuredClone(stored.get(key)) as T | undefined,
     store: async (key, value) => void (value === undefined ? stored.delete(key) : stored.set(key, structuredClone(value))),
     exportFile: async (file) => void calls.exported.push(file),
@@ -196,8 +196,8 @@ it("stays at the start when the save file can't be read", async () => {
 
 const MONEY = { section: 1, offset: 0x490 };
 const bought = (options: Parameters<typeof fakeHost>[0] = {}) => {
-  const fake = fakeHost({ ...options, saveFile: { bytes: gen3Save([{ ...MONEY, bytes: [0xa0, 0x0f, 0, 0] }]), writtenAt: 1 } });
-  const after = gen3Save([
+  const fake = fakeHost({ ...options, saveFile: { bytes: emeraldSave([{ ...MONEY, bytes: [0xa0, 0x0f, 0, 0] }]), writtenAt: 1 } });
+  const after = emeraldSave([
     { ...MONEY, bytes: [0x38, 0x0e, 0, 0] },
     { section: 4, offset: 0x4b, bytes: [7] },
     { section: 4, offset: 0x80, bytes: [1] },
@@ -279,47 +279,47 @@ it("jumps between a space's changes with N and P", async () => {
   expect(cursor()).toBe(String(0x4b));
 });
 
-async function compareBoughtUnknownItem() {
+async function compareBoughtUnnamedItem() {
   const { fake, after } = bought();
-  const reading = (count: number) => ({ pouches: [{ pocket: "Key items", items: [{ index: 368, count }] }], held: [] });
-  fake.host.read = async (bytes) => reading(bytes === after.bytes ? 1 : 0);
+  const save = readEmerald(after.bytes);
+  Object.assign(save.bag.keyItems[0], { item: 52, count: 1 });
   await openResearch(fake);
   await choose(/Latest save/);
-  await fake.emit({ kind: "save-written", save: after });
-  return screen.findByRole("region", { name: "Unknown items" });
+  await fake.emit({ kind: "save-written", save: { ...after, bytes: save.write() } });
+  return screen.findByRole("region", { name: "Unnamed items" });
 }
 
-it("lists an item the engine can't name as an unknown item, between unmapped bytes and known changes", async () => {
-  const values = await compareBoughtUnknownItem();
+it("lists an item the layout has no name for as an unnamed item, between unmapped bytes and known changes", async () => {
+  const values = await compareBoughtUnnamedItem();
 
-  expect(values.textContent).toMatch(/Item 368.*Key items/);
+  expect(values.textContent).toMatch(/Item 52.*Key items/);
   const known = screen.getByRole("region", { name: "Known changes" });
   expect(screen.getByRole("region", { name: "Unmapped bytes" }).compareDocumentPosition(values) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(values.compareDocumentPosition(known) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 });
 
-it("opens the naming sheet when a phone taps an unknown item", async () => {
-  await compareBoughtUnknownItem();
+it("opens the naming sheet when a phone taps an unnamed item", async () => {
+  await compareBoughtUnnamedItem();
 
-  fireEvent.click(screen.getByRole("button", { name: /Item 368/ }));
+  fireEvent.click(screen.getByRole("button", { name: /Item 52/ }));
   await act(async () => {});
 
   const sheet = screen.getByRole("dialog", { name: "Name this item" });
-  expect(within(sheet).getByText("368")).toBeTruthy();
+  expect(within(sheet).getByText("52")).toBeTruthy();
   expect(within(sheet).getByRole("combobox", { name: "Pocket" }).textContent).toBe("Key items");
   expect(screen.queryByRole("grid")).toBeNull();
 });
 
-it("shows an unknown item in the detail pane on desktop, with no hex view", async () => {
+it("shows an unnamed item in the detail pane on desktop, with no hex view", async () => {
   const matchMedia = window.matchMedia;
   window.matchMedia = ((media: string) => ({ matches: true, media, addEventListener() {}, removeEventListener() {} })) as never;
   try {
-    await compareBoughtUnknownItem();
+    await compareBoughtUnnamedItem();
 
-    fireEvent.click(screen.getByRole("button", { name: /Item 368/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Item 52/ }));
     await act(async () => {});
 
-    const pane = screen.getByRole("region", { name: "Item 368" });
+    const pane = screen.getByRole("region", { name: "Item 52" });
     expect(within(pane).getByText("Key items")).toBeTruthy();
     expect(screen.queryByRole("grid")).toBeNull();
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -396,9 +396,9 @@ it("blocks a range that overlaps a known range or another finding, or holds over
   expect(save.disabled).toBe(false);
 });
 
-it("names an unknown item as a value finding, with its pocket", async () => {
-  await compareBoughtUnknownItem();
-  fireEvent.click(screen.getByRole("button", { name: /Item 368/ }));
+it("names an unnamed item as a value finding, with its pocket", async () => {
+  await compareBoughtUnnamedItem();
+  fireEvent.click(screen.getByRole("button", { name: /Item 52/ }));
   await act(async () => {});
   const sheet = screen.getByRole("dialog", { name: "Name this item" });
 
@@ -406,9 +406,9 @@ it("names an unknown item as a value finding, with its pocket", async () => {
   fireEvent.click(within(sheet).getByRole("button", { name: "Save finding" }));
   await act(async () => {});
 
-  expect(screen.getByRole("button", { name: /Item 368/ }).textContent).toContain("Mega Ring");
+  expect(screen.getByRole("button", { name: /Item 52/ }).textContent).toContain("Mega Ring");
   await findingsTab();
-  expect(screen.getByRole("region", { name: "Yours" }).textContent).toMatch(/Mega Ring.*Item 368 · Key items/);
+  expect(screen.getByRole("region", { name: "Yours" }).textContent).toMatch(/Mega Ring.*Item 52 · Key items/);
 });
 
 it("edits and deletes a finding from the Findings tab", async () => {
