@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/openpkx/layouts/schema/vectors.schema.json",
+  "title": "Step vectors",
+  "description": "Test vectors for one named step in transforms/. A transform or checksum has decode and encode vectors, a detect step has test vectors.",
+  "type": "object",
+  "required": ["step"],
+  "additionalProperties": false,
+  "properties": {
+    "step": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "decode": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/vector" } },
+    "encode": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/vector" } },
+    "test": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/test" } }
+  },
+  "oneOf": [{ "required": ["decode", "encode"] }, { "required": ["test"] }],
+  "$defs": {
+    "uint": { "$ref": "layout.schema.json#/$defs/uint" },
+    "bytes": {
+      "description": "Bytes as hex pairs separated by spaces, a run of a file in transforms/vectors, one byte repeated, or a list of these joined in order.",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["fill", "length"],
+          "additionalProperties": false,
+          "properties": {
+            "fill": { "type": "string", "pattern": "^[0-9A-F]{2}$" },
+            "length": { "$ref": "#/$defs/uint" }
+          }
+        },
+        { "type": "string", "pattern": "^([0-9A-F]{2}( [0-9A-F]{2})*)?$" },
+        {
+          "type": "object",
+          "required": ["file"],
+          "additionalProperties": false,
+          "properties": {
+            "file": { "type": "string", "pattern": "^[a-z0-9-]+\\.(sav|raw)$" },
+            "offset": { "$ref": "#/$defs/uint" },
+            "length": { "$ref": "#/$defs/uint" }
+          }
+        },
+        { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/bytes" } }
+      ]
+    },
+    "text": {
+      "type": "object",
+      "required": ["text"],
+      "additionalProperties": false,
+      "properties": { "text": { "type": "string" } }
+    },
+    "vector": {
+      "type": "object",
+      "required": ["name", "input", "output"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "args": { "type": "object", "description": "The step's arguments, as its doc lists them." },
+        "input": { "oneOf": [{ "$ref": "#/$defs/bytes" }, { "$ref": "#/$defs/text" }] },
+        "previous": {
+          "$ref": "#/$defs/bytes",
+          "description": "For an encode vector, the encoded bytes before the change, which the step writes over."
+        },
+        "output": { "oneOf": [{ "$ref": "#/$defs/bytes" }, { "$ref": "#/$defs/text" }] }
+      }
+    },
+    "test": {
+      "type": "object",
+      "required": ["name", "input", "passes"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "args": { "type": "object" },
+        "input": { "$ref": "#/$defs/bytes" },
+        "passes": { "type": "boolean" }
+      }
+    }
+  }
+}

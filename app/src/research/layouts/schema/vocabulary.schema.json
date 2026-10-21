@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/openpkx/layouts/schema/vocabulary.schema.json",
+  "title": "Vocabulary",
+  "description": "The object and field names a layout's model uses, shared by every format.",
+  "type": "object",
+  "required": ["schema", "source", "objects", "gaps"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "schema": { "const": "1.0" },
+    "source": {
+      "type": "string",
+      "pattern": "^(pkhex|engine):\\S.*$",
+      "description": "Where the names come from."
+    },
+    "objects": {
+      "description": "Objects keyed by id. save is a save's root.",
+      "type": "object",
+      "required": ["save"],
+      "propertyNames": { "$ref": "#/$defs/id" },
+      "additionalProperties": { "$ref": "#/$defs/object" }
+    },
+    "gaps": {
+      "description": "Fields left out because a reader works them out rather than reads them, with game tables, such as a boxed Pokémon's level, or from other fields, such as a Gen 3 nature.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["object", "field", "needs"],
+        "additionalProperties": false,
+        "properties": {
+          "object": { "$ref": "#/$defs/id" },
+          "field": { "$ref": "#/$defs/id" },
+          "facade": { "type": "string", "minLength": 1 },
+          "needs": { "type": "string", "minLength": 1, "description": "What a reader needs to work it out or change it." },
+          "note": { "type": "string" }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "id": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
+    "object": {
+      "type": "object",
+      "required": ["name", "fields"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "facade": { "type": "string", "minLength": 1, "description": "The PKHeX.Facade class the name comes from." },
+        "fields": {
+          "type": "object",
+          "minProperties": 1,
+          "propertyNames": { "$ref": "#/$defs/id" },
+          "additionalProperties": { "$ref": "#/$defs/field" }
+        },
+        "note": { "type": "string" }
+      }
+    },
+    "field": {
+      "type": "object",
+      "required": ["name"],
+      "additionalProperties": false,
+      "not": { "required": ["object", "list"] },
+      "description": "A value, or with object or list, an object or a list of objects of that id.",
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "facade": { "type": "string", "minLength": 1, "description": "The PKHeX.Facade property the name comes from." },
+        "object": { "$ref": "#/$defs/id" },
+        "list": { "$ref": "#/$defs/id" },
+        "note": { "type": "string" }
+      }
+    }
+  }
+}

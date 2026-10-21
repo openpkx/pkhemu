@@ -1,0 +1,80 @@
+{
+  "step": "text-gen3-gc",
+  "decode": [
+    {
+      "name": "the nickname POOCHYENA, zeros after it",
+      "input": "00 50 00 4F 00 4F 00 43 00 48 00 59 00 45 00 4E 00 41 00 00 00 00",
+      "output": {
+        "text": "POOCHYENA"
+      }
+    },
+    {
+      "name": "the nickname Évoli, zeros after it",
+      "input": "00 C9 00 76 00 6F 00 6C 00 69 00 00 00 00 00 00 00 00 00 00 00 00",
+      "output": {
+        "text": "Évoli"
+      }
+    },
+    {
+      "name": "the nickname ポチエナ, zeros after it",
+      "input": "30 DD 30 C1 30 A8 30 CA 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+      "output": {
+        "text": "ポチエナ"
+      }
+    },
+    {
+      "name": "the nickname ♂♀, zeros after it",
+      "input": "26 42 26 40 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+      "output": {
+        "text": "♂♀"
+      }
+    },
+    {
+      "name": "the nickname A, zeros after it",
+      "input": "00 41 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+      "output": {
+        "text": "A"
+      }
+    },
+    {
+      "name": "text that fills its range with no end",
+      "input": "00 41 00 42",
+      "output": {
+        "text": "AB"
+      }
+    },
+    {
+      "name": "the trainer name in colosseum.raw",
+      "input": "00 4F 00 50 00 45 00 4E 00 50 00 4B 00 58 00 00 00 00 00 00",
+      "output": {
+        "text": "OPENPKX"
+      }
+    }
+  ],
+  "encode": [
+    {
+      "name": "the nickname Ab",
+      "input": {
+        "text": "Ab"
+      },
+      "previous": "00 50 00 4F 00 4F 00 43 00 48 00 59 00 45 00 4E 00 41 00 00 00 00",
+      "output": "00 41 00 62 00 00 00 43 00 48 00 59 00 45 00 4E 00 41 00 00 00 00"
+    },
+    {
+      "name": "the nickname LAYOUTS",
+      "input": {
+        "text": "LAYOUTS"
+      },
+      "previous": "00 41 00 62 00 00 00 43 00 48 00 59 00 45 00 4E 00 41 00 00 00 00",
+      "output": "00 4C 00 41 00 59 00 4F 00 55 00 54 00 53 00 00 00 41 00 00 00 00"
+    },
+    {
+      "name": "the nickname ポチ",
+      "input": {
+        "text": "ポチ"
+      },
+      "previous": "00 4C 00 41 00 59 00 4F 00 55 00 54 00 53 00 00 00 41 00 00 00 00",
+      "output": "30 DD 30 C1 00 00 00 4F 00 55 00 54 00 53 00 00 00 41 00 00 00 00"
+    }
+  ]
+}

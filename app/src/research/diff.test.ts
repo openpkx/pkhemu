@@ -1,8 +1,9 @@
 import { expect, it } from "vitest";
 import { diffReadings, diffSpaces, spaceTitle } from "./diff";
-import type { DecodedSpace, Range } from "./spaces";
+import type { DecodedSpace, Range } from "./layout";
 
 const range = (offset: number, length: number, name: string, repeat?: { count: number; stride: number }): Range => ({
+  id: name.toLowerCase().replace(/\W+/g, "-"),
   offset,
   length,
   name,

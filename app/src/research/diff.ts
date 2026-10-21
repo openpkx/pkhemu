@@ -1,5 +1,5 @@
 import type { EngineReading, ItemReading } from "./host";
-import type { DecodedSpace, Range } from "./spaces";
+import type { DecodedSpace, Range } from "./layout";
 import { bytesText, hex, plural } from "./text";
 
 export type KnownRange = Omit<Range, "count" | "stride">;

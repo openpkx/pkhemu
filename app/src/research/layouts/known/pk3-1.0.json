@@ -1,0 +1,14 @@
+{
+  "$schema": "../schema/layout.schema.json",
+  "schema": "1.0",
+  "target": {
+    "kind": "pokemon",
+    "format": "pk3",
+    "version": "1.0",
+    "uses": [
+      {"format": "emerald", "version": "1.0", "kind": "pk3"},
+      {"format": "emerald", "version": "1.0", "kind": "pk3-party"}
+    ],
+    "detect": {"match": "certain", "sizes": [80, 100], "source": "pkhex:PKM/PK3.cs"}
+  }
+}

@@ -17,7 +17,7 @@ ok() {
 
 layouts="$work/layouts"
 git init -q -b main "$layouts"
-mkdir -p "$layouts/schema" "$layouts/transforms/vectors" "$layouts/known" "$layouts/findings" "$layouts/tools"
+mkdir -p "$layouts/schema" "$layouts/transforms/vectors" "$layouts/known" "$layouts/findings" "$layouts/parsers" "$layouts/tools/parser" "$layouts/tools/steps"
 printf 'CC0\n' >"$layouts/LICENSE"
 printf '# Layouts\n' >"$layouts/README.md"
 printf '{}\n' >"$layouts/schema/layout.schema.json"
@@ -27,6 +27,12 @@ printf '{"target":"frlg"}\n' >"$layouts/known/frlg-1.0.json"
 printf '{"target":"emerald"}\n' >"$layouts/known/emerald-1.0.json"
 touch "$layouts/findings/.gitkeep"
 printf 'console.log()\n' >"$layouts/tools/validate.mjs"
+printf 'export {}\n' >"$layouts/parsers/frlg-1.0.ts"
+printf 'export {}\n' >"$layouts/tools/parser/runtime.ts"
+printf 'export {}\n' >"$layouts/tools/parser/generate.ts"
+printf 'export {}\n' >"$layouts/tools/steps/bytes.ts"
+printf 'export {}\n' >"$layouts/tools/steps/steps.test.ts"
+printf 'export {}\n' >"$layouts/tools/steps/vectors.ts"
 git -C "$layouts" add -A
 git -C "$layouts" -c user.name=t -c user.email=t@t commit -qm first
 first="$(git -C "$layouts" rev-parse HEAD)"
@@ -59,7 +65,10 @@ want="./COMMIT
 ./findings/.gitkeep
 ./known/emerald-1.0.json
 ./known/frlg-1.0.json
+./parsers/frlg-1.0.ts
 ./schema/layout.schema.json
+./tools/parser/runtime.ts
+./tools/steps/bytes.ts
 ./transforms/gen3-sections.md
 ./transforms/vectors/frlg.sav"
 if [ "$(listing)" = "$want" ]; then ok copies-the-layouts; else fail "copies-the-layouts: got $(listing)"; fi

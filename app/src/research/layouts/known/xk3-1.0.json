@@ -1,0 +1,11 @@
+{
+  "$schema": "../schema/layout.schema.json",
+  "schema": "1.0",
+  "target": {
+    "kind": "pokemon",
+    "format": "xk3",
+    "version": "1.0",
+    "uses": [{"format": "memory-card-xd", "version": "1.0", "kind": "xk3"}],
+    "detect": {"match": "certain", "sizes": [196], "source": "pkhex:PKM/XK3.cs"}
+  }
+}

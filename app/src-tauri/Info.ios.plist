@@ -320,6 +320,24 @@
 		</dict>
 		<dict>
 			<key>UTTypeIdentifier</key>
+			<string>public.iso-image</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+				<string>public.disk-image</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Disc image</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>iso</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
 			<string>org.7-zip.7-zip-archive</string>
 			<key>UTTypeConformsTo</key>
 			<array>

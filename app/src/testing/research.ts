@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createEngine, wasmHost, type Engine } from "@pkhex-everywhere/engine";
+import { createEngine, EngineError, wasmHost, type Engine } from "@pkhex-everywhere/engine";
 import { layoutFormat } from "@/research/layout";
 
 export const data = fileURLToPath(new URL("../../../data/", import.meta.url));
@@ -17,10 +17,20 @@ export const files = (dir: string): string[] =>
         .flatMap((name) => (statSync(join(dir, name)).isDirectory() ? files(join(dir, name)) : [join(dir, name)]))
     : [];
 
+async function load(engine: Engine, save: Uint8Array, format: string) {
+  try {
+    await engine.game.load(save);
+  } catch (error) {
+    if (!(error instanceof EngineError && error.candidates?.some(({ id }) => id === format))) return false;
+    return engine.game.load(save, undefined, format).then(() => true, () => false);
+  }
+  return true;
+}
+
 export async function findSave(engine: Engine, format: string) {
   for (const path of files(`${data}saves`).filter((path) => path.endsWith(".sav"))) {
     const save = readFileSync(path);
-    const loaded = await engine.game.load(save).then(() => true, () => false);
+    const loaded = await load(engine, save, format);
     const version = loaded && (await engine.game.version());
     if (version && layoutFormat(version) === format) return { path, save: new Uint8Array(save) };
   }
@@ -38,8 +48,3 @@ const westernText = new Map<number, string>([
 const westernCodes = new Map([...westernText].map(([code, char]) => [char, code]));
 
 export const gen3Text = (text: string) => [...text].map((char) => westernCodes.get(char) ?? -1);
-
-export function readGen3Text(bytes: Uint8Array) {
-  const end = bytes.indexOf(0xff);
-  return [...bytes.subarray(0, end < 0 ? bytes.length : end)].map((code) => westernText.get(code) ?? "?").join("");
-}

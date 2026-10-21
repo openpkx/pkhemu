@@ -1,0 +1,160 @@
+{
+  "step": "gc-memory-card",
+  "decode": [
+    {
+      "name": "the colosseum file on colosseum.raw",
+      "args": {
+        "gameCodes": [
+          "GC6E",
+          "GC6P"
+        ]
+      },
+      "input": {
+        "file": "colosseum.raw"
+      },
+      "output": {
+        "file": "colosseum.raw",
+        "offset": "0xA000",
+        "length": "0x60000"
+      }
+    },
+    {
+      "name": "the colosseum file on gamecube.raw",
+      "args": {
+        "gameCodes": [
+          "GC6E",
+          "GC6P"
+        ]
+      },
+      "input": {
+        "file": "gamecube.raw"
+      },
+      "output": {
+        "file": "gamecube.raw",
+        "offset": "0xA000",
+        "length": "0x60000"
+      }
+    },
+    {
+      "name": "the xd file on xd.raw",
+      "args": {
+        "gameCodes": [
+          "GXXE",
+          "GXXP"
+        ]
+      },
+      "input": {
+        "file": "xd.raw"
+      },
+      "output": {
+        "file": "xd.raw",
+        "offset": "0xA000",
+        "length": "0x56000"
+      }
+    },
+    {
+      "name": "the xd file on gamecube.raw",
+      "args": {
+        "gameCodes": [
+          "GXXE",
+          "GXXP"
+        ]
+      },
+      "input": {
+        "file": "gamecube.raw"
+      },
+      "output": {
+        "file": "gamecube.raw",
+        "offset": "0x6A000",
+        "length": "0x56000"
+      }
+    },
+    {
+      "name": "the box file on box.raw",
+      "args": {
+        "gameCodes": [
+          "GPXE",
+          "GPXP"
+        ]
+      },
+      "input": {
+        "file": "box.raw"
+      },
+      "output": {
+        "file": "box.raw",
+        "offset": "0xA000",
+        "length": "0x76000"
+      }
+    }
+  ],
+  "encode": [
+    {
+      "name": "the colosseum file from colosseum.raw over the one on gamecube.raw",
+      "args": {
+        "gameCodes": [
+          "GC6E",
+          "GC6P"
+        ]
+      },
+      "input": {
+        "file": "colosseum.raw",
+        "offset": "0xA000",
+        "length": "0x60000"
+      },
+      "previous": {
+        "file": "gamecube.raw"
+      },
+      "output": [
+        {
+          "file": "gamecube.raw",
+          "offset": "0x0",
+          "length": "0xA000"
+        },
+        {
+          "file": "colosseum.raw",
+          "offset": "0xA000",
+          "length": "0x60000"
+        },
+        {
+          "file": "gamecube.raw",
+          "offset": "0x6A000",
+          "length": "0x96000"
+        }
+      ]
+    },
+    {
+      "name": "the xd file from xd.raw over the one on gamecube.raw",
+      "args": {
+        "gameCodes": [
+          "GXXE",
+          "GXXP"
+        ]
+      },
+      "input": {
+        "file": "xd.raw",
+        "offset": "0xA000",
+        "length": "0x56000"
+      },
+      "previous": {
+        "file": "gamecube.raw"
+      },
+      "output": [
+        {
+          "file": "gamecube.raw",
+          "offset": "0x0",
+          "length": "0x6A000"
+        },
+        {
+          "file": "xd.raw",
+          "offset": "0xA000",
+          "length": "0x56000"
+        },
+        {
+          "file": "gamecube.raw",
+          "offset": "0xC0000",
+          "length": "0x40000"
+        }
+      ]
+    }
+  ]
+}

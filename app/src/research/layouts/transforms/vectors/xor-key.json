@@ -1,0 +1,58 @@
+{
+  "step": "xor-key",
+  "decode": [
+    {
+      "name": "money 123456 in frlg.sav",
+      "args": {
+        "key": "0x13579BDF"
+      },
+      "input": "9F 79 56 13",
+      "output": "40 E2 01 00"
+    },
+    {
+      "name": "money 123456 in emerald.sav",
+      "args": {
+        "key": "0x13579BDF"
+      },
+      "input": "9F 79 56 13",
+      "output": "40 E2 01 00"
+    },
+    {
+      "name": "5 Poké Balls in frlg.sav, a 16-bit quantity",
+      "args": {
+        "key": "0x9BDF"
+      },
+      "input": "DA 9B",
+      "output": "05 00"
+    }
+  ],
+  "encode": [
+    {
+      "name": "money 654321 in frlg.sav",
+      "args": {
+        "key": "0x13579BDF"
+      },
+      "input": "F1 FB 09 00",
+      "previous": "9F 79 56 13",
+      "output": "2E 60 5E 13"
+    },
+    {
+      "name": "money 654321 in emerald.sav",
+      "args": {
+        "key": "0x13579BDF"
+      },
+      "input": "F1 FB 09 00",
+      "previous": "9F 79 56 13",
+      "output": "2E 60 5E 13"
+    },
+    {
+      "name": "5 Poké Balls in frlg.sav, a 16-bit quantity",
+      "args": {
+        "key": "0x9BDF"
+      },
+      "input": "05 00",
+      "previous": "00 00",
+      "output": "DA 9B"
+    }
+  ]
+}

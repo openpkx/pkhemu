@@ -2,13 +2,16 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://github.com/openpkx/layouts/schema/layout.schema.json",
   "title": "Layout",
-  "description": "What the bytes of one save format mean, for one version of a game.",
+  "description": "What the bytes of a save or Pokémon file mean, for one format and version.",
   "type": "object",
-  "required": ["target"],
+  "required": ["schema", "target"],
   "additionalProperties": false,
-  "anyOf": [{ "required": ["spaces"] }, { "required": ["values"] }, { "required": ["findings"] }],
   "properties": {
     "$schema": { "type": "string" },
+    "schema": {
+      "const": "1.0",
+      "description": "The version of this schema the layout follows. A reader skips layouts newer than it understands."
+    },
     "target": { "$ref": "#/$defs/target" },
     "note": { "type": "string" },
     "kinds": {
@@ -22,6 +25,13 @@
       "type": "array",
       "items": { "$ref": "#/$defs/space" }
     },
+    "valueFiles": {
+      "description": "The files in values/ that name this layout's values, by file name without .json, base first. A later file's value replaces an earlier one's with the same domain and index, and the layout's own values replace them all.",
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": { "$ref": "#/$defs/id" }
+    },
     "values": {
       "description": "Names for indexes in a domain, wherever the index is stored.",
       "type": "array",
@@ -31,7 +41,22 @@
       "description": "What players found with Research, as they exported it.",
       "type": "array",
       "items": { "$ref": "#/$defs/finding" }
-    }
+    },
+    "container": {
+      "description": "The transforms that turn the file into the save its spaces read, in order, such as finding a game's file on a memory card and then the newest copy of its save. A writer encodes back through them in reverse. A space with neither a transform nor a source is the whole save.",
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["transform"],
+        "additionalProperties": false,
+        "properties": {
+          "transform": { "$ref": "#/$defs/containerTransform" },
+          "args": { "type": "object", "description": "The transform's arguments, as its doc lists them." }
+        }
+      }
+    },
+    "model": { "$ref": "#/$defs/model" }
   },
   "$defs": {
     "id": { "type": "string", "pattern": "^[a-z0-9]+(-[a-z0-9]+)*$" },
@@ -48,27 +73,166 @@
       "type": "string",
       "pattern": "^[0-9A-F]{2}( [0-9A-F]{2})*$"
     },
+    "source": {
+      "description": "Where something comes from: pkhex:<file in PKHeX.Core>, engine:<file in PKHeX Everywhere>, dpe:<file in the Dynamic Pokémon Expansion's Unbound branch> or finding:<findings file>. Join several with \" and \".",
+      "type": "string",
+      "pattern": "^(pkhex|engine|dpe|finding):\\S.*$"
+    },
     "confidence": {
       "description": "known: a source or a second compare backs it. guess: one observation or a reading of code that isn't certain.",
       "enum": ["known", "guess"]
     },
+    "domain": {
+      "description": "What a number counts, in the game's own numbering, so it can be named from value files.",
+      "enum": ["species", "item", "move", "ability", "ball", "location"]
+    },
     "type": {
-      "description": "How to read one element. Numbers say their byte order, and packed fields list their bits. flags is an array of one-bit flags, lowest bit first. text-gen3 is the Gen 3 character set, ended by 0xFF.",
+      "description": "How to read one element. Numbers say their byte order, and packed fields list their bits. f32be and f64be are IEEE 754 floating-point numbers. flags is an array of one-bit flags, lowest bit first. Text types name their generation and character set, and each is a step in transforms/: text-gen3-intl is the table the English, French, German, Italian and Spanish games share, text-gen3-jpn the Japanese one, and text-gen3-gc the UTF-16 text of Colosseum and XD.",
       "enum": [
-        "u8", "u16le", "u32le", "u64le",
-        "i8", "i16le", "i32le",
-        "u16be", "u32be",
-        "flags", "bytes", "text-gen3"
+        "u8", "u16le", "u32le", "u64le", "i8", "i16le", "i32le", "u16be", "u32be", "i32be", "f32be", "f64be", "flags",
+        "bytes", "text-gen3-intl", "text-gen3-jpn", "text-gen3-gc"
       ]
     },
     "transform": {
-      "description": "A decoder described in transforms/<name>.md.",
-      "enum": ["gen3-sections", "pk3-crypt"]
+      "description": "A decoder described in transforms/<name>.md. gen3-sections reads from the save gen3-slots decodes, and box-blocks from the layout's container. swishcrypto-block is designed for the Switch games and not built yet.",
+      "enum": ["gen3-sections", "box-blocks", "pk3-crypt", "cfru-box", "swishcrypto-block"]
+    },
+    "containerTransform": {
+      "description": "A transform described in transforms/<name>.md that decodes a whole file or the save inside it.",
+      "enum": ["gc-memory-card", "colosseum-slots", "xd-slots", "box-slots"]
+    },
+    "checksumStep": {
+      "description": "A checksum described in transforms/<name>.md.",
+      "enum": ["sum16le", "sum32le-fold16", "sha1", "colosseum-header", "xd-header", "xd-body", "box-sum"]
+    },
+    "detectStep": {
+      "description": "A detection test described in transforms/<name>.md, for what byte checks can't say. swishcrypto-hash is designed for the Switch games and not built yet.",
+      "enum": ["gen3-signature", "frlg-key-mismatch", "gc-memory-card-file", "swishcrypto-hash"]
     },
     "spaceName": {
-      "description": "A space's name, or a pattern of names: \"section:1\", \"party:{1..6}\", \"box:{1..14}:{1..30}\".",
+      "description": "A space's name, or a pattern of names: \"section:1\", \"party:{1..6}\", \"box:{1..14}:{1..30}\", \"block:my-status\".",
       "type": "string",
-      "pattern": "^[a-z0-9-]+(:([0-9]+|\\{[0-9]+\\.\\.[0-9]+\\}))*$"
+      "pattern": "^[a-z0-9-]+(:([a-z0-9-]+|\\{[0-9]+\\.\\.[0-9]+\\}))*$"
+    },
+    "numbers": {
+      "oneOf": [
+        { "$ref": "#/$defs/uint" },
+        { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/uint" } }
+      ]
+    },
+    "check": {
+      "description": "A value read from a space. equals passes when it's one of the numbers, not when it's none of them, and zero when every byte is 0 (true) or any isn't (false). any passes when one of its checks does.",
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["any"],
+          "additionalProperties": false,
+          "properties": {
+            "any": {
+              "type": "array",
+              "minItems": 2,
+              "items": { "$ref": "#/$defs/check" }
+            }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["space", "offset", "type"],
+          "additionalProperties": false,
+          "oneOf": [
+            { "required": ["equals"] },
+            { "required": ["not"] },
+            { "required": ["zero"] }
+          ],
+          "properties": {
+            "space": { "$ref": "#/$defs/spaceName" },
+            "offset": { "$ref": "#/$defs/uint" },
+            "length": { "$ref": "#/$defs/uint" },
+            "type": { "$ref": "#/$defs/type" },
+            "equals": { "$ref": "#/$defs/numbers" },
+            "not": { "$ref": "#/$defs/numbers" },
+            "zero": { "type": "boolean" }
+          }
+        }
+      ]
+    },
+    "detect": {
+      "type": "object",
+      "description": "What tells a file in this format from others. Every part must pass. A reader runs every layout's detect: one certain match and nothing else names the format, and otherwise every match is a candidate to choose from.",
+      "required": ["match", "source"],
+      "additionalProperties": false,
+      "anyOf": [
+        { "required": ["sizes"] },
+        { "required": ["magic"] },
+        { "required": ["steps"] },
+        { "required": ["checks"] }
+      ],
+      "properties": {
+        "match": {
+          "enum": ["certain", "possible"],
+          "description": "possible: a file that passes might still be in another format, as a hack that keeps its base game's signature."
+        },
+        "sizes": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/uint" },
+          "description": "The file sizes the format has, in bytes. A reader removes any footer an emulator appends, such as a clock, before it checks them."
+        },
+        "magic": {
+          "type": "array",
+          "minItems": 1,
+          "description": "Bytes at fixed offsets in the file.",
+          "items": {
+            "type": "object",
+            "required": ["offset", "bytes"],
+            "additionalProperties": false,
+            "dependentRequired": {
+              "count": ["stride"],
+              "stride": ["count"]
+            },
+            "properties": {
+              "offset": { "$ref": "#/$defs/uint" },
+              "bytes": { "$ref": "#/$defs/hexBytes" },
+              "count": { "$ref": "#/$defs/uint" },
+              "stride": { "$ref": "#/$defs/uint" }
+            }
+          }
+        },
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": ["step"],
+            "additionalProperties": false,
+            "properties": {
+              "step": { "$ref": "#/$defs/detectStep" },
+              "args": {
+                "type": "object",
+                "description": "The step's arguments, as its doc lists them."
+              }
+            }
+          }
+        },
+        "checks": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/check" }
+        },
+        "source": { "$ref": "#/$defs/source" },
+        "note": { "type": "string" }
+      }
+    },
+    "layoutRef": {
+      "type": "object",
+      "required": ["format", "version", "kind"],
+      "additionalProperties": false,
+      "description": "A kind in another layout, found by its target's format and version.",
+      "properties": {
+        "format": { "$ref": "#/$defs/id" },
+        "version": { "type": "string", "minLength": 1 },
+        "kind": { "$ref": "#/$defs/id" }
+      }
     },
     "target": {
       "oneOf": [
@@ -89,11 +253,34 @@
                 "required": ["sha1", "name"],
                 "additionalProperties": false,
                 "properties": {
-                  "sha1": { "$ref": "#/$defs/sha1" },
-                  "name": { "type": "string", "minLength": 1 }
+                  "sha1": {
+                    "$ref": "#/$defs/sha1"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1
+                  }
                 }
               }
-            }
+            },
+            "detect": { "$ref": "#/$defs/detect" }
+          }
+        },
+        {
+          "type": "object",
+          "description": "A file holding one Pokémon, such as a .pk3, read with the kinds a save's slots use. The file's length picks the kind of the same length.",
+          "required": ["kind", "format", "version", "uses"],
+          "additionalProperties": false,
+          "properties": {
+            "kind": { "const": "pokemon" },
+            "format": { "$ref": "#/$defs/id" },
+            "version": { "type": "string", "minLength": 1 },
+            "uses": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "$ref": "#/$defs/layoutRef" }
+            },
+            "detect": { "$ref": "#/$defs/detect" }
           }
         },
         {
@@ -111,36 +298,71 @@
     },
     "range": {
       "type": "object",
-      "required": ["offset", "length", "type", "name", "confidence", "source"],
+      "required": ["id", "offset", "length", "type", "name", "confidence", "source"],
       "additionalProperties": false,
       "dependentRequired": { "count": ["stride"], "stride": ["count"] },
       "properties": {
+        "id": {
+          "$ref": "#/$defs/id",
+          "description": "A name for code, unique in the range's space or kind."
+        },
         "offset": { "$ref": "#/$defs/uint" },
         "length": { "$ref": "#/$defs/uint", "description": "Bytes in one element." },
         "type": { "$ref": "#/$defs/type" },
         "name": { "type": "string", "minLength": 1 },
         "confidence": { "$ref": "#/$defs/confidence" },
-        "source": {
-          "description": "Where the range comes from: pkhex:<file in PKHeX.Core>, engine:<file in PKHeX Everywhere> or finding:<findings file>. Join several with \" and \".",
-          "type": "string",
-          "pattern": "^(pkhex|engine|finding):\\S.*$"
+        "source": { "$ref": "#/$defs/source" },
+        "count": {
+          "$ref": "#/$defs/uint",
+          "description": "How many elements repeat, at least 1."
         },
-        "count": { "$ref": "#/$defs/uint", "description": "How many elements repeat, at least 1." },
-        "stride": { "$ref": "#/$defs/uint", "description": "Bytes from one element's start to the next." },
+        "stride": {
+          "$ref": "#/$defs/uint",
+          "description": "Bytes from one element's start to the next."
+        },
         "bits": {
           "description": "The fields packed into a number, counting bit 0 as its lowest bit.",
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["bit", "width", "name"],
+            "required": ["id", "bit", "width", "name"],
             "additionalProperties": false,
             "properties": {
+              "id": {
+                "$ref": "#/$defs/id",
+                "description": "A name for code, unique in its range."
+              },
               "bit": { "type": "integer", "minimum": 0 },
-              "width": { "type": "integer", "minimum": 1 },
-              "name": { "type": "string", "minLength": 1 }
+              "width": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "domain": { "$ref": "#/$defs/domain" }
             }
           }
         },
+        "domain": { "$ref": "#/$defs/domain" },
+        "note": { "type": "string" }
+      }
+    },
+    "checksum": {
+      "type": "object",
+      "required": ["step", "start", "end", "source"],
+      "additionalProperties": false,
+      "description": "A checksum over bytes start to end of the space, exclusive, that a writer computes again after a change. A writer computes a space's checksums in the order listed, and each reads its own range and the ranges of those after it as zero.",
+      "properties": {
+        "step": { "$ref": "#/$defs/checksumStep" },
+        "start": { "$ref": "#/$defs/uint" },
+        "end": { "$ref": "#/$defs/uint" },
+        "range": {
+          "$ref": "#/$defs/id",
+          "description": "The id of the range that holds the checksum. Without it, the space's transform keeps it, as gen3-sections does in each sector's footer."
+        },
+        "source": { "$ref": "#/$defs/source" },
         "note": { "type": "string" }
       }
     },
@@ -151,6 +373,7 @@
       "properties": {
         "length": { "$ref": "#/$defs/uint" },
         "ranges": { "type": "array", "items": { "$ref": "#/$defs/range" } },
+        "checksums": { "type": "array", "items": { "$ref": "#/$defs/checksum" } },
         "note": { "type": "string" }
       }
     },
@@ -162,9 +385,15 @@
       "dependentRequired": { "args": ["transform"] },
       "properties": {
         "name": { "$ref": "#/$defs/spaceName" },
-        "length": { "$ref": "#/$defs/uint", "description": "Bytes in the space, or in each space a pattern names." },
+        "length": {
+          "$ref": "#/$defs/uint",
+          "description": "Bytes in the space, or in each space a pattern names."
+        },
         "transform": { "$ref": "#/$defs/transform" },
-        "args": { "type": "object", "description": "The transform's arguments, as its doc lists them." },
+        "args": {
+          "type": "object",
+          "description": "The transform's arguments, as its doc lists them. swishcrypto-block takes the block's key and type, such as {\"key\": \"0x0D66012C\", \"type\": \"object\"}."
+        },
         "source": {
           "description": "Where a space's bytes sit in other spaces. The regions are joined into one stream, and the space a pattern names at index i starts at offset + i * stride, counting i from 0 with the first placeholder outermost.",
           "type": "object",
@@ -179,32 +408,204 @@
                 "required": ["space", "start", "end"],
                 "additionalProperties": false,
                 "properties": {
-                  "space": { "$ref": "#/$defs/spaceName" },
-                  "start": { "$ref": "#/$defs/uint" },
-                  "end": { "$ref": "#/$defs/uint", "description": "Exclusive." }
+                  "space": {
+                    "$ref": "#/$defs/spaceName"
+                  },
+                  "start": {
+                    "$ref": "#/$defs/uint"
+                  },
+                  "end": {
+                    "$ref": "#/$defs/uint",
+                    "description": "Exclusive."
+                  }
                 }
               }
             },
             "offset": { "$ref": "#/$defs/uint" },
-            "stride": { "$ref": "#/$defs/uint" }
+            "stride": { "$ref": "#/$defs/uint" },
+            "length": {
+              "$ref": "#/$defs/uint",
+              "description": "Bytes each space takes in the stream, where its transform stores it in fewer or more bytes than it decodes to. Without it, the space's length."
+            }
           }
         },
         "kind": { "$ref": "#/$defs/id" },
         "ranges": { "type": "array", "items": { "$ref": "#/$defs/range" } },
+        "checksums": { "type": "array", "items": { "$ref": "#/$defs/checksum" } },
         "note": { "type": "string" }
       }
+    },
+    "cross": {
+      "description": "The value's id in every format: the National Pokédex number and form for species, the main-series number for moves and abilities, PKHeX's item number for items and PKHeX's ball number for balls. Left out where there's none, such as a hack's own species.",
+      "type": "object",
+      "required": ["id"],
+      "additionalProperties": false,
+      "properties": {
+        "id": { "type": "integer", "minimum": 1 },
+        "form": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "model": {
+      "type": "object",
+      "description": "Objects, lists and fields over the spaces, named from vocabulary.json, such as save.trainer.money. root is a save's root object.",
+      "required": ["root"],
+      "additionalProperties": false,
+      "properties": {
+        "root": { "$ref": "#/$defs/modelObject" },
+        "objects": {
+          "description": "Objects that fields use by id, such as a Pokémon that both the party and the boxes hold.",
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/id" },
+          "additionalProperties": { "$ref": "#/$defs/modelObject" }
+        },
+        "note": { "type": "string" }
+      }
+    },
+    "modelObject": {
+      "type": "object",
+      "required": ["fields"],
+      "additionalProperties": false,
+      "properties": {
+        "extends": {
+          "$ref": "#/$defs/id",
+          "description": "An object in objects whose fields this one has too, such as a party Pokémon extending a boxed one. Its own fields replace those with the same name."
+        },
+        "fields": {
+          "type": "object",
+          "propertyNames": { "$ref": "#/$defs/id" },
+          "additionalProperties": { "$ref": "#/$defs/modelField" }
+        },
+        "note": { "type": "string" }
+      }
+    },
+    "modelRef": {
+      "description": "An object in objects, by id, or one written in place.",
+      "oneOf": [{ "$ref": "#/$defs/id" }, { "$ref": "#/$defs/modelObject" }]
+    },
+    "extra": {
+      "type": "boolean",
+      "const": true,
+      "description": "The format's own field, with a name outside vocabulary.json. Everything under it is the format's own too."
+    },
+    "element": {
+      "description": "Which element of a range with a count: a number from 0, or each for the element at the position of the list it's in. In a flags range, the index of one flag.",
+      "oneOf": [{ "$ref": "#/$defs/uint" }, { "const": "each" }]
+    },
+    "modelRead": {
+      "type": "object",
+      "description": "A range, by id, in space. Without space, the space of the list element it's in. Without range, the element of the range a list is over, so a bit id is enough there.",
+      "additionalProperties": false,
+      "anyOf": [{ "required": ["range"] }, { "required": ["bit"] }],
+      "properties": {
+        "space": { "$ref": "#/$defs/spaceName" },
+        "range": { "$ref": "#/$defs/id" },
+        "bit": { "$ref": "#/$defs/id", "description": "A bit field's id, unique in its range." },
+        "element": { "$ref": "#/$defs/element" }
+      }
+    },
+    "modelStep": {
+      "description": "A step that works a value out from ranges, described in transforms/<name>.md.",
+      "enum": ["xor-key"]
+    },
+    "modelField": {
+      "oneOf": [
+        {
+          "type": "object",
+          "description": "A value read from a range.",
+          "additionalProperties": false,
+          "anyOf": [{ "required": ["range"] }, { "required": ["bit"] }],
+          "properties": {
+            "space": { "$ref": "#/$defs/spaceName" },
+            "range": { "$ref": "#/$defs/id" },
+            "bit": { "$ref": "#/$defs/id" },
+            "element": { "$ref": "#/$defs/element" },
+            "extra": { "$ref": "#/$defs/extra" },
+            "note": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "description": "A value a named step works out from ranges, such as Gen 3 money, which xor-key reads with the security key.",
+          "required": ["step", "args"],
+          "additionalProperties": false,
+          "properties": {
+            "step": { "$ref": "#/$defs/modelStep" },
+            "args": {
+              "type": "object",
+              "description": "The step's inputs, as its doc lists them.",
+              "propertyNames": { "$ref": "#/$defs/id" },
+              "additionalProperties": { "$ref": "#/$defs/modelRead" }
+            },
+            "extra": { "$ref": "#/$defs/extra" },
+            "note": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "description": "An object.",
+          "required": ["object"],
+          "additionalProperties": false,
+          "properties": {
+            "object": { "$ref": "#/$defs/modelRef" },
+            "extra": { "$ref": "#/$defs/extra" },
+            "note": { "type": "string" }
+          }
+        },
+        {
+          "type": "object",
+          "description": "A list of objects: one per space a pattern names, or one per element of a range with a count. A pattern can stop short of a space's name, as box:{1..14} does for box:{1..14}:{1..30}, and a list inside it starts its pattern with a colon, as :{1..30}.",
+          "required": ["list"],
+          "additionalProperties": false,
+          "oneOf": [{ "required": ["spaces"] }, { "required": ["range"] }],
+          "dependentRequired": { "space": ["range"], "length": ["spaces"] },
+          "properties": {
+            "list": { "$ref": "#/$defs/modelRef" },
+            "spaces": {
+              "type": "string",
+              "pattern": "^:?([a-z0-9-]+|\\{[0-9]+\\.\\.[0-9]+\\})(:([a-z0-9-]+|\\{[0-9]+\\.\\.[0-9]+\\}))*$"
+            },
+            "range": { "$ref": "#/$defs/id" },
+            "space": { "$ref": "#/$defs/spaceName" },
+            "length": {
+              "$ref": "#/$defs/modelRead",
+              "description": "The range that holds how many elements are in use, such as the party count. The rest are empty."
+            },
+            "extra": { "$ref": "#/$defs/extra" },
+            "note": { "type": "string" }
+          }
+        }
+      ]
     },
     "value": {
       "type": "object",
       "required": ["domain", "index", "name", "confidence", "source"],
       "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "properties": { "domain": { "const": "species" } }, "required": ["cross"] },
+          "then": { "properties": { "cross": { "type": "object", "required": ["form"] } } }
+        },
+        {
+          "if": { "properties": { "domain": { "not": { "const": "species" } } } },
+          "then": { "properties": { "cross": { "type": "object", "not": { "required": ["form"] } } } }
+        },
+        {
+          "if": { "properties": { "domain": { "const": "location" } } },
+          "then": { "not": { "required": ["cross"] } }
+        }
+      ],
       "properties": {
-        "domain": { "$ref": "#/$defs/id", "description": "What the index counts, such as item or species, in the game's own numbering." },
+        "domain": { "$ref": "#/$defs/domain" },
         "index": { "type": "integer", "minimum": 0 },
         "name": { "type": "string", "minLength": 1 },
+        "cross": { "$ref": "#/$defs/cross" },
         "confidence": { "$ref": "#/$defs/confidence" },
-        "source": { "type": "string", "pattern": "^(pkhex|engine|finding):\\S.*$" },
-        "pocket": { "type": "string", "minLength": 1, "description": "For items, the bag pocket the game puts it in." },
+        "source": { "$ref": "#/$defs/source" },
+        "pocket": {
+          "type": "string",
+          "minLength": 1,
+          "description": "For items, the bag pocket the game puts it in."
+        },
         "note": { "type": "string" }
       }
     },
@@ -214,8 +615,15 @@
       "additionalProperties": false,
       "oneOf": [{ "required": ["range"] }, { "required": ["value"] }],
       "properties": {
-        "rom": { "$ref": "#/$defs/sha1", "description": "The SHA-1 of the ROM the finding came from." },
-        "app": { "type": "string", "minLength": 1, "description": "The app and version that found it, such as \"pkh-emu 0.13.0\"." },
+        "rom": {
+          "$ref": "#/$defs/sha1",
+          "description": "The SHA-1 of the ROM the finding came from."
+        },
+        "app": {
+          "type": "string",
+          "minLength": 1,
+          "description": "The app and version that found it, such as \"pkh-emu 0.13.0\"."
+        },
         "range": {
           "type": "object",
           "required": ["space", "offset", "length", "type", "name", "confidence", "before", "after"],
@@ -223,12 +631,24 @@
           "properties": {
             "space": { "$ref": "#/$defs/spaceName" },
             "offset": { "$ref": "#/$defs/uint" },
-            "length": { "type": "integer", "minimum": 1, "maximum": 256 },
+            "length": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 256
+            },
             "type": { "$ref": "#/$defs/type" },
             "name": { "type": "string", "minLength": 1 },
             "confidence": { "$ref": "#/$defs/confidence" },
-            "before": { "type": "string", "$ref": "#/$defs/hexBytes", "maxLength": 767 },
-            "after": { "type": "string", "$ref": "#/$defs/hexBytes", "maxLength": 767 },
+            "before": {
+              "type": "string",
+              "$ref": "#/$defs/hexBytes",
+              "maxLength": 767
+            },
+            "after": {
+              "type": "string",
+              "$ref": "#/$defs/hexBytes",
+              "maxLength": 767
+            },
             "note": { "type": "string" }
           }
         },
@@ -237,7 +657,7 @@
           "required": ["domain", "index", "name", "confidence"],
           "additionalProperties": false,
           "properties": {
-            "domain": { "$ref": "#/$defs/id" },
+            "domain": { "$ref": "#/$defs/domain" },
             "index": { "type": "integer", "minimum": 0 },
             "name": { "type": "string", "minLength": 1 },
             "confidence": { "$ref": "#/$defs/confidence" },
@@ -248,5 +668,16 @@
         "note": { "type": "string" }
       }
     }
-  }
+  },
+  "if": {
+    "properties": {
+      "target": {
+        "type": "object",
+        "properties": { "kind": { "const": "pokemon" } },
+        "required": ["kind"]
+      }
+    }
+  },
+  "then": { "not": { "anyOf": [{ "required": ["spaces"] }, { "required": ["kinds"] }] } },
+  "else": { "anyOf": [{ "required": ["spaces"] }, { "required": ["values"] }, { "required": ["findings"] }] }
 }

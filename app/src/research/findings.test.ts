@@ -39,6 +39,7 @@ it("writes a layout file the schema accepts", () => {
 it("writes each finding with its ROM's SHA-1 and the app's version, and nothing else", () => {
   expect(JSON.parse(findingsFile(target, [range, value]))).toEqual({
     $schema: "../schema/layout.schema.json",
+    schema: "1.0",
     target: { kind: "save", format: "unbound", version: "2.1" },
     findings: [
       {
@@ -95,7 +96,7 @@ const section = space(
   "section:4",
   new Uint8Array(0x100),
   new Uint8Array(0x100),
-  [{ offset: 0x20, length: 4, type: "u32le", name: "Money", confidence: "known", source: "pkhex:SAV3.cs" }],
+  [{ id: "money", offset: 0x20, length: 4, type: "u32le", name: "Money", confidence: "known", source: "pkhex:SAV3.cs" }],
 );
 
 it("blocks a range that overlaps a known range, and names it", () => {

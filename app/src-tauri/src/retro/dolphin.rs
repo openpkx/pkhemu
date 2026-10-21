@@ -1,3 +1,4 @@
+use std::io::{Read, Seek};
 use std::path::Path;
 
 pub fn install_sys(dir: &Path, zipped: &[u8]) -> Result<(), String> {
@@ -24,6 +25,27 @@ pub fn use_card(dir: &Path, card: &Path) -> Result<(), String> {
     std::fs::create_dir_all(&config).map_err(failed)?;
     let ini = format!("[Core]\nSlotA = 1\nSlotB = 255\nMemcardAPath = {}\n", card.display());
     std::fs::write(config.join("Dolphin.ini"), ini).map_err(failed)
+}
+
+// Dolphin formats a new card at 2,043 blocks unless the game's own settings ask for fewer, and it ignores the size in
+// Dolphin.ini. 2 makes 251 blocks, 2 MB. A card that exists keeps the size of its file.
+pub fn use_small_cards(dir: &Path, disc: impl Read + Seek) -> Result<(), String> {
+    let Ok(Some(header)) = crate::game_cube::header(disc) else { return Ok(()) };
+    let id = &header[..6];
+    if !id.iter().all(u8::is_ascii_alphanumeric) || japanese(&header) {
+        return Ok(());
+    }
+    let failed = |e: std::io::Error| format!("Dolphin's game settings: {e}");
+    let settings = dir.join("User/GameSettings");
+    std::fs::create_dir_all(&settings).map_err(failed)?;
+    let ini = settings.join(format!("{}.ini", String::from_utf8_lossy(id)));
+    std::fs::write(ini, "[Core]\nMemoryCardSize = 2\n").map_err(failed)
+}
+
+// Dolphin formats a card in Shift-JIS only when its name ends in .JAP.raw, and a 251-block card's name ends in
+// .JAP.251.raw, so Japanese discs keep 2,043 blocks. The country codes are the ones Dolphin counts as NTSC-J or NTSC-K.
+fn japanese(header: &[u8]) -> bool {
+    matches!(header[3], b'J' | b'W' | b'K' | b'Q' | b'T') || (header[3] == b'E' && header[7] >= 0x30)
 }
 
 #[cfg(test)]
@@ -83,6 +105,35 @@ mod tests {
         let ini = std::fs::read_to_string(dir.join("User/Config/Dolphin.ini")).unwrap();
         let card = dir.join("User/GC/card.raw");
         assert_eq!(ini, format!("[Core]\nSlotA = 1\nSlotB = 255\nMemcardAPath = {}\n", card.display()));
+    }
+
+    #[test]
+    fn formats_new_cards_for_the_disc_at_251_blocks() {
+        let dir = fresh("pkh-emu-dolphin-card-size");
+        let disc = crate::game_cube::tests::iso(b"GC6P01", 0);
+
+        use_small_cards(&dir, std::io::Cursor::new(disc)).unwrap();
+
+        let ini = std::fs::read_to_string(dir.join("User/GameSettings/GC6P01.ini")).unwrap();
+        assert_eq!(ini, "[Core]\nMemoryCardSize = 2\n");
+    }
+
+    #[test]
+    fn leaves_the_card_size_alone_for_a_japanese_disc() {
+        let dir = fresh("pkh-emu-dolphin-card-size-japan");
+
+        use_small_cards(&dir, std::io::Cursor::new(crate::game_cube::tests::iso(b"GC6J01", 0))).unwrap();
+
+        assert!(!dir.join("User/GameSettings").exists());
+    }
+
+    #[test]
+    fn leaves_the_card_size_alone_for_a_file_that_isnt_a_disc() {
+        let dir = fresh("pkh-emu-dolphin-card-size-none");
+
+        use_small_cards(&dir, std::io::Cursor::new(b"not a disc".to_vec())).unwrap();
+
+        assert!(!dir.join("User/GameSettings").exists());
     }
 
     #[test]

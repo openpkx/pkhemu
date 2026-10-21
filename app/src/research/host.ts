@@ -5,6 +5,7 @@ export type ResearchContext = {
   build: string | null;
   format: { id: string | null; name: string };
   romSha1: string | null;
+  romHack: boolean;
   app: string;
 };
 

@@ -11,7 +11,7 @@ export function useGame(host: ResearchHost) {
     let live = true;
     Promise.all([host.context(), knownLayouts()]).then(
       ([context, layouts]) => {
-        const picked = context.format.id ? pickLayout(layouts, { format: context.format.id, romSha1: context.romSha1 ?? "" }) : undefined;
+        const picked = context.format.id ? pickLayout(layouts, { format: context.format.id, romSha1: context.romSha1 ?? "", romHack: context.romHack }) : undefined;
         if (live) setGame({ context, picked });
       },
       () => live && setGame(null),

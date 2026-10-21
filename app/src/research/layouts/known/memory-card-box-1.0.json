@@ -1,0 +1,457 @@
+{
+  "$schema": "../schema/layout.schema.json",
+  "schema": "1.0",
+  "valueFiles": ["gen3"],
+  "target": {
+    "kind": "save",
+    "format": "memory-card-box",
+    "version": "1.0",
+    "roms": [
+      {"sha1": "b53ed6fb99dff0d5f0e9fa0103cf1113650817b4", "name": "Pokemon Box - Ruby & Sapphire (USA) (Rev 1)"},
+      {"sha1": "c8ed3799bb1dad3173a02ed08e13918fed164e9f", "name": "Pokemon Box - Ruby & Sapphire (Europe) (En,Fr,De,Es,It) (Rev 1)"}
+    ],
+    "detect": {
+      "match": "certain",
+      "sizes": ["0x80000", "0x100000", "0x200000", "0x400000", "0x800000", "0x1000000", "0x2000000", "0x4000000"],
+      "steps": [{"step": "gc-memory-card-file", "args": {"gameCodes": ["GPXE", "GPXP"]}}],
+      "source": "pkhex:Saves/MemoryCard/SAV3GCMemoryCard.cs and pkhex:Saves/Util/SaveHandlerGCI.cs",
+      "note": "A card can hold Colosseum, XD and Box saves at once, and each of their layouts matches it. The Japanese release, GPXJ, writes Japanese text and isn't listed yet."
+    }
+  },
+  "note": "A GameCube memory card holding a Pokémon Box Ruby & Sapphire save. The game keeps two copies of its 23 blocks and writes each new save over the older. Box has no trainer, party or bag: only the 25 boxes of its PC.",
+  "container": [{"transform": "gc-memory-card", "args": {"gameCodes": ["GPXE", "GPXP"]}}, {"transform": "box-slots"}],
+  "kinds": {
+    "box-block": {
+      "length": "0x2000",
+      "checksums": [{"step": "box-sum", "start": 4, "end": "0x1FFC", "range": "checksum", "source": "pkhex:Saves/Blocks/BlockInfoRSBOX.cs"}],
+      "note": "One of the 23 blocks of a save copy. Its data runs from 0x000C to 0x1FFB.",
+      "ranges": [
+        {"id": "checksum", "offset": "0x0000", "length": 4, "type": "u32be", "name": "Checksum of bytes 0x0004 to 0x1FFB", "confidence": "known", "source": "pkhex:Saves/Blocks/BlockInfoRSBOX.cs"},
+        {"id": "block-id", "offset": "0x0004", "length": 4, "type": "u32be", "name": "Block ID, 0 to 22", "confidence": "known", "source": "pkhex:Saves/Blocks/BlockInfoRSBOX.cs"},
+        {"id": "save-counter", "offset": "0x0008", "length": 4, "type": "i32be", "name": "Save counter", "confidence": "known", "source": "pkhex:Saves/Blocks/BlockInfoRSBOX.cs"}
+      ]
+    },
+    "pk3": {
+      "length": 80,
+      "checksums": [{"step": "sum16le", "start": "0x20", "end": "0x50", "range": "checksum", "source": "pkhex:PKM/PK3.cs"}],
+      "note": "A stored Pokémon after pk3-crypt, its substructures in the order Growth, Attacks, EVs and Condition, Miscellaneous.",
+      "ranges": [
+        {"id": "pid", "offset": "0x00", "length": 4, "type": "u32le", "name": "PID", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "original-trainer-id", "offset": "0x04", "length": 4, "type": "u32le", "name": "Original trainer ID (TID low, SID high)", "confidence": "known", "source": "pkhex:PKM/PK3.cs", "bits": [{"id": "tid", "bit": 0, "width": 16, "name": "Trainer ID"}, {"id": "sid", "bit": 16, "width": 16, "name": "Secret ID"}]},
+        {"id": "nickname", "offset": "0x08", "length": 10, "type": "text-gen3-intl", "name": "Nickname", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "language", "offset": "0x12", "length": 1, "type": "u8", "name": "Language", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "egg-and-species-flags", "offset": "0x13", "length": 1, "type": "u8", "name": "Egg and species flags", "confidence": "known", "source": "pkhex:PKM/PK3.cs", "bits": [{"id": "bad-egg", "bit": 0, "width": 1, "name": "Bad egg"}, {"id": "has-species", "bit": 1, "width": 1, "name": "Has species"}, {"id": "is-egg", "bit": 2, "width": 1, "name": "Is egg"}]},
+        {"id": "original-trainer-name", "offset": "0x14", "length": 7, "type": "text-gen3-intl", "name": "Original trainer name", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "markings", "offset": "0x1B", "length": 1, "type": "u8", "name": "Markings", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "checksum", "offset": "0x1C", "length": 2, "type": "u16le", "name": "Checksum of bytes 0x20 to 0x4F", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "sanity", "offset": "0x1E", "length": 2, "type": "u16le", "name": "Sanity (unused)", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "species", "offset": "0x20", "length": 2, "type": "u16le", "name": "Species (game index)", "domain": "species", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "held-item", "offset": "0x22", "length": 2, "type": "u16le", "name": "Held item", "domain": "item", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "experience", "offset": "0x24", "length": 4, "type": "u32le", "name": "Experience", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "pp-ups", "offset": "0x28", "length": 1, "type": "u8", "name": "PP Ups", "confidence": "known", "source": "pkhex:PKM/PK3.cs", "bits": [{"id": "move-1", "bit": 0, "width": 2, "name": "Move 1"}, {"id": "move-2", "bit": 2, "width": 2, "name": "Move 2"}, {"id": "move-3", "bit": 4, "width": 2, "name": "Move 3"}, {"id": "move-4", "bit": 6, "width": 2, "name": "Move 4"}]},
+        {"id": "friendship", "offset": "0x29", "length": 1, "type": "u8", "name": "Friendship", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "unused", "offset": "0x2A", "length": 2, "type": "bytes", "name": "Unused", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "moves", "offset": "0x2C", "length": 2, "type": "u16le", "name": "Moves", "domain": "move", "confidence": "known", "source": "pkhex:PKM/PK3.cs", "count": 4, "stride": 2},
+        {"id": "pp", "offset": "0x34", "length": 1, "type": "u8", "name": "PP", "confidence": "known", "source": "pkhex:PKM/PK3.cs", "count": 4, "stride": 1},
+        {"id": "evs", "offset": "0x38", "length": 1, "type": "u8", "name": "EVs: HP, Attack, Defense, Speed, Sp. Atk, Sp. Def", "confidence": "known", "source": "pkhex:PKM/PK3.cs", "count": 6, "stride": 1},
+        {"id": "contest-stats", "offset": "0x3E", "length": 1, "type": "u8", "name": "Contest stats: Cool, Beauty, Cute, Smart, Tough, Sheen", "confidence": "known", "source": "pkhex:PKM/PK3.cs", "count": 6, "stride": 1},
+        {"id": "pokerus", "offset": "0x44", "length": 1, "type": "u8", "name": "Pokérus", "confidence": "known", "source": "pkhex:PKM/PK3.cs", "bits": [{"id": "days", "bit": 0, "width": 4, "name": "Days"}, {"id": "strain", "bit": 4, "width": 4, "name": "Strain"}]},
+        {"id": "met-location", "offset": "0x45", "length": 1, "type": "u8", "name": "Met location", "domain": "location", "confidence": "known", "source": "pkhex:PKM/PK3.cs"},
+        {"id": "origins", "offset": "0x46", "length": 2, "type": "u16le", "name": "Origins", "confidence": "known", "source": "pkhex:PKM/PK3.cs", "bits": [{"id": "met-level", "bit": 0, "width": 7, "name": "Met level"}, {"id": "origin-game", "bit": 7, "width": 4, "name": "Origin game"}, {"id": "ball", "bit": 11, "width": 4, "name": "Ball"}, {"id": "trainer-gender", "bit": 15, "width": 1, "name": "Trainer gender"}]},
+        {"id": "ivs-egg-and-ability", "offset": "0x48", "length": 4, "type": "u32le", "name": "IVs, egg and ability", "confidence": "known", "source": "pkhex:PKM/PK3.cs", "bits": [{"id": "hp-iv", "bit": 0, "width": 5, "name": "HP IV"}, {"id": "attack-iv", "bit": 5, "width": 5, "name": "Attack IV"}, {"id": "defense-iv", "bit": 10, "width": 5, "name": "Defense IV"}, {"id": "speed-iv", "bit": 15, "width": 5, "name": "Speed IV"}, {"id": "sp-atk-iv", "bit": 20, "width": 5, "name": "Sp. Atk IV"}, {"id": "sp-def-iv", "bit": 25, "width": 5, "name": "Sp. Def IV"}, {"id": "is-egg", "bit": 30, "width": 1, "name": "Is egg"}, {"id": "ability", "bit": 31, "width": 1, "name": "Ability"}]},
+        {"id": "ribbons", "offset": "0x4C", "length": 4, "type": "u32le", "name": "Ribbons", "confidence": "known", "source": "pkhex:PKM/PK3.cs", "bits": [{"id": "cool", "bit": 0, "width": 3, "name": "Cool"}, {"id": "beauty", "bit": 3, "width": 3, "name": "Beauty"}, {"id": "cute", "bit": 6, "width": 3, "name": "Cute"}, {"id": "smart", "bit": 9, "width": 3, "name": "Smart"}, {"id": "tough", "bit": 12, "width": 3, "name": "Tough"}, {"id": "champion", "bit": 15, "width": 1, "name": "Champion"}, {"id": "winning", "bit": 16, "width": 1, "name": "Winning"}, {"id": "victory", "bit": 17, "width": 1, "name": "Victory"}, {"id": "artist", "bit": 18, "width": 1, "name": "Artist"}, {"id": "effort", "bit": 19, "width": 1, "name": "Effort"}, {"id": "battle-champion", "bit": 20, "width": 1, "name": "Battle Champion"}, {"id": "regional-champion", "bit": 21, "width": 1, "name": "Regional Champion"}, {"id": "national-champion", "bit": 22, "width": 1, "name": "National Champion"}, {"id": "country", "bit": 23, "width": 1, "name": "Country"}, {"id": "national", "bit": 24, "width": 1, "name": "National"}, {"id": "earth", "bit": 25, "width": 1, "name": "Earth"}, {"id": "world", "bit": 26, "width": 1, "name": "World"}, {"id": "fateful-encounter", "bit": 31, "width": 1, "name": "Fateful encounter"}]}
+      ]
+    }
+  },
+  "spaces": [
+    {
+      "name": "block:0",
+      "length": "0x2000",
+      "transform": "box-blocks",
+      "args": {"block": 0},
+      "kind": "box-block"
+    },
+    {
+      "name": "block:1",
+      "length": "0x2000",
+      "transform": "box-blocks",
+      "args": {"block": 1},
+      "kind": "box-block"
+    },
+    {
+      "name": "block:2",
+      "length": "0x2000",
+      "transform": "box-blocks",
+      "args": {"block": 2},
+      "kind": "box-block"
+    },
+    {
+      "name": "block:3",
+      "length": "0x2000",
+      "transform": "box-blocks",
+      "args": {"block": 3},
+      "kind": "box-block"
+    },
+    {
+      "name": "block:4",
+      "length": "0x2000",
+      "transform": "box-blocks",
+      "args": {"block": 4},
+      "kind": "box-block"
+    },
+    {
+      "name": "block:5",
+      "length": "0x2000",
+      "transform": "box-blocks",
+      "args": {"block": 5},
+      "kind": "box-block"
+    },
+    {
+      "name": "block:6",
+      "length": "0x2000",
+      "transform": "box-blocks",
+      "args": {"block": 6},
+      "kind": "box-block"
+    },
+    {
+      "name": "block:7",
+      "length": "0x2000",
+      "transform": "box-blocks",
+      "args": {"block": 7},
+      "kind": "box-block"
+    },
+    {
+      "name": "block:8",
+      "length": "0x2000",
+      "transform": "box-blocks",
+      "args": {"block": 8},
+      "kind": "box-block"
+    },
+    {
+      "name": "block:9",
+      "length": "0x2000",
+      "transform": "box-blocks",
+      "args": {"block": 9},
+      "kind": "box-block"
+    },
+    {
+      "name": "block:10",
+      "length": "0x2000",
+      "transform": "box-blocks",
+      "args": {"block": 10},
+      "kind": "box-block"
+    },
+    {
+      "name": "block:11",
+      "length": "0x2000",
+      "transform": "box-blocks",
+      "args": {"block": 11},
+      "kind": "box-block"
+    },
+    {
+      "name": "block:12",
+      "length": "0x2000",
+      "transform": "box-blocks",
+      "args": {"block": 12},
+      "kind": "box-block"
+    },
+    {
+      "name": "block:13",
+      "length": "0x2000",
+      "transform": "box-blocks",
+      "args": {"block": 13},
+      "kind": "box-block"
+    },
+    {
+      "name": "block:14",
+      "length": "0x2000",
+      "transform": "box-blocks",
+      "args": {"block": 14},
+      "kind": "box-block"
+    },
+    {
+      "name": "block:15",
+      "length": "0x2000",
+      "transform": "box-blocks",
+      "args": {"block": 15},
+      "kind": "box-block"
+    },
+    {
+      "name": "block:16",
+      "length": "0x2000",
+      "transform": "box-blocks",
+      "args": {"block": 16},
+      "kind": "box-block"
+    },
+    {
+      "name": "block:17",
+      "length": "0x2000",
+      "transform": "box-blocks",
+      "args": {"block": 17},
+      "kind": "box-block"
+    },
+    {
+      "name": "block:18",
+      "length": "0x2000",
+      "transform": "box-blocks",
+      "args": {"block": 18},
+      "kind": "box-block"
+    },
+    {
+      "name": "block:19",
+      "length": "0x2000",
+      "transform": "box-blocks",
+      "args": {"block": 19},
+      "kind": "box-block"
+    },
+    {
+      "name": "block:20",
+      "length": "0x2000",
+      "transform": "box-blocks",
+      "args": {"block": 20},
+      "kind": "box-block"
+    },
+    {
+      "name": "block:21",
+      "length": "0x2000",
+      "transform": "box-blocks",
+      "args": {"block": 21},
+      "kind": "box-block"
+    },
+    {
+      "name": "block:22",
+      "length": "0x2000",
+      "transform": "box-blocks",
+      "args": {"block": 22},
+      "kind": "box-block"
+    },
+    {
+      "name": "pc",
+      "length": 8,
+      "source": {
+        "regions": [
+          {"space": "block:0", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:1", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:2", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:3", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:4", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:5", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:6", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:7", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:8", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:9", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:10", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:11", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:12", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:13", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:14", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:15", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:16", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:17", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:18", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:19", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:20", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:21", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:22", "start": "0x000C", "end": "0x1FFC"}
+        ],
+        "offset": 0
+      },
+      "note": "The start of the PC storage, which runs through the data of blocks 0 to 22 in order.",
+      "ranges": [
+        {"id": "current-box", "offset": "0x0004", "length": 1, "type": "u8", "name": "Current box", "confidence": "known", "source": "pkhex:Saves/SAV3RSBox.cs", "note": "The box the PC opens on, 0 to 24"}
+      ]
+    },
+    {
+      "name": "box:{1..25}:{1..60}",
+      "length": 80,
+      "transform": "pk3-crypt",
+      "kind": "pk3",
+      "source": {
+        "regions": [
+          {"space": "block:0", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:1", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:2", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:3", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:4", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:5", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:6", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:7", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:8", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:9", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:10", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:11", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:12", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:13", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:14", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:15", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:16", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:17", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:18", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:19", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:20", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:21", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:22", "start": "0x000C", "end": "0x1FFC"}
+        ],
+        "offset": 8,
+        "stride": 84
+      },
+      "note": "Each box holds 60 Pokémon in a grid of 12 by 5, row by row. PKHeX and the engine show it as two boxes of 30, the left 6 columns and the right 6."
+    },
+    {
+      "name": "depositor:{1..25}:{1..60}",
+      "length": 4,
+      "source": {
+        "regions": [
+          {"space": "block:0", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:1", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:2", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:3", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:4", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:5", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:6", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:7", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:8", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:9", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:10", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:11", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:12", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:13", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:14", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:15", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:16", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:17", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:18", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:19", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:20", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:21", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:22", "start": "0x000C", "end": "0x1FFC"}
+        ],
+        "offset": 88,
+        "stride": 84
+      },
+      "ranges": [
+        {"id": "depositor-id", "offset": "0x0000", "length": 4, "type": "u32le", "name": "Trainer ID of whoever deposited the Pokémon (TID low, SID high)", "confidence": "known", "source": "pkhex:Saves/SAV3RSBox.cs", "bits": [{"id": "tid", "bit": 0, "width": 16, "name": "Trainer ID"}, {"id": "sid", "bit": 16, "width": 16, "name": "Secret ID"}]}
+      ]
+    },
+    {
+      "name": "box-settings",
+      "length": "0xFA",
+      "source": {
+        "regions": [
+          {"space": "block:0", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:1", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:2", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:3", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:4", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:5", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:6", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:7", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:8", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:9", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:10", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:11", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:12", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:13", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:14", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:15", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:16", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:17", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:18", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:19", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:20", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:21", "start": "0x000C", "end": "0x1FFC"},
+          {"space": "block:22", "start": "0x000C", "end": "0x1FFC"}
+        ],
+        "offset": "0x1EC38"
+      },
+      "ranges": [
+        {"id": "box-names", "offset": "0x0000", "length": 9, "type": "text-gen3-intl", "name": "Box names", "confidence": "known", "source": "pkhex:Saves/SAV3RSBox.cs", "count": 25, "stride": 9, "note": "Empty for the default name, BOX and its number"},
+        {"id": "box-wallpapers", "offset": "0x00E1", "length": 1, "type": "u8", "name": "Box wallpapers", "confidence": "known", "source": "pkhex:Saves/SAV3RSBox.cs", "count": 25, "stride": 1}
+      ]
+    }
+  ],
+  "model": {
+    "root": {
+      "fields": {
+        "boxes": {
+          "list": {
+            "fields": {
+              "name": {"space": "box-settings", "range": "box-names", "element": "each"},
+              "wallpaper": {"space": "box-settings", "range": "box-wallpapers", "element": "each", "extra": true},
+              "slots": {"list": "pokemon", "spaces": ":{1..60}"}
+            }
+          },
+          "spaces": "box:{1..25}"
+        }
+      }
+    },
+    "objects": {
+      "pokemon": {
+        "fields": {
+          "pid": {"range": "pid"},
+          "species": {"range": "species"},
+          "nickname": {"range": "nickname"},
+          "experience": {"range": "experience"},
+          "held-item": {"range": "held-item"},
+          "friendship": {"range": "friendship"},
+          "ball": {"range": "origins", "bit": "ball"},
+          "language": {"range": "language"},
+          "evs": {
+            "object": {
+              "fields": {
+                "health": {"range": "evs", "element": 0},
+                "attack": {"range": "evs", "element": 1},
+                "defense": {"range": "evs", "element": 2},
+                "speed": {"range": "evs", "element": 3},
+                "special-attack": {"range": "evs", "element": 4},
+                "special-defense": {"range": "evs", "element": 5}
+              }
+            }
+          },
+          "ivs": {
+            "object": {
+              "fields": {
+                "health": {"range": "ivs-egg-and-ability", "bit": "hp-iv"},
+                "attack": {"range": "ivs-egg-and-ability", "bit": "attack-iv"},
+                "defense": {"range": "ivs-egg-and-ability", "bit": "defense-iv"},
+                "speed": {"range": "ivs-egg-and-ability", "bit": "speed-iv"},
+                "special-attack": {"range": "ivs-egg-and-ability", "bit": "sp-atk-iv"},
+                "special-defense": {"range": "ivs-egg-and-ability", "bit": "sp-def-iv"}
+              }
+            }
+          },
+          "moves": {"list": {"fields": {"move": {"range": "moves", "element": "each"}, "pp": {"range": "pp", "element": "each"}}}, "range": "moves"},
+          "owner": {
+            "object": {
+              "fields": {
+                "tid": {"range": "original-trainer-id", "bit": "tid"},
+                "sid": {"range": "original-trainer-id", "bit": "sid"},
+                "name": {"range": "original-trainer-name"},
+                "gender": {"range": "origins", "bit": "trainer-gender"}
+              }
+            }
+          },
+          "met-conditions": {
+            "object": {
+              "fields": {
+                "location": {"range": "met-location"},
+                "level": {"range": "origins", "bit": "met-level"},
+                "version": {"range": "origins", "bit": "origin-game"},
+                "fateful-encounter": {"range": "ribbons", "bit": "fateful-encounter"}
+              }
+            }
+          },
+          "egg": {
+            "object": {
+              "fields": {
+                "is-egg": {"range": "ivs-egg-and-ability", "bit": "is-egg", "note": "egg-and-species-flags at 0x13 has an is-egg bit too."},
+                "hatch-counter": {"range": "friendship", "note": "An egg keeps its hatch counter in the friendship byte."}
+              }
+            }
+          },
+          "pokerus": {"object": {"fields": {"strain": {"range": "pokerus", "bit": "strain"}, "days": {"range": "pokerus", "bit": "days"}}}}
+        }
+      }
+    }
+  }
+}

@@ -1,8 +1,7 @@
 // @vitest-environment node
 import { expect, it } from "vitest";
 import { diffSpaces } from "./diff";
-import { knownLayouts, pickLayout } from "./layout";
-import { decodeSpaces } from "./spaces";
+import { decodeSpaces, knownLayouts, pickLayout } from "./layout";
 import { findSave, testEngine } from "@/testing/research";
 
 it.for(["emerald", "frlg", "rs"])("shows the money a %s save spent on a Poké Ball as a known change", { timeout: 300_000 }, async (format, { skip }) => {
@@ -22,7 +21,7 @@ it.for(["emerald", "frlg", "rs"])("shows the money a %s save spent on a Poké Ba
   const after = (await engine.game.export()).bytes;
 
   const { layout } = pickLayout(await knownLayouts(), { format, romSha1: "" })!;
-  const changes = diffSpaces(decodeSpaces(before, layout), decodeSpaces(after, layout));
+  const changes = diffSpaces(await decodeSpaces(before, layout), await decodeSpaces(after, layout));
 
   const known = changes.flatMap(({ space, known }) => known.map(({ name }) => `${space.name} ${name}`));
   expect(known).toContain("section:1 Money");

@@ -15,7 +15,7 @@ import { inTurn } from "@/lib/engineTurn";
 import type { Game } from "@/library/scan";
 import type { Overlay } from "@/pause-menu/overlay";
 import { navigate } from "@/plugin-kit/motion";
-import { saveFormats, storedFormatId } from "@/preferences/gameSettings";
+import { patchOrigins, saveFormats, storedFormatId } from "@/preferences/gameSettings";
 import { tauriGameSettingsHost } from "@/preferences/gameSettingsTauriHost";
 import type { HostEvent, ResearchContext, ResearchHost } from "@/research/host";
 import { layoutFormat } from "@/research/layout";
@@ -111,10 +111,14 @@ export function useResearchHost({
   const host = useMemo<ResearchHost>(
     () => ({
       context: async () => {
-        const [sha1s, app] = await Promise.all([tauriImportHost.sha1s(folder, [game.path]).catch((): Record<string, string> => ({})), getVersion()]);
+        const [sha1s, patchedFrom, app] = await Promise.all([
+          tauriImportHost.sha1s(folder, [game.path]).catch((): Record<string, string> => ({})),
+          patchOrigins(tauriGameSettingsHost).patchedFrom(game.path),
+          getVersion(),
+        ]);
         const { build, format } = latest.current;
         if (!format) throw new Error(`${game.name} has no Gen 3 save`);
-        return { game: game.name, build: build ?? null, format, romSha1: sha1s[game.path] ?? null, app };
+        return { game: game.name, build: build ?? null, format, romSha1: sha1s[game.path] ?? null, romHack: !!patchedFrom, app };
       },
       saveFile: async () => {
         const [bytes, modified] = await Promise.all([tauriSaveHost.read(), invoke<number | null>("save_modified", { folder, path: game.path })]);

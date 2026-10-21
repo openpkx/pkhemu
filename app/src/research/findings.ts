@@ -1,10 +1,11 @@
 import { spaceTitle, type Space } from "./diff";
-import { uint, type Uint } from "./layout";
+import { SCHEMA } from "./layout";
+import { uint, type Uint } from "./layouts/tools/steps/bytes.ts";
 import { hex } from "./text";
 
 export const MAX_RANGE = 256;
 
-export const RANGE_TYPES = ["u8", "u16le", "u32le", "u64le", "i8", "i16le", "i32le", "u16be", "u32be", "flags", "bytes", "text-gen3"] as const;
+export const RANGE_TYPES = ["u8", "u16le", "u32le", "u64le", "i8", "i16le", "i32le", "u16be", "u32be", "flags", "bytes", "text-gen3-intl"] as const;
 export type RangeType = (typeof RANGE_TYPES)[number];
 export type Confidence = "known" | "guess";
 
@@ -43,7 +44,7 @@ export function findingsFile(target: Target, findings: readonly Finding[]) {
         : { value: { domain: finding.domain, index: finding.index, ...described, ...(finding.pocket && { pocket: finding.pocket }) } };
     return [{ rom, app, ...entry }];
   });
-  return JSON.stringify({ $schema: "../schema/layout.schema.json", target: { kind: "save", ...target }, findings: entries }, null, 2) + "\n";
+  return JSON.stringify({ $schema: "../schema/layout.schema.json", schema: SCHEMA, target: { kind: "save", ...target }, findings: entries }, null, 2) + "\n";
 }
 
 const NOT_FINDINGS = "This file isn't a findings file.";

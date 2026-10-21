@@ -1,0 +1,177 @@
+{
+  "step": "gc-memory-card-file",
+  "test": [
+    {
+      "name": "colosseum.raw for GC6E or GC6P",
+      "args": {
+        "gameCodes": [
+          "GC6E",
+          "GC6P"
+        ]
+      },
+      "input": {
+        "file": "colosseum.raw"
+      },
+      "passes": true
+    },
+    {
+      "name": "colosseum.raw for GXXE or GXXP",
+      "args": {
+        "gameCodes": [
+          "GXXE",
+          "GXXP"
+        ]
+      },
+      "input": {
+        "file": "colosseum.raw"
+      },
+      "passes": false
+    },
+    {
+      "name": "colosseum.raw for GPXE or GPXP",
+      "args": {
+        "gameCodes": [
+          "GPXE",
+          "GPXP"
+        ]
+      },
+      "input": {
+        "file": "colosseum.raw"
+      },
+      "passes": false
+    },
+    {
+      "name": "gamecube.raw for GC6E or GC6P",
+      "args": {
+        "gameCodes": [
+          "GC6E",
+          "GC6P"
+        ]
+      },
+      "input": {
+        "file": "gamecube.raw"
+      },
+      "passes": true
+    },
+    {
+      "name": "xd.raw for GC6E or GC6P",
+      "args": {
+        "gameCodes": [
+          "GC6E",
+          "GC6P"
+        ]
+      },
+      "input": {
+        "file": "xd.raw"
+      },
+      "passes": false
+    },
+    {
+      "name": "xd.raw for GXXE or GXXP",
+      "args": {
+        "gameCodes": [
+          "GXXE",
+          "GXXP"
+        ]
+      },
+      "input": {
+        "file": "xd.raw"
+      },
+      "passes": true
+    },
+    {
+      "name": "xd.raw for GPXE or GPXP",
+      "args": {
+        "gameCodes": [
+          "GPXE",
+          "GPXP"
+        ]
+      },
+      "input": {
+        "file": "xd.raw"
+      },
+      "passes": false
+    },
+    {
+      "name": "gamecube.raw for GXXE or GXXP",
+      "args": {
+        "gameCodes": [
+          "GXXE",
+          "GXXP"
+        ]
+      },
+      "input": {
+        "file": "gamecube.raw"
+      },
+      "passes": true
+    },
+    {
+      "name": "box.raw for GC6E or GC6P",
+      "args": {
+        "gameCodes": [
+          "GC6E",
+          "GC6P"
+        ]
+      },
+      "input": {
+        "file": "box.raw"
+      },
+      "passes": false
+    },
+    {
+      "name": "box.raw for GXXE or GXXP",
+      "args": {
+        "gameCodes": [
+          "GXXE",
+          "GXXP"
+        ]
+      },
+      "input": {
+        "file": "box.raw"
+      },
+      "passes": false
+    },
+    {
+      "name": "box.raw for GPXE or GPXP",
+      "args": {
+        "gameCodes": [
+          "GPXE",
+          "GPXP"
+        ]
+      },
+      "input": {
+        "file": "box.raw"
+      },
+      "passes": true
+    },
+    {
+      "name": "zeros the size of a memory card",
+      "args": {
+        "gameCodes": [
+          "GC6E",
+          "GC6P"
+        ]
+      },
+      "input": {
+        "fill": "00",
+        "length": "0x80000"
+      },
+      "passes": false
+    },
+    {
+      "name": "colosseum.raw cut short",
+      "args": {
+        "gameCodes": [
+          "GC6E",
+          "GC6P"
+        ]
+      },
+      "input": {
+        "file": "colosseum.raw",
+        "offset": "0x0",
+        "length": "0x40000"
+      },
+      "passes": false
+    }
+  ]
+}

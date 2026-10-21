@@ -1,0 +1,109 @@
+{
+  "step": "box-sum",
+  "decode": [
+    {
+      "name": "block 0 of box.raw",
+      "args": {
+        "start": 4,
+        "end": "0x1FFC",
+        "at": 0
+      },
+      "input": {
+        "file": "box.raw",
+        "offset": "0x3A000",
+        "length": "0x2000"
+      },
+      "output": "9E 90 51 74"
+    },
+    {
+      "name": "block 1 of box.raw",
+      "args": {
+        "start": 4,
+        "end": "0x1FFC",
+        "at": 0
+      },
+      "input": {
+        "file": "box.raw",
+        "offset": "0x3C000",
+        "length": "0x2000"
+      },
+      "output": "00 03 F0 01"
+    },
+    {
+      "name": "block 22 of box.raw",
+      "args": {
+        "start": 4,
+        "end": "0x1FFC",
+        "at": 0
+      },
+      "input": {
+        "file": "box.raw",
+        "offset": "0x66000",
+        "length": "0x2000"
+      },
+      "output": "00 18 EF EC"
+    }
+  ],
+  "encode": [
+    {
+      "name": "block 0 of box.raw, its checksum zeroed",
+      "args": {
+        "start": 4,
+        "end": "0x1FFC",
+        "at": 0
+      },
+      "input": [
+        "00 00 00 00 00 00 00 00 00 00 00 02 00 00 00 00 00 00 00 00 1D D1 5F 96 00 00 00 00 CA C9 C9 BD C2 D3 BF C8 BB FF 02 02 CA C5 C2 D9 D2 FF FF 00 06 2E 00 00 1D C1 DD B7 2B 53 BB A4 1D D1 5F 96 3C D1 5F 96 1D D1 5F 96 3E D1 5F 96 1D D1 5F 96 1D D1 5F 96 1D D1 5F 96 03 D0 5F 96 15 D1 5F 96 1D 97 5F 96",
+        {
+          "fill": "00",
+          "length": "0x1F9C"
+        }
+      ],
+      "output": {
+        "file": "box.raw",
+        "offset": "0x3A000",
+        "length": "0x2000"
+      }
+    },
+    {
+      "name": "block 1 of box.raw, its checksum zeroed",
+      "args": {
+        "start": 4,
+        "end": "0x1FFC",
+        "at": 0
+      },
+      "input": [
+        "00 00 00 00 00 00 00 01 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF4"
+        }
+      ],
+      "output": {
+        "file": "box.raw",
+        "offset": "0x3C000",
+        "length": "0x2000"
+      }
+    },
+    {
+      "name": "block 22 of box.raw, its checksum zeroed",
+      "args": {
+        "start": 4,
+        "end": "0x1FFC",
+        "at": 0
+      },
+      "input": [
+        "00 00 00 00 00 00 00 16 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF4"
+        }
+      ],
+      "output": {
+        "file": "box.raw",
+        "offset": "0x66000",
+        "length": "0x2000"
+      }
+    }
+  ]
+}

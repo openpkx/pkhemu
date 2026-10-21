@@ -99,7 +99,7 @@ function researchHost(screen: string, listeners: Set<(event: HostEvent) => void>
     ...(withFindings.has(screen) && { "findings:emerald-1.0": own, "imported:emerald-1.0": imported }),
   };
   return {
-    context: async () => ({ game: "Emerald", build: "BPEE", format: { id: "emerald", name: "Emerald" }, romSha1: null, app: "0.12.0" }),
+    context: async () => ({ game: "Emerald", build: "BPEE", format: { id: "emerald", name: "Emerald" }, romSha1: null, romHack: false, app: "0.12.0" }),
     saveFile: async () => before,
     read: async (bytes) => ({
       pouches: [keyItems(bytes === after.bytes ? 1 : 0), { pocket: "Items", items: [{ index: 79, count: bytes === after.bytes ? 93 : 92 }] }],

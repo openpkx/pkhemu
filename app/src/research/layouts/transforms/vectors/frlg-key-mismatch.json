@@ -1,0 +1,105 @@
+{
+  "step": "frlg-key-mismatch",
+  "test": [
+    {
+      "name": "frlg.sav",
+      "input": {
+        "file": "frlg.sav"
+      },
+      "passes": false
+    },
+    {
+      "name": "radicalred.sav",
+      "input": {
+        "file": "radicalred.sav"
+      },
+      "passes": true
+    },
+    {
+      "name": "frlg.sav with its copy cleared",
+      "input": [
+        {
+          "file": "frlg.sav",
+          "length": "0x17000"
+        },
+        {
+          "file": "frlg.sav",
+          "offset": "0x17000",
+          "length": "0xAF8"
+        },
+        "00 00 00 00",
+        {
+          "file": "frlg.sav",
+          "offset": "0x17AFC",
+          "length": "0x504"
+        },
+        {
+          "file": "frlg.sav",
+          "offset": "0x18000"
+        }
+      ],
+      "passes": true
+    },
+    {
+      "name": "frlg.sav with its key changed",
+      "input": [
+        {
+          "file": "frlg.sav",
+          "length": "0x17000"
+        },
+        {
+          "file": "frlg.sav",
+          "offset": "0x17000",
+          "length": "0xF20"
+        },
+        "E0",
+        {
+          "file": "frlg.sav",
+          "offset": "0x17F21",
+          "length": "0xDF"
+        },
+        {
+          "file": "frlg.sav",
+          "offset": "0x18000"
+        }
+      ],
+      "passes": true
+    },
+    {
+      "name": "frlg.sav with key and copy cleared",
+      "input": [
+        {
+          "file": "frlg.sav",
+          "length": "0x17000"
+        },
+        {
+          "file": "frlg.sav",
+          "offset": "0x17000",
+          "length": "0xAF8"
+        },
+        "00 00 00 00",
+        {
+          "file": "frlg.sav",
+          "offset": "0x17AFC",
+          "length": "0x424"
+        },
+        "00 00 00 00",
+        {
+          "file": "frlg.sav",
+          "offset": "0x17F24",
+          "length": "0xDC"
+        },
+        {
+          "file": "frlg.sav",
+          "offset": "0x18000"
+        }
+      ],
+      "passes": true
+    },
+    {
+      "name": "a file of zeros",
+      "input": "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+      "passes": false
+    }
+  ]
+}

@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { diffReadings, diffSpaces, type SpaceChanges, type ValueCandidate } from "./diff";
 import type { ResearchHost, SaveFile } from "./host";
-import type { PickedLayout } from "./layout";
-import { decodeSpaces } from "./spaces";
+import { decodeSpaces, type PickedLayout } from "./layout";
 
 export type Diff =
   | { state: "ready"; changes: SpaceChanges[]; values: ValueCandidate[]; pockets: string[]; spaces: number; checked: boolean }
@@ -23,8 +22,8 @@ export function useDiff(host: ResearchHost, picked: PickedLayout | undefined, sa
       );
       if (!picked) return { state: "no-layout" };
       try {
-        const after = decodeSpaces(saves.after.bytes, picked.layout);
-        const changes = diffSpaces(decodeSpaces(saves.baseline.bytes, picked.layout), after);
+        const [before, after] = await Promise.all([decodeSpaces(saves.baseline.bytes, picked.layout), decodeSpaces(saves.after.bytes, picked.layout)]);
+        const changes = diffSpaces(before, after);
         return { state: "ready", changes, ...(await values), spaces: after.length, checked: picked.checked };
       } catch {
         return { state: "unreadable" };

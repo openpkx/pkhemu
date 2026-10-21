@@ -516,7 +516,6 @@ thread_local! {
         const { RefCell::new(Frame { width: 0, height: 0, pixels: Vec::new(), fresh: false, in_texture: false }) };
     static READ_BACK: Cell<bool> = const { Cell::new(true) };
     static MIX: RefCell<Mix> = RefCell::new(Mix::default());
-    static AUDIO: RefCell<Vec<i16>> = RefCell::new(Vec::with_capacity(4096));
     static AV: Cell<AvInfo> = Cell::new(AvInfo::default());
     static MEMORY_MAP: RefCell<Vec<Region>> = const { RefCell::new(Vec::new()) };
     // rcheevos maps memory itself, from the map as the core sent it.
@@ -525,6 +524,7 @@ thread_local! {
     static OPTION_DEFAULTS: RefCell<Vec<(CString, CString)>> = const { RefCell::new(Vec::new()) };
     static HW: RefCell<Option<HwRender>> = const { RefCell::new(None) };
     static HW_REFUSED: Cell<bool> = const { Cell::new(false) };
+    static DREW: Cell<bool> = const { Cell::new(false) };
     static TRANSFER_PAK: Cell<bool> = const { Cell::new(false) };
     // Only Azahar gets a save directory and the app's file access, so the other cores keep working as they did.
     static AZAHAR: Cell<bool> = const { Cell::new(false) };
@@ -552,6 +552,8 @@ static SYSTEM_DIR: OnceLock<CString> = OnceLock::new();
 static DOLPHIN: AtomicBool = AtomicBool::new(false);
 static DOLPHIN_SAVE_DIR: OnceLock<CString> = OnceLock::new();
 static MESSAGES: Mutex<Vec<Message>> = Mutex::new(Vec::new());
+// Dolphin's CPU thread sends samples itself in dual-core mode.
+static AUDIO: Mutex<Vec<i16>> = Mutex::new(Vec::new());
 
 unsafe fn keep_for_player(text: *const c_char, duration_ms: c_uint) {
     if !text.is_null() {
@@ -969,6 +971,7 @@ unsafe extern "C" fn video_refresh(data: *const c_void, width: c_uint, height: c
             copy_frame(frame, data, width, height, pitch);
         }
         frame.fresh = true;
+        DREW.set(true);
         MIX.with_borrow_mut(|mix| mix.add(frame));
     });
 }
@@ -1119,12 +1122,12 @@ fn fresh_frame<R>(f: impl FnOnce(Option<&Frame>, &mut Frame) -> R) -> Option<R> 
 }
 
 unsafe extern "C" fn audio_sample(left: i16, right: i16) {
-    AUDIO.with_borrow_mut(|audio| audio.extend_from_slice(&[left, right]));
+    AUDIO.lock().unwrap_or_else(|e| e.into_inner()).extend_from_slice(&[left, right]);
 }
 
 unsafe extern "C" fn audio_sample_batch(data: *const i16, frames: usize) -> usize {
     let samples = std::slice::from_raw_parts(data, frames * 2);
-    AUDIO.with_borrow_mut(|audio| audio.extend_from_slice(samples));
+    AUDIO.lock().unwrap_or_else(|e| e.into_inner()).extend_from_slice(samples);
     frames
 }
 
@@ -1211,7 +1214,7 @@ pub struct Core {
     name: String,
     system_dir: PathBuf,
     file: Option<crate::rom::RomFile>,
-    // Frames and audio land in thread-locals, so the core stays on the thread that loaded it.
+    // Frames land in thread-locals, so the core stays on the thread that loaded it.
     _not_send: std::marker::PhantomData<*const ()>,
 }
 
@@ -1240,6 +1243,9 @@ impl Core {
             let dir = dolphin_dir(system_dir);
             dolphin::install_sys(&dir, DOLPHIN_SYS)?;
             dolphin::use_card(&dir, &dolphin_card(system_dir))?;
+            if let Some(file) = &rom.file {
+                dolphin::use_small_cards(&dir, &file.open)?;
+            }
             DOLPHIN_SAVE_DIR.get_or_init(|| CString::new(dir.to_string_lossy().as_bytes()).unwrap());
         }
         if LOADED.swap(true, Ordering::AcqRel) {
@@ -1263,10 +1269,11 @@ impl Core {
         start_blend(false);
         release_input();
         PIXEL_FORMAT.store(PIXEL_FORMAT_RGB565, Ordering::Relaxed);
-        AUDIO.with_borrow_mut(|audio| audio.clear());
+        AUDIO.lock().unwrap_or_else(|e| e.into_inner()).clear();
         MEMORY_MAP.with_borrow_mut(Vec::clear);
         MEMORY_DESCRIPTORS.with_borrow_mut(Vec::clear);
         HW_REFUSED.set(false);
+        DREW.set(false);
         CORE_FLOAT_MODE.set(None);
         TRANSFER_PAK.set(transfer_pak.is_some());
         AZAHAR.set(system == System::ThreeDs);
@@ -1433,7 +1440,12 @@ impl Core {
             loaded = load();
         }
         forget_hw_image();
+        DREW.set(false);
         loaded
+    }
+
+    pub fn drew_since_load(&self) -> bool {
+        DREW.get()
     }
 
     // Dolphin boots on its first frame and crashes on a state saved or loaded before it.
@@ -1468,10 +1480,9 @@ impl Core {
     }
 
     pub fn drain_audio(&mut self, out: &mut Vec<i16>) {
-        AUDIO.with_borrow_mut(|audio| {
-            out.extend_from_slice(audio);
-            audio.clear();
-        });
+        let mut audio = AUDIO.lock().unwrap_or_else(|e| e.into_inner());
+        out.extend_from_slice(&audio);
+        audio.clear();
     }
 
     // A core that maps none of its memory still reaches main RAM through system RAM.
@@ -2064,6 +2075,24 @@ mod tests {
         assert!(distinct(&asking) > 50, "Colosseum drew {} colours", distinct(&asking));
         assert_eq!(still_asking, asking);
         assert_ne!(moved, asking);
+    }
+
+    #[test]
+    #[cfg(target_arch = "aarch64")]
+    fn colosseum_plays_sound() {
+        let _lock = crate::test_games::lock_core();
+        let Some(rom) = crate::test_games::gamecube_disc("Pokémon Colosseum", "GC6P01", 0) else { return };
+        let mut core = Core::load(rom, &std::env::temp_dir()).unwrap();
+        let (mut audio, mut loudest) = (Vec::new(), 0);
+
+        for frame in 0..1500 {
+            set_input(if frame >= 500 && frame % 60 < 10 { A } else { 0 });
+            core.run_frame();
+            core.drain_audio(&mut audio);
+            loudest = audio.drain(..).map(i16::unsigned_abs).max().unwrap_or(0).max(loudest);
+        }
+
+        assert!(loudest > 1000, "Colosseum was silent");
     }
 
     #[test]
@@ -3043,6 +3072,23 @@ mod tests {
         core.run_frame();
 
         assert_ne!(read(&mut core, 0xC000, 1).unwrap(), before);
+    }
+
+    #[test]
+    fn tells_whether_the_core_drew_since_it_started_or_loaded_a_state() {
+        let _lock = crate::test_games::lock_core();
+        let mut core = Core::load(crate::test_games::counting_rom(), &std::env::temp_dir()).unwrap();
+        assert!(!core.drew_since_load());
+
+        core.run_frame();
+        assert!(core.drew_since_load());
+
+        let state = core.serialize().unwrap();
+        assert!(core.unserialize(&state));
+        assert!(!core.drew_since_load());
+
+        core.run_frame();
+        assert!(core.drew_since_load());
     }
 
     #[test]

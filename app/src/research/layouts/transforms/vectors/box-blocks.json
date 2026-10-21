@@ -1,0 +1,316 @@
+{
+  "step": "box-blocks",
+  "decode": [
+    {
+      "name": "block 0 of the newer slot of box.raw",
+      "args": {
+        "block": 0
+      },
+      "input": {
+        "file": "box.raw",
+        "offset": "0x3A000",
+        "length": "0x2E000"
+      },
+      "output": {
+        "file": "box.raw",
+        "offset": "0x3A000",
+        "length": "0x2000"
+      }
+    },
+    {
+      "name": "block 1 of the newer slot of box.raw",
+      "args": {
+        "block": 1
+      },
+      "input": {
+        "file": "box.raw",
+        "offset": "0x3A000",
+        "length": "0x2E000"
+      },
+      "output": {
+        "file": "box.raw",
+        "offset": "0x3C000",
+        "length": "0x2000"
+      }
+    },
+    {
+      "name": "block 22 of the newer slot of box.raw",
+      "args": {
+        "block": 22
+      },
+      "input": {
+        "file": "box.raw",
+        "offset": "0x3A000",
+        "length": "0x2E000"
+      },
+      "output": {
+        "file": "box.raw",
+        "offset": "0x66000",
+        "length": "0x2000"
+      }
+    }
+  ],
+  "encode": [
+    {
+      "name": "block 0 of box.raw over the scaffold's slot B",
+      "args": {
+        "block": 0
+      },
+      "input": {
+        "file": "box.raw",
+        "offset": "0x3A000",
+        "length": "0x2000"
+      },
+      "previous": [
+        "00 02 F0 02 00 00 00 00 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "03 F0 01 00 00 00 01 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "04 F0 00 00 00 00 02 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "05 EF FF 00 00 00 03 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "06 EF FE 00 00 00 04 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "07 EF FD 00 00 00 05 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "08 EF FC 00 00 00 06 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "09 EF FB 00 00 00 07 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "0A EF FA 00 00 00 08 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "0B EF F9 00 00 00 09 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "0C EF F8 00 00 00 0A 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "0D EF F7 00 00 00 0B 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "0E EF F6 00 00 00 0C 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "0F EF F5 00 00 00 0D 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "10 EF F4 00 00 00 0E 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF4"
+        },
+        "FE A1 F1 63 00 00 00 0F 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0xD28"
+        },
+        {
+          "fill": "FF",
+          "length": "0xE1"
+        },
+        {
+          "fill": "00",
+          "length": "0x11EC"
+        },
+        "12 EF F2 00 00 00 10 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "13 EF F1 00 00 00 11 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "14 EF F0 00 00 00 12 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "15 EF EF 00 00 00 13 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "16 EF EE 00 00 00 14 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "17 EF ED 00 00 00 15 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "18 EF EC 00 00 00 16 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF4"
+        }
+      ],
+      "output": [
+        "9E 90 51 74 00 00 00 00 00 00 00 02 00 00 00 00 00 00 00 00 1D D1 5F 96 00 00 00 00 CA C9 C9 BD C2 D3 BF C8 BB FF 02 02 CA C5 C2 D9 D2 FF FF 00 06 2E 00 00 1D C1 DD B7 2B 53 BB A4 1D D1 5F 96 3C D1 5F 96 1D D1 5F 96 3E D1 5F 96 1D D1 5F 96 1D D1 5F 96 1D D1 5F 96 03 D0 5F 96 15 D1 5F 96 1D 97 5F 96",
+        {
+          "fill": "00",
+          "length": "0x1F9D"
+        },
+        "03 F0 01 00 00 00 01 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "04 F0 00 00 00 00 02 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "05 EF FF 00 00 00 03 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "06 EF FE 00 00 00 04 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "07 EF FD 00 00 00 05 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "08 EF FC 00 00 00 06 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "09 EF FB 00 00 00 07 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "0A EF FA 00 00 00 08 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "0B EF F9 00 00 00 09 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "0C EF F8 00 00 00 0A 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "0D EF F7 00 00 00 0B 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "0E EF F6 00 00 00 0C 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "0F EF F5 00 00 00 0D 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "10 EF F4 00 00 00 0E 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF4"
+        },
+        "FE A1 F1 63 00 00 00 0F 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0xD28"
+        },
+        {
+          "fill": "FF",
+          "length": "0xE1"
+        },
+        {
+          "fill": "00",
+          "length": "0x11EC"
+        },
+        "12 EF F2 00 00 00 10 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "13 EF F1 00 00 00 11 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "14 EF F0 00 00 00 12 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "15 EF EF 00 00 00 13 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "16 EF EE 00 00 00 14 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "17 EF ED 00 00 00 15 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF5"
+        },
+        "18 EF EC 00 00 00 16 00 00 00 02",
+        {
+          "fill": "00",
+          "length": "0x1FF4"
+        }
+      ]
+    }
+  ]
+}

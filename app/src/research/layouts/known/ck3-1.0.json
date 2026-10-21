@@ -1,0 +1,11 @@
+{
+  "$schema": "../schema/layout.schema.json",
+  "schema": "1.0",
+  "target": {
+    "kind": "pokemon",
+    "format": "ck3",
+    "version": "1.0",
+    "uses": [{"format": "memory-card-colosseum", "version": "1.0", "kind": "ck3"}],
+    "detect": {"match": "certain", "sizes": [312], "source": "pkhex:PKM/CK3.cs"}
+  }
+}

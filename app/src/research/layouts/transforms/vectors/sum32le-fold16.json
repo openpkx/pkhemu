@@ -1,0 +1,448 @@
+{
+  "step": "sum32le-fold16",
+  "decode": [
+    {
+      "name": "sector holding section 0 of frlg.sav",
+      "args": {
+        "start": 0,
+        "end": "0xF80",
+        "at": "0xFF6"
+      },
+      "input": {
+        "file": "frlg.sav",
+        "offset": "0x17000",
+        "length": "0x1000"
+      },
+      "output": "9C BB"
+    },
+    {
+      "name": "sector holding section 1 of frlg.sav",
+      "args": {
+        "start": 0,
+        "end": "0xF80",
+        "at": "0xFF6"
+      },
+      "input": {
+        "file": "frlg.sav",
+        "offset": "0x18000",
+        "length": "0x1000"
+      },
+      "output": "F9 0E"
+    },
+    {
+      "name": "sector holding section 5 of frlg.sav",
+      "args": {
+        "start": 0,
+        "end": "0xF80",
+        "at": "0xFF6"
+      },
+      "input": {
+        "file": "frlg.sav",
+        "offset": "0xE000",
+        "length": "0x1000"
+      },
+      "output": "50 40"
+    },
+    {
+      "name": "sector holding section 13 of frlg.sav",
+      "args": {
+        "start": 0,
+        "end": "0xF80",
+        "at": "0xFF6"
+      },
+      "input": {
+        "file": "frlg.sav",
+        "offset": "0x16000",
+        "length": "0x1000"
+      },
+      "output": "00 00"
+    },
+    {
+      "name": "sector holding section 0 of emerald.sav",
+      "args": {
+        "start": 0,
+        "end": "0xF80",
+        "at": "0xFF6"
+      },
+      "input": {
+        "file": "emerald.sav",
+        "offset": "0x19000",
+        "length": "0x1000"
+      },
+      "output": "5D 07"
+    },
+    {
+      "name": "sector holding section 1 of emerald.sav",
+      "args": {
+        "start": 0,
+        "end": "0xF80",
+        "at": "0xFF6"
+      },
+      "input": {
+        "file": "emerald.sav",
+        "offset": "0x1A000",
+        "length": "0x1000"
+      },
+      "output": "F5 8C"
+    },
+    {
+      "name": "sector holding section 5 of emerald.sav",
+      "args": {
+        "start": 0,
+        "end": "0xF80",
+        "at": "0xFF6"
+      },
+      "input": {
+        "file": "emerald.sav",
+        "offset": "0x10000",
+        "length": "0x1000"
+      },
+      "output": "00 00"
+    },
+    {
+      "name": "sector holding section 13 of emerald.sav",
+      "args": {
+        "start": 0,
+        "end": "0xF80",
+        "at": "0xFF6"
+      },
+      "input": {
+        "file": "emerald.sav",
+        "offset": "0x18000",
+        "length": "0x1000"
+      },
+      "output": "00 00"
+    },
+    {
+      "name": "sector holding section 0 of rs.sav",
+      "args": {
+        "start": 0,
+        "end": "0xF80",
+        "at": "0xFF6"
+      },
+      "input": {
+        "file": "rs.sav",
+        "offset": "0x19000",
+        "length": "0x1000"
+      },
+      "output": "25 59"
+    },
+    {
+      "name": "sector holding section 1 of rs.sav",
+      "args": {
+        "start": 0,
+        "end": "0xF80",
+        "at": "0xFF6"
+      },
+      "input": {
+        "file": "rs.sav",
+        "offset": "0x1A000",
+        "length": "0x1000"
+      },
+      "output": "41 E2"
+    },
+    {
+      "name": "sector holding section 5 of rs.sav",
+      "args": {
+        "start": 0,
+        "end": "0xF80",
+        "at": "0xFF6"
+      },
+      "input": {
+        "file": "rs.sav",
+        "offset": "0x10000",
+        "length": "0x1000"
+      },
+      "output": "00 00"
+    },
+    {
+      "name": "sector holding section 13 of rs.sav",
+      "args": {
+        "start": 0,
+        "end": "0xF80",
+        "at": "0xFF6"
+      },
+      "input": {
+        "file": "rs.sav",
+        "offset": "0x18000",
+        "length": "0x1000"
+      },
+      "output": "00 00"
+    },
+    {
+      "name": "sector holding section 0 of unbound.sav",
+      "args": {
+        "start": 0,
+        "end": "0xF24",
+        "at": "0xFF6"
+      },
+      "input": {
+        "file": "unbound.sav",
+        "offset": "0x13000",
+        "length": "0x1000"
+      },
+      "output": "25 5A"
+    },
+    {
+      "name": "sector holding section 1 of unbound.sav",
+      "args": {
+        "start": 0,
+        "end": "0xFF0",
+        "at": "0xFF6"
+      },
+      "input": {
+        "file": "unbound.sav",
+        "offset": "0x14000",
+        "length": "0x1000"
+      },
+      "output": "D7 8C"
+    },
+    {
+      "name": "sector holding section 5 of unbound.sav",
+      "args": {
+        "start": 0,
+        "end": "0xFF0",
+        "at": "0xFF6"
+      },
+      "input": {
+        "file": "unbound.sav",
+        "offset": "0x18000",
+        "length": "0x1000"
+      },
+      "output": "44 D7"
+    },
+    {
+      "name": "sector holding section 13 of unbound.sav",
+      "args": {
+        "start": 0,
+        "end": "0x450",
+        "at": "0xFF6"
+      },
+      "input": {
+        "file": "unbound.sav",
+        "offset": "0x12000",
+        "length": "0x1000"
+      },
+      "output": "00 00"
+    },
+    {
+      "name": "sector holding section 0 of radicalred.sav",
+      "args": {
+        "start": 0,
+        "end": "0xF24",
+        "at": "0xFF6"
+      },
+      "input": {
+        "file": "radicalred.sav",
+        "offset": "0x15000",
+        "length": "0x1000"
+      },
+      "output": "26 59"
+    },
+    {
+      "name": "sector holding section 1 of radicalred.sav",
+      "args": {
+        "start": 0,
+        "end": "0xFF0",
+        "at": "0xFF6"
+      },
+      "input": {
+        "file": "radicalred.sav",
+        "offset": "0x16000",
+        "length": "0x1000"
+      },
+      "output": "D7 8C"
+    },
+    {
+      "name": "sector holding section 5 of radicalred.sav",
+      "args": {
+        "start": 0,
+        "end": "0xFF0",
+        "at": "0xFF6"
+      },
+      "input": {
+        "file": "radicalred.sav",
+        "offset": "0x1A000",
+        "length": "0x1000"
+      },
+      "output": "44 D7"
+    },
+    {
+      "name": "sector holding section 13 of radicalred.sav",
+      "args": {
+        "start": 0,
+        "end": "0x450",
+        "at": "0xFF6"
+      },
+      "input": {
+        "file": "radicalred.sav",
+        "offset": "0x14000",
+        "length": "0x1000"
+      },
+      "output": "00 00"
+    },
+    {
+      "name": "sector 28 of frlg.sav, holding the bytes of section 5, its checksum at 0xFF4",
+      "args": {
+        "start": 0,
+        "end": "0xF80",
+        "at": "0xFF4"
+      },
+      "input": [
+        "00 00 00 00 A9 47 35 A6 00 00 00 00 CA C3 BE C1 BF D3 FF 00 00 00 02 02 C9 CA BF C8 CA C5 D2 00 00 58 00 00 88 47 35 A6 A9 47 35 A6 8A 47 35 A6 A9 47 35 A6 A9 47 35 A6 A9 47 35 A6 A9 22 36 84 BC 2D 6E 86 A9 47 35 A6 B9 47 35 A6 90 47 35 A6 A9 01 35 A6 E8 3F D0 61 00 00 00 00 CC BB CE CE BB CE BB FF 00 00 02 02 C9 CA BF C8 CA C5 D2 00 21 85 00 00 FB 3F D0 61 F3 3F D0 61 E8 79 D0 61 C9 3F F7 61 E8 3F D0 61 CB 21 D0 61 E8 3F D0 61 E8 3F D0 61 E8 3F D0 61 E8 5A D3 43 25 BA 68 72 E8 3F D0 61 CE 30 C4 43 00 00 00 00 BD BB CE BF CC CA C3 BF FF 00 02 02 C9 CA BF C8 CA C5 D2 00 C2 B5 00 00 CE 56 C0 61 B6 88 A3 45 CE 30 C4 43 CE 30 C4 43 CE 30 C4 43 CE 30 C4 43 C4 30 C4 43 8E 30 C4 43 CE 76 C4 43 EF 30 95 43 CE 30 C4 43 ED 18 C4 43",
+        {
+          "file": "frlg.sav",
+          "offset": "0x1C0F4",
+          "length": "0xF00"
+        },
+        "50 40",
+        {
+          "file": "frlg.sav",
+          "offset": "0x1CFF6",
+          "length": "0xA"
+        }
+      ],
+      "output": "50 40"
+    }
+  ],
+  "encode": [
+    {
+      "name": "sector holding section 1 of frlg.sav, with money 654321",
+      "args": {
+        "start": 0,
+        "end": "0xF80",
+        "at": "0xFF6"
+      },
+      "input": [
+        {
+          "file": "frlg.sav",
+          "offset": "0x18000",
+          "length": "0x290"
+        },
+        "2E 60 5E",
+        {
+          "file": "frlg.sav",
+          "offset": "0x18293",
+          "length": "0xD63"
+        },
+        "00 00",
+        {
+          "file": "frlg.sav",
+          "offset": "0x18FF8",
+          "length": "0x8"
+        }
+      ],
+      "output": [
+        {
+          "file": "frlg.sav",
+          "offset": "0x18000",
+          "length": "0x290"
+        },
+        "2E 60 5E",
+        {
+          "file": "frlg.sav",
+          "offset": "0x18293",
+          "length": "0xD63"
+        },
+        "90 F5",
+        {
+          "file": "frlg.sav",
+          "offset": "0x18FF8",
+          "length": "0x8"
+        }
+      ]
+    },
+    {
+      "name": "sector holding section 1 of emerald.sav, with money 654321",
+      "args": {
+        "start": 0,
+        "end": "0xF80",
+        "at": "0xFF6"
+      },
+      "input": [
+        {
+          "file": "emerald.sav",
+          "offset": "0x1A000",
+          "length": "0x490"
+        },
+        "2E 60 5E",
+        {
+          "file": "emerald.sav",
+          "offset": "0x1A493",
+          "length": "0xB63"
+        },
+        "00 00",
+        {
+          "file": "emerald.sav",
+          "offset": "0x1AFF8",
+          "length": "0x8"
+        }
+      ],
+      "output": [
+        {
+          "file": "emerald.sav",
+          "offset": "0x1A000",
+          "length": "0x490"
+        },
+        "2E 60 5E",
+        {
+          "file": "emerald.sav",
+          "offset": "0x1A493",
+          "length": "0xB63"
+        },
+        "8C 73",
+        {
+          "file": "emerald.sav",
+          "offset": "0x1AFF8",
+          "length": "0x8"
+        }
+      ]
+    },
+    {
+      "name": "sector holding section 1 of unbound.sav, with money 654321",
+      "args": {
+        "start": 0,
+        "end": "0xFF0",
+        "at": "0xFF6"
+      },
+      "input": [
+        {
+          "file": "unbound.sav",
+          "offset": "0x14000",
+          "length": "0x290"
+        },
+        "F1 FB 09",
+        {
+          "file": "unbound.sav",
+          "offset": "0x14293",
+          "length": "0xD63"
+        },
+        "00 00",
+        {
+          "file": "unbound.sav",
+          "offset": "0x14FF8",
+          "length": "0x8"
+        }
+      ],
+      "output": [
+        {
+          "file": "unbound.sav",
+          "offset": "0x14000",
+          "length": "0x290"
+        },
+        "F1 FB 09",
+        {
+          "file": "unbound.sav",
+          "offset": "0x14293",
+          "length": "0xD63"
+        },
+        "91 A6",
+        {
+          "file": "unbound.sav",
+          "offset": "0x14FF8",
+          "length": "0x8"
+        }
+      ]
+    }
+  ]
+}

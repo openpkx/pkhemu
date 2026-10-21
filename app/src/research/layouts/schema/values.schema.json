@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/openpkx/layouts/schema/values.schema.json",
+  "title": "Value file",
+  "description": "English names for the indexes a game stores, shared by the layouts that list the file in valueFiles.",
+  "type": "object",
+  "required": ["schema", "values"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "schema": {
+      "const": "1.0",
+      "description": "The version of the layout schema the file follows. A reader skips files newer than it understands."
+    },
+    "note": { "type": "string" },
+    "values": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "layout.schema.json#/$defs/value" }
+    }
+  }
+}

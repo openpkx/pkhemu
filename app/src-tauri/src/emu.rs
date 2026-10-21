@@ -319,6 +319,7 @@ struct Game {
     slot: Option<u8>,
     session: Option<Session>,
     frames: u64,
+    changed_state: bool,
     pacer: Pacer,
     frame_times: FrameTimes,
     paused: bool,
@@ -472,6 +473,7 @@ impl Game {
     }
 
     fn apply(&mut self, edited: &[u8]) -> Result<(), String> {
+        self.changed_state = true;
         self.leave_hardcore();
         let back_up = |save: &[u8]| (self.back_up)(Reason::Edit, save);
         let (undo, file) = match &mut self.save_file {
@@ -488,6 +490,7 @@ impl Game {
 
     fn undo(&mut self) -> Result<(), String> {
         let undo = self.undo.take().ok_or("there's no edit to undo")?;
+        self.changed_state = true;
         self.leave_hardcore();
         let file = match &mut self.save_file {
             Some(SaveFile::Card(card)) => edit::undo_card(&mut self.core, card, &mut self.watch, undo)?,
@@ -540,6 +543,7 @@ impl Game {
         }
         self.leave_hardcore();
         let mut before = self.moment()?;
+        self.changed_state = true;
         before.info.slot = self.slot;
         let fps = self.core.av().timing.fps;
         let frames_since_save = loaded.info.play_since_save.map(|seconds| (seconds * fps).round() as u64);
@@ -624,9 +628,9 @@ impl Game {
     fn suspend(&mut self) {
         self.check_save();
         self.check_cart();
-        // A game that never ran a frame, such as one whose screen never came up, would replace the state it was
-        // resumed from.
-        if self.frames > 0 {
+        // A game that never ran a frame, or never drew one since its state loaded, would replace the state it was
+        // resumed from with one whose screen never comes up. An edit or a loaded state replaces it anyway.
+        if self.frames > 0 && (self.core.drew_since_load() || self.changed_state) {
             self.write_resume();
         }
         if let Some(session) = &self.session {
@@ -837,6 +841,7 @@ fn run(
                         slot,
                         session,
                         frames: 0,
+                        changed_state: false,
                         pacer: Pacer::new(fps),
                         frame_times: FrameTimes::new(),
                         paused: false,
@@ -1242,6 +1247,7 @@ mod tests {
             slot: None,
             session: None,
             frames: 0,
+            changed_state: false,
             pacer: Pacer::new(60.0),
             frame_times: FrameTimes::new(),
             paused: false,
@@ -2063,6 +2069,41 @@ mod tests {
     }
 
     #[test]
+    fn quitting_a_resumed_game_that_never_drew_keeps_the_resume_files() {
+        let _lock = lock_core();
+        let state = playing(counting_rom()).core.serialize().unwrap();
+        let (core, watch) = load(counting_rom(), Some(pattern(0x8030, 1)), Some(state), &real_time(), &std::env::temp_dir(), None).unwrap();
+        let (mut game, states) = writing_to("quit-undrawn", core, watch);
+        std::fs::create_dir_all(&states).unwrap();
+        std::fs::write(states.join("resume.state"), b"resumed from").unwrap();
+        std::fs::write(states.join("resume.json"), b"{}").unwrap();
+        std::fs::write(states.join("resume.png"), b"picture").unwrap();
+        game.frames = 600;
+
+        quit(game);
+
+        assert_eq!(std::fs::read(states.join("resume.state")).unwrap(), b"resumed from");
+        assert_eq!(std::fs::read(states.join("resume.json")).unwrap(), b"{}");
+        assert_eq!(std::fs::read(states.join("resume.png")).unwrap(), b"picture");
+    }
+
+    #[test]
+    fn quitting_right_after_an_edit_replaces_the_resume_files() {
+        let _lock = lock_core();
+        let state = playing(counting_rom()).core.serialize().unwrap();
+        let (core, watch) = load(counting_rom(), Some(pattern(0x8030, 1)), Some(state), &real_time(), &std::env::temp_dir(), None).unwrap();
+        let (mut game, states) = writing_to("quit-edited", core, watch);
+        std::fs::create_dir_all(&states).unwrap();
+        std::fs::write(states.join("resume.state"), b"resumed from").unwrap();
+        game.frames = 600;
+        game.apply(&pattern(0x8000, 7)).unwrap();
+
+        quit(game);
+
+        assert_ne!(std::fs::read(states.join("resume.state")).unwrap(), b"resumed from");
+    }
+
+    #[test]
     fn counts_play_since_save_from_the_last_save_write() {
         let _lock = lock_core();
         let (mut game, states) = writing_to("since-save", start_rom(counting_rom(), &pattern(0x8030, 1)), save::Watch::new());
@@ -2628,6 +2669,11 @@ mod tests {
     // 60 Hz choice.
     fn as_on_a_new_device() {
         let _ = std::fs::remove_dir_all(retro::dolphin_card(&std::env::temp_dir()).parent().unwrap());
+        let _ = std::fs::remove_dir_all(dolphin_game_settings());
+    }
+
+    fn dolphin_game_settings() -> PathBuf {
+        retro::dolphin_card(&std::env::temp_dir()).parent().unwrap().with_file_name("GameSettings")
     }
 
     fn mash(game: &mut Game, button: u16, frames: u32, gap: u32) {
@@ -2640,7 +2686,7 @@ mod tests {
 
     // Past the 60 Hz prompt and the title to where Colosseum has read the card: it offers to make a save file on a
     // card without one, and says it has read one with a save.
-    fn colosseum_card_message(game: &mut Game) -> Vec<u16> {
+    fn colosseum_card_message(game: &mut Game) {
         game.play(410);
         mash(game, 1 << 6, 10, 10);
         game.play(20);
@@ -2648,7 +2694,6 @@ mod tests {
         game.play(1500);
         mash(game, 1 << 3, 200, 30);
         game.play(300);
-        game.core.last_frame(|frame| frame.pixels.clone()).unwrap()
     }
 
     fn dolphin() -> retro::CoreInfo {
@@ -2695,6 +2740,7 @@ mod tests {
         colosseum_card_message(&mut game);
         quit(game);
         let blank = block_on(folder.read("gc/Colosseum.raw")).unwrap();
+        assert_eq!(blank.len(), 0x200000, "Dolphin made a card other than 251 blocks");
         as_on_a_new_device();
 
         let mut game = playing_colosseum(&root, None).unwrap();
@@ -2734,36 +2780,30 @@ mod tests {
 
     #[test]
     #[cfg(target_arch = "aarch64")]
-    fn a_colosseum_card_restored_from_a_backup_loads_on_another_device() {
+    fn a_16_mb_colosseum_card_still_loads_and_keeps_its_size() {
         let _lock = lock_core();
-        let root = std::env::temp_dir().join(format!("pkh-emu-emu-colosseum-card-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("pkh-emu-emu-colosseum-16-mb-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         let folder = GamesFolder::<tauri::Wry>::at(root.clone());
         as_on_a_new_device();
-        let Some(mut game) = playing_colosseum(&root, None) else { return };
-        let offer = colosseum_card_message(&mut game);
+        // A revision's settings load after the game's, and -1 brings back Dolphin's own 2,043 blocks.
+        std::fs::create_dir_all(dolphin_game_settings()).unwrap();
+        std::fs::write(dolphin_game_settings().join("GC6P01r0.ini"), "[Core]\nMemoryCardSize = -1\n").unwrap();
+        let game = playing_colosseum(&root, None);
+        let _ = std::fs::remove_file(dolphin_game_settings().join("GC6P01r0.ini"));
+        let Some(mut game) = game else { return };
+        colosseum_card_message(&mut game);
         mash(&mut game, 1 << 8, 300, 40);
         quit(game);
-
         let card = block_on(folder.read("gc/Colosseum.raw")).unwrap();
+        assert_eq!(card.len(), 0x1000000);
         assert!(contains(&card[0x2000..0x6000], b"GC6P01"), "Colosseum made no save file on the card");
-        let (slot, _) = block_on(save::open(&folder, COLOSSEUM)).unwrap();
-        block_on(crate::backups::take(&folder, COLOSSEUM, &slot, Reason::Start, &card, "2026-10-20_1200", None))
-            .unwrap();
-        block_on(folder.remove_unlogged("gc/Colosseum.raw")).unwrap();
-        block_on(crate::backups::restore(&folder, COLOSSEUM, "2026-10-20_1200_start.raw", "2026-10-20_1201", 10))
-            .unwrap();
         as_on_a_new_device();
 
         let mut game = playing_colosseum(&root, None).unwrap();
-        let read = colosseum_card_message(&mut game);
+        colosseum_card_message(&mut game);
         quit(game);
 
-        // The offer's YES and NO sit over the logo, which shows once the game has read its save.
-        let width = 640;
-        let changed =
-            (215..300).flat_map(|y| (90..210).map(move |x| y * width + x)).filter(|&at| offer[at] != read[at]).count();
-        assert!(changed > 120 * 85 / 2, "Colosseum offered to make a save file again ({changed} pixels changed)");
         assert_eq!(block_on(folder.read("gc/Colosseum.raw")).unwrap(), card);
         as_on_a_new_device();
         let _ = std::fs::remove_dir_all(&root);

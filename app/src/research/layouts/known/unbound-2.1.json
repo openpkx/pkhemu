@@ -1,69 +1,80 @@
 {
   "$schema": "../schema/layout.schema.json",
+  "schema": "1.0",
   "target": {
     "kind": "save",
     "format": "unbound",
     "version": "2.1",
     "roms": [
       {"sha1": "b4776b82a4c7915d0fadeaa27e013523f99dfd94", "name": "Pokémon Unbound v2.1.1.1"}
-    ]
+    ],
+    "detect": {
+      "match": "certain",
+      "sizes": ["0x20000"],
+      "steps": [
+        {"step": "gen3-signature", "args": {"signatures": ["0x01122000", "0x01121999", "0x01121998"]}}
+      ],
+      "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/Unbound/UnboundFormat.cs and engine:src/PKHeX.Everywhere.RomHacks/Cfru/Unbound/UnboundSave.cs",
+      "note": "Unbound signs its sections with its own signatures, so no other format matches."
+    }
   },
-  "note": "Unbound is built on the Complete FireRed Upgrade. Its sections use the signatures 0x01122000, 0x01121999 and 0x01121998, and fill each section up to 0xFF0.",
+  "note": "Unbound is built on the Complete FireRed Upgrade, which keeps FireRed's 14 sections but fills each up to 0xFF0, stores Pokémon unencrypted with the hack's own indexes, packs boxed Pokémon into 58 bytes and spreads 25 boxes and a 450-slot items pocket over sectors 30 and 31, outside both save slots. Its sections use the signatures 0x01122000, 0x01121999 and 0x01121998.",
+  "valueFiles": ["cfru", "unbound"],
   "kinds": {
     "cfru-party": {
       "length": 100,
-      "note": "A party Pokémon. It keeps the Gen 3 party layout, unencrypted and with the substructures in order, but holds the hack's own species, item, move and ball indexes.",
+      "note": "A party Pokémon in the Complete FireRed Upgrade. It keeps the Gen 3 party layout, unencrypted and with the substructures in order, but holds the hack's own species, item, move and ball indexes.",
       "ranges": [
-        {"offset": "0x00", "length": 4, "type": "u32le", "name": "PID", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
-        {"offset": "0x04", "length": 4, "type": "u32le", "name": "Original trainer ID (TID low, SID high)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
-        {"offset": "0x08", "length": 10, "type": "text-gen3", "name": "Nickname", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
-        {"offset": "0x12", "length": 1, "type": "u8", "name": "Language", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
-        {"offset": "0x13", "length": 1, "type": "u8", "name": "Flags", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "bits": [{"bit": 2, "width": 1, "name": "Is egg"}]},
-        {"offset": "0x14", "length": 7, "type": "text-gen3", "name": "Original trainer name", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
-        {"offset": "0x1C", "length": 2, "type": "u16le", "name": "Checksum", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "note": "The game swaps the species at the start of a battle unless this is 0."},
-        {"offset": "0x20", "length": 2, "type": "u16le", "name": "Species (hack index)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
-        {"offset": "0x22", "length": 2, "type": "u16le", "name": "Held item (hack index)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
-        {"offset": "0x24", "length": 4, "type": "u32le", "name": "Experience", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
-        {"offset": "0x28", "length": 1, "type": "u8", "name": "PP Ups", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "bits": [{"bit": 0, "width": 2, "name": "Move 1"}, {"bit": 2, "width": 2, "name": "Move 2"}, {"bit": 4, "width": 2, "name": "Move 3"}, {"bit": 6, "width": 2, "name": "Move 4"}]},
-        {"offset": "0x29", "length": 1, "type": "u8", "name": "Friendship", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
-        {"offset": "0x2A", "length": 1, "type": "u8", "name": "Ball (hack index)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
-        {"offset": "0x2C", "length": 2, "type": "u16le", "name": "Moves (hack index)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "count": 4, "stride": 2},
-        {"offset": "0x34", "length": 1, "type": "u8", "name": "PP", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "count": 4, "stride": 1},
-        {"offset": "0x38", "length": 1, "type": "u8", "name": "EVs: HP, Attack, Defense, Speed, Sp. Atk, Sp. Def", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "count": 6, "stride": 1},
-        {"offset": "0x44", "length": 1, "type": "u8", "name": "Pokérus", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "bits": [{"bit": 0, "width": 4, "name": "Days"}, {"bit": 4, "width": 4, "name": "Strain"}]},
-        {"offset": "0x45", "length": 1, "type": "u8", "name": "Met location", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
-        {"offset": "0x46", "length": 2, "type": "u16le", "name": "Origins", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "bits": [{"bit": 0, "width": 7, "name": "Met level"}, {"bit": 7, "width": 4, "name": "Origin game"}, {"bit": 15, "width": 1, "name": "Trainer gender"}]},
-        {"offset": "0x48", "length": 4, "type": "u32le", "name": "IVs, egg and hidden ability", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "bits": [{"bit": 0, "width": 5, "name": "HP IV"}, {"bit": 5, "width": 5, "name": "Attack IV"}, {"bit": 10, "width": 5, "name": "Defense IV"}, {"bit": 15, "width": 5, "name": "Speed IV"}, {"bit": 20, "width": 5, "name": "Sp. Atk IV"}, {"bit": 25, "width": 5, "name": "Sp. Def IV"}, {"bit": 30, "width": 1, "name": "Is egg"}, {"bit": 31, "width": 1, "name": "Hidden ability"}]},
-        {"offset": "0x4C", "length": 4, "type": "u32le", "name": "Ribbons", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "bits": [{"bit": 31, "width": 1, "name": "Fateful encounter"}]},
-        {"offset": "0x50", "length": 4, "type": "i32le", "name": "Status condition", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
-        {"offset": "0x54", "length": 1, "type": "u8", "name": "Level", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
-        {"offset": "0x55", "length": 1, "type": "u8", "name": "Mail ID", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "note": "0xFF when the Pokémon holds no mail."},
-        {"offset": "0x56", "length": 2, "type": "u16le", "name": "Current HP", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
-        {"offset": "0x58", "length": 2, "type": "u16le", "name": "Stats: max HP, Attack, Defense, Speed, Sp. Atk, Sp. Def", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "count": 6, "stride": 2}
+        {"id": "pid", "offset": "0x00", "length": 4, "type": "u32le", "name": "PID", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
+        {"id": "original-trainer-id", "offset": "0x04", "length": 4, "type": "u32le", "name": "Original trainer ID", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "bits": [{"id": "tid", "bit": 0, "width": 16, "name": "Trainer ID"}, {"id": "sid", "bit": 16, "width": 16, "name": "Secret ID"}]},
+        {"id": "nickname", "offset": "0x08", "length": 10, "type": "text-gen3-intl", "name": "Nickname", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
+        {"id": "language", "offset": "0x12", "length": 1, "type": "u8", "name": "Language", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
+        {"id": "flags", "offset": "0x13", "length": 1, "type": "u8", "name": "Flags", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "bits": [{"id": "is-egg", "bit": 2, "width": 1, "name": "Is egg"}]},
+        {"id": "original-trainer-name", "offset": "0x14", "length": 7, "type": "text-gen3-intl", "name": "Original trainer name", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
+        {"id": "checksum", "offset": "0x1C", "length": 2, "type": "u16le", "name": "Checksum", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "note": "The game swaps the species at the start of a battle unless this is 0, so a writer leaves it 0."},
+        {"id": "species", "offset": "0x20", "length": 2, "type": "u16le", "name": "Species (hack index)", "domain": "species", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
+        {"id": "held-item", "offset": "0x22", "length": 2, "type": "u16le", "name": "Held item (hack index)", "domain": "item", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
+        {"id": "experience", "offset": "0x24", "length": 4, "type": "u32le", "name": "Experience", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
+        {"id": "pp-ups", "offset": "0x28", "length": 1, "type": "u8", "name": "PP Ups", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "bits": [{"id": "move-1", "bit": 0, "width": 2, "name": "Move 1"}, {"id": "move-2", "bit": 2, "width": 2, "name": "Move 2"}, {"id": "move-3", "bit": 4, "width": 2, "name": "Move 3"}, {"id": "move-4", "bit": 6, "width": 2, "name": "Move 4"}]},
+        {"id": "friendship", "offset": "0x29", "length": 1, "type": "u8", "name": "Friendship", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
+        {"id": "ball", "offset": "0x2A", "length": 1, "type": "u8", "name": "Ball (hack index)", "domain": "ball", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
+        {"id": "moves", "offset": "0x2C", "length": 2, "type": "u16le", "name": "Moves (hack index)", "domain": "move", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "count": 4, "stride": 2},
+        {"id": "pp", "offset": "0x34", "length": 1, "type": "u8", "name": "PP", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "count": 4, "stride": 1},
+        {"id": "evs", "offset": "0x38", "length": 1, "type": "u8", "name": "EVs: HP, Attack, Defense, Speed, Sp. Atk, Sp. Def", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "count": 6, "stride": 1},
+        {"id": "pokerus", "offset": "0x44", "length": 1, "type": "u8", "name": "Pokérus", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "bits": [{"id": "days", "bit": 0, "width": 4, "name": "Days"}, {"id": "strain", "bit": 4, "width": 4, "name": "Strain"}]},
+        {"id": "met-location", "offset": "0x45", "length": 1, "type": "u8", "name": "Met location", "domain": "location", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
+        {"id": "origins", "offset": "0x46", "length": 2, "type": "u16le", "name": "Origins", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "bits": [{"id": "met-level", "bit": 0, "width": 7, "name": "Met level"}, {"id": "origin-game", "bit": 7, "width": 4, "name": "Origin game"}, {"id": "trainer-gender", "bit": 15, "width": 1, "name": "Trainer gender"}], "note": "Bits 11 to 14, the ball in the retail games, aren't used. The ball has its own byte."},
+        {"id": "ivs-egg-and-hidden-ability", "offset": "0x48", "length": 4, "type": "u32le", "name": "IVs, egg and hidden ability", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "bits": [{"id": "hp-iv", "bit": 0, "width": 5, "name": "HP IV"}, {"id": "attack-iv", "bit": 5, "width": 5, "name": "Attack IV"}, {"id": "defense-iv", "bit": 10, "width": 5, "name": "Defense IV"}, {"id": "speed-iv", "bit": 15, "width": 5, "name": "Speed IV"}, {"id": "sp-atk-iv", "bit": 20, "width": 5, "name": "Sp. Atk IV"}, {"id": "sp-def-iv", "bit": 25, "width": 5, "name": "Sp. Def IV"}, {"id": "is-egg", "bit": 30, "width": 1, "name": "Is egg"}, {"id": "hidden-ability", "bit": 31, "width": 1, "name": "Hidden ability"}]},
+        {"id": "ribbons", "offset": "0x4C", "length": 4, "type": "u32le", "name": "Ribbons", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "bits": [{"id": "fateful-encounter", "bit": 31, "width": 1, "name": "Fateful encounter"}]},
+        {"id": "status-condition", "offset": "0x50", "length": 4, "type": "i32le", "name": "Status condition", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
+        {"id": "level", "offset": "0x54", "length": 1, "type": "u8", "name": "Level", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
+        {"id": "mail-id", "offset": "0x55", "length": 1, "type": "u8", "name": "Mail ID", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "note": "0xFF when the Pokémon holds no mail."},
+        {"id": "current-hp", "offset": "0x56", "length": 2, "type": "u16le", "name": "Current HP", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
+        {"id": "stats", "offset": "0x58", "length": 2, "type": "u16le", "name": "Stats: max HP, Attack, Defense, Speed, Sp. Atk, Sp. Def", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "count": 6, "stride": 2}
       ]
     },
     "cfru-boxed": {
-      "length": 58,
-      "note": "A boxed Pokémon, packed from the party layout.",
+      "length": 80,
+      "note": "A boxed Pokémon as cfru-box decodes it, at the offsets the party layout uses. A box doesn't store the PP, the ribbons or the bytes the game works out again.",
       "ranges": [
-        {"offset": "0x00", "length": 4, "type": "u32le", "name": "PID", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
-        {"offset": "0x04", "length": 4, "type": "u32le", "name": "Original trainer ID (TID low, SID high)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
-        {"offset": "0x08", "length": 10, "type": "text-gen3", "name": "Nickname", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
-        {"offset": "0x12", "length": 1, "type": "u8", "name": "Language", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
-        {"offset": "0x13", "length": 1, "type": "u8", "name": "Flags", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "bits": [{"bit": 2, "width": 1, "name": "Is egg"}]},
-        {"offset": "0x14", "length": 7, "type": "text-gen3", "name": "Original trainer name", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
-        {"offset": "0x1C", "length": 2, "type": "u16le", "name": "Species (hack index)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
-        {"offset": "0x1E", "length": 2, "type": "u16le", "name": "Held item (hack index)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
-        {"offset": "0x20", "length": 4, "type": "u32le", "name": "Experience", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
-        {"offset": "0x24", "length": 1, "type": "u8", "name": "PP Ups", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "bits": [{"bit": 0, "width": 2, "name": "Move 1"}, {"bit": 2, "width": 2, "name": "Move 2"}, {"bit": 4, "width": 2, "name": "Move 3"}, {"bit": 6, "width": 2, "name": "Move 4"}]},
-        {"offset": "0x25", "length": 1, "type": "u8", "name": "Friendship", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
-        {"offset": "0x26", "length": 1, "type": "u8", "name": "Ball (hack index)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
-        {"offset": "0x27", "length": 5, "type": "bytes", "name": "Moves (hack index)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "note": "Four 10-bit move indexes packed from the lowest bit of a little-endian 40-bit number."},
-        {"offset": "0x2C", "length": 1, "type": "u8", "name": "EVs: HP, Attack, Defense, Speed, Sp. Atk, Sp. Def", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "count": 6, "stride": 1},
-        {"offset": "0x32", "length": 1, "type": "u8", "name": "Pokérus", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "bits": [{"bit": 0, "width": 4, "name": "Days"}, {"bit": 4, "width": 4, "name": "Strain"}]},
-        {"offset": "0x33", "length": 1, "type": "u8", "name": "Met location", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
-        {"offset": "0x34", "length": 2, "type": "u16le", "name": "Origins", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "bits": [{"bit": 0, "width": 7, "name": "Met level"}, {"bit": 7, "width": 4, "name": "Origin game"}, {"bit": 15, "width": 1, "name": "Trainer gender"}]},
-        {"offset": "0x36", "length": 4, "type": "u32le", "name": "IVs, egg and hidden ability", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "bits": [{"bit": 0, "width": 5, "name": "HP IV"}, {"bit": 5, "width": 5, "name": "Attack IV"}, {"bit": 10, "width": 5, "name": "Defense IV"}, {"bit": 15, "width": 5, "name": "Speed IV"}, {"bit": 20, "width": 5, "name": "Sp. Atk IV"}, {"bit": 25, "width": 5, "name": "Sp. Def IV"}, {"bit": 30, "width": 1, "name": "Is egg"}, {"bit": 31, "width": 1, "name": "Hidden ability"}]}
+        {"id": "pid", "offset": "0x00", "length": 4, "type": "u32le", "name": "PID", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
+        {"id": "original-trainer-id", "offset": "0x04", "length": 4, "type": "u32le", "name": "Original trainer ID", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "bits": [{"id": "tid", "bit": 0, "width": 16, "name": "Trainer ID"}, {"id": "sid", "bit": 16, "width": 16, "name": "Secret ID"}]},
+        {"id": "nickname", "offset": "0x08", "length": 10, "type": "text-gen3-intl", "name": "Nickname", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
+        {"id": "language", "offset": "0x12", "length": 1, "type": "u8", "name": "Language", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
+        {"id": "flags", "offset": "0x13", "length": 1, "type": "u8", "name": "Flags", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "bits": [{"id": "is-egg", "bit": 2, "width": 1, "name": "Is egg"}]},
+        {"id": "original-trainer-name", "offset": "0x14", "length": 7, "type": "text-gen3-intl", "name": "Original trainer name", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
+        {"id": "species", "offset": "0x20", "length": 2, "type": "u16le", "name": "Species (hack index)", "domain": "species", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
+        {"id": "held-item", "offset": "0x22", "length": 2, "type": "u16le", "name": "Held item (hack index)", "domain": "item", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
+        {"id": "experience", "offset": "0x24", "length": 4, "type": "u32le", "name": "Experience", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
+        {"id": "pp-ups", "offset": "0x28", "length": 1, "type": "u8", "name": "PP Ups", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "bits": [{"id": "move-1", "bit": 0, "width": 2, "name": "Move 1"}, {"id": "move-2", "bit": 2, "width": 2, "name": "Move 2"}, {"id": "move-3", "bit": 4, "width": 2, "name": "Move 3"}, {"id": "move-4", "bit": 6, "width": 2, "name": "Move 4"}]},
+        {"id": "friendship", "offset": "0x29", "length": 1, "type": "u8", "name": "Friendship", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
+        {"id": "ball", "offset": "0x2A", "length": 1, "type": "u8", "name": "Ball (hack index)", "domain": "ball", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
+        {"id": "moves", "offset": "0x2C", "length": 2, "type": "u16le", "name": "Moves (hack index)", "domain": "move", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "count": 4, "stride": 2, "note": "A box stores only the low 10 bits of each."},
+        {"id": "evs", "offset": "0x38", "length": 1, "type": "u8", "name": "EVs: HP, Attack, Defense, Speed, Sp. Atk, Sp. Def", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "count": 6, "stride": 1},
+        {"id": "pokerus", "offset": "0x44", "length": 1, "type": "u8", "name": "Pokérus", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "bits": [{"id": "days", "bit": 0, "width": 4, "name": "Days"}, {"id": "strain", "bit": 4, "width": 4, "name": "Strain"}]},
+        {"id": "met-location", "offset": "0x45", "length": 1, "type": "u8", "name": "Met location", "domain": "location", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs"},
+        {"id": "origins", "offset": "0x46", "length": 2, "type": "u16le", "name": "Origins", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "bits": [{"id": "met-level", "bit": 0, "width": 7, "name": "Met level"}, {"id": "origin-game", "bit": 7, "width": 4, "name": "Origin game"}, {"id": "trainer-gender", "bit": 15, "width": 1, "name": "Trainer gender"}], "note": "Bits 11 to 14, the ball in the retail games, aren't used. The ball has its own byte."},
+        {"id": "ivs-egg-and-hidden-ability", "offset": "0x48", "length": 4, "type": "u32le", "name": "IVs, egg and hidden ability", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruPokemon.cs", "bits": [{"id": "hp-iv", "bit": 0, "width": 5, "name": "HP IV"}, {"id": "attack-iv", "bit": 5, "width": 5, "name": "Attack IV"}, {"id": "defense-iv", "bit": 10, "width": 5, "name": "Defense IV"}, {"id": "speed-iv", "bit": 15, "width": 5, "name": "Speed IV"}, {"id": "sp-atk-iv", "bit": 20, "width": 5, "name": "Sp. Atk IV"}, {"id": "sp-def-iv", "bit": 25, "width": 5, "name": "Sp. Def IV"}, {"id": "is-egg", "bit": 30, "width": 1, "name": "Is egg"}, {"id": "hidden-ability", "bit": 31, "width": 1, "name": "Hidden ability"}]}
       ]
     }
   },
@@ -73,15 +84,18 @@
       "length": "0xFF0",
       "transform": "gen3-sections",
       "args": {"section": 0},
+      "checksums": [
+        {"step": "sum32le-fold16", "start": 0, "end": "0xF24", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
+      ],
       "ranges": [
-        {"offset": "0x0000", "length": 7, "type": "text-gen3", "name": "Trainer name", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"},
-        {"offset": "0x0008", "length": 1, "type": "u8", "name": "Trainer gender", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"},
-        {"offset": "0x000A", "length": 2, "type": "u16le", "name": "Trainer ID", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"},
-        {"offset": "0x000C", "length": 2, "type": "u16le", "name": "Secret ID", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"},
-        {"offset": "0x000E", "length": 2, "type": "u16le", "name": "Play time hours", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"},
-        {"offset": "0x0010", "length": 1, "type": "u8", "name": "Play time minutes", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"},
-        {"offset": "0x0011", "length": 1, "type": "u8", "name": "Play time seconds", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"},
-        {"offset": "0x00B0", "length": 1740, "type": "bytes", "name": "Box Pokémon (decoded in box spaces)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
+        {"id": "trainer-name", "offset": "0x0000", "length": 7, "type": "text-gen3-intl", "name": "Trainer name", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"},
+        {"id": "trainer-gender", "offset": "0x0008", "length": 1, "type": "u8", "name": "Trainer gender", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"},
+        {"id": "trainer-id", "offset": "0x000A", "length": 2, "type": "u16le", "name": "Trainer ID", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"},
+        {"id": "secret-id", "offset": "0x000C", "length": 2, "type": "u16le", "name": "Secret ID", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"},
+        {"id": "play-time-hours", "offset": "0x000E", "length": 2, "type": "u16le", "name": "Play time hours", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"},
+        {"id": "play-time-minutes", "offset": "0x0010", "length": 1, "type": "u8", "name": "Play time minutes", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"},
+        {"id": "play-time-seconds", "offset": "0x0011", "length": 1, "type": "u8", "name": "Play time seconds", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"},
+        {"id": "box-pokemon", "offset": "0x00B0", "length": 1740, "type": "bytes", "name": "Box Pokémon (decoded in box spaces)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
       ]
     },
     {
@@ -89,10 +103,13 @@
       "length": "0xFF0",
       "transform": "gen3-sections",
       "args": {"section": 1},
+      "checksums": [
+        {"step": "sum32le-fold16", "start": 0, "end": "0xFF0", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
+      ],
       "ranges": [
-        {"offset": "0x0034", "length": 1, "type": "u8", "name": "Party count", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"},
-        {"offset": "0x0038", "length": 600, "type": "bytes", "name": "Party Pokémon (decoded in party spaces)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"},
-        {"offset": "0x0290", "length": 4, "type": "u32le", "name": "Money", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs", "note": "Plain, with no security key."}
+        {"id": "party-count", "offset": "0x0034", "length": 1, "type": "u8", "name": "Party count", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"},
+        {"id": "party-pokemon", "offset": "0x0038", "length": 600, "type": "bytes", "name": "Party Pokémon (decoded in party spaces)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"},
+        {"id": "money", "offset": "0x0290", "length": 4, "type": "u32le", "name": "Money", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs", "note": "Plain, with no security key."}
       ]
     },
     {
@@ -100,8 +117,11 @@
       "length": "0xFF0",
       "transform": "gen3-sections",
       "args": {"section": 2},
+      "checksums": [
+        {"step": "sum32le-fold16", "start": 0, "end": "0xFF0", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
+      ],
       "ranges": [
-        {"offset": "0x0F18", "length": 216, "type": "bytes", "name": "Box Pokémon (decoded in box spaces)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
+        {"id": "box-pokemon", "offset": "0x0F18", "length": 216, "type": "bytes", "name": "Box Pokémon (decoded in box spaces)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
       ]
     },
     {
@@ -109,8 +129,11 @@
       "length": "0xFF0",
       "transform": "gen3-sections",
       "args": {"section": 3},
+      "checksums": [
+        {"step": "sum32le-fold16", "start": 0, "end": "0xFF0", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
+      ],
       "ranges": [
-        {"offset": "0x0000", "length": 3264, "type": "bytes", "name": "Box Pokémon (decoded in box spaces)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
+        {"id": "box-pokemon", "offset": "0x0000", "length": 3264, "type": "bytes", "name": "Box Pokémon (decoded in box spaces)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
       ]
     },
     {
@@ -118,6 +141,9 @@
       "length": "0xFF0",
       "transform": "gen3-sections",
       "args": {"section": 4},
+      "checksums": [
+        {"step": "sum32le-fold16", "start": 0, "end": "0xD98", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
+      ],
       "ranges": []
     },
     {
@@ -125,9 +151,12 @@
       "length": "0xFF0",
       "transform": "gen3-sections",
       "args": {"section": 5},
+      "checksums": [
+        {"step": "sum32le-fold16", "start": 0, "end": "0xFF0", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
+      ],
       "ranges": [
-        {"offset": "0x0000", "length": 1, "type": "u8", "name": "Current box", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"},
-        {"offset": "0x0004", "length": 4076, "type": "bytes", "name": "Box Pokémon (decoded in box spaces)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
+        {"id": "current-box", "offset": "0x0000", "length": 1, "type": "u8", "name": "Current box", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"},
+        {"id": "box-pokemon", "offset": "0x0004", "length": 4076, "type": "bytes", "name": "Box Pokémon (decoded in box spaces)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
       ]
     },
     {
@@ -135,8 +164,11 @@
       "length": "0xFF0",
       "transform": "gen3-sections",
       "args": {"section": 6},
+      "checksums": [
+        {"step": "sum32le-fold16", "start": 0, "end": "0xFF0", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
+      ],
       "ranges": [
-        {"offset": "0x0000", "length": 4080, "type": "bytes", "name": "Box Pokémon (decoded in box spaces)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
+        {"id": "box-pokemon", "offset": "0x0000", "length": 4080, "type": "bytes", "name": "Box Pokémon (decoded in box spaces)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
       ]
     },
     {
@@ -144,8 +176,11 @@
       "length": "0xFF0",
       "transform": "gen3-sections",
       "args": {"section": 7},
+      "checksums": [
+        {"step": "sum32le-fold16", "start": 0, "end": "0xFF0", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
+      ],
       "ranges": [
-        {"offset": "0x0000", "length": 4080, "type": "bytes", "name": "Box Pokémon (decoded in box spaces)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
+        {"id": "box-pokemon", "offset": "0x0000", "length": 4080, "type": "bytes", "name": "Box Pokémon (decoded in box spaces)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
       ]
     },
     {
@@ -153,8 +188,11 @@
       "length": "0xFF0",
       "transform": "gen3-sections",
       "args": {"section": 8},
+      "checksums": [
+        {"step": "sum32le-fold16", "start": 0, "end": "0xFF0", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
+      ],
       "ranges": [
-        {"offset": "0x0000", "length": 4080, "type": "bytes", "name": "Box Pokémon (decoded in box spaces)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
+        {"id": "box-pokemon", "offset": "0x0000", "length": 4080, "type": "bytes", "name": "Box Pokémon (decoded in box spaces)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
       ]
     },
     {
@@ -162,8 +200,11 @@
       "length": "0xFF0",
       "transform": "gen3-sections",
       "args": {"section": 9},
+      "checksums": [
+        {"step": "sum32le-fold16", "start": 0, "end": "0xFF0", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
+      ],
       "ranges": [
-        {"offset": "0x0000", "length": 4080, "type": "bytes", "name": "Box Pokémon (decoded in box spaces)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
+        {"id": "box-pokemon", "offset": "0x0000", "length": 4080, "type": "bytes", "name": "Box Pokémon (decoded in box spaces)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
       ]
     },
     {
@@ -171,8 +212,11 @@
       "length": "0xFF0",
       "transform": "gen3-sections",
       "args": {"section": 10},
+      "checksums": [
+        {"step": "sum32le-fold16", "start": 0, "end": "0xFF0", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
+      ],
       "ranges": [
-        {"offset": "0x0000", "length": 4080, "type": "bytes", "name": "Box Pokémon (decoded in box spaces)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
+        {"id": "box-pokemon", "offset": "0x0000", "length": 4080, "type": "bytes", "name": "Box Pokémon (decoded in box spaces)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
       ]
     },
     {
@@ -180,8 +224,11 @@
       "length": "0xFF0",
       "transform": "gen3-sections",
       "args": {"section": 11},
+      "checksums": [
+        {"step": "sum32le-fold16", "start": 0, "end": "0xFF0", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
+      ],
       "ranges": [
-        {"offset": "0x0000", "length": 4080, "type": "bytes", "name": "Box Pokémon (decoded in box spaces)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
+        {"id": "box-pokemon", "offset": "0x0000", "length": 4080, "type": "bytes", "name": "Box Pokémon (decoded in box spaces)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
       ]
     },
     {
@@ -189,8 +236,11 @@
       "length": "0xFF0",
       "transform": "gen3-sections",
       "args": {"section": 12},
+      "checksums": [
+        {"step": "sum32le-fold16", "start": 0, "end": "0xFF0", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
+      ],
       "ranges": [
-        {"offset": "0x0000", "length": 4080, "type": "bytes", "name": "Box Pokémon (decoded in box spaces)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
+        {"id": "box-pokemon", "offset": "0x0000", "length": 4080, "type": "bytes", "name": "Box Pokémon (decoded in box spaces)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
       ]
     },
     {
@@ -198,9 +248,12 @@
       "length": "0xFF0",
       "transform": "gen3-sections",
       "args": {"section": 13},
+      "checksums": [
+        {"step": "sum32le-fold16", "start": 0, "end": "0x450", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
+      ],
       "ranges": [
-        {"offset": "0x0000", "length": 424, "type": "bytes", "name": "Box Pokémon (decoded in box spaces)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"},
-        {"offset": "0x0AD8", "length": 4, "type": "u32le", "name": "Items pocket (part 1)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruBag.cs", "count": 326, "stride": 4, "bits": [{"bit": 0, "width": 16, "name": "Item index"}, {"bit": 16, "width": 16, "name": "Quantity"}], "note": "The first 326 of 450 slots. The rest start at sector:30 0x0000."}
+        {"id": "box-pokemon", "offset": "0x0000", "length": 424, "type": "bytes", "name": "Box Pokémon (decoded in box spaces)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"},
+        {"id": "items-pocket-part-1", "offset": "0x0AD8", "length": 4, "type": "u32le", "name": "Items pocket (part 1)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruBag.cs", "count": 326, "stride": 4, "bits": [{"id": "item", "bit": 0, "width": 16, "name": "Item index", "domain": "item"}, {"id": "quantity", "bit": 16, "width": 16, "name": "Quantity"}], "note": "The first 326 of 450 slots. The rest start at sector:30 0x0000."}
       ]
     },
     {
@@ -209,12 +262,12 @@
       "transform": "gen3-sections",
       "args": {"sector": 30},
       "ranges": [
-        {"offset": "0x0000", "length": 4, "type": "u32le", "name": "Items pocket (part 2)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruBag.cs", "count": 124, "stride": 4, "bits": [{"bit": 0, "width": 16, "name": "Item index"}, {"bit": 16, "width": 16, "name": "Quantity"}]},
-        {"offset": "0x01F0", "length": 4, "type": "u32le", "name": "Key items pocket", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruBag.cs", "count": 75, "stride": 4, "bits": [{"bit": 0, "width": 16, "name": "Item index"}, {"bit": 16, "width": 16, "name": "Quantity"}]},
-        {"offset": "0x031C", "length": 4, "type": "u32le", "name": "Poké Balls pocket", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruBag.cs", "count": 50, "stride": 4, "bits": [{"bit": 0, "width": 16, "name": "Item index"}, {"bit": 16, "width": 16, "name": "Quantity"}]},
-        {"offset": "0x03E4", "length": 4, "type": "u32le", "name": "TMs and HMs pocket", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruBag.cs", "count": 128, "stride": 4, "bits": [{"bit": 0, "width": 16, "name": "Item index"}, {"bit": 16, "width": 16, "name": "Quantity"}]},
-        {"offset": "0x05E4", "length": 4, "type": "u32le", "name": "Berries pocket", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruBag.cs", "count": 75, "stride": 4, "bits": [{"bit": 0, "width": 16, "name": "Item index"}, {"bit": 16, "width": 16, "name": "Quantity"}]},
-        {"offset": "0x0B0C", "length": 1252, "type": "bytes", "name": "Box Pokémon (decoded in box spaces)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
+        {"id": "items-pocket-part-2", "offset": "0x0000", "length": 4, "type": "u32le", "name": "Items pocket (part 2)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruBag.cs", "count": 124, "stride": 4, "bits": [{"id": "item", "bit": 0, "width": 16, "name": "Item index", "domain": "item"}, {"id": "quantity", "bit": 16, "width": 16, "name": "Quantity"}]},
+        {"id": "key-items-pocket", "offset": "0x01F0", "length": 4, "type": "u32le", "name": "Key items pocket", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruBag.cs", "count": 75, "stride": 4, "bits": [{"id": "item", "bit": 0, "width": 16, "name": "Item index", "domain": "item"}, {"id": "quantity", "bit": 16, "width": 16, "name": "Quantity"}]},
+        {"id": "poke-balls-pocket", "offset": "0x031C", "length": 4, "type": "u32le", "name": "Poké Balls pocket", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruBag.cs", "count": 50, "stride": 4, "bits": [{"id": "item", "bit": 0, "width": 16, "name": "Item index", "domain": "item"}, {"id": "quantity", "bit": 16, "width": 16, "name": "Quantity"}]},
+        {"id": "tms-and-hms-pocket", "offset": "0x03E4", "length": 4, "type": "u32le", "name": "TMs and HMs pocket", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruBag.cs", "count": 128, "stride": 4, "bits": [{"id": "item", "bit": 0, "width": 16, "name": "Item index", "domain": "item"}, {"id": "quantity", "bit": 16, "width": 16, "name": "Quantity"}]},
+        {"id": "berries-pocket", "offset": "0x05E4", "length": 4, "type": "u32le", "name": "Berries pocket", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruBag.cs", "count": 75, "stride": 4, "bits": [{"id": "item", "bit": 0, "width": 16, "name": "Item index", "domain": "item"}, {"id": "quantity", "bit": 16, "width": 16, "name": "Quantity"}]},
+        {"id": "box-pokemon", "offset": "0x0B0C", "length": 1252, "type": "bytes", "name": "Box Pokémon (decoded in box spaces)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
       ],
       "note": "Outside both save slots, so it doesn't rotate and has no footer the game checks."
     },
@@ -224,7 +277,7 @@
       "transform": "gen3-sections",
       "args": {"sector": 31},
       "ranges": [
-        {"offset": "0x0000", "length": 3968, "type": "bytes", "name": "Box Pokémon (decoded in box spaces)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
+        {"id": "box-pokemon", "offset": "0x0000", "length": 3968, "type": "bytes", "name": "Box Pokémon (decoded in box spaces)", "confidence": "known", "source": "engine:src/PKHeX.Everywhere.RomHacks/Cfru/CfruSave.cs"}
       ],
       "note": "Outside both save slots, so it doesn't rotate and has no footer the game checks."
     },
@@ -243,7 +296,8 @@
     },
     {
       "name": "box:{1..25}:{1..30}",
-      "length": 58,
+      "length": 80,
+      "transform": "cfru-box",
       "source": {
         "regions": [
           {"space": "section:5", "start": "0x0004", "end": "0x0FF0"},
@@ -262,10 +316,504 @@
           {"space": "section:0", "start": "0x00B0", "end": "0x077C"}
         ],
         "offset": 0,
-        "stride": 58
+        "stride": 58,
+        "length": 58
       },
       "kind": "cfru-boxed",
-      "note": "The game packs each boxed Pokémon into 58 bytes and spreads the boxes over the regions in this order."
+      "note": "The game packs each boxed Pokémon into 58 bytes, which cfru-box unpacks, and spreads the boxes over the regions in this order."
     }
-  ]
+  ],
+  "model": {
+    "root": {
+      "fields": {
+        "trainer": {
+          "object": {
+            "fields": {
+              "name": {
+                "space": "section:0",
+                "range": "trainer-name"
+              },
+              "gender": {
+                "space": "section:0",
+                "range": "trainer-gender"
+              },
+              "tid": {
+                "space": "section:0",
+                "range": "trainer-id"
+              },
+              "sid": {
+                "space": "section:0",
+                "range": "secret-id"
+              },
+              "money": {
+                "space": "section:1",
+                "range": "money"
+              }
+            }
+          }
+        },
+        "play-time": {
+          "object": {
+            "fields": {
+              "hours": {
+                "space": "section:0",
+                "range": "play-time-hours"
+              },
+              "minutes": {
+                "space": "section:0",
+                "range": "play-time-minutes"
+              },
+              "seconds": {
+                "space": "section:0",
+                "range": "play-time-seconds"
+              }
+            }
+          }
+        },
+        "party": {
+          "list": "party-pokemon",
+          "spaces": "party:{1..6}",
+          "length": {
+            "space": "section:1",
+            "range": "party-count"
+          }
+        },
+        "boxes": {
+          "list": {
+            "fields": {
+              "slots": {
+                "list": "pokemon",
+                "spaces": ":{1..30}"
+              }
+            }
+          },
+          "spaces": "box:{1..25}"
+        },
+        "bag": {
+          "object": {
+            "fields": {
+              "items": {
+                "list": "item",
+                "space": "section:13",
+                "range": "items-pocket-part-1"
+              },
+              "more-items": {
+                "list": "item",
+                "space": "sector:30",
+                "range": "items-pocket-part-2",
+                "extra": true,
+                "note": "The items pocket's last 124 slots, after the 326 in items."
+              },
+              "key-items": {
+                "list": "item",
+                "space": "sector:30",
+                "range": "key-items-pocket"
+              },
+              "balls": {
+                "list": "item",
+                "space": "sector:30",
+                "range": "poke-balls-pocket"
+              },
+              "tms-hms": {
+                "list": "item",
+                "space": "sector:30",
+                "range": "tms-and-hms-pocket"
+              },
+              "berries": {
+                "list": "item",
+                "space": "sector:30",
+                "range": "berries-pocket"
+              }
+            }
+          }
+        }
+      }
+    },
+    "objects": {
+      "item": {
+        "fields": {
+          "item": {
+            "bit": "item"
+          },
+          "count": {
+            "bit": "quantity"
+          }
+        }
+      },
+      "pokemon": {
+        "fields": {
+          "pid": {
+            "range": "pid"
+          },
+          "species": {
+            "range": "species"
+          },
+          "nickname": {
+            "range": "nickname"
+          },
+          "experience": {
+            "range": "experience"
+          },
+          "held-item": {
+            "range": "held-item"
+          },
+          "friendship": {
+            "range": "friendship"
+          },
+          "ball": {
+            "range": "ball"
+          },
+          "language": {
+            "range": "language"
+          },
+          "evs": {
+            "object": {
+              "fields": {
+                "health": {
+                  "range": "evs",
+                  "element": 0
+                },
+                "attack": {
+                  "range": "evs",
+                  "element": 1
+                },
+                "defense": {
+                  "range": "evs",
+                  "element": 2
+                },
+                "speed": {
+                  "range": "evs",
+                  "element": 3
+                },
+                "special-attack": {
+                  "range": "evs",
+                  "element": 4
+                },
+                "special-defense": {
+                  "range": "evs",
+                  "element": 5
+                }
+              }
+            }
+          },
+          "ivs": {
+            "object": {
+              "fields": {
+                "health": {
+                  "range": "ivs-egg-and-hidden-ability",
+                  "bit": "hp-iv"
+                },
+                "attack": {
+                  "range": "ivs-egg-and-hidden-ability",
+                  "bit": "attack-iv"
+                },
+                "defense": {
+                  "range": "ivs-egg-and-hidden-ability",
+                  "bit": "defense-iv"
+                },
+                "speed": {
+                  "range": "ivs-egg-and-hidden-ability",
+                  "bit": "speed-iv"
+                },
+                "special-attack": {
+                  "range": "ivs-egg-and-hidden-ability",
+                  "bit": "sp-atk-iv"
+                },
+                "special-defense": {
+                  "range": "ivs-egg-and-hidden-ability",
+                  "bit": "sp-def-iv"
+                }
+              }
+            }
+          },
+          "moves": {
+            "list": {
+              "fields": {
+                "move": {
+                  "range": "moves",
+                  "element": "each"
+                }
+              }
+            },
+            "range": "moves"
+          },
+          "owner": {
+            "object": {
+              "fields": {
+                "tid": {
+                  "range": "original-trainer-id",
+                  "bit": "tid"
+                },
+                "sid": {
+                  "range": "original-trainer-id",
+                  "bit": "sid"
+                },
+                "name": {
+                  "range": "original-trainer-name"
+                },
+                "gender": {
+                  "range": "origins",
+                  "bit": "trainer-gender"
+                }
+              }
+            }
+          },
+          "met-conditions": {
+            "object": {
+              "fields": {
+                "location": {
+                  "range": "met-location"
+                },
+                "level": {
+                  "range": "origins",
+                  "bit": "met-level"
+                },
+                "version": {
+                  "range": "origins",
+                  "bit": "origin-game"
+                }
+              }
+            }
+          },
+          "egg": {
+            "object": {
+              "fields": {
+                "is-egg": {
+                  "range": "ivs-egg-and-hidden-ability",
+                  "bit": "is-egg",
+                  "note": "flags at 0x13 has an is-egg bit too."
+                }
+              }
+            }
+          },
+          "pokerus": {
+            "object": {
+              "fields": {
+                "strain": {
+                  "range": "pokerus",
+                  "bit": "strain"
+                },
+                "days": {
+                  "range": "pokerus",
+                  "bit": "days"
+                }
+              }
+            }
+          }
+        }
+      },
+      "party-pokemon": {
+        "fields": {
+          "pid": {
+            "range": "pid"
+          },
+          "species": {
+            "range": "species"
+          },
+          "nickname": {
+            "range": "nickname"
+          },
+          "experience": {
+            "range": "experience"
+          },
+          "held-item": {
+            "range": "held-item"
+          },
+          "friendship": {
+            "range": "friendship"
+          },
+          "ball": {
+            "range": "ball"
+          },
+          "language": {
+            "range": "language"
+          },
+          "evs": {
+            "object": {
+              "fields": {
+                "health": {
+                  "range": "evs",
+                  "element": 0
+                },
+                "attack": {
+                  "range": "evs",
+                  "element": 1
+                },
+                "defense": {
+                  "range": "evs",
+                  "element": 2
+                },
+                "speed": {
+                  "range": "evs",
+                  "element": 3
+                },
+                "special-attack": {
+                  "range": "evs",
+                  "element": 4
+                },
+                "special-defense": {
+                  "range": "evs",
+                  "element": 5
+                }
+              }
+            }
+          },
+          "ivs": {
+            "object": {
+              "fields": {
+                "health": {
+                  "range": "ivs-egg-and-hidden-ability",
+                  "bit": "hp-iv"
+                },
+                "attack": {
+                  "range": "ivs-egg-and-hidden-ability",
+                  "bit": "attack-iv"
+                },
+                "defense": {
+                  "range": "ivs-egg-and-hidden-ability",
+                  "bit": "defense-iv"
+                },
+                "speed": {
+                  "range": "ivs-egg-and-hidden-ability",
+                  "bit": "speed-iv"
+                },
+                "special-attack": {
+                  "range": "ivs-egg-and-hidden-ability",
+                  "bit": "sp-atk-iv"
+                },
+                "special-defense": {
+                  "range": "ivs-egg-and-hidden-ability",
+                  "bit": "sp-def-iv"
+                }
+              }
+            }
+          },
+          "moves": {
+            "list": {
+              "fields": {
+                "move": {
+                  "range": "moves",
+                  "element": "each"
+                },
+                "pp": {
+                  "range": "pp",
+                  "element": "each"
+                }
+              }
+            },
+            "range": "moves"
+          },
+          "owner": {
+            "object": {
+              "fields": {
+                "tid": {
+                  "range": "original-trainer-id",
+                  "bit": "tid"
+                },
+                "sid": {
+                  "range": "original-trainer-id",
+                  "bit": "sid"
+                },
+                "name": {
+                  "range": "original-trainer-name"
+                },
+                "gender": {
+                  "range": "origins",
+                  "bit": "trainer-gender"
+                }
+              }
+            }
+          },
+          "met-conditions": {
+            "object": {
+              "fields": {
+                "location": {
+                  "range": "met-location"
+                },
+                "level": {
+                  "range": "origins",
+                  "bit": "met-level"
+                },
+                "version": {
+                  "range": "origins",
+                  "bit": "origin-game"
+                },
+                "fateful-encounter": {
+                  "range": "ribbons",
+                  "bit": "fateful-encounter"
+                }
+              }
+            }
+          },
+          "egg": {
+            "object": {
+              "fields": {
+                "is-egg": {
+                  "range": "ivs-egg-and-hidden-ability",
+                  "bit": "is-egg",
+                  "note": "flags at 0x13 has an is-egg bit too."
+                }
+              }
+            }
+          },
+          "pokerus": {
+            "object": {
+              "fields": {
+                "strain": {
+                  "range": "pokerus",
+                  "bit": "strain"
+                },
+                "days": {
+                  "range": "pokerus",
+                  "bit": "days"
+                }
+              }
+            }
+          },
+          "level": {
+            "range": "level"
+          },
+          "stats": {
+            "object": {
+              "fields": {
+                "health": {
+                  "range": "stats",
+                  "element": 0
+                },
+                "attack": {
+                  "range": "stats",
+                  "element": 1
+                },
+                "defense": {
+                  "range": "stats",
+                  "element": 2
+                },
+                "speed": {
+                  "range": "stats",
+                  "element": 3
+                },
+                "special-attack": {
+                  "range": "stats",
+                  "element": 4
+                },
+                "special-defense": {
+                  "range": "stats",
+                  "element": 5
+                }
+              }
+            }
+          },
+          "current-hp": {
+            "range": "current-hp",
+            "extra": true
+          },
+          "status-condition": {
+            "range": "status-condition",
+            "extra": true
+          }
+        }
+      }
+    },
+    "note": "A boxed and a party Pokémon are two objects, since a box holds no PP or ribbons."
+  }
 }

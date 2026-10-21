@@ -1,0 +1,71 @@
+{
+  "step": "cfru-box",
+  "decode": [
+    {
+      "name": "box:1:1 of unbound.sav",
+      "input": {
+        "file": "unbound.sav",
+        "offset": "0x18004",
+        "length": "0x3A"
+      },
+      "output": "4D 3C 6B 2A 39 30 31 D4 CA C3 C5 BB BD C2 CF FF FF FF 02 00 C9 CA BF C8 CA C5 D2 00 00 00 00 00 19 00 00 00 7D 00 00 00 00 46 03 00 54 00 2D 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01 05 02 08 21 84 10 00 00 00 00"
+    },
+    {
+      "name": "box:1:1 of radicalred.sav",
+      "input": {
+        "file": "radicalred.sav",
+        "offset": "0x1A004",
+        "length": "0x3A"
+      },
+      "output": "4D 3C 6B 2A 39 30 31 D4 CA C3 C5 BB BD C2 CF FF FF FF 02 00 C9 CA BF C8 CA C5 D2 00 00 00 00 00 19 00 00 00 7D 00 00 00 00 46 03 00 54 00 2D 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01 05 02 08 21 84 10 00 00 00 00"
+    },
+    {
+      "name": "box:1:2 of unbound.sav, empty",
+      "input": {
+        "file": "unbound.sav",
+        "offset": "0x1803E",
+        "length": "0x3A"
+      },
+      "output": "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00"
+    }
+  ],
+  "encode": [
+    {
+      "name": "box:1:1 of unbound.sav",
+      "input": "4D 3C 6B 2A 39 30 31 D4 CA C3 C5 BB BD C2 CF FF FF FF 02 00 C9 CA BF C8 CA C5 D2 00 00 00 00 00 19 00 00 00 7D 00 00 00 00 46 03 00 54 00 2D 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01 05 02 08 21 84 10 00 00 00 00",
+      "output": {
+        "file": "unbound.sav",
+        "offset": "0x18004",
+        "length": "0x3A"
+      }
+    },
+    {
+      "name": "box:1:1 of unbound.sav, nicknamed Ab with moves 1 to 4",
+      "input": "4D 3C 6B 2A 39 30 31 D4 BB D6 FF BB BD C2 CF FF FF FF 02 00 C9 CA BF C8 CA C5 D2 00 00 00 00 00 19 00 00 00 7D 00 00 00 00 46 03 00 01 00 02 00 03 00 04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01 05 02 08 21 84 10 00 00 00 00",
+      "output": "4D 3C 6B 2A 39 30 31 D4 BB D6 FF BB BD C2 CF FF FF FF 02 00 C9 CA BF C8 CA C5 D2 00 19 00 00 00 7D 00 00 00 00 46 03 01 08 30 00 01 00 00 00 00 00 00 00 01 05 02 08 21 84 10"
+    },
+    {
+      "name": "box:1:1 of radicalred.sav",
+      "input": "4D 3C 6B 2A 39 30 31 D4 CA C3 C5 BB BD C2 CF FF FF FF 02 00 C9 CA BF C8 CA C5 D2 00 00 00 00 00 19 00 00 00 7D 00 00 00 00 46 03 00 54 00 2D 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01 05 02 08 21 84 10 00 00 00 00",
+      "output": {
+        "file": "radicalred.sav",
+        "offset": "0x1A004",
+        "length": "0x3A"
+      }
+    },
+    {
+      "name": "box:1:1 of radicalred.sav, nicknamed Ab with moves 1 to 4",
+      "input": "4D 3C 6B 2A 39 30 31 D4 BB D6 FF BB BD C2 CF FF FF FF 02 00 C9 CA BF C8 CA C5 D2 00 00 00 00 00 19 00 00 00 7D 00 00 00 00 46 03 00 01 00 02 00 03 00 04 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01 05 02 08 21 84 10 00 00 00 00",
+      "output": "4D 3C 6B 2A 39 30 31 D4 BB D6 FF BB BD C2 CF FF FF FF 02 00 C9 CA BF C8 CA C5 D2 00 19 00 00 00 7D 00 00 00 00 46 03 01 08 30 00 01 00 00 00 00 00 00 00 01 05 02 08 21 84 10"
+    },
+    {
+      "name": "box:1:2 of unbound.sav, empty",
+      "input": "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+      "output": {
+        "file": "unbound.sav",
+        "offset": "0x1803E",
+        "length": "0x3A"
+      }
+    }
+  ]
+}

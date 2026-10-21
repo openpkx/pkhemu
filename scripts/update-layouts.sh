@@ -14,10 +14,11 @@ if ! sha="$(git -C "$work/layouts.git" rev-parse --verify --quiet "$commit^{comm
   exit 1
 fi
 
-git -C "$work/layouts.git" archive "$sha" LICENSE schema transforms known findings | tar -x -C "$work" -f -
+git -C "$work/layouts.git" archive "$sha" LICENSE schema transforms known findings parsers tools/parser/runtime.ts tools/steps \
+  ':(exclude)tools/steps/*.test.ts' ':(exclude)tools/steps/vectors.ts' | tar -x -C "$work" -f -
 rm -rf "$copy"
 mkdir -p "$copy"
-mv "$work/LICENSE" "$work/schema" "$work/transforms" "$work/known" "$work/findings" "$copy/"
+mv "$work/LICENSE" "$work/schema" "$work/transforms" "$work/known" "$work/findings" "$work/parsers" "$work/tools" "$copy/"
 echo "$sha" >"$copy/COMMIT"
 
 git -C "$root" add -A "$copy"

@@ -82,8 +82,8 @@ pub fn stop_serving_game() {
     GAME.lock().unwrap_or_else(|e| e.into_inner()).take();
 }
 
-// Dolphin puts the disc's region in a card's name, so card.raw opens as card.EUR.raw. The app can't tell the region
-// Dolphin will read from a compressed disc, so the card answers to any.
+// Dolphin puts the disc's region in a card's name, and the block count when it's under 2,043, so card.raw opens as
+// card.EUR.251.raw. The app can't tell the region Dolphin will read from a compressed disc, so the card answers to any.
 static CARD: Mutex<Option<PathBuf>> = Mutex::new(None);
 
 pub fn serve_card(card: Option<PathBuf>) {
@@ -453,6 +453,7 @@ mod tests {
             let mut size = 0;
             assert_eq!(stat_64(asked("card.USA.raw").as_ptr(), &mut size), STAT_VALID);
             assert_eq!(size, 4);
+            assert_eq!(stat_64(asked("card.EUR.251.raw").as_ptr(), &mut size), STAT_VALID);
             assert!(open(asked("card.raw.EUR").as_ptr(), ACCESS_READ, 0).is_null());
             assert!(open(asked("other.EUR.raw").as_ptr(), ACCESS_READ, 0).is_null());
         }

@@ -1,0 +1,268 @@
+{
+  "$schema": "../schema/layout.schema.json",
+  "schema": "1.0",
+  "valueFiles": ["gen3"],
+  "target": {
+    "kind": "save",
+    "format": "memory-card-colosseum",
+    "version": "1.0",
+    "roms": [
+      {"sha1": "96b2b686d202a13dd15261fb7cffbcb2f08c0a77", "name": "Pokemon Colosseum (USA)"},
+      {"sha1": "127c4cb4d3c9c2e181f3a29e96b44fa55a77dfb2", "name": "Pokemon Colosseum (Europe) (En,Fr,De,Es,It)"}
+    ],
+    "detect": {
+      "match": "certain",
+      "sizes": ["0x80000", "0x100000", "0x200000", "0x400000", "0x800000", "0x1000000", "0x2000000", "0x4000000"],
+      "steps": [{"step": "gc-memory-card-file", "args": {"gameCodes": ["GC6E", "GC6P"]}}],
+      "source": "pkhex:Saves/MemoryCard/SAV3GCMemoryCard.cs and pkhex:Saves/Util/SaveHandlerGCI.cs",
+      "note": "A card can hold Colosseum, XD and Box saves at once, and each of their layouts matches it. The Japanese release, GC6J, isn't listed yet."
+    }
+  },
+  "note": "A GameCube memory card holding a Colosseum save. The game keeps three copies of its save and writes each new save over the oldest. Saves from the Japanese release, which may differ, aren't covered yet.",
+  "container": [{"transform": "gc-memory-card", "args": {"gameCodes": ["GC6E", "GC6P"]}}, {"transform": "colosseum-slots"}],
+  "kinds": {
+    "ck3": {
+      "length": "0x138",
+      "note": "A Pokémon in Colosseum, the same in the party and the PC, unencrypted and big-endian.",
+      "ranges": [
+        {"id": "species", "offset": "0x0000", "length": 2, "type": "u16be", "name": "Species (game index)", "domain": "species", "confidence": "known", "source": "pkhex:PKM/CK3.cs"},
+        {"id": "pid", "offset": "0x0004", "length": 4, "type": "u32be", "name": "PID", "confidence": "known", "source": "pkhex:PKM/CK3.cs"},
+        {"id": "origin-game", "offset": "0x0008", "length": 1, "type": "u8", "name": "Origin game (GameCube numbering)", "confidence": "known", "source": "pkhex:PKM/CK3.cs", "note": "1 FireRed, 2 LeafGreen, 8 Sapphire, 9 Ruby, 10 Emerald, 11 Colosseum or XD"},
+        {"id": "current-region", "offset": "0x0009", "length": 1, "type": "u8", "name": "Current region", "confidence": "known", "source": "pkhex:PKM/CK3.cs", "note": "1 NTSC-J, 2 NTSC-U, 3 PAL"},
+        {"id": "original-region", "offset": "0x000A", "length": 1, "type": "u8", "name": "Original region", "confidence": "known", "source": "pkhex:PKM/CK3.cs"},
+        {"id": "language", "offset": "0x000B", "length": 1, "type": "u8", "name": "Language (GameCube numbering)", "confidence": "known", "source": "pkhex:PKM/CK3.cs", "note": "1 Japanese, 2 English, 3 German, 4 French, 5 Italian, 6 Spanish"},
+        {"id": "met-location", "offset": "0x000C", "length": 2, "type": "u16be", "name": "Met location", "domain": "location", "confidence": "known", "source": "pkhex:PKM/CK3.cs"},
+        {"id": "met-level", "offset": "0x000E", "length": 1, "type": "u8", "name": "Met level", "confidence": "known", "source": "pkhex:PKM/CK3.cs"},
+        {"id": "ball", "offset": "0x000F", "length": 1, "type": "u8", "name": "Ball", "confidence": "known", "source": "pkhex:PKM/CK3.cs"},
+        {"id": "original-trainer-gender", "offset": "0x0010", "length": 1, "type": "u8", "name": "Original trainer gender", "confidence": "known", "source": "pkhex:PKM/CK3.cs"},
+        {"id": "original-trainer-id", "offset": "0x0014", "length": 4, "type": "u32be", "name": "Original trainer ID (SID high, TID low)", "confidence": "known", "source": "pkhex:PKM/CK3.cs", "bits": [{"id": "tid", "bit": 0, "width": 16, "name": "Trainer ID"}, {"id": "sid", "bit": 16, "width": 16, "name": "Secret ID"}]},
+        {"id": "original-trainer-name", "offset": "0x0018", "length": 22, "type": "text-gen3-gc", "name": "Original trainer name", "confidence": "known", "source": "pkhex:PKM/CK3.cs"},
+        {"id": "nickname-display", "offset": "0x002E", "length": 22, "type": "text-gen3-gc", "name": "Nickname as displayed", "confidence": "known", "source": "pkhex:PKM/CK3.cs", "note": "A copy of the nickname, cut to 5 characters in a Japanese game"},
+        {"id": "nickname", "offset": "0x0044", "length": 22, "type": "text-gen3-gc", "name": "Nickname", "confidence": "known", "source": "pkhex:PKM/CK3.cs"},
+        {"id": "experience", "offset": "0x005C", "length": 4, "type": "u32be", "name": "Experience", "confidence": "known", "source": "pkhex:PKM/CK3.cs"},
+        {"id": "level", "offset": "0x0060", "length": 1, "type": "u8", "name": "Level", "confidence": "known", "source": "pkhex:PKM/CK3.cs"},
+        {"id": "moves", "offset": "0x0078", "length": 2, "type": "u16be", "name": "Moves", "domain": "move", "confidence": "known", "source": "pkhex:PKM/CK3.cs", "count": 4, "stride": 4},
+        {"id": "pp", "offset": "0x007A", "length": 1, "type": "u8", "name": "PP", "confidence": "known", "source": "pkhex:PKM/CK3.cs", "count": 4, "stride": 4},
+        {"id": "pp-ups", "offset": "0x007B", "length": 1, "type": "u8", "name": "PP Ups", "confidence": "known", "source": "pkhex:PKM/CK3.cs", "count": 4, "stride": 4},
+        {"id": "held-item", "offset": "0x0088", "length": 2, "type": "u16be", "name": "Held item", "domain": "item", "confidence": "known", "source": "pkhex:PKM/CK3.cs"},
+        {"id": "current-hp", "offset": "0x008A", "length": 2, "type": "u16be", "name": "Current HP", "confidence": "known", "source": "pkhex:PKM/CK3.cs"},
+        {"id": "stats", "offset": "0x008C", "length": 2, "type": "u16be", "name": "Stats: max HP, Attack, Defense, Sp. Atk, Sp. Def, Speed", "confidence": "known", "source": "pkhex:PKM/CK3.cs", "count": 6, "stride": 2},
+        {"id": "evs", "offset": "0x0098", "length": 2, "type": "u16be", "name": "EVs: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed", "confidence": "known", "source": "pkhex:PKM/CK3.cs", "count": 6, "stride": 2},
+        {"id": "ivs", "offset": "0x00A4", "length": 2, "type": "u16be", "name": "IVs: HP, Attack, Defense, Sp. Atk, Sp. Def, Speed", "confidence": "known", "source": "pkhex:PKM/CK3.cs", "count": 6, "stride": 2},
+        {"id": "friendship", "offset": "0x00B0", "length": 2, "type": "u16be", "name": "Friendship", "confidence": "known", "source": "pkhex:PKM/CK3.cs"},
+        {"id": "contest-stats", "offset": "0x00B2", "length": 1, "type": "u8", "name": "Contest stats: Cool, Beauty, Cute, Smart, Tough", "confidence": "known", "source": "pkhex:PKM/CK3.cs", "count": 5, "stride": 1},
+        {"id": "contest-ribbons", "offset": "0x00B7", "length": 1, "type": "u8", "name": "Contest ribbon ranks: Cool, Beauty, Cute, Smart, Tough", "confidence": "known", "source": "pkhex:PKM/CK3.cs", "count": 5, "stride": 1},
+        {"id": "sheen", "offset": "0x00BC", "length": 1, "type": "u8", "name": "Sheen", "confidence": "known", "source": "pkhex:PKM/CK3.cs"},
+        {"id": "ribbons", "offset": "0x00BD", "length": 1, "type": "u8", "name": "Ribbons, 1 each: Champion, Winning, Victory, Artist, Effort, Battle Champion, Regional Champion, National Champion, Country, National, Earth, World", "confidence": "known", "source": "pkhex:PKM/CK3.cs", "count": 12, "stride": 1},
+        {"id": "ribbon-flags", "offset": "0x00C9", "length": 1, "type": "u8", "name": "Unused ribbons and Japanese fateful encounter", "confidence": "known", "source": "pkhex:PKM/CK3.cs", "bits": [{"id": "unused-1", "bit": 0, "width": 1, "name": "Unused ribbon 1"}, {"id": "unused-2", "bit": 1, "width": 1, "name": "Unused ribbon 2"}, {"id": "unused-3", "bit": 2, "width": 1, "name": "Unused ribbon 3"}, {"id": "unused-4", "bit": 3, "width": 1, "name": "Unused ribbon 4"}, {"id": "fateful-encounter-japanese", "bit": 4, "width": 1, "name": "Fateful encounter in a Japanese game"}]},
+        {"id": "pokerus-strain", "offset": "0x00CA", "length": 1, "type": "u8", "name": "Pokérus strain", "confidence": "known", "source": "pkhex:PKM/CK3.cs", "bits": [{"id": "strain", "bit": 0, "width": 4, "name": "Strain"}]},
+        {"id": "is-egg", "offset": "0x00CB", "length": 1, "type": "u8", "name": "Is an egg", "confidence": "known", "source": "pkhex:PKM/CK3.cs"},
+        {"id": "ability", "offset": "0x00CC", "length": 1, "type": "u8", "name": "Ability (1 for the second)", "confidence": "known", "source": "pkhex:PKM/CK3.cs"},
+        {"id": "invalid", "offset": "0x00CD", "length": 1, "type": "u8", "name": "Invalid (0 for a valid Pokémon)", "confidence": "known", "source": "pkhex:PKM/CK3.cs"},
+        {"id": "markings", "offset": "0x00CF", "length": 1, "type": "u8", "name": "Markings", "confidence": "known", "source": "pkhex:PKM/CK3.cs"},
+        {"id": "pokerus-days", "offset": "0x00D0", "length": 1, "type": "i8", "name": "Pokérus days left", "confidence": "known", "source": "pkhex:PKM/CK3.cs", "note": "-1 when it has none"},
+        {"id": "party-slot", "offset": "0x00D7", "length": 1, "type": "u8", "name": "Party slot", "confidence": "known", "source": "pkhex:PKM/CK3.cs"},
+        {"id": "shadow-id", "offset": "0x00D8", "length": 2, "type": "u16be", "name": "Shadow ID", "confidence": "known", "source": "pkhex:PKM/CK3.cs", "note": "0 for a Pokémon that was never a shadow Pokémon"},
+        {"id": "purification", "offset": "0x00DC", "length": 4, "type": "i32be", "name": "Heart gauge", "confidence": "known", "source": "pkhex:PKM/CK3.cs", "note": "-100 once purified"},
+        {"id": "fateful-encounter", "offset": "0x00FB", "length": 1, "type": "u8", "name": "Fateful encounter in a game outside Japan", "confidence": "known", "source": "pkhex:PKM/CK3.cs", "bits": [{"id": "fateful-encounter", "bit": 0, "width": 1, "name": "Fateful encounter"}]}
+      ]
+    }
+  },
+  "spaces": [
+    {
+      "name": "slot",
+      "length": "0x1E000",
+      "checksums": [
+        {"step": "sha1", "start": 0, "end": "0x1DFD8", "range": "digest", "source": "pkhex:Saves/Encryption/ColoCrypto.cs"},
+        {"step": "colosseum-header", "start": 0, "end": "0x1E000", "range": "header-checksum", "source": "pkhex:Saves/Encryption/ColoCrypto.cs"}
+      ],
+      "note": "The newest of the three save copies, decrypted.",
+      "ranges": [
+        {"id": "magic", "offset": "0x0000", "length": 4, "type": "bytes", "name": "Slot header, 01 01 00 00", "confidence": "known", "source": "pkhex:Saves/Util/SaveUtil.cs"},
+        {"id": "save-counter", "offset": "0x0004", "length": 4, "type": "i32be", "name": "Save counter", "confidence": "known", "source": "pkhex:Saves/Encryption/ColoCrypto.cs"},
+        {"id": "game", "offset": "0x0008", "length": 1, "type": "u8", "name": "Game (GameCube numbering)", "confidence": "known", "source": "pkhex:Saves/SAV3Colosseum.cs"},
+        {"id": "current-region", "offset": "0x0009", "length": 1, "type": "u8", "name": "Current region", "confidence": "known", "source": "pkhex:Saves/SAV3Colosseum.cs", "note": "1 NTSC-J, 2 NTSC-U, 3 PAL"},
+        {"id": "original-region", "offset": "0x000A", "length": 1, "type": "u8", "name": "Original region", "confidence": "known", "source": "pkhex:Saves/SAV3Colosseum.cs"},
+        {"id": "language", "offset": "0x000B", "length": 1, "type": "u8", "name": "Language (GameCube numbering)", "confidence": "known", "source": "pkhex:Saves/SAV3Colosseum.cs", "note": "1 Japanese, 2 English, 3 German, 4 French, 5 Italian, 6 Spanish"},
+        {"id": "header-checksum", "offset": "0x000C", "length": 4, "type": "u32be", "name": "Header checksum", "confidence": "known", "source": "pkhex:Saves/Encryption/ColoCrypto.cs"},
+        {"id": "play-time", "offset": "0x0028", "length": 4, "type": "f32be", "name": "Play time in seconds", "confidence": "known", "source": "pkhex:Saves/SAV3Colosseum.cs"},
+        {"id": "trainer-name", "offset": "0x0078", "length": 20, "type": "text-gen3-gc", "name": "Trainer name", "confidence": "known", "source": "pkhex:Saves/SAV3Colosseum.cs"},
+        {"id": "trainer-name-copy", "offset": "0x008C", "length": 20, "type": "text-gen3-gc", "name": "Trainer name, a copy", "confidence": "known", "source": "pkhex:Saves/SAV3Colosseum.cs"},
+        {"id": "secret-id", "offset": "0x00A4", "length": 2, "type": "u16be", "name": "Secret ID", "confidence": "known", "source": "pkhex:Saves/SAV3Colosseum.cs"},
+        {"id": "trainer-id", "offset": "0x00A6", "length": 2, "type": "u16be", "name": "Trainer ID", "confidence": "known", "source": "pkhex:Saves/SAV3Colosseum.cs"},
+        {"id": "party-pokemon", "offset": "0x00A8", "length": 312, "type": "bytes", "name": "Party Pokémon", "confidence": "known", "source": "pkhex:Saves/SAV3Colosseum.cs", "count": 6, "stride": 312},
+        {"id": "items-pocket", "offset": "0x07F8", "length": 4, "type": "u32be", "name": "Items pocket", "confidence": "known", "source": "pkhex:Items/Bags/PlayerBag3Colosseum.cs", "count": 20, "stride": 4, "bits": [{"id": "item", "bit": 16, "width": 16, "name": "Item", "domain": "item"}, {"id": "quantity", "bit": 0, "width": 16, "name": "Quantity"}]},
+        {"id": "key-items-pocket", "offset": "0x0848", "length": 4, "type": "u32be", "name": "Key items pocket", "confidence": "known", "source": "pkhex:Items/Bags/PlayerBag3Colosseum.cs", "count": 43, "stride": 4, "bits": [{"id": "item", "bit": 16, "width": 16, "name": "Item", "domain": "item"}, {"id": "quantity", "bit": 0, "width": 16, "name": "Quantity"}]},
+        {"id": "poke-balls-pocket", "offset": "0x08F4", "length": 4, "type": "u32be", "name": "Poké Balls pocket", "confidence": "known", "source": "pkhex:Items/Bags/PlayerBag3Colosseum.cs", "count": 16, "stride": 4, "bits": [{"id": "item", "bit": 16, "width": 16, "name": "Item", "domain": "item"}, {"id": "quantity", "bit": 0, "width": 16, "name": "Quantity"}]},
+        {"id": "tms-and-hms-pocket", "offset": "0x0934", "length": 4, "type": "u32be", "name": "TMs pocket", "confidence": "known", "source": "pkhex:Items/Bags/PlayerBag3Colosseum.cs", "count": 64, "stride": 4, "bits": [{"id": "item", "bit": 16, "width": 16, "name": "Item", "domain": "item"}, {"id": "quantity", "bit": 0, "width": 16, "name": "Quantity"}]},
+        {"id": "berries-pocket", "offset": "0x0A34", "length": 4, "type": "u32be", "name": "Berries pocket", "confidence": "known", "source": "pkhex:Items/Bags/PlayerBag3Colosseum.cs", "count": 46, "stride": 4, "bits": [{"id": "item", "bit": 16, "width": 16, "name": "Item", "domain": "item"}, {"id": "quantity", "bit": 0, "width": 16, "name": "Quantity"}]},
+        {"id": "colognes-pocket", "offset": "0x0AEC", "length": 4, "type": "u32be", "name": "Colognes pocket", "confidence": "known", "source": "pkhex:Items/Bags/PlayerBag3Colosseum.cs", "count": 3, "stride": 4, "bits": [{"id": "item", "bit": 16, "width": 16, "name": "Item", "domain": "item"}, {"id": "quantity", "bit": 0, "width": 16, "name": "Quantity"}]},
+        {"id": "trainer-gender", "offset": "0x0AF8", "length": 1, "type": "u8", "name": "Trainer gender", "confidence": "known", "source": "pkhex:Saves/SAV3Colosseum.cs"},
+        {"id": "money", "offset": "0x0AFC", "length": 4, "type": "u32be", "name": "Money", "confidence": "known", "source": "pkhex:Saves/SAV3Colosseum.cs"},
+        {"id": "pokecoupons", "offset": "0x0B00", "length": 4, "type": "u32be", "name": "Poké Coupons", "confidence": "known", "source": "pkhex:Saves/SAV3Colosseum.cs"},
+        {"id": "pokecoupons-total", "offset": "0x0B04", "length": 4, "type": "u32be", "name": "Poké Coupons earned in all", "confidence": "known", "source": "pkhex:Saves/SAV3Colosseum.cs"},
+        {"id": "rui-name", "offset": "0x0B3A", "length": 20, "type": "text-gen3-gc", "name": "Rui's name", "confidence": "known", "source": "pkhex:Saves/SAV3Colosseum.cs"},
+        {"id": "box-names", "offset": "0x0B90", "length": 16, "type": "text-gen3-gc", "name": "Box names", "confidence": "known", "source": "pkhex:Saves/SAV3Colosseum.cs", "count": 3, "stride": 9380},
+        {"id": "box-pokemon", "offset": "0x0BA4", "length": 9360, "type": "bytes", "name": "Box Pokémon, 30 per box", "confidence": "known", "source": "pkhex:Saves/SAV3Colosseum.cs", "count": 3, "stride": 9380},
+        {"id": "daycare-occupied", "offset": "0x8170", "length": 1, "type": "u8", "name": "Daycare occupied", "confidence": "known", "source": "pkhex:Saves/SAV3Colosseum.cs"},
+        {"id": "daycare-deposit-level", "offset": "0x8171", "length": 1, "type": "u8", "name": "Daycare deposit level", "confidence": "known", "source": "pkhex:Saves/SAV3Colosseum.cs"},
+        {"id": "daycare-experience", "offset": "0x8174", "length": 4, "type": "u32be", "name": "Daycare experience at deposit", "confidence": "known", "source": "pkhex:Saves/SAV3Colosseum.cs"},
+        {"id": "daycare-pokemon", "offset": "0x8178", "length": 312, "type": "bytes", "name": "Daycare Pokémon", "confidence": "known", "source": "pkhex:Saves/SAV3Colosseum.cs"},
+        {"id": "strategy-memo-count", "offset": "0x82B0", "length": 2, "type": "u16be", "name": "Strategy Memo entries", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/StrategyMemo.cs"},
+        {"id": "strategy-memo-entries", "offset": "0x82B4", "length": 6000, "type": "bytes", "name": "Strategy Memo, 500 entries of 12 bytes", "confidence": "known", "source": "pkhex:Saves/Substructures/Gen3/StrategyMemo.cs"},
+        {"id": "bonus-disc-titles", "offset": "0x1C118", "length": 1, "type": "u8", "name": "Japanese bonus disc Poké Coupon rewards", "confidence": "known", "source": "pkhex:Saves/SAV3Colosseum.cs", "bits": [{"id": "gold", "bit": 0, "width": 1, "name": "Master Ball"}, {"id": "silver", "bit": 1, "width": 1, "name": "Light Ball Pikachu"}, {"id": "bronze", "bit": 2, "width": 1, "name": "PP Max"}]},
+        {"id": "celebi-sent", "offset": "0x1C119", "length": 1, "type": "u8", "name": "Celebi sent to a Game Boy Advance game from the Japanese bonus disc", "confidence": "known", "source": "pkhex:Saves/SAV3Colosseum.cs"},
+        {"id": "celebi-gift", "offset": "0x1C11A", "length": 1, "type": "u8", "name": "Japanese bonus disc Celebi gift", "confidence": "known", "source": "pkhex:Saves/SAV3Colosseum.cs", "bits": [{"id": "received", "bit": 7, "width": 1, "name": "Received"}]},
+        {"id": "gift-ribbons", "offset": "0x1C464", "length": 1, "type": "u8", "name": "Gift ribbons", "confidence": "known", "source": "pkhex:Saves/SAV3Colosseum.cs", "count": 11, "stride": 1},
+        {"id": "second-digest", "offset": "0x1DFD8", "length": 20, "type": "bytes", "name": "Second SHA-1 digest, unused", "confidence": "known", "source": "pkhex:Saves/Encryption/ColoCrypto.cs"},
+        {"id": "digest", "offset": "0x1DFEC", "length": 20, "type": "bytes", "name": "SHA-1 digest of bytes 0x0000 to 0x1DFD7", "confidence": "known", "source": "pkhex:Saves/Encryption/ColoCrypto.cs"}
+      ]
+    },
+    {
+      "name": "party:{1..6}",
+      "length": "0x138",
+      "kind": "ck3",
+      "source": {"regions": [{"space": "slot", "start": "0x00A8", "end": "0x07F8"}], "offset": 0, "stride": "0x138"}
+    },
+    {
+      "name": "box:{1..3}:{1..30}",
+      "length": "0x138",
+      "kind": "ck3",
+      "source": {
+        "regions": [
+          {"space": "slot", "start": "0x0BA4", "end": "0x3034"},
+          {"space": "slot", "start": "0x3048", "end": "0x54D8"},
+          {"space": "slot", "start": "0x54EC", "end": "0x797C"}
+        ],
+        "offset": 0,
+        "stride": "0x138"
+      }
+    }
+  ],
+  "model": {
+    "root": {
+      "fields": {
+        "trainer": {
+          "object": {
+            "fields": {
+              "name": {"space": "slot", "range": "trainer-name"},
+              "gender": {"space": "slot", "range": "trainer-gender"},
+              "tid": {"space": "slot", "range": "trainer-id"},
+              "sid": {"space": "slot", "range": "secret-id"},
+              "money": {"space": "slot", "range": "money"},
+              "pokecoupons": {"space": "slot", "range": "pokecoupons", "extra": true}
+            }
+          }
+        },
+        "play-time": {"object": {"fields": {"total-seconds": {"space": "slot", "range": "play-time", "extra": true}}}},
+        "party": {"list": "party-pokemon", "spaces": "party:{1..6}", "note": "The game keeps no party count. A slot holds a Pokémon when its species isn't 0."},
+        "boxes": {
+          "list": {"fields": {"name": {"space": "slot", "range": "box-names", "element": "each"}, "slots": {"list": "pokemon", "spaces": ":{1..30}"}}},
+          "spaces": "box:{1..3}"
+        },
+        "bag": {
+          "object": {
+            "fields": {
+              "items": {"list": "item", "space": "slot", "range": "items-pocket"},
+              "key-items": {"list": "item", "space": "slot", "range": "key-items-pocket"},
+              "balls": {"list": "item", "space": "slot", "range": "poke-balls-pocket"},
+              "tms-hms": {"list": "item", "space": "slot", "range": "tms-and-hms-pocket"},
+              "berries": {"list": "item", "space": "slot", "range": "berries-pocket"},
+              "medicine": {"list": "item", "space": "slot", "range": "colognes-pocket"}
+            }
+          }
+        }
+      }
+    },
+    "objects": {
+      "item": {"fields": {"item": {"bit": "item"}, "count": {"bit": "quantity"}}},
+      "pokemon": {
+        "fields": {
+          "pid": {"range": "pid"},
+          "species": {"range": "species"},
+          "nickname": {"range": "nickname"},
+          "level": {"range": "level"},
+          "experience": {"range": "experience"},
+          "held-item": {"range": "held-item"},
+          "friendship": {"range": "friendship"},
+          "ball": {"range": "ball"},
+          "language": {
+            "range": "language",
+            "note": "The GameCube games number languages their own way: 1 Japanese, 2 English, 3 German, 4 French, 5 Italian, 6 Spanish."
+          },
+          "evs": {
+            "object": {
+              "fields": {
+                "health": {"range": "evs", "element": 0},
+                "attack": {"range": "evs", "element": 1},
+                "defense": {"range": "evs", "element": 2},
+                "special-attack": {"range": "evs", "element": 3},
+                "special-defense": {"range": "evs", "element": 4},
+                "speed": {"range": "evs", "element": 5}
+              }
+            }
+          },
+          "ivs": {
+            "object": {
+              "fields": {
+                "health": {"range": "ivs", "element": 0},
+                "attack": {"range": "ivs", "element": 1},
+                "defense": {"range": "ivs", "element": 2},
+                "special-attack": {"range": "ivs", "element": 3},
+                "special-defense": {"range": "ivs", "element": 4},
+                "speed": {"range": "ivs", "element": 5}
+              }
+            }
+          },
+          "moves": {"list": {"fields": {"move": {"range": "moves", "element": "each"}, "pp": {"range": "pp", "element": "each"}}}, "range": "moves"},
+          "owner": {
+            "object": {
+              "fields": {
+                "tid": {"range": "original-trainer-id", "bit": "tid"},
+                "sid": {"range": "original-trainer-id", "bit": "sid"},
+                "name": {"range": "original-trainer-name"},
+                "gender": {"range": "original-trainer-gender"}
+              }
+            }
+          },
+          "met-conditions": {
+            "object": {
+              "fields": {
+                "location": {"range": "met-location"},
+                "level": {"range": "met-level"},
+                "version": {
+                  "range": "origin-game",
+                  "note": "The GameCube games number versions their own way: 1 FireRed, 2 LeafGreen, 8 Sapphire, 9 Ruby, 10 Emerald, 11 Colosseum or XD."
+                },
+                "fateful-encounter": {"range": "fateful-encounter", "bit": "fateful-encounter"}
+              }
+            }
+          },
+          "egg": {"object": {"fields": {"is-egg": {"range": "is-egg"}}}},
+          "pokerus": {"object": {"fields": {"strain": {"range": "pokerus-strain", "bit": "strain"}, "days": {"range": "pokerus-days"}}}},
+          "shadow-id": {"range": "shadow-id", "extra": true},
+          "purification": {"range": "purification", "extra": true}
+        }
+      },
+      "party-pokemon": {
+        "extends": "pokemon",
+        "fields": {
+          "stats": {
+            "object": {
+              "fields": {
+                "health": {"range": "stats", "element": 0},
+                "attack": {"range": "stats", "element": 1},
+                "defense": {"range": "stats", "element": 2},
+                "special-attack": {"range": "stats", "element": 3},
+                "special-defense": {"range": "stats", "element": 4},
+                "speed": {"range": "stats", "element": 5}
+              }
+            }
+          },
+          "current-hp": {"range": "current-hp", "extra": true}
+        },
+        "note": "A boxed Pokémon keeps its stats too, but the engine works them out from its level, as it does for any boxed Pokémon, so only the party's are in the model."
+      }
+    }
+  }
+}

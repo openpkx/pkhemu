@@ -338,12 +338,12 @@
     {
       "name": "expr",
       "licence": "MIT",
-      "source": "https://github.com/pkhex-web/dolphin/tree/7a8a772dce5931c1cae5a1d6955bb33d6b42ac86/Externals/expr"
+      "source": "https://github.com/pkhex-web/dolphin/tree/ee171255e4cafdad7bd19a3c9dcb6401bd800c45/Externals/expr"
     },
     {
       "name": "FatFs",
       "licence": "BSD-1-Clause",
-      "source": "https://github.com/pkhex-web/dolphin/tree/7a8a772dce5931c1cae5a1d6955bb33d6b42ac86/Externals/FatFs"
+      "source": "https://github.com/pkhex-web/dolphin/tree/ee171255e4cafdad7bd19a3c9dcb6401bd800c45/Externals/FatFs"
     },
     {
       "name": "fmt (Dolphin)",
@@ -353,7 +353,7 @@
     {
       "name": "FreeSurround",
       "licence": "GPL-2.0-or-later",
-      "source": "https://github.com/pkhex-web/dolphin/tree/7a8a772dce5931c1cae5a1d6955bb33d6b42ac86/Externals/FreeSurround"
+      "source": "https://github.com/pkhex-web/dolphin/tree/ee171255e4cafdad7bd19a3c9dcb6401bd800c45/Externals/FreeSurround"
     },
     {
       "name": "glslang (Dolphin)",
@@ -383,17 +383,17 @@
     {
       "name": "GNU libiconv",
       "licence": "LGPL-2.1-or-later",
-      "source": "https://github.com/pkhex-web/dolphin/tree/7a8a772dce5931c1cae5a1d6955bb33d6b42ac86/Externals/libiconv"
+      "source": "https://github.com/pkhex-web/dolphin/tree/ee171255e4cafdad7bd19a3c9dcb6401bd800c45/Externals/libiconv"
     },
     {
       "name": "liblzma",
       "licence": "LicenseRef-Public-Domain",
-      "source": "https://github.com/pkhex-web/dolphin/tree/7a8a772dce5931c1cae5a1d6955bb33d6b42ac86/Externals/liblzma"
+      "source": "https://github.com/pkhex-web/dolphin/tree/ee171255e4cafdad7bd19a3c9dcb6401bd800c45/Externals/liblzma"
     },
     {
       "name": "libretro-common (Dolphin)",
       "licence": "MIT",
-      "source": "https://github.com/pkhex-web/dolphin/tree/7a8a772dce5931c1cae5a1d6955bb33d6b42ac86/Externals/libretro-common"
+      "source": "https://github.com/pkhex-web/dolphin/tree/ee171255e4cafdad7bd19a3c9dcb6401bd800c45/Externals/libretro-common"
     },
     {
       "name": "libspng",
@@ -413,12 +413,12 @@
     {
       "name": "LZO",
       "licence": "GPL-2.0-or-later",
-      "source": "https://github.com/pkhex-web/dolphin/tree/7a8a772dce5931c1cae5a1d6955bb33d6b42ac86/Externals/LZO"
+      "source": "https://github.com/pkhex-web/dolphin/tree/ee171255e4cafdad7bd19a3c9dcb6401bd800c45/Externals/LZO"
     },
     {
       "name": "Mbed TLS",
       "licence": "Apache-2.0",
-      "source": "https://github.com/pkhex-web/dolphin/tree/7a8a772dce5931c1cae5a1d6955bb33d6b42ac86/Externals/mbedtls"
+      "source": "https://github.com/pkhex-web/dolphin/tree/ee171255e4cafdad7bd19a3c9dcb6401bd800c45/Externals/mbedtls"
     },
     {
       "name": "mGBA (Dolphin)",
@@ -433,7 +433,7 @@
     {
       "name": "PicoJSON",
       "licence": "BSD-2-Clause",
-      "source": "https://github.com/pkhex-web/dolphin/tree/7a8a772dce5931c1cae5a1d6955bb33d6b42ac86/Externals/picojson"
+      "source": "https://github.com/pkhex-web/dolphin/tree/ee171255e4cafdad7bd19a3c9dcb6401bd800c45/Externals/picojson"
     },
     {
       "name": "pugixml",

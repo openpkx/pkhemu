@@ -1,0 +1,171 @@
+{
+  "step": "gen3-signature",
+  "test": [
+    {
+      "name": "frlg.sav with 0x08012025",
+      "args": {
+        "signatures": [
+          "0x08012025"
+        ]
+      },
+      "input": {
+        "file": "frlg.sav"
+      },
+      "passes": true
+    },
+    {
+      "name": "frlg.sav with 0x01122000, 0x01121999, 0x01121998",
+      "args": {
+        "signatures": [
+          "0x01122000",
+          "0x01121999",
+          "0x01121998"
+        ]
+      },
+      "input": {
+        "file": "frlg.sav"
+      },
+      "passes": false
+    },
+    {
+      "name": "emerald.sav with 0x08012025",
+      "args": {
+        "signatures": [
+          "0x08012025"
+        ]
+      },
+      "input": {
+        "file": "emerald.sav"
+      },
+      "passes": true
+    },
+    {
+      "name": "emerald.sav with 0x01122000, 0x01121999, 0x01121998",
+      "args": {
+        "signatures": [
+          "0x01122000",
+          "0x01121999",
+          "0x01121998"
+        ]
+      },
+      "input": {
+        "file": "emerald.sav"
+      },
+      "passes": false
+    },
+    {
+      "name": "rs.sav with 0x08012025",
+      "args": {
+        "signatures": [
+          "0x08012025"
+        ]
+      },
+      "input": {
+        "file": "rs.sav"
+      },
+      "passes": true
+    },
+    {
+      "name": "rs.sav with 0x01122000, 0x01121999, 0x01121998",
+      "args": {
+        "signatures": [
+          "0x01122000",
+          "0x01121999",
+          "0x01121998"
+        ]
+      },
+      "input": {
+        "file": "rs.sav"
+      },
+      "passes": false
+    },
+    {
+      "name": "wrap.sav with 0x08012025",
+      "args": {
+        "signatures": [
+          "0x08012025"
+        ]
+      },
+      "input": {
+        "file": "wrap.sav"
+      },
+      "passes": true
+    },
+    {
+      "name": "wrap.sav with 0x01122000, 0x01121999, 0x01121998",
+      "args": {
+        "signatures": [
+          "0x01122000",
+          "0x01121999",
+          "0x01121998"
+        ]
+      },
+      "input": {
+        "file": "wrap.sav"
+      },
+      "passes": false
+    },
+    {
+      "name": "unbound.sav with 0x08012025",
+      "args": {
+        "signatures": [
+          "0x08012025"
+        ]
+      },
+      "input": {
+        "file": "unbound.sav"
+      },
+      "passes": false
+    },
+    {
+      "name": "unbound.sav with 0x01122000, 0x01121999, 0x01121998",
+      "args": {
+        "signatures": [
+          "0x01122000",
+          "0x01121999",
+          "0x01121998"
+        ]
+      },
+      "input": {
+        "file": "unbound.sav"
+      },
+      "passes": true
+    },
+    {
+      "name": "radicalred.sav with 0x08012025",
+      "args": {
+        "signatures": [
+          "0x08012025"
+        ]
+      },
+      "input": {
+        "file": "radicalred.sav"
+      },
+      "passes": true
+    },
+    {
+      "name": "radicalred.sav with 0x01122000, 0x01121999, 0x01121998",
+      "args": {
+        "signatures": [
+          "0x01122000",
+          "0x01121999",
+          "0x01121998"
+        ]
+      },
+      "input": {
+        "file": "radicalred.sav"
+      },
+      "passes": false
+    },
+    {
+      "name": "a file of zeros",
+      "args": {
+        "signatures": [
+          "0x08012025"
+        ]
+      },
+      "input": "00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00",
+      "passes": false
+    }
+  ]
+}

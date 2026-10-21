@@ -363,6 +363,24 @@
 		</dict>
 		<dict>
 			<key>UTTypeIdentifier</key>
+			<string>public.iso-image</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+				<string>public.disk-image</string>
+			</array>
+			<key>UTTypeDescription</key>
+			<string>Disc image</string>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>iso</string>
+				</array>
+			</dict>
+		</dict>
+		<dict>
+			<key>UTTypeIdentifier</key>
 			<string>org.7-zip.7-zip-archive</string>
 			<key>UTTypeConformsTo</key>
 			<array>
@@ -386,6 +404,26 @@
 	</array>
 	<key>UTExportedTypeDeclarations</key>
 	<array>
+		<dict>
+			<key>UTTypeIdentifier</key>
+			<string>fyi.openpkx.pkhemu.gamecube-disc</string>
+			<key>UTTypeDescription</key>
+			<string>GameCube disc</string>
+			<key>UTTypeConformsTo</key>
+			<array>
+				<string>public.data</string>
+			</array>
+			<key>UTTypeTagSpecification</key>
+			<dict>
+				<key>public.filename-extension</key>
+				<array>
+					<string>gcm</string>
+					<string>rvz</string>
+					<string>ciso</string>
+					<string>gcz</string>
+				</array>
+			</dict>
+		</dict>
 		<dict>
 			<key>UTTypeIdentifier</key>
 			<string>fyi.openpkx.pkhemu.clock</string>
@@ -523,6 +561,41 @@
 			<string>Viewer</string>
 			<key>LSHandlerRank</key>
 			<string>Default</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>gcm</string>
+				<string>rvz</string>
+				<string>ciso</string>
+				<string>gcz</string>
+			</array>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>fyi.openpkx.pkhemu.gamecube-disc</string>
+			</array>
+			<key>CFBundleTypeName</key>
+			<string>GameCube disc</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Default</string>
+		</dict>
+		<dict>
+			<key>CFBundleTypeExtensions</key>
+			<array>
+				<string>iso</string>
+			</array>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.iso-image</string>
+			</array>
+			<key>CFBundleTypeName</key>
+			<string>Disc image</string>
+			<key>CFBundleTypeRole</key>
+			<string>Viewer</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
 		</dict>
 		<dict>
 			<key>CFBundleTypeExtensions</key>

@@ -229,5 +229,5 @@ What a player works out with research. A range finding names bytes that no known
 _Avoid_: Discovery, mapping
 
 **Layout**:
-What the bytes of a save format, or later a build's game memory, mean: its spaces, known ranges and findings, written in an open format kept in `openpkx/layouts`. pkh-emu reads saves through the engine; plug-ins such as Research read them through layouts.
+What the bytes of a save format, or later a build's game memory, mean: its spaces, known ranges and findings, written in an open format kept in `openpkx/layouts`, detailed enough to generate parsers that read and write saves. pkh-emu reads saves through the engine; plug-ins such as Research read them through layouts.
 _Avoid_: Map, schema, template
