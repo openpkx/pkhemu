@@ -263,6 +263,25 @@ it.each([
   expect([canvas.width, canvas.height]).toEqual([640, 528]);
 });
 
+it("reports the height left under the drawn game", async () => {
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      constructor(private report: ResizeObserverCallback) {}
+      observe() {
+        this.report([{ contentRect: { width: 660, height: 600 } } as ResizeObserverEntry], this as unknown as ResizeObserver);
+      }
+      disconnect() {}
+    },
+  );
+  const onSpare = vi.fn();
+  render(player({ display: handheld.gc, wall: undefined, onSpare }));
+
+  await sendFrame(640, 528);
+
+  expect(onSpare).toHaveBeenLastCalledWith(72);
+});
+
 it("starts the game without async shaders where the core can't draw while shaders compile", async () => {
   stored = { asyncShaders: true };
   render(<ShadersProvider host={{ offered: async () => false, onLine: "" }}>{player()}</ShadersProvider>);

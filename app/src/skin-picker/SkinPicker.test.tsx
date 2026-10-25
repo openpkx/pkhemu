@@ -113,6 +113,25 @@ async function slowDrag(from: number, to: number) {
   await wait(1000);
 }
 
+it("lifts the preview's controls by half the plastic left under its screen, as in the game", async () => {
+  vi.stubGlobal("innerWidth", 390);
+  vi.stubGlobal("innerHeight", 844);
+  vi.stubGlobal(
+    "ResizeObserver",
+    class {
+      constructor(private report: ResizeObserverCallback) {}
+      observe() {
+        this.report([{ contentRect: { width: 342, height: 400 } } as ResizeObserverEntry], this as unknown as ResizeObserver);
+      }
+      disconnect() {}
+    },
+  );
+  const { container } = await open(storage().host);
+
+  const controls = container.querySelector('[data-part="dpad"]')!.closest<HTMLElement>("[style]")!;
+  expect(controls.style.translate).toBe("0 -52px");
+});
+
 it("saves the previewed skin and look with Use this skin, then closes", async () => {
   const { host, chooseSkin } = storage();
   const { onClose } = await open(host);

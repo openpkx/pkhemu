@@ -15,12 +15,15 @@ export function PreviewScreen({
   frame,
   wall,
   className,
+  onSpare,
   children,
 }: {
   system: System;
   frame: Frame;
   wall: Rgb;
   className?: string;
+  /** The height of the area's content box left under the drawn screen, in CSS pixels. */
+  onSpare?(height: number): void;
   children?: ReactNode;
 }) {
   const area = useRef<HTMLDivElement>(null);
@@ -35,6 +38,8 @@ export function PreviewScreen({
   const readGravity = useGravity(tilting);
   const currentWall = useRef(wall);
   currentWall.current = wall;
+  const currentOnSpare = useRef(onSpare);
+  currentOnSpare.current = onSpare;
 
   useEffect(() => {
     let draw: ReturnType<typeof createScreen> | undefined;
@@ -55,6 +60,7 @@ export function PreviewScreen({
       canvas.current!.height = layout.canvas.height;
       canvas.current!.style.width = `${layout.canvas.width / devicePixelRatio}px`;
       canvas.current!.style.height = `${layout.canvas.height / devicePixelRatio}px`;
+      currentOnSpare.current?.((space.height - layout.canvas.height) / devicePixelRatio);
       dirty = true;
     });
     observer.observe(area.current!);

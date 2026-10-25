@@ -56,6 +56,7 @@ const game = vi.hoisted(() => ({
   swapped: undefined as boolean | undefined,
   clearance: undefined as string | undefined,
   onStacked: undefined as ((stacked: boolean) => void) | undefined,
+  onSpare: undefined as ((height: number) => void) | undefined,
   missingEntitlements: [] as string[],
   sinceSave: null as number | null,
   save: new Uint8Array(),
@@ -138,6 +139,7 @@ vi.mock("./Player", () => ({
     swapped,
     clearance,
     onStacked,
+    onSpare,
     children,
   }: {
     input: Input;
@@ -155,6 +157,7 @@ vi.mock("./Player", () => ({
     swapped?: boolean;
     clearance?: string;
     onStacked?(stacked: boolean): void;
+    onSpare?(height: number): void;
     children?: ReactNode;
   }) {
     game.screens = screens;
@@ -162,6 +165,7 @@ vi.mock("./Player", () => ({
     game.swapped = swapped;
     game.clearance = clearance;
     game.onStacked = onStacked;
+    game.onSpare = onSpare;
     game.onFps = onFps;
     game.onError = onError;
     game.renderer = renderer;
@@ -404,6 +408,25 @@ it("leaves the wordmark off DS", async () => {
 
   expect(skinned()).not.toBeNull();
   expect(wordmark()).toBe("");
+});
+
+const controlsLifted = () => screen.getByLabelText("D-pad").closest<HTMLElement>("[style]")!.style.translate;
+
+it.each(["gb", "n64"] as const)("lifts the %s touch controls by half the plastic left under the game in portrait", async (system) => {
+  windowSize(390, 844);
+  await play(undefined, undefined, undefined, { touchControls: true, played: { name: "Game", path: `${system}/Game`, system } });
+
+  act(() => game.onSpare?.(100));
+
+  expect(controlsLifted()).toBe("0 -50px");
+});
+
+it("leaves the touch controls at the bottom edge in landscape", async () => {
+  await play(undefined, undefined, undefined, { touchControls: true });
+
+  act(() => game.onSpare?.(100));
+
+  expect(controlsLifted()).toBe("");
 });
 
 it("keeps the game area black in landscape", async () => {

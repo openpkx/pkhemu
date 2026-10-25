@@ -349,22 +349,24 @@ function ModeButtons({ hold, fastForward }: { hold: Hold; fastForward: FastForwa
   );
 }
 
-type ControlsProps = { input: Input; system: System; fastForward: FastForward; scale: number };
+type ControlsProps = { input: Input; system: System; fastForward: FastForward; scale: number; lift: number };
 
-const padScaleStyle = (scale: number) => ({ "--pad-scale": scale }) as CSSProperties;
+const bodyStyle = (scale: number, lift: number) =>
+  ({ "--pad-scale": scale, ...(lift > 0 && { translate: `0 -${lift}px` }) }) as CSSProperties;
 
 const analogShoulder = cn(shoulder, "landscape:h-9");
 
 function AnalogControls({
   input,
   scale,
+  lift,
   press,
   hold,
   l,
   children,
 }: Omit<ControlsProps, "system" | "fastForward"> & { press: Press; hold: Hold; l: number; children: ReactNode }) {
   return (
-    <div className={cn(controlsBody, scaled, "relative")} style={padScaleStyle(scale)} onContextMenu={(event) => event.preventDefault()}>
+    <div className={cn(controlsBody, scaled, "relative")} style={bodyStyle(scale, lift)} onContextMenu={(event) => event.preventDefault()}>
       <Side className="landscape:gap-2">
         <GameButton label="L" button={l} press={press} hold={hold} part="shoulder" className={analogShoulder} />
         <Stick input={input} />
@@ -379,7 +381,7 @@ function AnalogControls({
   );
 }
 
-function N64Controls({ input, fastForward, scale }: ControlsProps) {
+function N64Controls({ input, fastForward, scale, lift }: ControlsProps) {
   const press = usePress(input);
   const hold = useHold(input);
   const face = "absolute rounded-full text-xl";
@@ -392,7 +394,7 @@ function N64Controls({ input, fastForward, scale }: ControlsProps) {
   ] as const;
 
   return (
-    <AnalogControls input={input} scale={scale} press={press} hold={hold} l={buttons.l}>
+    <AnalogControls input={input} scale={scale} lift={lift} press={press} hold={hold} l={buttons.l}>
       <GameButton label="R" button={buttons.r} press={press} hold={hold} part="shoulder" className={analogShoulder} />
       <div className="relative h-28 w-36 landscape:h-24">
         <GameButton label="Z" button={n64Buttons.z} press={press} hold={hold} part="face" tint="z" className={cn(face, "top-0 right-1.5 size-11 text-base landscape:size-10")} />
@@ -413,13 +415,13 @@ function N64Controls({ input, fastForward, scale }: ControlsProps) {
   );
 }
 
-function GcControls({ input, fastForward, scale }: ControlsProps) {
+function GcControls({ input, fastForward, scale, lift }: ControlsProps) {
   const press = usePress(input);
   const hold = useHold(input);
   const face = "absolute rounded-full";
 
   return (
-    <AnalogControls input={input} scale={scale} press={press} hold={hold} l={gcButtons.l}>
+    <AnalogControls input={input} scale={scale} lift={lift} press={press} hold={hold} l={gcButtons.l}>
       {/* Above R as on the pad, but beside it in landscape, where the column would outgrow a short screen. */}
       <div className="relative flex items-center gap-2">
         <GameButton label="Z" button={gcButtons.z} press={press} hold={hold} part="face" tint="z" className="absolute right-2.5 bottom-full mb-2 h-8 w-16 rounded-full text-sm landscape:static landscape:mb-0 landscape:w-12" />
@@ -440,7 +442,7 @@ function GcControls({ input, fastForward, scale }: ControlsProps) {
   );
 }
 
-function Controls({ input, system, fastForward, scale }: ControlsProps) {
+function Controls({ input, system, fastForward, scale, lift }: ControlsProps) {
   const press = usePress(input);
   const hold = useHold(input);
   const faceShape = "size-16 rounded-full text-xl";
@@ -452,7 +454,7 @@ function Controls({ input, system, fastForward, scale }: ControlsProps) {
   const side = cn(circlePad && "justify-between self-stretch landscape:gap-2");
 
   return (
-    <div className={cn(controlsBody, scaled)} style={padScaleStyle(scale)} onContextMenu={(event) => event.preventDefault()}>
+    <div className={cn(controlsBody, scaled)} style={bodyStyle(scale, lift)} onContextMenu={(event) => event.preventDefault()}>
       <Side className={side}>
         {shoulders && <GameButton label="L" button={buttons.l} press={press} hold={hold} part="shoulder" className={shoulderShape} />}
         {circlePad && <Stick input={input} />}
@@ -492,19 +494,30 @@ function SystemControls(props: ControlsProps) {
   return <Controls {...props} />;
 }
 
-export function TouchControls({ input, system, fastForward }: { input: Input; system: System; fastForward: FastForward }) {
+export function TouchControls({
+  input,
+  system,
+  fastForward,
+  lift = 0,
+}: {
+  input: Input;
+  system: System;
+  fastForward: FastForward;
+  /** How far to raise the controls from the bottom edge, in CSS pixels, without changing the layout. */
+  lift?: number;
+}) {
   const scale = usePadScale();
   if (!useTouchControlsShown(input)) return null;
-  const props = { input, system, fastForward, scale };
+  const props = { input, system, fastForward, scale, lift };
   return <SystemControls {...props} />;
 }
 
 const stillFastForward: FastForward = { on: false, speed: 1, toggle() {} };
 const noGamepads = () => [];
 
-export function StillTouchControls({ system, scale = 1 }: { system: System; scale?: number }) {
+export function StillTouchControls({ system, scale = 1, lift = 0 }: { system: System; scale?: number; lift?: number }) {
   const [input] = useState(() => createInput(noGamepads, undefined, system));
-  const props = { input, system, fastForward: stillFastForward, scale };
+  const props = { input, system, fastForward: stillFastForward, scale, lift };
   return (
     <div inert className="contents">
       <SystemControls {...props} />

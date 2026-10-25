@@ -90,6 +90,7 @@ export function Player({
   renderer,
   onStacked,
   onScreenWidth,
+  onSpare,
   onWindows,
   onStarted,
   onFps,
@@ -123,6 +124,8 @@ export function Player({
   onStacked?(stacked: boolean): void;
   /** The widest screen's width, in CSS pixels. */
   onScreenWidth?(width: number): void;
+  /** The height of the game area's content box left under the drawn game, in CSS pixels. */
+  onSpare?(height: number): void;
   /** Where the page has to leave the native surface showing, in CSS pixels on the page. */
   onWindows?(windows: Rect[] | undefined): void;
   onStarted?(): Promise<void>;
@@ -173,6 +176,8 @@ export function Player({
   currentOnStacked.current = onStacked;
   const currentOnScreenWidth = useRef(onScreenWidth);
   currentOnScreenWidth.current = onScreenWidth;
+  const currentOnSpare = useRef(onSpare);
+  currentOnSpare.current = onSpare;
   const currentOnWindows = useRef(onWindows);
   currentOnWindows.current = onWindows;
   const currentOnStarted = useRef(onStarted);
@@ -285,6 +290,7 @@ export function Player({
         const size = layout.current.canvas;
         currentOnStacked.current?.(size.height > size.width);
         currentOnScreenWidth.current?.(Math.max(...layout.current.views.map(({ target }) => target.width)) / devicePixelRatio);
+        currentOnSpare.current?.((space.height - size.height) / devicePixelRatio);
         canvas.current!.width = size.width;
         canvas.current!.height = size.height;
         canvas.current!.style.width = `${size.width / devicePixelRatio}px`;

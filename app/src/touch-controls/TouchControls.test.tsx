@@ -30,6 +30,7 @@ async function launch({
   touchControls = true,
   fastForwardOn = false,
   stickSensitivity = 1 as StickSensitivity,
+  lift = undefined as number | undefined,
 } = {}) {
   if (system === "n64" || system === "3ds" || system === "gc") {
     detach();
@@ -41,7 +42,7 @@ async function launch({
   render(
     <PreferencesProvider host={host} defaults={{ touchControls: false, fastForwardSpeed: 2, showFps: false, theme: "system", eventsNoticeDismissed: false, updateDismissedVersion: 0, gameClockOffset: { days: 0, hours: 0 }, restoreBackupsKept: 10, stickSensitivity: 1, playInSilentMode: false, renderer: "automatic", skins: defaultSkins, skinHintSeen: false, screenDepth: true, screenGlass: true, asyncShaders: false, gameCubeResolution: 1 }}>
       <HapticsProvider host={{ tap: () => void taps++ }}>
-        <TouchControls input={input} system={system} fastForward={fastForward} />
+        <TouchControls input={input} system={system} fastForward={fastForward} lift={lift} />
       </HapticsProvider>
     </PreferencesProvider>,
   );
@@ -75,6 +76,20 @@ function dpad() {
   element.getBoundingClientRect = () => ({ left: 0, top: 0, width: 100, height: 100 }) as DOMRect;
   return element;
 }
+
+const controlsBody = () => screen.getByLabelText("D-pad").closest<HTMLElement>("[style]")!;
+
+it.each(["gb", "n64"] as const)("lifts the %s controls by the lift it's given", async (system) => {
+  await launch({ system, lift: 40 });
+
+  expect(controlsBody().style.translate).toBe("0 -40px");
+});
+
+it("keeps the controls at the bottom edge without a lift", async () => {
+  await launch();
+
+  expect(controlsBody().style.translate).toBe("");
+});
 
 it("holds a button while it's touched", async () => {
   await launch();

@@ -18,6 +18,7 @@ import { blendLooks, lookVariables, mixColour, type LookVariables } from "@/skin
 import { PlasticPhoto } from "@/skin-plastic/SkinPlastic";
 import { chosenSkin, lookNames, offeredSkins, skinLocked, skinLooks, wallColour, type Skin, type SkinLook } from "@/skins";
 import { handheld, systemNames, type System } from "@/systems";
+import { controlsLift } from "@/touch-controls/controlsLift";
 import { padScale } from "@/touch-controls/padScale";
 import { StillTouchControls } from "@/touch-controls/TouchControls";
 import { dragged, lands, step, tapped, type Direction } from "./carousel";
@@ -319,6 +320,8 @@ function Picker({
   const display = handheld[system]!;
   const dual = !!dualScreens[system];
   const shownFrame = useMemo(() => frame ?? darkFrame(system), [frame, system]);
+  const [spare, setSpare] = useState(0);
+  const pad = padScale(stage.width, stage.height);
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-background px-safe pb-safe">
@@ -390,7 +393,13 @@ function Picker({
                 </Button>
               </ScreenHeader>
               <div className="flex min-h-0 flex-1 flex-col">
-                <PreviewScreen system={system} frame={shownFrame} wall={wall} className={cn("px-6 pt-6", dual ? "pb-6" : "pb-14")}>
+                <PreviewScreen
+                  system={system}
+                  frame={shownFrame}
+                  wall={wall}
+                  className={cn("px-6 pt-6", dual ? "pb-6" : "pb-14")}
+                  onSpare={setSpare}
+                >
                   {!dual && (
                     <span
                       aria-hidden
@@ -400,7 +409,7 @@ function Picker({
                     </span>
                   )}
                 </PreviewScreen>
-                <StillTouchControls system={system} scale={padScale(stage.width, stage.height)} />
+                <StillTouchControls system={system} scale={pad} lift={controlsLift(spare, pad)} />
               </div>
             </div>
             {revealed?.light && (

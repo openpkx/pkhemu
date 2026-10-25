@@ -67,6 +67,8 @@ import { useSync, type Conflict } from "@/sync/sync";
 import { tauriTransferPakHost } from "@/transfer-pak/tauriHost";
 import { TransferPakScreen } from "@/transfer-pak/TransferPak";
 import { cartName, useTransferPak } from "@/transfer-pak/setting";
+import { controlsLift } from "@/touch-controls/controlsLift";
+import { usePadScale } from "@/touch-controls/padScale";
 import { clearOfTouchControls, TouchControls, useTouchControlsShown } from "@/touch-controls/TouchControls";
 import { Player } from "./Player";
 import { usePortraitLayout } from "./portraitLayout";
@@ -177,6 +179,8 @@ export function GameScreen({
   const [run, setRun] = useState({ key: 0, resume });
   const [pausedShot, setPausedShot] = useState<Frame>();
   const [screenWidth, setScreenWidth] = useState<number>();
+  const [spare, setSpare] = useState(0);
+  const padScale = usePadScale();
   const achievements = usePlayingAchievements(running, overlay);
   const [tapped, setTapped] = useState<Unlock>();
   const tappedAchievement = tapped && achievements?.find((achievement) => achievement.id === tapped.id);
@@ -337,6 +341,7 @@ export function GameScreen({
                 onNativeFailed={() => renderer.reportNativeFailure() && setRendererNotice(NATIVE_FAILED)}
                 onStacked={setStacked}
                 onScreenWidth={setScreenWidth}
+                onSpare={setSpare}
                 onWindows={setWindows}
                 onStarted={onGameStarted}
                 onFps={showFps ? setRates : undefined}
@@ -364,7 +369,12 @@ export function GameScreen({
                   </span>
                 )}
               </Player>
-              <TouchControls input={input} system={game.system} fastForward={fastForward} />
+              <TouchControls
+                input={input}
+                system={game.system}
+                fastForward={fastForward}
+                lift={skinned ? controlsLift(spare, padScale) : 0}
+              />
               {rates && (
                 <p className="pointer-events-none absolute top-3 left-3 rounded-full bg-overlay/70 px-2 py-0.5 text-xs text-white tabular-nums">
                   {rates.fps} FPS{lab === "all" && ` · ${rates.drawn} drawn`} · {rates.skipped} skipped · {rates.repeated} repeated
